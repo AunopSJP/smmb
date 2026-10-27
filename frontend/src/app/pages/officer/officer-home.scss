@@ -1,0 +1,145 @@
+.handling-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -8px -16px 4px;
+  padding: 10px 16px;
+  background: var(--sos);
+  color: #fff;
+  text-decoration: none;
+}
+.dot.white {
+  background: #fff;
+}
+.open {
+  font-weight: 700;
+  font-size: 0.8125rem;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 20%);
+}
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+.block {
+  display: block;
+}
+.demo-tools button[aria-pressed='true'] {
+  background: var(--brand);
+  color: #fff;
+}
+.sos-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--sos);
+  color: #fff;
+  h2 {
+    font-size: 1.625rem;
+  }
+}
+.sos-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+.dim {
+  opacity: 0.9;
+}
+.window {
+  align-self: flex-start;
+}
+.count {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  strong {
+    font-size: 2.5rem;
+    line-height: 1;
+  }
+}
+.bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: hidden;
+  span {
+    display: block;
+    height: 100%;
+    background: var(--brand);
+  }
+}
+.next {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.done {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ok);
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+.zz {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--icon-bg);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.next-round {
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+}
+.round {
+  font-size: 1.375rem;
+  font-weight: 700;
+}
+.sos-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--danger-bg);
+  color: var(--sos);
+  font-size: 0.875rem;
+}
+.done-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 16px;
+  border-radius: var(--radius);
+  background: #157347;
+  color: #fff;
+  h2 {
+    font-size: 1.375rem;
+  }
+}
+.full-bar {
+  align-self: stretch;
+  height: 8px;
+  border-radius: 4px;
+  background: #fff;
+}

@@ -1,0 +1,101 @@
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
+import { IsBoolean, IsIn, IsOptional, Matches } from 'class-validator';
+import { AccessService } from '../auth/access.service.js';
+import { Auth, RequireRole } from '../auth/auth.decorators.js';
+import type { AuthContext } from '../auth/session.service.js';
+import { RateLimit } from '../rate-limit/rate-limit.guard.js';
+import { AgencyService, type AgencyDto, type MemberDto, type MemberStatus } from './agency.service.js';
+
+class ListMembersQuery {
+  @IsOptional() @IsIn(['pending', 'active', 'disabled']) status?: MemberStatus;
+}
+
+class SetActiveDto {
+  @IsBoolean() is_active!: boolean;
+}
+
+/** :user_id ต้องเป็นรูป U-… — อย่างอื่นตอบ 400 ก่อนถึงฐานข้อมูล */
+class UserIdParam {
+  @Matches(/^U-\d{1,12}$/) user_id!: string;
+}
+
+// docs/api.md §8 — ทุก route ทำกับหน่วยงานของตัวเองเท่านั้น
+@Controller('api/v1/agency')
+export class AgencyController {
+  constructor(
+    private readonly agency: AgencyService,
+    private readonly access: AccessService,
+  ) {}
+
+  /** หน่วยงานของหัวหน้าคนนี้ (RequireRole('head') รับประกันว่ามีและอนุมัติแล้ว) */
+  private async agencyId(auth: AuthContext): Promise<string> {
+    return (await this.access.load(auth.userId)).agency!.id;
+  }
+
+  /** ไม่ติด RequireRole — หัวหน้าของหน่วยงานที่ยังรออนุมัติต้องเห็นสถานะ (L02 / L02-b) */
+  @Get()
+  get(@Auth() auth: AuthContext): Promise<AgencyDto> {
+    return this.agency.get(auth.userId);
+  }
+
+  @RequireRole('head')
+  @RateLimit({ limit: 5, windowSec: 60 })
+  @HttpCode(HttpStatus.OK)
+  @Post('group-code/rotate')
+  async rotate(@Auth() auth: AuthContext) {
+    return this.agency.rotateGroupCode(await this.agencyId(auth));
+  }
+
+  @RequireRole('head')
+  @Get('members')
+  async members(@Auth() auth: AuthContext, @Query() q: ListMembersQuery): Promise<MemberDto[]> {
+    return this.agency.listMembers(await this.agencyId(auth), q.status);
+  }
+
+  @RequireRole('head')
+  @HttpCode(HttpStatus.OK)
+  @Post('members/:user_id/approve')
+  async approve(@Auth() auth: AuthContext, @Param() p: UserIdParam) {
+    await this.agency.approve(await this.agencyId(auth), auth.userId, p.user_id);
+    return { ok: true };
+  }
+
+  @RequireRole('head')
+  @HttpCode(HttpStatus.OK)
+  @Post('members/:user_id/reject')
+  async reject(@Auth() auth: AuthContext, @Param() p: UserIdParam) {
+    await this.agency.reject(await this.agencyId(auth), auth.userId, p.user_id);
+    return { ok: true };
+  }
+
+  @RequireRole('head')
+  @Patch('members/:user_id/status')
+  async setStatus(@Auth() auth: AuthContext, @Param() p: UserIdParam, @Body() dto: SetActiveDto) {
+    await this.agency.setActive(await this.agencyId(auth), auth.userId, p.user_id, dto.is_active);
+    return { ok: true };
+  }
+
+  @RequireRole('head')
+  @HttpCode(HttpStatus.OK)
+  @Post('members/:user_id/make-head')
+  async makeHead(@Auth() auth: AuthContext, @Param() p: UserIdParam) {
+    await this.agency.makeHead(await this.agencyId(auth), p.user_id);
+    return { ok: true };
+  }
+
+  @RequireRole('head')
+  @Delete('members/:user_id/head')
+  async removeHead(@Auth() auth: AuthContext, @Param() p: UserIdParam) {
+    await this.agency.removeHead(await this.agencyId(auth), auth.userId, p.user_id);
+    return { ok: true };
+  }
+
+  /** รหัสชั่วคราวแสดงครั้งเดียว — ไม่เก็บ ไม่ log */
+  @RequireRole('head')
+  @RateLimit({ limit: 10, windowSec: 60 })
+  @HttpCode(HttpStatus.OK)
+  @Post('members/:user_id/reset-password')
+  async resetPassword(@Auth() auth: AuthContext, @Param() p: UserIdParam) {
+    return this.agency.resetPassword(await this.agencyId(auth), auth.userId, p.user_id);
+  }
+}

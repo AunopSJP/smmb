@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+.angular/
+*.tsbuildinfo
+
+# env — มีคีย์ลับ (VAPID, ต่อไป: คีย์ลายเซ็น QR, master key ของตู้)
+.env
+.env.*
+!.env.example
+
+.DS_Store
+Thumbs.db

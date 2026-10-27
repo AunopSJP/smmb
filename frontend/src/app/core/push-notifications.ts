@@ -1,0 +1,69 @@
+import { HttpClient } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
+import { SwPush } from '@angular/service-worker';
+import { firstValueFrom } from 'rxjs';
+
+/** ทำไมเปิดแจ้งเตือนไม่ได้ — หน้าจอเลือกข้อความจากค่านี้ */
+export type PushBlocker =
+  | 'line-browser' // เปิดในเบราว์เซอร์ของ LINE → หน้า A01
+  | 'ios-not-installed' // iPhone ยังไม่ได้เพิ่มลงหน้าจอหลัก → หน้า A02
+  | 'unsupported' // เบราว์เซอร์ไม่รองรับ / service worker ปิด (ตอน dev)
+  | 'denied'; // ผู้ใช้กดไม่อนุญาตไว้ → ต้องไปเปิดในตั้งค่าเบราว์เซอร์
+
+/**
+ * เปิด/ปิด Web Push ของเครื่องนี้ (api.md §3)
+ * การแสดงแจ้งเตือนและการกดเปิดลิงก์ ทำโดย service worker ของ Angular (ngsw) — server ส่ง payload รูปแบบที่ ngsw รู้จัก
+ */
+@Injectable({ providedIn: 'root' })
+export class PushNotifications {
+  private readonly swPush = inject(SwPush);
+  private readonly http = inject(HttpClient);
+
+  /** null = เปิดได้ */
+  blocker(): PushBlocker | null {
+    const ua = navigator.userAgent;
+    if (/\bLine\//i.test(ua)) return 'line-browser';
+    const ios = /iPhone|iPad|iPod/.test(ua);
+    const standalone =
+      window.matchMedia?.('(display-mode: standalone)').matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    if (ios && !standalone) return 'ios-not-installed';
+    if (!this.swPush.isEnabled || typeof Notification === 'undefined') return 'unsupported';
+    if (Notification.permission === 'denied') return 'denied';
+    return null;
+  }
+
+  /** ขอสิทธิ์ → สมัครกับ push service → ส่ง subscription ให้ server (ผูกกับ session ของเครื่องนี้) */
+  async enable(deviceLabel?: string): Promise<void> {
+    const blocker = this.blocker();
+    if (blocker) throw new PushBlockedError(blocker);
+    const { public_key } = await firstValueFrom(
+      this.http.get<{ public_key: string }>('/api/v1/me/push/vapid-key'),
+    );
+    const sub = await this.swPush.requestSubscription({ serverPublicKey: public_key });
+    await firstValueFrom(
+      this.http.post('/api/v1/me/push/subscriptions', { ...sub.toJSON(), device_label: deviceLabel }),
+    );
+  }
+
+  async disable(): Promise<void> {
+    const sub = await firstValueFrom(this.swPush.subscription);
+    if (!sub) return;
+    await firstValueFrom(
+      this.http.delete('/api/v1/me/push/subscriptions', { body: { endpoint: sub.endpoint } }),
+    );
+    await sub.unsubscribe();
+  }
+
+  /** ส่งแจ้งเตือนทดสอบถึงเครื่องนี้ (A03) — คืนจำนวนที่ส่งถึง */
+  async sendTest(): Promise<number> {
+    const res = await firstValueFrom(this.http.post<{ sent: number }>('/api/v1/me/push/test', {}));
+    return res.sent;
+  }
+}
+
+export class PushBlockedError extends Error {
+  constructor(readonly reason: PushBlocker) {
+    super(`push blocked: ${reason}`);
+  }
+}

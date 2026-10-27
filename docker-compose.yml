@@ -1,0 +1,26 @@
+# ฐานข้อมูลสำหรับ dev เท่านั้น — เซิร์ฟเวอร์จริงเป็น Ubuntu self-host
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: smmb
+      POSTGRES_PASSWORD: smmb
+      POSTGRES_DB: smmb
+      TZ: UTC
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smmb"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pgdata:

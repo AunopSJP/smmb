@@ -1,0 +1,186 @@
+.page {
+  padding-bottom: 104px; /* เผื่อปุ่ม SOS ที่ลอยอยู่ */
+}
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: var(--ok);
+  font-size: 1.0625rem;
+
+  &.big {
+    font-size: 1.75rem;
+    .dot {
+      width: 16px;
+      height: 16px;
+    }
+  }
+}
+.simple {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px;
+  text-decoration: none;
+  color: inherit;
+}
+.big-text {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+.mini {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.value {
+  font-size: 1.375rem;
+}
+.bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+  span {
+    display: block;
+    height: 100%;
+    background: var(--ok);
+  }
+}
+.title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.see-all {
+  color: var(--brand);
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+.block {
+  display: block;
+}
+
+.sos-bar {
+  position: sticky;
+  bottom: 76px;
+  margin-top: auto;
+  z-index: 1;
+}
+.sos {
+  background: var(--sos);
+  box-shadow: 0 6px 16px rgb(200 30 30 / 30%);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+
+  &.simple-sos {
+    min-height: 96px;
+    font-size: 1.5rem;
+  }
+}
+.sos-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.25;
+  small {
+    font-size: 0.75rem;
+    font-weight: 400;
+  }
+}
+
+/* H03-e นับถอยหลังกดค้าง */
+.hold {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 24px;
+  text-align: center;
+  color: #fff;
+  background: #7f1d1d;
+  pointer-events: none; /* นิ้วยังกดปุ่มเดิมอยู่ */
+}
+.ring {
+  --p: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 176px;
+  height: 176px;
+  border-radius: 50%;
+  background: conic-gradient(#fff calc(var(--p) * 1turn), rgb(255 255 255 / 25%) 0);
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 12px;
+    border-radius: 50%;
+    background: var(--sos);
+  }
+  > * {
+    position: relative;
+  }
+  span {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+  strong {
+    font-size: 3rem;
+    line-height: 1;
+  }
+}
+
+/* สถานะอื่นของหน้าหลัก (H03-b/c/d) */
+.mini-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  text-decoration: none;
+  color: inherit;
+}
+.ok-text {
+  color: var(--ok);
+}
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 20px 16px;
+  border: 1.5px dashed var(--line);
+  border-radius: var(--radius);
+  text-align: center;
+}
+.status.off {
+  color: var(--orange);
+}
+.dark {
+  background: #111827;
+}
+.demo-tools button[aria-pressed='true'] {
+  background: var(--brand);
+  color: #fff;
+}

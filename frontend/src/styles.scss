@@ -1,0 +1,795 @@
+// โทเคนสีและขนาด — docs/smmb-design.md §11
+// ธีม: ตามเครื่อง (ค่าเริ่มต้น) / บังคับด้วย <html data-theme="light|dark">
+// ขนาดตัวอักษร: <html data-text-size="normal|large|xlarge">
+
+:root {
+  --brand: #d7141e;
+  --brand-dark: #9b0f16;
+  --brand-light: #fde5e6;
+  --brand-lighter: #fff3f3;
+  --sos: #c81e1e;
+  --icon-bg: #eef0f3;
+
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #1a1d21;
+  --text-muted: #5f6670;
+  --ok: #1b7f3b;
+  --shadow: 0 1px 3px rgb(0 0 0 / 8%), 0 4px 12px rgb(0 0 0 / 6%);
+
+  --font: 'Leelawadee UI', 'IBM Plex Sans Thai Looped', 'Noto Sans Thai', system-ui, sans-serif;
+  --text-scale: 1;
+
+  color-scheme: light;
+}
+
+@mixin dark {
+  --brand: #ef3b44;
+  --brand-dark: #ff6b72;
+  --brand-light: #3a1416;
+  --brand-lighter: #2a1214;
+  --sos: #ff4d4d;
+  --icon-bg: #2a2e35;
+
+  --bg: #121417;
+  --surface: #1c1f24;
+  --text: #eceef1;
+  --text-muted: #a3a9b2;
+  --ok: #4cc777;
+  --shadow: 0 1px 3px rgb(0 0 0 / 40%);
+
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    @include dark;
+  }
+}
+:root[data-theme='dark'] {
+  @include dark;
+}
+
+:root[data-text-size='large'] {
+  --text-scale: 1.15;
+}
+:root[data-text-size='xlarge'] {
+  --text-scale: 1.3;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: calc(16px * var(--text-scale));
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+// ── ชิ้นส่วนร่วม (ตาม wireframe) ─────────────────────────────
+
+:root {
+  --radius: 16px;
+  --radius-sm: 12px;
+  --gap: 12px;
+  --warn: #9a5b00;
+  --warn-bg: #fff4d6;
+  --orange: #c2410c;
+  --orange-line: #e8590c;
+  --ok-bg: #dcf5e4;
+  --danger-bg: #fde5e6;
+  --line: rgb(0 0 0 / 7%);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --warn: #f3c25b;
+    --warn-bg: #3a2e12;
+    --orange: #fb923c;
+    --orange-line: #fb923c;
+    --ok-bg: #173523;
+    --danger-bg: #3a1416;
+    --line: rgb(255 255 255 / 8%);
+  }
+}
+:root[data-theme='dark'] {
+  --warn: #f3c25b;
+  --warn-bg: #3a2e12;
+  --orange: #fb923c;
+  --orange-line: #fb923c;
+  --ok-bg: #173523;
+  --danger-bg: #3a1416;
+  --line: rgb(255 255 255 / 8%);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+/* รายการในการ์ด — แถวคั่นเส้นบาง */
+.list {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+
+  > * + * {
+    border-top: 1px solid var(--line);
+  }
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  min-height: 56px;
+  text-decoration: none;
+  color: inherit;
+}
+a.row:active,
+button.row:active {
+  background: var(--brand-lighter);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+.small {
+  font-size: 0.8125rem;
+}
+.section-title {
+  font-weight: 700;
+  font-size: 1rem;
+  margin: 8px 4px 0;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  text-decoration: none;
+  background: var(--brand);
+  color: #fff;
+
+  &:active {
+    background: var(--brand-dark);
+  }
+  &.secondary {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: inset 0 0 0 1.5px var(--text);
+  }
+  &.big {
+    min-height: 68px;
+    font-size: 1.25rem;
+    border-radius: var(--radius);
+  }
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--icon-bg);
+  color: var(--text-muted);
+
+  &.ok {
+    background: var(--ok-bg);
+    color: var(--ok);
+  }
+  &.warn {
+    background: var(--warn-bg);
+    color: var(--warn);
+  }
+  &.danger {
+    background: var(--danger-bg);
+    color: var(--sos);
+  }
+}
+
+.icon-bubble {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--icon-bg);
+  color: var(--text-muted);
+
+  &.warn {
+    background: var(--warn-bg);
+    color: var(--warn);
+  }
+  &.danger {
+    background: var(--danger-bg);
+    color: var(--sos);
+  }
+  &.ok {
+    background: var(--ok-bg);
+    color: var(--ok);
+  }
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+}
+.stat {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+
+  .label {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+  .value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .ok {
+    color: var(--ok);
+  }
+  .warn {
+    color: var(--warn);
+  }
+  .danger {
+    color: var(--sos);
+  }
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ok);
+  flex: none;
+}
+
+/* หน้าลูกใน shell เต็มความสูง → ปุ่มท้ายหน้าอยู่ล่างสุด, พื้นหลังของหน้าเต็มจอเต็มจริง */
+app-area-shell main > :not(router-outlet) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+// ── ชิ้นส่วนของหน้าเจ้าของบ้าน (ใช้หลายหน้า) ──────────────────
+
+/* ข้อมูลแบบ หัวข้อ : ค่า (หน้ารายละเอียด) */
+.kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 16px;
+  font-size: 0.9375rem;
+
+  dt {
+    color: var(--text-muted);
+  }
+  dd {
+    margin: 0;
+    text-align: right;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .ok {
+    color: var(--ok);
+  }
+}
+
+/* ปุ่มเลือกแบบกลุ่ม (ธีม / ภาษา / ช่วงวันที่) */
+.segmented {
+  display: flex;
+  gap: 8px;
+
+  button {
+    flex: 1;
+    min-height: 44px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  button[aria-pressed='true'] {
+    border-color: var(--brand);
+    background: var(--brand-light);
+    color: var(--brand);
+  }
+  &.chips button {
+    flex: none;
+    min-height: 36px;
+    padding: 4px 14px;
+    border-radius: 999px;
+    font-size: 0.875rem;
+  }
+}
+
+/* สวิตช์เปิด/ปิด */
+.switch {
+  appearance: none;
+  flex: none;
+  width: 52px;
+  height: 32px;
+  border-radius: 16px;
+  background: var(--line);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin: 0;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 30%);
+    transition: transform 0.15s;
+  }
+  &:checked {
+    background: var(--ok);
+  }
+  &:checked::after {
+    transform: translateX(20px);
+  }
+}
+
+/* หน้าต่างล่าง (bottom sheet) ทับพื้นหลังมืด */
+.sheet-backdrop {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: rgb(15 23 42 / 70%);
+}
+.sheet {
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  h2 {
+    font-size: 1.25rem;
+  }
+}
+
+/* ── SOS ───────────────────────────────────────────── */
+.sos-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.sos-head {
+  background: var(--sos);
+  color: #fff;
+  text-align: center;
+  padding: 20px 16px 24px;
+  border-radius: 0 0 24px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+
+  &.ok {
+    background: #157347;
+  }
+  h1 {
+    font-size: 1.5rem;
+    line-height: 1.3;
+  }
+  .timer {
+    font-size: 2.25rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .pill {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 20%);
+  }
+  p {
+    font-size: 0.875rem;
+    opacity: 0.9;
+  }
+}
+.sos-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+.sos-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 16px 20px;
+}
+
+/* ปุ่มโทร 191 / 1669 */
+.calls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+
+  &.big {
+    grid-template-columns: 1fr;
+  }
+}
+.call {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: #111827;
+  color: #fff;
+  text-decoration: none;
+
+  strong {
+    font-size: 1.375rem;
+  }
+  span {
+    font-size: 0.75rem;
+    line-height: 1.3;
+    text-align: left;
+  }
+  .calls.big & {
+    min-height: 76px;
+    strong {
+      font-size: 2rem;
+    }
+    span {
+      font-size: 0.9375rem;
+    }
+  }
+}
+
+/* แถบปุ่มจำลอง — ใช้ดูสถานะต่าง ๆ ในต้นแบบเท่านั้น */
+.demo-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px dashed var(--brand);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  color: var(--brand-dark);
+
+  button {
+    font: inherit;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 0;
+    background: var(--brand-light);
+    color: var(--brand-dark);
+    cursor: pointer;
+  }
+}
+
+// ── ชิ้นส่วนของหน้าเจ้าหน้าที่ ────────────────────────────────
+
+/* หน้าเต็มจอ (ไม่มีแท็บ) ที่ต้องมีขอบเอง */
+.pad {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  padding: 16px;
+}
+.push-end {
+  margin-top: auto;
+}
+.center {
+  text-align: center;
+}
+
+/* หน้าผลลัพธ์: ไอคอนวงกลมใหญ่ + หัวข้อ + คำอธิบาย */
+.result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  padding-top: 24px;
+
+  h1 {
+    font-size: 1.375rem;
+    line-height: 1.35;
+  }
+}
+.big-icon {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  font-size: 2rem;
+  font-weight: 700;
+  background: var(--icon-bg);
+  color: var(--text-muted);
+
+  &.warn {
+    background: var(--warn-bg);
+    color: var(--warn);
+  }
+  &.danger {
+    background: var(--danger-bg);
+    color: var(--sos);
+  }
+  &.ok {
+    background: var(--ok-bg);
+    color: var(--ok);
+  }
+  &.white {
+    background: #fff;
+    color: #157347;
+  }
+}
+
+/* ตัวเลือกแบบ radio เป็นปุ่มใหญ่ */
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+
+  legend {
+    font-weight: 700;
+    margin-bottom: 8px;
+    padding: 0;
+  }
+  label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--line);
+    background: var(--surface);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  label:has(input:checked) {
+    border-color: var(--brand);
+    background: var(--brand-lighter);
+  }
+  input {
+    accent-color: var(--brand);
+    width: 18px;
+    height: 18px;
+    margin: 0;
+  }
+}
+
+.btn.green {
+  background: #157347;
+}
+/* ปุ่มสีเข้ม (wireframe ใช้กับทางเลือกรอง) — กลับสีในธีมมืด */
+.btn.dark {
+  background: var(--text);
+  color: var(--surface);
+}
+.btn.orange {
+  background: #b45309;
+}
+.btn.on-color {
+  background: #fff;
+  color: var(--sos);
+}
+.btn.outline-light {
+  background: transparent;
+  color: #fff;
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 70%);
+}
+.btn[disabled],
+.btn.disabled {
+  background: var(--icon-bg);
+  color: var(--text-muted);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  pointer-events: none;
+}
+
+.info-box {
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  text-align: left;
+}
+.ok-text {
+  color: var(--ok);
+}
+
+// ── ช่องกรอก (ค้นหา / ตัวเลข / รหัส / ข้อความ) ─────────────────
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  > span {
+    font-weight: 700;
+    font-size: 0.9375rem;
+  }
+  input,
+  textarea {
+    width: 100%;
+    min-height: 52px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid color-mix(in srgb, var(--text-muted) 55%, transparent);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+  }
+  textarea {
+    min-height: 88px;
+    resize: vertical;
+  }
+  input:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+    border-color: var(--brand);
+  }
+  small {
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+  }
+  &.invalid input {
+    border-color: var(--sos);
+  }
+}
+.with-unit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  input {
+    flex: 1;
+    min-width: 0;
+  }
+  > span {
+    flex: none;
+    font-weight: 700;
+  }
+}
+.warn-text {
+  color: var(--orange);
+}
+.danger-text {
+  color: var(--sos);
+}
+
+/* วิธีทำเป็นข้อ ๆ — เลขในวงกลมเข้ม (ไรเดอร์ / ติดตั้งเป็นแอป) */
+.how {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  counter-reset: how;
+
+  > li {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    counter-increment: how;
+  }
+  > li::before {
+    content: counter(how);
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--text);
+    color: var(--surface);
+    font-size: 0.875rem;
+    font-weight: 700;
+  }
+  strong,
+  small {
+    display: block;
+  }
+  small {
+    color: var(--text-muted);
+  }
+}
+
+/* ใบพิมพ์ QR — ซ่อนบนจอ แสดงเฉพาะตอนสั่งพิมพ์ (หน้า D07-b / D08) */
+.print-sheet {
+  display: none;
+}
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .print-sheet,
+  .print-sheet * {
+    visibility: visible;
+  }
+  .print-sheet {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10mm;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: #fff;
+    color: #000;
+  }
+}
