@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Put, Query } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { IsBoolean, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
@@ -60,6 +60,13 @@ export class AdminBoxController {
   }
 
   /** งานทดสอบ (ปลุกตู้ + กล้อง) — ตู้ต้องถือ long-poll อยู่ ไม่งั้นงานหมดอายุใน 60 วิ */
+  /** เปิดดูรหัสลับประจำตู้อีกครั้ง (เขียนลงบอร์ด) — บันทึกการเปิดดูทุกครั้ง */
+  @HttpCode(HttpStatus.OK)
+  @Post('boxes/:box_id/device-secret')
+  revealSecret(@Auth() auth: AuthContext, @Param() p: BoxIdParam) {
+    return this.boxes.revealSecret(p.box_id, auth.userId);
+  }
+
   @Post('boxes/:box_id/test-jobs')
   testJob(@Auth() auth: AuthContext, @Param() p: BoxIdParam) {
     return this.boxes.createTestJob(p.box_id, auth.userId);

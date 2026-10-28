@@ -1,5 +1,5 @@
 import type { CanActivateFn, Route, Routes } from '@angular/router';
-import { homeRedirect, requireRole } from './core/session';
+import { homeRedirect, requireRole, requireSignedIn } from './core/session';
 import { AreaShell } from './layout/area-shell';
 import { AREA_PREFIX, SCREENS, type Area } from './screens/registry';
 
@@ -137,24 +137,25 @@ export const BUILT_CODES = Object.keys(BUILT);
 
 const placeholder: Loader = () => import('./screens/screen-placeholder').then((m) => m.ScreenPlaceholder);
 
-/**
- * ส่วนที่ใช้ข้อมูลจริง (ต้องล็อกอินจริง) — core flow: เจ้าของบ้าน · เจ้าหน้าที่
- * หัวหน้า / แอดมิน ยังเป็นหน้าข้อมูลจำลอง (เข้าจาก /demo)
- */
+/** ทุกพื้นที่ใช้ข้อมูลจริง ต้องล็อกอินด้วยบัญชีที่มีบทบาทนั้น (ไรเดอร์ / สมัคร-ล็อกอินไม่ต้อง) */
 const GUARD: Partial<Record<Area, CanActivateFn>> = {
   owner: requireRole('owner'),
   officer: requireRole('officer'),
+  head: requireRole('head'),
+  admin: requireRole('admin'),
 };
+/** หน้าที่ต้องล็อกอินแต่ยังไม่มีบทบาทก็เข้าได้ */
+const SIGNED_IN_ONLY = new Set(['L02']);
 
 function areaRoute(area: Area): Route {
   return {
     path: AREA_PREFIX[area],
     component: AreaShell,
     data: { area },
-    ...(GUARD[area] ? { canActivate: [GUARD[area]] } : {}),
     children: SCREENS.filter((s) => s.area === area).map((s) => ({
       path: s.path,
       loadComponent: BUILT[s.code] ?? placeholder,
+      ...(SIGNED_IN_ONLY.has(s.code) ? { canActivate: [requireSignedIn] } : GUARD[area] ? { canActivate: [GUARD[area]] } : {}),
       data: { code: s.code },
       title: `${s.title.th} · Smart Mailbox`,
     })),

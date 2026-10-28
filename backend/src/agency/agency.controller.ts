@@ -1,10 +1,11 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
-import { Transform } from 'class-transformer';
-import { IsBoolean, IsIn, IsOptional, IsString, Length, Matches } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Length, Matches, Min } from 'class-validator';
 import { AccessService } from '../auth/access.service.js';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
 import { RateLimit } from '../rate-limit/rate-limit.guard.js';
+import { AgencyTodayService } from './agency-today.service.js';
 import { AgencyService, type AgencyDto, type MemberDto, type MemberStatus } from './agency.service.js';
 
 class ListMembersQuery {
@@ -13,6 +14,14 @@ class ListMembersQuery {
 
 class AgencyContactDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value)) @IsString() @Length(3, 200) contact!: string;
+}
+
+class TodayQuery {
+  @IsOptional() @IsIn(['mine', 'all']) zone?: 'mine' | 'all';
+}
+
+class LogsQuery {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page: number = 1;
 }
 
 class SetActiveDto {
@@ -30,6 +39,7 @@ export class AgencyController {
   constructor(
     private readonly agency: AgencyService,
     private readonly access: AccessService,
+    private readonly todays: AgencyTodayService,
   ) {}
 
   /** หน่วยงานของหัวหน้าคนนี้ (RequireRole('head') รับประกันว่ามีและอนุมัติแล้ว) */
@@ -41,6 +51,20 @@ export class AgencyController {
   @Get()
   get(@Auth() auth: AuthContext): Promise<AgencyDto> {
     return this.agency.get(auth.userId);
+  }
+
+  /** L04 ภาพรวมทีมวันนี้ */
+  @RequireRole('head')
+  @Get('today')
+  async today(@Auth() auth: AuthContext, @Query() q: TodayQuery) {
+    return this.todays.today(await this.agencyId(auth), auth.userId, q.zone ?? 'all');
+  }
+
+  /** L08 ประวัติการสแกนของคนในหน่วยงาน (รวมที่ไม่ผ่าน) */
+  @RequireRole('head')
+  @Get('logs')
+  async logs(@Auth() auth: AuthContext, @Query() q: LogsQuery) {
+    return this.todays.logs(await this.agencyId(auth), q.page);
   }
 
   @RequireRole('head')

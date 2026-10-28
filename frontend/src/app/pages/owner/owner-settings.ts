@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { OwnerApi, type BoxDetail } from '../../core/owner-api';
+import { Session } from '../../core/session';
+import { Toast } from '../../core/toast';
 import { DisplaySettings, type TextSize, type Theme } from '../../core/display-settings';
 import { I18n, type Lang, type Tr } from '../../core/i18n';
-import { MOCK_BOX_SETTINGS, MOCK_OWNER } from '../../core/mock/mock-data';
-import { PlanDemo, showDate } from '../../core/mock/plan-demo';
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
@@ -17,27 +18,45 @@ import { AccountActions } from '../auth/auth-account';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
-      [caption]="i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + house"
+      [caption]="i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + (box()?.house_no ?? '')"
       [title]="i18n.t({ th: 'ตั้งค่าตู้', en: 'Mailbox settings' })"
       [bell]="url('H14')"
     />
     <div class="stack grow">
-      <section class="card">
-        <dl class="kv">
-          <dt>{{ i18n.t({ th: 'ชื่อตู้', en: 'Name' }) }}</dt><dd>{{ box.name }}</dd>
-          <dt>{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd>{{ box.id }}</dd>
-          <dt>{{ i18n.t({ th: 'แบต', en: 'Battery' }) }}</dt>
-          <dd>{{ box.battery_pct }}%{{ box.charging ? i18n.t({ th: ' · ชาร์จอยู่', en: ' · charging' }) : '' }}</dd>
-          <dt>Wi-Fi</dt><dd>{{ box.wifi }}</dd>
-          @if (plan(); as p) {
-            <dt>{{ i18n.t({ th: 'แพ็กเกจ', en: 'Plan' }) }}</dt>
-            <dd>
-              {{ p.name }}
-              <span class="muted small block" [class.warn-text]="p.status !== 'active'">{{ p.until }}</span>
-            </dd>
+      @if (boxes().length > 1) {
+        <div class="segmented chips" role="group">
+          @for (b of boxes(); track b.id) {
+            <button type="button" [attr.aria-pressed]="box()?.id === b.id" (click)="open(b.id)">{{ b.house_no }} · {{ b.name }}</button>
           }
-        </dl>
-      </section>
+        </div>
+      }
+      @if (box(); as b) {
+        <section class="card">
+          <dl class="kv">
+            <dt>{{ i18n.t({ th: 'ชื่อตู้', en: 'Name' }) }}</dt>
+            <dd>
+              @if (renaming()) {
+                <input class="name-input" maxlength="50" [value]="draft()" (input)="draft.set($any($event.target).value)" />
+                <span class="rename-actions">
+                  <button type="button" class="link" (click)="renaming.set(false)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
+                  <button type="button" class="link strong" [disabled]="!draft().trim()" (click)="rename()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
+                </span>
+              } @else {
+                {{ b.name }} <button type="button" class="link" (click)="startRename()">{{ i18n.t({ th: 'แก้', en: 'Edit' }) }}</button>
+              }
+            </dd>
+            <dt>{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd>{{ b.id }}</dd>
+            <dt>{{ i18n.t({ th: 'แบต', en: 'Battery' }) }}</dt>
+            <dd>{{ b.battery ? b.battery.pct + '%' : '—' }}{{ b.battery?.charging ? i18n.t({ th: ' · ชาร์จอยู่', en: ' · charging' }) : '' }}</dd>
+            <dt>{{ i18n.t({ th: 'ผู้ดูแล', en: 'Covered by' }) }}</dt>
+            <dd>{{ b.coverage.agency_names.join(', ') || i18n.t({ th: 'ยังไม่มีเจ้าหน้าที่ดูแล', en: 'No agency yet' }) }}</dd>
+            <dt>{{ i18n.t({ th: 'เวลาตรวจ', en: 'Patrol hours' }) }}</dt>
+            <dd>{{ windows(b) }}</dd>
+            <dt>{{ i18n.t({ th: 'แพ็กเกจ', en: 'Plan' }) }}</dt>
+            <dd>{{ i18n.t({ th: 'ฟรี', en: 'Free' }) }} <span class="muted small block">{{ i18n.t({ th: 'ไม่มีวันหมดอายุ', en: 'No end date' }) }}</span></dd>
+          </dl>
+        </section>
+      }
 
       <nav class="list">
         @for (m of menu; track m.code) {
@@ -58,9 +77,9 @@ import { AccountActions } from '../auth/auth-account';
 
       <app-account-actions current="owner" from="H13" />
 
-      <a class="btn secondary signout" [routerLink]="url('A04')">
+      <button type="button" class="btn secondary signout" (click)="signout()">
         {{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}
-      </a>
+      </button>
     </div>
   `,
   styles: `
@@ -70,6 +89,32 @@ import { AccountActions } from '../auth/auth-account';
     }
     .block {
       display: block;
+    }
+    .name-input {
+      width: 100%;
+      min-height: 40px;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--line);
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+    }
+    .rename-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 4px;
+    }
+    .link {
+      border: 0;
+      background: none;
+      padding: 0 4px;
+      font: inherit;
+      color: var(--brand);
+      cursor: pointer;
+    }
+    .link.strong {
+      font-weight: 700;
     }
     .signout {
       margin-top: auto;
@@ -81,28 +126,58 @@ import { AccountActions } from '../auth/auth-account';
 export class OwnerSettings {
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
-  protected readonly house = MOCK_OWNER.house_no;
-  protected readonly box = MOCK_BOX_SETTINGS;
-  private readonly plans = inject(PlanDemo);
-  /** GET /me/plan — แพ็กผูกกับบัญชีเจ้าของบ้าน (ต้นแบบ = บัญชี U-0001) · SOS/ตรวจตู้ไม่ขึ้นกับแพ็ก */
-  protected readonly plan = computed(() => {
-    const id = 'U-0001';
-    const cur = this.plans.current(id);
-    const p = cur ? this.plans.plan(cur.plan_code) : undefined;
-    if (!cur || !p) return null;
-    const status = this.plans.status(id);
-    const lang = this.i18n.lang();
-    const until = cur.ends_at
-      ? this.i18n.t({ th: 'ใช้ได้ถึง ', en: 'until ' }) + showDate(cur.ends_at, lang)
-      : this.i18n.t({ th: 'ไม่มีวันหมดอายุ', en: 'No end date' });
-    return { name: this.i18n.t(p.name) + (p.price_note ? ' · ' + this.i18n.t(p.price_note) : ''), until, status };
-  });
+  private readonly api = inject(OwnerApi);
+  private readonly session = inject(Session);
+  private readonly router = inject(Router);
+  private readonly toast = inject(Toast);
+  protected readonly boxes = signal<{ id: string; name: string; house_no: string }[]>([]);
+  protected readonly box = signal<BoxDetail | null>(null);
+  protected readonly renaming = signal(false);
+  protected readonly draft = signal('');
+
+  constructor() {
+    void this.api.boxes().then((b) => {
+      this.boxes.set(b);
+      if (b[0]) void this.open(b[0].id);
+    });
+  }
+
+  protected async open(id: string): Promise<void> {
+    this.box.set(await this.api.box(id).catch(() => null));
+  }
+
+  protected windows(b: BoxDetail): string {
+    return b.patrol.windows.map((w) => w.join('–')).join(' · ') || '—';
+  }
+
+  protected startRename(): void {
+    this.draft.set(this.box()?.name ?? '');
+    this.renaming.set(true);
+  }
+
+  /** PATCH /boxes/:box_id { name } */
+  protected async rename(): Promise<void> {
+    const b = this.box();
+    if (!b || !this.draft().trim()) return;
+    try {
+      await this.api.rename(b.id, this.draft().trim());
+      this.renaming.set(false);
+      await this.open(b.id);
+      this.boxes.update((list) => list.map((x) => (x.id === b.id ? { ...x, name: this.draft().trim() } : x)));
+      this.toast.show({ th: 'เปลี่ยนชื่อตู้แล้ว', en: 'Renamed' });
+    } catch {
+      this.toast.show({ th: 'บันทึกไม่ได้', en: 'Couldn’t save' });
+    }
+  }
+
+  protected signout(): void {
+    void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04')));
+  }
   protected readonly menu: { code: string; icon: IconName; title: Tr; sub: Tr; badge?: Tr }[] = [
     { code: 'H13-b', icon: 'layers', title: { th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' }, sub: { th: 'ทำเองได้ ใช้เวลาราว 5 นาที', en: 'Do it yourself, about 5 minutes' } },
     { code: 'H13-c', icon: 'user', title: { th: 'แจ้งช่าง', en: 'Request a technician' }, sub: { th: 'ให้ช่างนัดมาตั้งค่า / ซ่อม', en: 'A technician will set up or repair' } },
     { code: 'H14', icon: 'bell', title: { th: 'การแจ้งเตือน', en: 'Notifications' }, sub: { th: 'เปิดอยู่', en: 'On' }, badge: { th: 'เปิด', en: 'On' } },
     { code: 'H13-d', icon: 'settings', title: { th: 'การแสดงผล', en: 'Display' }, sub: { th: 'ธีม · ภาษา · ขนาดตัวอักษร', en: 'Theme · language · text size' } },
-    { code: 'H15', icon: 'user', title: { th: 'สมาชิกในบ้าน (ข้อเสนอ)', en: 'Family members (proposal)' }, sub: { th: 'ให้คนในบ้านรับแจ้งเตือน / กด SOS', en: 'Let family get alerts / press SOS' } },
   ];
 }
 
@@ -267,7 +342,7 @@ export class OwnerWifi {
 export class OwnerTechnician {
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
-  protected readonly phone = MOCK_BOX_SETTINGS.callback_phone;
+  protected readonly phone = inject(Session).me()?.phone ?? '';
 }
 
 // ── H13-d · การแสดงผล ─────────────────────────────────────────

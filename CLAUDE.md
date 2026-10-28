@@ -2,6 +2,7 @@
 
 > ไฟล์เริ่มต้นสำหรับ Claude Code · สรุป ณ 2026-10-28 · ตอบผู้ใช้เป็น**ภาษาไทย**
 > อ่านคู่กับ `docs/` ในลำดับนี้: `HANDOFF.md` → `smmb-design.md` → `api.md` → `SMMB_โปรโตคอลตู้-เซิร์ฟเวอร์.md` → `SMMB_ขั้นตอนการใช้งานแต่ละคน.md`
+> คู่มือให้ทีมเฟิร์มแวร์ ESP32-CAM: `docs/HARDWARE_FIRMWARE_GUIDE.md` (แก้โปรโตคอลตู้ → แก้ไฟล์นี้ด้วย)
 > ถ้าไฟล์เหล่านั้นขัดกับไฟล์นี้ ให้ถามผู้ใช้ — อย่าเดา
 
 ## ระบบนี้คืออะไร
@@ -69,16 +70,20 @@
 
 state machine เต็มอยู่ `smmb-design.md` §6 · SOS อยู่ §7 · งานเบื้องหลังอยู่ §8
 
-## หน้าเว็บ — core flow ใช้ API จริงแล้ว (✅ 2026-10-28) · หัวหน้า/แอดมินยังเป็นข้อมูลจำลอง
+## หน้าเว็บ — ทุกบทบาทใช้ API จริงแล้ว (✅ 2026-10-28)
 
-- **ผู้ใช้สั่ง (2026-10-28): "Core Flow ต้องใช้ได้จริง ไม่ใช่ Mock" + "เอาแค่ USER ก่อน ADMIN ยังไม่ต้อง"**
+- **ผู้ใช้สั่ง (2026-10-28): "Core Flow ต้องใช้ได้จริง ไม่ใช่ Mock"** แล้วต่อ (เย็น) **"เอาของจริงเลย มีบัญชีแต่ละยูสเซอร์ 1 user ต่อ 1 โรล จะได้เทสเต็มระบบ ทั้งปลุกตู้ ผูกตู้ ตั้งไวไฟ ตรวจตรา"** · ฮาร์ดแวร์ทำต่อจากนี้
 - ใช้ API จริง: ล็อกอิน `A04` · เปลี่ยนรหัส `A14` · ออกจากระบบ · สมัครเจ้าของบ้าน `A06` · ผูกตู้ `A07`–`A09` (กล้องจริง) · หน้าหลักเจ้าของบ้าน `H03` · SOS `H08`–`H11-b` / `O09`–`O12` · เจ้าหน้าที่ `O01`–`O08` (กล้องจริง + QR ประจำตัวจริง) · ไรเดอร์ `R01`–`R04`
-- ยังเป็นข้อมูลจำลอง: หัวหน้า `L*` · แอดมิน `D*` · ช่าง `T*` · ประวัติ `H12*` · ตั้งค่า `H13*` · แจ้งเตือน `H14` · สมัครเจ้าหน้าที่/หน่วยงาน (`A10`–`A12`, `L01`–`L03`) · เพิ่มบทบาท `A15`/`A16` — เข้าหน้าจำลองได้ที่ `/demo`
-- โครง: `core/api.ts` (apiBase จาก `config.json` ตอนรัน + ส่ง cookie) · `core/session.ts` (`Me` จริง + guard `requireRole` ของพื้นที่ owner/officer) · `core/inspection-api.ts` · `core/owner-api.ts` · `shared/qr-scanner.ts` (กล้อง + BarcodeDetector / jsQR) · `shared/qr-image.ts` (สร้างรูป QR)
+- ใช้ API จริงเพิ่ม (เย็น): สมัครเจ้าหน้าที่/หน่วยงาน `A10`–`A13`, `L01`–`L03` · หัวหน้า `L04`–`L09` (ภาพรวมวันนี้ · สมาชิก · โซน+เวลาตรวจ+บ้าน+เจ้าหน้าที่ · ประวัติการสแกน · แจ้งเตือน) · แอดมิน `D01`–`D04`, `D09`, `D10`, `D12`, `D13` (ลงทะเบียนตู้ · พิมพ์ QR · ทดสอบปลุกตู้ · รหัสลับเขียนบอร์ด · อนุมัติหน่วยงาน · ผู้ใช้ · ค่าตู้) · ช่าง `T01`–`T02-c` (เช็กลิสต์ที่เดินเองจากสถานะตู้จริง) · เจ้าของบ้าน `H12*` `H13` `H14`
+- ยังเป็นข้อมูลจำลอง (มีแถบ "ต้นแบบ" — `MOCK_SCREENS` ใน `layout/area-shell.ts`): QR เสีย/ปลอม `D05`–`D08` · ประวัติรวมแอดมิน `D11` · แพ็กเกจ `D14` · เพิ่มบทบาท `A15`/`A16` · แจ้งช่าง `H13-c`
+- ทุกพื้นที่มี guard `requireRole` (หัวหน้า `L02` ใช้ `requireSignedIn` เพราะยังไม่มีบทบาท) · 403 `PUSH_REQUIRED` → `A12` ที่ `apiInterceptor` ที่เดียว
+- `config.json` → `devTools: true` = ปุ่ม "คัดลอกข้อความ QR" ใน `O06` ไว้ทดสอบกับ `npm run box:sim -- live` (ตู้จำลองไม่มีกล้อง) · ใช้จริงให้ปิด
+- โครงเพิ่ม: `core/admin-api.ts` · `core/head-api.ts` · `shared/box-test.ts` (ทดสอบปลุกตู้ + กล้อง ใช้ทั้ง D04/T01) · `shared/notification-list.ts` (H14/L09/D12)
+- โครง: `core/api.ts` (apiBase จาก `config.json` ตอนรัน + ส่ง cookie) · `core/session.ts` (`Me` จริง + guard `requireRole`) · `core/inspection-api.ts` · `core/owner-api.ts` · `shared/qr-scanner.ts` (กล้อง + BarcodeDetector / jsQR) · `shared/qr-image.ts` (สร้างรูป QR)
 - **inject ใน guard ต้องทำก่อน await** (หลัง await ไม่อยู่ใน injection context — เคยพังแล้ว)
 - รหัสหน้าที่ไม่มีใน wireframe (เพิ่ม 2026-10-27): `A14` เปลี่ยนรหัสผ่าน · `A15` เพิ่มบทบาทเจ้าของบ้าน · `A16` ขอเข้าหน่วยงาน · `D14` แพ็กเกจ
 - ทุกหน้าใน wireframe มีหน้าจริงแล้ว ยกเว้น `H15*` (ข้อเสนอ) · ลิงก์ใน QR: `/b/<token>` → ไรเดอร์ `R02` · `/a/<token>` → ผูกตู้ `A07`
-- หน้าเว็บใช้ข้อมูลจำลองเท่านั้น (`frontend/src/app/core/mock/`) — รูปร่างตามสัญญาใน `api.md` เพื่อสลับเป็น API จริงทีหลัง
+- `frontend/src/app/core/mock/` เหลือใช้กับหน้าที่ยังจำลอง + ฟอร์มสมัคร (เก็บร่างฟอร์ม) + `/demo`
 - โครง frontend:
   - `screens/registry.ts` — **รายการหน้าจอทั้งหมดที่เดียว** (รหัสตรง wireframe, path, ชื่อ th/en, หน้าถัดไป, แท็บล่างของแต่ละบทบาท) → route สร้างจากไฟล์นี้ (`app.routes.ts`)
   - หน้าที่ทำจริงแล้วลงทะเบียนใน `BUILT` ของ `app.routes.ts` · ที่เหลือแสดง `screen-placeholder` (ชื่อ + ปุ่มไปหน้าถัดไปแบบ prototype)
@@ -120,10 +125,13 @@ state machine เต็มอยู่ `smmb-design.md` §6 · SOS อยู่ 
 - ตู้จำลอง: `npm run box:sim` (`backend/scripts/box-sim.mjs`) · ทดสอบบอร์ด: โปรโตคอล §8
 - **โหมด mock (✅ ผู้ใช้สั่ง 2026-10-28 "ใช้ MockData ไปก่อน เอาแค่ core ให้บอร์ดต่อได้")**: `npm run dev:mock` (`backend/scripts/dev-mock.mjs`) = PGlite ฝังในโปรแกรม (`backend/.mockdb/`) + migration + ข้อมูลจำลอง (บัญชีรหัส `demo1234`, ตู้ `BX-00001`/`BX-00002`, โซนตรวจทั้งวัน) · ไม่ต้องมี Postgres/Redis · `DB_POOL_MAX=1` · `BOX_REQUEST_LOG=1` พิมพ์คำขอตู้ · **ตอนนี้โฟกัส core ให้บอร์ดคุยกับ backend ได้ — อย่าเพิ่มฟีเจอร์ใหม่ถ้าผู้ใช้ไม่สั่ง**
 - ❌ `POST /v1/box/deliveries` ตัดออกแล้ว (ไม่มีปุ่มหน้าตู้)
+- คำตอบ `boot` มี `awake_s` = 900 → ตู้ถือ long-poll 15 นาทีหลังเปิดเครื่องแม้นอกเวลาตรวจ (ตู้ใหม่ยังไม่อยู่โซนไหน ช่างก็ทดสอบปลุกได้) · ชื่อ Wi-Fi ตอนตั้งค่า `MAILBOX-<6 หลักท้าย>` (`apName()` ใน `technician.ts`)
+- ตู้จำลองแบบเหมือนบอร์ด: `npm run box:sim -- live` (boot → long-poll · งานทดสอบผ่านเอง · งานตรวจรอวางข้อความ QR ประจำตัว) · รหัสลับดูซ้ำได้ `POST /admin/boxes/:id/device-secret` (บันทึกการเปิดดู)
 
 ## เฟส 3–4 — ตรวจตู้ · ไรเดอร์ · SOS (✅ backend + หน้าเว็บ 2026-10-28 · migration `0009`, `0010`)
 
-- ตรวจตู้ `backend/src/inspection/`: เช็ก QR ของระบบ → ยังใช้ได้ → ในโซน → ในเวลาตรวจ → เปิดบริการ → ตู้ถือ long-poll · ตัดสินผลตู้ผ่าน `BoxJobService.registerJudge('inspect', …)` (box ไม่รู้จัก inspection) · QR ประจำตัว = `badgeToken` ใน `box-crypto.ts`
+- ตรวจตู้ `backend/src/inspection/`: เช็ก QR ของระบบ → ยังใช้ได้ → ในโซน → ในเวลาตรวจ → เปิดบริการ → ตู้ถือ long-poll · สแกนซ้ำระหว่างงานเดิมยังเปิด = ได้การตรวจเดิม (ไม่ปลุกซ้อน)
+- หัวหน้า: `GET /agency/today` · `GET /agency/logs` (`agency/agency-today.service.ts`) · ตัดสินผลตู้ผ่าน `BoxJobService.registerJudge('inspect', …)` (box ไม่รู้จัก inspection) · QR ประจำตัว = `badgeToken` ใน `box-crypto.ts`
 - ไรเดอร์ `backend/src/rider/`: delivery ticket ลงลายเซ็น อายุ 10 นาที ใช้ได้ครั้งเดียว · 5 ครั้ง/ชม./ตู้ (lock แถวตู้ก่อนนับ)
 - SOS `backend/src/sos/`: เลื่อนขั้นทุก 5 วิ จาก `stage_changed_date` (restart แล้วเดินต่อ) · บ้านหลายหน่วยงาน → ทุกขั้นส่งทุกหน่วยงาน · ไม่ส่งถึงเจ้าของบ้านเอง · เห็นเบอร์ → `data_access_log_tb` ครั้งเดียวต่อคน/SOS
 - **โหมด mock มี DB connection เดียว** → ใน transaction ห้ามเรียก `this.pool` (ค้างตลอด) ส่ง `db` ต่อทุกครั้ง

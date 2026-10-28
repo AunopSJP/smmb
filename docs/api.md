@@ -419,7 +419,7 @@ interface OfficerSummary {
 
 | method | path | สิทธิ์ | body | ตอบ |
 |---|---|---|---|---|
-| POST | `/inspections` | `officer` | `{ qr_text }` (สแกน) **หรือ** `{ code }` (พิมพ์ `O02-b`) + `{ scan_ms }` เวลาที่ใช้สแกนจนติด | 201 `Inspection` สถานะ `waking` → `O05` |
+| POST | `/inspections` | `officer` | `{ qr_text }` (สแกน) **หรือ** `{ code }` (พิมพ์ `O02-b`) + `{ scan_ms }` เวลาที่ใช้สแกนจนติด | 201 `Inspection` สถานะ `waking` → `O05` · ✅ สแกนซ้ำ/กดซ้ำระหว่างงานเดิมของคนเดิม-ตู้เดิมยังเปิดอยู่ → ได้ `Inspection` เดิม (ไม่ปลุกตู้ซ้อน) แต่ยังบันทึก log ทุกครั้ง |
 
 ลำดับการเช็กที่ server (หยุดที่ข้อแรกที่ไม่ผ่าน — **บันทึก scan log ทุกกรณี**):
 
@@ -544,9 +544,9 @@ interface SosCard {
 |---|---|---|---|
 | GET | `/agency` | หัวหน้า (รวมหน่วยงานที่ยัง pending / rejected — ใช้แสดง `L02` / `L02-b` · ไม่ต้องเปิดแจ้งเตือน) | `{ id, name, type, status: "pending" \| "approved" \| "rejected", group_code: string \| null, reject_reason: string \| null, contact: string \| null, heads: {id, display_name}[] }` — `group_code` มีเมื่อ `approved` (`L03` แชร์ให้ลูกทีม) · ไม่ใช่หัวหน้า → 404 |
 | POST | `/agency/group-code/rotate` | `head` | `{ group_code }` ใหม่ — รหัสเก่าใช้สมัครไม่ได้ (คนที่สมัครไปแล้วไม่กระทบ) |
-| GET | `/agency/today` | `head` | `?zone=mine\|all\|<zone_id>` → ภาพรวมทีมวันนี้ (`L04`): ต่อโซน `{ zone, is_mine, houses_total, houses_checked, officers_on_duty }` + SOS วันนี้ + ตู้ offline ในโซน · 🔜 ยังไม่ทำ (ต้องมีโซน/การตรวจก่อน) |
+| GET | `/agency/today` | `head` | `?zone=mine\|all` → ภาพรวมทีมวันนี้ (`L04`) ✅ 2026-10-28: `{ date, zones: [{ id, name, is_mine, windows, houses_total, houses_checked, houses_offline, officers: [{ id, display_name }] }], sos_today, sos_open, members_pending }` · "ตรวจแล้ววันนี้" = การตรวจที่ผ่านของหน่วยงานนี้ในวันนี้ตามเวลาไทย · บ้านที่อยู่หลายโซนนับในทุกโซน |
 
-- ✅ (2026-10-27 เขียนแล้ว ยกเว้น `/agency/today`) route ที่ติด `head` ต้อง**เปิดแจ้งเตือนก่อน** (403 `PUSH_REQUIRED` เหมือนเจ้าหน้าที่) · `rotate` ตอบ 200
+- ✅ (2026-10-27 เขียนแล้ว ทั้งหมด · `/agency/today` 2026-10-28) route ที่ติด `head` ต้อง**เปิดแจ้งเตือนก่อน** (403 `PUSH_REQUIRED` เหมือนเจ้าหน้าที่) · `rotate` ตอบ 200
 
 ### 8.2 สมาชิก
 
@@ -599,7 +599,7 @@ interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus }
 
 | method | path | สิทธิ์ | query | ตอบ |
 |---|---|---|---|---|
-| GET | `/agency/logs` | `head` | `?zone=mine\|all\|<zone_id>&from&to&user_id&box_id&result&page&per_page` | paginated `ScanLogRow` ของคนในหน่วยงาน (`L08`): ใคร · บ้าน · เวลา · QR ใบไหน · สแกนหรือพิมพ์ · ผล |
+| GET | `/agency/logs` | `head` | `?page` (หน้าละ 30) | ✅ 2026-10-28 `{ data: [{ id, at, officer: { id, display_name }, box_id, house_no, qr_kind: "front"\|"badge", qr_slot, method, result }], page, per_page }` ใหม่สุดก่อน (`L08`) — การสแกน QR หน้าตู้ของคนในหน่วยงาน + ผลที่ตู้อ่าน QR ประจำตัวของการตรวจของหน่วยงานนี้ (รวมที่ไม่ผ่าน · กฎข้อ 6) · ตัวกรองโซน/วันที่/CSV 🔜 |
 | GET | `/agency/logs/export.csv` | `head` | เหมือนข้างบน | ไฟล์ CSV (UTF-8 BOM ให้ Excel อ่านภาษาไทยได้) 💡 |
 
 ---
@@ -646,6 +646,7 @@ interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus }
 | GET | `/admin/boxes/:box_id` | — | `D04`: ทุกอย่าง + รายงานรายวัน 14 วันล่าสุด + QR ทุกใบ + คำขอช่าง (**data access log**) |
 | POST | `/admin/boxes` | `{ count }` (1–50) | 201 ลงทะเบียนตู้ตอนผลิต → `{ box_id, device_secret, qr: PrintableQr[] }[]` (`device_secret` ได้**ครั้งเดียว** เขียนลงบอร์ด) |
 | POST | `/admin/boxes/:box_id/test-jobs` | — | 201 `Job` — งานทดสอบ: ปลุกตู้ที่ถือ long-poll อยู่ → ไฟ + กล้อง → อ่าน QR อะไรก็ได้ = ผ่าน (ช่างทดสอบหลังติดตั้ง · วัดเวลาปลุก) |
+| POST | `/admin/boxes/:box_id/device-secret` | — | 200 `{ box_id, device_secret }` — เปิดดูรหัสลับประจำตู้อีกครั้ง (เขียนลงบอร์ดใหม่ / เปลี่ยนบอร์ด) · ✅ 2026-10-28 · บันทึกทุกครั้งใน `data_access_log_tb` (`subject_kind: "box"`, `fields: ["device_secret"]`) · ไม่มีตู้ → 404 |
 | GET | `/admin/boxes/:box_id/test-jobs/:job_id` | — | `Job`: `status` (`waiting`/`delivered`/`ready`/`passed`/`failed`/`expired`) · `delivered_at` · `ready_at` · `wake_ms` · `attempts[]` (รวม `qr_text` ที่กล้องอ่านได้) |
 | PATCH | `/admin/boxes/:box_id/service` | `{ active: boolean, reason? }` | ✅ เปิดปิดบริการ — ปิดแล้วไรเดอร์เห็น `R03-b`, ตรวจไม่ได้ |
 | POST | `/admin/boxes/:box_id/unbind` | `{ reason }` | ✅ ยกเลิกการผูก (เช่น ขายบ้าน) → ออก Activate QR ใหม่ให้ |

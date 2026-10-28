@@ -1,21 +1,22 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal, type OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { apiError } from '../../core/api';
+import { HeadApi, showGroupCode, type Agency } from '../../core/head-api';
 import { I18n, type Tr } from '../../core/i18n';
 import { Session } from '../../core/session';
 import { AuthDemo, normalizePhone, PASSWORD_MIN, type SignupForm } from '../../core/mock/auth-demo';
-import { DemoSession } from '../../core/mock/demo-session';
-import { HeadDemo } from '../../core/mock/head-demo';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
 import { Steps, type Step } from '../../shared/steps';
 import { SIGNUP_ERROR } from '../auth/auth-owner';
-import { AdminDemo } from '../../core/mock/admin-demo';
 import { ContactCard } from '../../shared/contact-card';
-import { MockNote, nowHHmm, PasswordField, TermsCheck } from '../auth/auth-parts';
+import { PasswordField, TermsCheck } from '../auth/auth-parts';
 
 // หัวหน้า: L01 สมัครหน่วยงาน → L02 รอแอดมิน (L02-b ไม่อนุมัติ) → L03 อนุมัติแล้ว แชร์รหัสกลุ่ม
-// จำลองบนหน้าจอเท่านั้น — ไม่สร้างบัญชีจริง (api.md §2 signup/agency, §9.2)
+// ใช้ API จริง (api.md §2 signup/agency, §8.1, §9.2)
 
 const AGENCY_TYPES: { v: SignupForm['agency_type']; label: Tr }[] = [
   { v: 'police', label: { th: 'ตำรวจ', en: 'Police' } },
@@ -28,12 +29,11 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
 
 @Component({
   selector: 'app-head-signup',
-  imports: [PageHeader, PasswordField, TermsCheck, MockNote, RouterLink],
+  imports: [PageHeader, PasswordField, TermsCheck, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [title]="i18n.t({ th: 'สมัครหน่วยงาน', en: 'Register an agency' })" [back]="url('A05')" />
     <form class="stack grow" (submit)="$event.preventDefault(); submit()">
-      <app-mock-note />
       <label class="field" [class.invalid]="tried() && !f().agency_name.trim()">
         <span>{{ i18n.t({ th: 'ชื่อหน่วยงาน', en: 'Agency name' }) }}</span>
         <input autocomplete="organization" [value]="f().agency_name" (input)="set('agency_name', $any($event.target).value)" />
@@ -70,7 +70,7 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
           }
         </p>
       }
-      <button type="submit" class="btn push-end" [disabled]="!f().terms">{{ i18n.t({ th: 'ส่งคำขอหน่วยงาน', en: 'Send agency request' }) }}</button>
+      <button type="submit" class="btn push-end" [disabled]="!f().terms || busy()">{{ i18n.t({ th: 'ส่งคำขอหน่วยงาน', en: 'Send agency request' }) }}</button>
     </form>
   `,
   styles: `
@@ -97,8 +97,10 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
 export class HeadSignup {
   protected readonly i18n = inject(I18n);
   private readonly demo = inject(AuthDemo);
-  private readonly session = inject(DemoSession);
+  private readonly session = inject(Session);
+  private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  protected readonly busy = signal(false);
   protected readonly url = screenUrl;
   protected readonly min = PASSWORD_MIN;
   protected readonly types = AGENCY_TYPES;
@@ -118,18 +120,35 @@ export class HeadSignup {
     this.errorCode.set(null);
   }
 
-  /** ของจริง: POST /auth/signup/agency { agency: { name, type }, head: { name, phone, password }, terms_version } */
-  protected submit(): void {
+  /** POST /auth/signup/agency { agency: { name, type, contact }, head: { name, phone, password }, terms_version } → ล็อกอินแล้ว รอแอดมินอนุมัติ */
+  protected async submit(): Promise<void> {
     this.tried.set(true);
-    const e = this.demo.signupAgency(this.f(), nowHHmm());
-    if (e === 'TERMS_NOT_ACCEPTED') return;
-    if (e) {
-      this.errorCode.set(e);
+    const f = this.f();
+    const phone = normalizePhone(f.phone);
+    if (!f.terms) return;
+    if (!f.agency_name.trim() || !f.name.trim() || !phone || f.password.length < this.min || !this.contactOk()) {
+      this.errorCode.set('INVALID');
       return;
     }
-    // สมัครแล้ว = ล็อกอินอยู่ แต่ยังไม่มีบทบาทจนกว่าแอดมินอนุมัติหน่วยงาน
-    this.session.signIn('head', [], normalizePhone(this.f().phone) ?? '');
-    void this.router.navigateByUrl(screenUrl('L02'));
+    this.busy.set(true);
+    try {
+      const terms = await firstValueFrom(this.http.get<{ version: string }>('/api/v1/terms/current'));
+      await firstValueFrom(
+        this.http.post('/api/v1/auth/signup/agency', {
+          agency: { name: f.agency_name.trim(), type: f.agency_type, contact: f.contact.trim() },
+          head: { name: f.name.trim(), phone, password: f.password },
+          terms_version: terms.version,
+        }),
+      );
+      await this.session.refresh();
+      this.f.set({ ...f, password: '' });
+      void this.router.navigateByUrl(screenUrl('L02'));
+    } catch (err) {
+      const e = apiError(err);
+      this.errorCode.set(e.code === 'PHONE_TAKEN' ? 'PHONE_TAKEN' : 'INVALID');
+    } finally {
+      this.busy.set(false);
+    }
   }
 }
 
@@ -150,7 +169,7 @@ export class HeadSignup {
         <section class="card">
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'เหตุผล', en: 'Reason' }) }}</dt>
-            <dd>{{ i18n.t({ th: 'ข้อมูลไม่ครบ', en: 'Incomplete details' }) }}</dd>
+            <dd>{{ req()?.reject_reason || '-' }}</dd>
           </dl>
         </section>
         <app-contact-card [label]="{ th: 'ติดต่อผู้ดูแลระบบ', en: 'Contact the admin' }" [contact]="support()" />
@@ -165,19 +184,15 @@ export class HeadSignup {
         </div>
         <section class="card">
           <dl class="kv">
-            <dt>{{ i18n.t({ th: 'หน่วยงาน', en: 'Agency' }) }}</dt><dd>{{ req().name }}</dd>
-            <dt>{{ i18n.t({ th: 'ประเภท', en: 'Type' }) }}</dt><dd>{{ i18n.t(type(req().type)) }}</dd>
-            <dt>{{ i18n.t({ th: 'ส่งเมื่อ', en: 'Sent' }) }}</dt><dd>{{ req().at }}</dd>
+            <dt>{{ i18n.t({ th: 'หน่วยงาน', en: 'Agency' }) }}</dt><dd>{{ req()?.name }}</dd>
+            @if (req(); as r) {
+              <dt>{{ i18n.t({ th: 'ประเภท', en: 'Type' }) }}</dt><dd>{{ i18n.t(type(r.type)) }}</dd>
+            }
           </dl>
         </section>
         <div class="stack push-end">
           <button type="button" class="btn" (click)="check()">{{ i18n.t({ th: 'ตรวจสถานะอีกครั้ง', en: 'Check again' }) }}</button>
           <button type="button" class="btn secondary" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
-          <div class="demo-tools">
-            {{ i18n.t({ th: 'จำลอง:', en: 'Demo:' }) }}
-            <button type="button" (click)="approved()">{{ i18n.t({ th: 'แอดมินอนุมัติ', en: 'Admin approves' }) }}</button>
-            <button type="button" (click)="rejected()">{{ i18n.t({ th: 'แอดมินไม่อนุมัติ', en: 'Admin declines' }) }}</button>
-          </div>
         </div>
       }
     </div>
@@ -194,30 +209,40 @@ export class HeadSignup {
     }
   `,
 })
-export class HeadPending {
+export class HeadPending implements OnInit {
   protected readonly i18n = inject(I18n);
-  private readonly demo = inject(AuthDemo);
+  private readonly api = inject(HeadApi);
+  private readonly http = inject(HttpClient);
   private readonly toast = inject(Toast);
   private readonly router = inject(Router);
-  /** ?state=rejected = L02-b (ของจริง: Me.agency_status + reject_reason) */
+  /** ?state=rejected = L02-b */
   readonly state = input<string>();
   protected readonly type = typeLabel;
-  protected readonly req = computed(() => this.demo.agencyRequest() ?? { name: 'สภ.บางพลี', type: 'police' as const, at: '26 ต.ค. 10:42' });
+  /** GET /agency (หัวหน้าของหน่วยงานที่ยังรอดูได้) */
+  protected readonly req = signal<Agency | null>(null);
+  /** GET /api/v1/support */
+  protected readonly support = signal('');
 
-  protected check(): void {
-    this.toast.show({ th: 'ยังรอแอดมินตรวจอยู่', en: 'Still waiting for the admin' });
+  async ngOnInit(): Promise<void> {
+    this.req.set(await this.api.loadAgency().catch(() => null));
+    const s = await firstValueFrom(this.http.get<{ contact: string | null }>('/api/v1/support')).catch(() => null);
+    this.support.set(s?.contact ?? '');
   }
 
-  protected approved(): void {
-    void this.router.navigateByUrl(screenUrl('L03'));
+  /** อนุมัติแล้ว → L03 (ต้องโหลด Me ใหม่ให้ได้บทบาท head) · ไม่อนุมัติ → L02-b */
+  protected async check(): Promise<void> {
+    const a = await this.api.loadAgency().catch(() => null);
+    this.req.set(a);
+    if (a?.status === 'approved') {
+      await this.realSession.refresh();
+      this.realSession.use('head');
+      void this.router.navigateByUrl(screenUrl('L03'));
+    } else if (a?.status === 'rejected') {
+      void this.router.navigate([screenUrl('L02')], { queryParams: { state: 'rejected' } });
+    } else {
+      this.toast.show({ th: 'ยังรอแอดมินตรวจอยู่', en: 'Still waiting for the admin' });
+    }
   }
-
-  protected rejected(): void {
-    void this.router.navigate([screenUrl('L02')], { queryParams: { state: 'rejected' } });
-  }
-
-  /** ของจริง: GET /api/v1/support */
-  protected readonly support = inject(AdminDemo).supportContact;
 
   private readonly realSession = inject(Session);
   /** ออกจากระบบจริง (ลบ session ที่ server + cookie) */
@@ -243,7 +268,7 @@ const NEXT_STEPS: Step[] = [
     <div class="stack">
       <section class="code-card">
         <p class="small strong">{{ i18n.t({ th: 'รหัสกลุ่มของหน่วยงาน', en: 'Your agency’s group code' }) }}</p>
-        <p class="code">{{ code }}</p>
+        <p class="code">{{ code() }}</p>
         <p class="small">{{ i18n.t({ th: 'ส่งให้ลูกทีมใช้ตอนสมัคร', en: 'Your team uses it to sign up' }) }}</p>
       </section>
       <div class="two">
@@ -262,7 +287,7 @@ const NEXT_STEPS: Step[] = [
             <button type="button" class="btn" [disabled]="draft().trim().length < 3" (click)="saveContact()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
           </div>
         } @else {
-          <strong>{{ head.contact() }}</strong>
+          <strong>{{ api.agency()?.contact }}</strong>
           <button type="button" class="btn secondary" (click)="editContact()">{{ i18n.t({ th: 'แก้ไข', en: 'Edit' }) }}</button>
         }
       </section>
@@ -308,49 +333,49 @@ const NEXT_STEPS: Step[] = [
     }
   `,
 })
-export class HeadApproved {
+export class HeadApproved implements OnInit {
   protected readonly i18n = inject(I18n);
-  protected readonly head = inject(HeadDemo);
+  protected readonly api = inject(HeadApi);
   protected readonly editingContact = signal(false);
   protected readonly draft = signal('');
 
+  ngOnInit(): void {
+    void this.api.loadAgency().catch(() => undefined);
+  }
+
   protected editContact(): void {
-    this.draft.set(this.head.contact());
+    this.draft.set(this.api.agency()?.contact ?? '');
     this.editingContact.set(true);
   }
 
-  /** ของจริง: PATCH /agency { contact } */
-  protected saveContact(): void {
+  /** PATCH /agency { contact } */
+  protected async saveContact(): Promise<void> {
     if (this.draft().trim().length < 3) return;
-    this.head.contact.set(this.draft().trim());
-    this.editingContact.set(false);
-    this.toast.show({ th: 'บันทึกช่องทางติดต่อแล้ว', en: 'Contact saved' });
+    try {
+      await this.api.setContact(this.draft().trim());
+      this.editingContact.set(false);
+      this.toast.show({ th: 'บันทึกช่องทางติดต่อแล้ว', en: 'Contact saved' });
+    } catch {
+      this.toast.show({ th: 'บันทึกไม่ได้ ลองใหม่', en: 'Couldn’t save — try again' });
+    }
   }
   private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
   protected readonly steps = NEXT_STEPS;
-  /** ของจริง: ได้จาก GET /agency (group_code) หลังแอดมินอนุมัติ */
-  protected readonly code = 'PX7K-2MQ9';
-  protected readonly agency = computed(() => this.i18n.t({ th: this.head.agency.name, en: this.head.agency.name_en }));
-
-  constructor() {
-    // อนุมัติแล้ว: หัวหน้าได้บทบาท officer + head (api.md §9.2)
-    const s = inject(DemoSession);
-    s.addRole('officer');
-    s.addRole('head');
-    s.role.set('head');
-  }
+  /** GET /agency (group_code) — มีหลังแอดมินอนุมัติ */
+  protected readonly code = computed(() => showGroupCode(this.api.agency()?.group_code ?? null));
+  protected readonly agency = computed(() => this.api.agency()?.name ?? '');
 
   private text(): string {
     // ไม่ฮาร์ดโค้ดโดเมน — ใช้ origin ที่เปิดอยู่
     return this.i18n.t({
-      th: `รหัสกลุ่ม ${this.agency()}: ${this.code}\nสมัครเจ้าหน้าที่ที่ ${location.origin}${screenUrl('A10')}`,
-      en: `${this.agency()} group code: ${this.code}\nSign up as an officer at ${location.origin}${screenUrl('A10')}`,
+      th: `รหัสกลุ่ม ${this.agency()}: ${this.code()}\nสมัครเจ้าหน้าที่ที่ ${location.origin}${screenUrl('A10')}`,
+      en: `${this.agency()} group code: ${this.code()}\nSign up as an officer at ${location.origin}${screenUrl('A10')}`,
     });
   }
 
   protected copy(): void {
-    void navigator.clipboard?.writeText(this.code).catch(() => undefined);
+    void navigator.clipboard?.writeText(this.code()).catch(() => undefined);
     this.toast.show({ th: 'คัดลอกรหัสกลุ่มแล้ว', en: 'Code copied' });
   }
 

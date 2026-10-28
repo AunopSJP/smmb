@@ -172,6 +172,15 @@ export class InspectionService implements OnModuleInit {
 
     // ผ่าน → สร้างงาน + การตรวจ แล้วค่อยปลุกตู้ (ตู้จะไม่ส่งผลมาก่อนมีแถวการตรวจ)
     const inspectionId = await withTx(this.pool, async (db) => {
+      // กดซ้ำ / สแกนซ้ำระหว่างงานเดิมยังเปิดอยู่ → ใช้การตรวจเดิม (ไม่สร้างงานปลุกตู้ซ้อน) · lock แถวตู้กันสองคำขอพร้อมกัน
+      await db.query(`SELECT 1 FROM app.box_tb WHERE box_id = $1 FOR UPDATE`, [qr.box_id]);
+      const open = await db.query<{ inspection_id: string }>(
+        `SELECT i.inspection_id FROM app.inspection_tb i JOIN app.box_job_tb j ON j.box_job_id = i.box_job_id
+         WHERE i.box_id = $1 AND i.officer_user_id = $2 AND i.status = 'open' AND j.expire_date > now() AND j.result_date IS NULL
+         ORDER BY i.created_date DESC LIMIT 1`,
+        [qr.box_id, userId],
+      );
+      if (open.rows[0]) return open.rows[0].inspection_id;
       const jobId = await this.jobs.create(qr.box_id, 'inspect', userId, { wake: false, db });
       const { rows } = await db.query<{ inspection_id: string }>(
         `INSERT INTO app.inspection_tb (box_job_id, box_id, officer_user_id, agency_id, zone_id, box_qr_code_id, method, scan_ms)

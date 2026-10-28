@@ -1,15 +1,17 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, type OnInit } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { AdminApi, type AdminAgency, type AdminBoxRow } from '../core/admin-api';
 import { I18n, type Tr } from '../core/i18n';
-import { AdminDemo } from '../core/mock/admin-demo';
-import { PlanDemo } from '../core/mock/plan-demo';
+import { Session } from '../core/session';
 import { Toast } from '../core/toast';
-import { caseUrl } from './admin/admin-qr';
+import { LOW_BATTERY_PCT, seenText } from './admin/admin-boxes';
 import { screenUrl } from '../screens/registry';
 import { Icon, type IconName } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
 
-/** D01 ภาพรวมแอดมิน */
+/** D01 ภาพรวมแอดมิน — ใช้ API จริง (ตู้ · หน่วยงานรออนุมัติ · ช่องทางติดต่อ) */
 @Component({
   selector: 'app-admin-home',
   imports: [RouterLink, PageHeader, Icon],
@@ -25,30 +27,21 @@ import { PageHeader } from '../shared/page-header';
       <div class="stats">
         <a class="stat link" [routerLink]="url('D03')">
           <p class="label">{{ i18n.t({ th: 'ตู้ออนไลน์', en: 'Boxes online' }) }}</p>
-          <p class="value ok">{{ demo.totals.boxes_online }}/{{ demo.totals.boxes_total }}</p>
+          <p class="value ok">{{ online() }}/{{ boxes().length }}</p>
         </a>
         <a class="stat link" [routerLink]="url('D03')" [queryParams]="{ filter: 'low' }">
           <p class="label">{{ i18n.t({ th: 'แบตต่ำ', en: 'Low battery' }) }}</p>
-          <p class="value warn">{{ demo.totals.low_battery }}</p>
+          <p class="value warn">{{ low().length }}</p>
         </a>
-        <a class="stat link" [routerLink]="url('D05')">
-          <p class="label">{{ i18n.t({ th: 'QR มีปัญหา', en: 'QR problems' }) }}</p>
-          <p class="value danger">{{ demo.openQr().length }}</p>
+        <a class="stat link" [routerLink]="url('D03')" [queryParams]="{ filter: 'unbound' }">
+          <p class="label">{{ i18n.t({ th: 'ตู้ยังไม่ผูก', en: 'Unbound boxes' }) }}</p>
+          <p class="value">{{ unbound() }}</p>
         </a>
         <a class="stat link" [routerLink]="url('D02')">
           <p class="label">{{ i18n.t({ th: 'หน่วยงานรอ', en: 'Agencies waiting' }) }}</p>
-          <p class="value">{{ demo.pendingAgencies().length }}</p>
+          <p class="value">{{ pending().length }}</p>
         </a>
       </div>
-
-      <a class="card plans link" [routerLink]="url('D14')">
-        <span class="muted small">{{ i18n.t({ th: 'เจ้าของบ้านตามแพ็กเกจ', en: 'Owners by plan' }) }}</span>
-        <span>
-          @for (p of plans.plans(); track p.code; let last = $last) {
-            <strong>{{ i18n.t(p.name) }}</strong> {{ plans.ownersCount(p.code) }}{{ last ? '' : ' · ' }}
-          }
-        </span>
-      </a>
 
       <h2 class="section-title">{{ i18n.t({ th: 'ต้องจัดการ', en: 'To do' }) }}</h2>
       <nav class="list">
@@ -88,11 +81,11 @@ import { PageHeader } from '../shared/page-header';
             <button type="button" class="btn" [disabled]="!supportDraft().trim()" (click)="saveSupport()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
           </div>
         } @else {
-          <strong>{{ demo.supportContact() ?? i18n.t({ th: 'ยังไม่ได้ตั้ง', en: 'Not set' }) }}</strong>
+          <strong>{{ support() ?? i18n.t({ th: 'ยังไม่ได้ตั้ง', en: 'Not set' }) }}</strong>
           <button type="button" class="btn secondary" (click)="editSupport()">{{ i18n.t({ th: 'แก้ไข', en: 'Edit' }) }}</button>
         }
       </section>
-      <a class="btn secondary signout" [routerLink]="url('A04')">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</a>
+      <button type="button" class="btn secondary signout" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
     </div>
   `,
   styles: `
@@ -137,41 +130,69 @@ import { PageHeader } from '../shared/page-header';
     }
   `,
 })
-export class AdminHome {
+export class AdminHome implements OnInit {
   protected readonly i18n = inject(I18n);
-  protected readonly demo = inject(AdminDemo);
-  protected readonly plans = inject(PlanDemo);
+  private readonly api = inject(AdminApi);
+  private readonly http = inject(HttpClient);
+  private readonly session = inject(Session);
+  private readonly router = inject(Router);
   private readonly toast = inject(Toast);
+  protected readonly url = screenUrl;
   protected readonly editingSupport = signal(false);
   protected readonly supportDraft = signal('');
+  protected readonly support = signal<string | null>(null);
+  protected readonly boxes = signal<AdminBoxRow[]>([]);
+  protected readonly pending = signal<AdminAgency[]>([]);
+  protected readonly online = computed(() => this.boxes().filter((b) => b.status === 'online' || b.status === 'sleeping').length);
+  protected readonly unbound = computed(() => this.boxes().filter((b) => b.status === 'unbound').length);
+  protected readonly low = computed(() => this.boxes().filter((b) => b.bound && b.battery && b.battery.pct < LOW_BATTERY_PCT));
+
+  async ngOnInit(): Promise<void> {
+    const [boxes, pending, support] = await Promise.all([
+      this.api.boxes().catch(() => null),
+      this.api.agencies('pending').catch(() => []),
+      firstValueFrom(this.http.get<{ contact: string | null }>('/api/v1/support')).catch(() => null),
+    ]);
+    this.boxes.set(boxes?.data ?? []);
+    this.pending.set(pending);
+    this.support.set(support?.contact ?? null);
+  }
 
   protected editSupport(): void {
-    this.supportDraft.set(this.demo.supportContact() ?? '');
+    this.supportDraft.set(this.support() ?? '');
     this.editingSupport.set(true);
   }
 
-  /** ของจริง: PUT /admin/settings/support-contact { contact } */
-  protected saveSupport(): void {
+  /** PUT /admin/settings/support-contact { contact } */
+  protected async saveSupport(): Promise<void> {
     const v = this.supportDraft().trim();
     if (!v) return;
-    this.demo.supportContact.set(v);
-    this.editingSupport.set(false);
-    this.toast.show({ th: 'บันทึกช่องทางติดต่อแล้ว', en: 'Contact saved' });
+    try {
+      await firstValueFrom(this.http.put('/api/v1/admin/settings/support-contact', { contact: v }));
+      this.support.set(v);
+      this.editingSupport.set(false);
+      this.toast.show({ th: 'บันทึกช่องทางติดต่อแล้ว', en: 'Contact saved' });
+    } catch {
+      this.toast.show({ th: 'บันทึกไม่ได้', en: 'Couldn’t save' });
+    }
   }
-  protected readonly url = screenUrl;
 
-  /** งานค้าง: QR อาจปลอม · หน่วยงานรออนุมัติ · ตู้เงียบ — หายไปเมื่อจัดการแล้ว */
+  protected signout(): void {
+    void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04')));
+  }
+
+  /** งานค้าง: หน่วยงานรออนุมัติ · ตู้ไม่ออนไลน์ · แบตต่ำ — หายไปเมื่อจัดการแล้ว */
   protected readonly todo = computed(() => {
     const items: { key: string; icon: IconName; tag: 'urgent' | 'pending' | 'box'; title: Tr; sub: Tr; path: string; query?: Record<string, string> }[] = [];
-    for (const c of this.demo.openQr().filter((q) => q.health === 'maybe_fake')) {
-      const link = caseUrl(c);
-      items.push({ key: c.id, icon: 'alert', tag: 'urgent', title: { th: 'QR อาจปลอม · ' + c.house, en: 'Possible fake QR · ' + c.house }, sub: c.reason, path: link.path, query: link.query });
+    for (const a of this.pending()) {
+      items.push({ key: a.id, icon: 'user', tag: 'pending', title: { th: 'หน่วยงานใหม่ · ' + a.name, en: 'New agency · ' + a.name }, sub: { th: 'รออนุมัติ', en: 'Waiting for approval' }, path: screenUrl('D02') });
     }
-    for (const a of this.demo.pendingAgencies()) {
-      items.push({ key: a.id, icon: 'user', tag: 'pending', title: { th: 'หน่วยงานใหม่ · ' + a.name.th, en: 'New agency · ' + a.name.en }, sub: { th: 'ส่งคำขอ ' + a.sent.th, en: 'Requested ' + a.sent.en }, path: screenUrl('D02') });
+    for (const b of this.boxes().filter((x) => x.status === 'offline')) {
+      const seen = seenText(b.last_seen_at);
+      items.push({ key: b.id, icon: 'box', tag: 'box', title: { th: 'ตู้ ' + (b.house_no ?? b.id) + ' ไม่ออนไลน์', en: 'Box ' + (b.house_no ?? b.id) + ' offline' }, sub: { th: 'ติดต่อล่าสุด ' + seen.th, en: 'Last seen ' + seen.en }, path: screenUrl('D04'), query: { id: b.id } });
     }
-    for (const b of this.demo.boxes().filter((x) => x.status === 'offline')) {
-      items.push({ key: b.id, icon: 'box', tag: 'box', title: { th: 'ตู้ ' + b.house_no + ' ไม่ติดต่อ ' + b.last_seen.th, en: 'Box ' + b.house_no + ' silent ' + b.last_seen.en }, sub: { th: 'ไม่ได้รายงานเกิน 26 ชม.', en: 'No report for over 26 h' }, path: screenUrl('D04'), query: { id: b.id } });
+    for (const b of this.low()) {
+      items.push({ key: 'low-' + b.id, icon: 'alert', tag: 'urgent', title: { th: 'แบตต่ำ · ' + (b.house_no ?? b.id), en: 'Low battery · ' + (b.house_no ?? b.id) }, sub: { th: b.battery!.pct + '%', en: b.battery!.pct + '%' }, path: screenUrl('D04'), query: { id: b.id } });
     }
     return items;
   });
@@ -185,7 +206,6 @@ export class AdminHome {
     { code: 'D09', icon: 'user', label: { th: 'ผู้ใช้', en: 'Users' } },
     { code: 'D10', icon: 'target', label: { th: 'ค่าตั้งค่าตู้', en: 'Mailbox config' } },
     { code: 'D13', icon: 'shield', label: { th: 'หน่วยงาน', en: 'Agencies' } },
-    { code: 'D14', icon: 'layers', label: { th: 'แพ็กเกจ', en: 'Plans' } },
     { code: 'T01', icon: 'settings', label: { th: 'งานช่าง (ติดตั้ง)', en: 'Technician (install)' } },
     { code: 'A14', icon: 'user', label: { th: 'เปลี่ยนรหัสผ่านของฉัน', en: 'Change my password' } },
   ];

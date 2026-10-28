@@ -9,6 +9,8 @@
 
 ## ⚡ รันเร็วสุด: โหมด mock (ไม่ต้องติดตั้ง Postgres / Redis / Docker) — ใช้ทดสอบบอร์ด ESP32
 
+> ทีมเฟิร์มแวร์: อ่าน [docs/HARDWARE_FIRMWARE_GUIDE.md](docs/HARDWARE_FIRMWARE_GUIDE.md) ก่อน
+
 ```bash
 cd backend
 npm install
@@ -45,6 +47,8 @@ npm start                   # http://localhost:4200 (ส่ง /api ต่อไ
 ```
 
 ## ตู้จำลอง (ไม่มีบอร์ดก็ทดสอบ API ตู้ได้)
+
+`npm run box:sim -- live --url http://localhost:3000 --box BX-00001 --secret <64 ตัว>` = ทำตัวเหมือนบอร์ดจริง (boot → ถือ long-poll → ทำงานทดสอบ/ตรวจ) · คำสั่งย่อยอื่นด้านล่าง
 
 ```bash
 cd backend

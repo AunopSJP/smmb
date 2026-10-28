@@ -1,33 +1,60 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, signal, type OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { ApiConfig } from '../../core/api';
+import { AdminApi, type AdminBoxDetail, type AdminBoxRow, type RegisteredBox } from '../../core/admin-api';
 import { I18n, type Tr } from '../../core/i18n';
-import { AdminDemo, LOW_BATTERY_PCT, type DemoBox } from '../../core/mock/admin-demo';
-import { PlanDemo } from '../../core/mock/plan-demo';
+import { minutesAgo, type BoxStatus } from '../../core/owner-api';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
+import { BoxTest } from '../../shared/box-test';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
-import { caseUrl, HEALTH } from './admin-qr';
+import { QrImage } from '../../shared/qr-image';
+
+// แอดมิน: D03 ตู้ทั้งหมด + ลงทะเบียนตู้ใหม่ · D04 รายละเอียดตู้ (QR จริง · ทดสอบปลุกตู้ · รหัสลับเขียนลงบอร์ด) — api.md §9.4
 
 type Tone = '' | 'ok' | 'warn' | 'danger';
+export const LOW_BATTERY_PCT = 20;
 
-/** ป้ายสถานะตู้ — ลำดับ: ยังไม่ผูก > ปิดบริการ > ไม่ออนไลน์ > แบตต่ำ > ออนไลน์ / พักอยู่ */
-export function boxBadge(b: DemoBox): { label: Tr; tone: Tone } {
-  if (b.status === 'unbound') return { label: { th: 'ว่าง', en: 'Unbound' }, tone: '' };
-  if (b.status === 'service_closed') return { label: { th: 'ปิดบริการ', en: 'Closed' }, tone: '' };
-  if (b.status === 'offline') return { label: { th: 'ไม่ออนไลน์', en: 'Offline' }, tone: 'danger' };
-  if (b.battery_pct < LOW_BATTERY_PCT) return { label: { th: 'แบตต่ำ', en: 'Low battery' }, tone: 'warn' };
-  if (b.status === 'online') return { label: { th: 'ออนไลน์', en: 'Online' }, tone: 'ok' };
-  return { label: { th: 'พักอยู่', en: 'Sleeping' }, tone: '' };
+const STATUS: Record<BoxStatus, { label: Tr; tone: Tone }> = {
+  online: { label: { th: 'ออนไลน์', en: 'Online' }, tone: 'ok' },
+  sleeping: { label: { th: 'พักอยู่', en: 'Sleeping' }, tone: '' },
+  offline: { label: { th: 'ไม่ออนไลน์', en: 'Offline' }, tone: 'danger' },
+  service_closed: { label: { th: 'ปิดบริการ', en: 'Closed' }, tone: '' },
+  unbound: { label: { th: 'ยังไม่ผูก', en: 'Unbound' }, tone: '' },
+};
+
+/** ป้ายสถานะตู้ — แบตต่ำแทนออนไลน์/พักอยู่ */
+export function boxBadge(b: Pick<AdminBoxRow, 'status' | 'battery'>): { label: Tr; tone: Tone } {
+  if ((b.status === 'online' || b.status === 'sleeping') && b.battery && b.battery.pct < LOW_BATTERY_PCT) {
+    return { label: { th: 'แบตต่ำ', en: 'Low battery' }, tone: 'warn' };
+  }
+  return STATUS[b.status];
 }
 
-type BoxFilter = 'all' | 'offline' | 'low';
+/** "ไม่เคยติดต่อ" / "5 นาทีที่แล้ว" */
+export function seenText(iso: string | null): Tr {
+  const m = minutesAgo(iso);
+  if (m === null) return { th: 'ยังไม่เคยติดต่อ', en: 'never connected' };
+  if (m < 1) return { th: 'เมื่อสักครู่', en: 'just now' };
+  if (m < 60) return { th: `${m} นาทีที่แล้ว`, en: `${m} min ago` };
+  if (m < 1440) return { th: `${Math.floor(m / 60)} ชม.ที่แล้ว`, en: `${Math.floor(m / 60)} h ago` };
+  return { th: `${Math.floor(m / 1440)} วันที่แล้ว`, en: `${Math.floor(m / 1440)} d ago` };
+}
+
+const SLOT_LABEL: Record<string, Tr> = {
+  '1': { th: 'QR หน้าตู้', en: 'Front QR' },
+  '2': { th: 'QR สำรอง', en: 'Backup QR' },
+  activate: { th: 'QR เปิดใช้ตู้', en: 'Activation QR' },
+};
+
+type BoxFilter = 'all' | 'unbound' | 'offline' | 'low';
 
 // ── D03 · ตู้ทั้งหมด ─────────────────────────────────────────
 
 @Component({
   selector: 'app-admin-boxes',
-  imports: [RouterLink, PageHeader, Icon],
+  imports: [RouterLink, PageHeader, Icon, QrImage],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
@@ -36,19 +63,41 @@ type BoxFilter = 'all' | 'offline' | 'low';
       [bell]="url('D12')"
     />
     <div class="stack">
+      @if (created().length) {
+        <section class="card stack new">
+          <h2 class="section-title">{{ i18n.t({ th: 'ลงทะเบียนแล้ว — จดรหัสลับไปเขียนลงบอร์ด', en: 'Registered — copy the secret onto the board' }) }}</h2>
+          @for (b of created(); track b.box_id) {
+            <div class="stack reg">
+              <strong>{{ b.box_id }}</strong>
+              <code class="secret">{{ b.device_secret }}</code>
+              <div class="qr-grid">
+                @for (q of b.qr; track q.slot) {
+                  <figure>
+                    <app-qr-image [text]="q.url" level="H" [label]="i18n.t(slot(q.slot))" />
+                    <figcaption class="small">{{ i18n.t(slot(q.slot)) }}<br /><strong>{{ q.print_code }}</strong></figcaption>
+                  </figure>
+                }
+              </div>
+            </div>
+          }
+          <button type="button" class="btn secondary" (click)="created.set([])">{{ i18n.t({ th: 'จดแล้ว ปิด', en: 'Done, close' }) }}</button>
+        </section>
+      }
+
+      <form class="add" (submit)="$event.preventDefault(); register()">
+        <label class="field">
+          <span>{{ i18n.t({ th: 'ลงทะเบียนตู้ใหม่ (จำนวน)', en: 'Register new boxes (count)' }) }}</span>
+          <input type="number" min="1" max="50" inputmode="numeric" [value]="count()" (input)="count.set(+$any($event.target).value)" />
+        </label>
+        <button type="submit" class="btn" [disabled]="busy() || count() < 1 || count() > 50">{{ i18n.t({ th: 'สร้าง', en: 'Create' }) }}</button>
+      </form>
+
+      <input class="search" type="search" [placeholder]="i18n.t({ th: 'ค้นรหัสตู้ / บ้านเลขที่', en: 'Search box id / house no.' })" [value]="q()" (input)="q.set($any($event.target).value)" />
       <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'กรอง', en: 'Filter' })">
         @for (f of filters; track f.v) {
           <button type="button" [attr.aria-pressed]="filter() === f.v" (click)="filter.set(f.v)">{{ i18n.t(f.label) }}</button>
         }
       </div>
-      @if (plans.plans().length > 1) {
-        <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'แพ็กของเจ้าของ', en: 'Owner plan' })">
-          <button type="button" [attr.aria-pressed]="planFilter() === 'all'" (click)="planFilter.set('all')">{{ i18n.t({ th: 'ทุกแพ็ก', en: 'All plans' }) }}</button>
-          @for (p of plans.plans(); track p.code) {
-            <button type="button" [attr.aria-pressed]="planFilter() === p.code" (click)="planFilter.set(p.code)">{{ i18n.t(p.name) }}</button>
-          }
-        </div>
-      }
       <nav class="list">
         @for (b of rows(); track b.id) {
           @let badge = boxBadge(b);
@@ -57,20 +106,20 @@ type BoxFilter = 'all' | 'offline' | 'low';
               <app-icon name="box" [size]="20" />
             </span>
             <span class="grow">
-              <strong>{{ title(b) }}</strong>
-              <span class="muted small block">{{ sub(b) }}</span>
+              <strong>{{ b.id }}{{ b.house_no ? ' · ' + b.house_no : '' }}</strong>
+              <span class="muted small block">
+                {{ b.battery ? i18n.t({ th: 'แบต ', en: 'Battery ' }) + b.battery.pct + '% · ' : '' }}{{ i18n.t(seen(b.last_seen_at)) }}
+              </span>
             </span>
             <span class="chip" [class.ok]="badge.tone === 'ok'" [class.warn]="badge.tone === 'warn'" [class.danger]="badge.tone === 'danger'">
               {{ i18n.t(badge.label) }}
             </span>
           </a>
         } @empty {
-          <p class="row muted">{{ i18n.t({ th: 'ไม่มีตู้ในกลุ่มนี้', en: 'No mailboxes here' }) }}</p>
+          <p class="row muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ไม่มีตู้ในกลุ่มนี้', en: 'No mailboxes here' }) }}</p>
         }
       </nav>
-      <p class="muted small">
-        {{ i18n.t({ th: 'ข้อมูลตัวอย่าง ' + demo.boxes().length + ' ตู้ จากทั้งหมด ' + demo.totals.boxes_total + ' ตู้', en: 'Sample of ' + demo.boxes().length + ' of ' + demo.totals.boxes_total + ' mailboxes' }) }}
-      </p>
+      <p class="muted small">{{ i18n.t({ th: 'ทั้งหมด ' + total() + ' ตู้', en: total() + ' mailboxes' }) }}</p>
     </div>
   `,
   styles: `
@@ -81,264 +130,312 @@ type BoxFilter = 'all' | 'offline' | 'low';
     .block {
       display: block;
     }
+    .add {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: end;
+    }
+    .search {
+      min-height: 44px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--line);
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+    }
+    .new {
+      box-shadow: inset 0 0 0 2px var(--ok);
+    }
+    .secret {
+      word-break: break-all;
+      font-size: 0.8125rem;
+      background: var(--icon-bg);
+      padding: 6px 8px;
+      border-radius: var(--radius-sm);
+    }
+    .qr-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      figure {
+        margin: 0;
+        text-align: center;
+      }
+      app-qr-image {
+        background: #fff;
+      }
+    }
   `,
 })
-export class AdminBoxes {
+export class AdminBoxes implements OnInit {
   protected readonly i18n = inject(I18n);
-  protected readonly demo = inject(AdminDemo);
+  private readonly api = inject(AdminApi);
+  private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
   protected readonly boxBadge = boxBadge;
+  protected readonly seen = seenText;
+  protected readonly slot = (s: string | number) => SLOT_LABEL[String(s)];
 
-  /** ?filter=low จากหน้าแจ้งเตือน */
+  /** ?filter=low|offline จากหน้าแจ้งเตือน */
   readonly filterParam = input<string | undefined>(undefined, { alias: 'filter' });
-  protected readonly filter = linkedSignal<BoxFilter>(() => {
-    const f = this.filterParam();
-    return f === 'offline' || f === 'low' ? f : 'all';
-  });
+  protected readonly filter = signal<BoxFilter>('all');
   protected readonly filters: { v: BoxFilter; label: Tr }[] = [
     { v: 'all', label: { th: 'ทั้งหมด', en: 'All' } },
+    { v: 'unbound', label: { th: 'ยังไม่ผูก', en: 'Unbound' } },
     { v: 'offline', label: { th: 'ไม่ออนไลน์', en: 'Offline' } },
     { v: 'low', label: { th: 'แบตต่ำ', en: 'Low battery' } },
   ];
-
-  protected readonly plans = inject(PlanDemo);
-  /** ?plan= ใน GET /admin/boxes — ตู้กรองตามแพ็กของเจ้าของ */
-  protected readonly planFilter = signal('all');
+  protected readonly boxes = signal<AdminBoxRow[]>([]);
+  protected readonly total = signal(0);
+  protected readonly loading = signal(true);
+  protected readonly q = signal('');
+  protected readonly count = signal(1);
+  protected readonly busy = signal(false);
+  protected readonly created = signal<RegisteredBox[]>([]);
 
   protected readonly rows = computed(() => {
     const f = this.filter();
-    const p = this.planFilter();
-    return this.demo.boxes().filter(
+    const q = this.q().trim().toLowerCase();
+    return this.boxes().filter(
       (b) =>
-        (f === 'offline' ? b.status === 'offline' : f === 'low' ? b.battery_pct < LOW_BATTERY_PCT && b.status !== 'unbound' : true) &&
-        (p === 'all' || (!!b.owner_id && this.plans.current(b.owner_id)?.plan_code === p)),
+        (f === 'unbound' ? b.status === 'unbound' : f === 'offline' ? b.status === 'offline' : f === 'low' ? !!b.battery && b.battery.pct < LOW_BATTERY_PCT : true) &&
+        (!q || b.id.toLowerCase().includes(q) || (b.house_no ?? '').toLowerCase().includes(q)),
     );
   });
 
-  protected title(b: DemoBox): string {
-    if (!b.house_no || !b.owner) return `${b.id} · ${this.i18n.t({ th: 'ยังไม่ผูก', en: 'not bound' })}`;
-    return `${b.house_no} · ${this.i18n.t(b.owner)}`;
+  ngOnInit(): void {
+    const f = this.filterParam();
+    if (f === 'offline' || f === 'low' || f === 'unbound') this.filter.set(f);
+    void this.load();
   }
 
-  protected sub(b: DemoBox): string {
-    const seen = this.i18n.t({ th: `ติดต่อ ${b.last_seen.th}ที่แล้ว`, en: `seen ${b.last_seen.en} ago` });
-    return `${this.i18n.t({ th: 'แบต', en: 'Battery' })} ${b.battery_pct}% · ${seen}`;
+  private async load(): Promise<void> {
+    try {
+      const r = await this.api.boxes();
+      this.boxes.set(r.data);
+      this.total.set(r.total);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  /** POST /admin/boxes { count } → รหัสลับ + QR ชุดแรก (พิมพ์ได้จากหน้านี้หรือ D04) */
+  protected async register(): Promise<void> {
+    this.busy.set(true);
+    try {
+      this.created.set(await this.api.registerBoxes(this.count()));
+      this.toast.show({ th: 'ลงทะเบียนตู้แล้ว', en: 'Boxes registered' });
+      await this.load();
+    } catch {
+      this.toast.show({ th: 'สร้างไม่ได้ ลองใหม่', en: 'Couldn’t create — try again' });
+    } finally {
+      this.busy.set(false);
+    }
   }
 }
 
 // ── D04 · รายละเอียดตู้ ─────────────────────────────────────
 
-const UNBIND_REASONS: { v: string; label: Tr }[] = [
-  { v: 'sold', label: { th: 'ขายบ้าน / ย้ายออก', en: 'House sold / moved out' } },
-  { v: 'owner_request', label: { th: 'เจ้าของบ้านขอยกเลิก', en: 'Owner asked to cancel' } },
-  { v: 'other', label: { th: 'อื่น ๆ', en: 'Other' } },
-];
-
 @Component({
   selector: 'app-admin-box',
-  imports: [RouterLink, PageHeader, Icon],
+  imports: [RouterLink, PageHeader, QrImage, BoxTest],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
+    <app-page-header [caption]="id() ?? ''" [title]="i18n.t({ th: 'ตู้ ', en: 'Mailbox ' }) + (box()?.house_no ?? id() ?? '')" [back]="url('D03')" />
     @if (box(); as b) {
       @let badge = boxBadge(b);
-      @let qrCase = demo.caseOfBox(b.id);
-      <app-page-header [caption]="b.id" [title]="i18n.t({ th: 'ตู้ ', en: 'Mailbox ' }) + (b.house_no ?? i18n.t({ th: 'ยังไม่ผูก', en: 'not bound' }))" [back]="url('D03')" />
       <div class="stack grow">
         <section class="card">
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt>
             <dd><span class="chip" [class.ok]="badge.tone === 'ok'" [class.warn]="badge.tone === 'warn'" [class.danger]="badge.tone === 'danger'">{{ i18n.t(badge.label) }}</span></dd>
-            @if (b.owner) {
-              <dt>{{ i18n.t({ th: 'เจ้าของ', en: 'Owner' }) }}</dt>
-              <dd><a [routerLink]="url('D09')" [queryParams]="{ id: b.owner_id }">{{ i18n.t(b.owner) }}</a></dd>
-              @if (ownerPlan(); as p) {
-                <dt>{{ i18n.t({ th: 'แพ็กเกจ', en: 'Plan' }) }}</dt>
-                <dd>{{ i18n.t(p.name) }}</dd>
-              }
-            }
+            <dt>{{ i18n.t({ th: 'บ้าน', en: 'House' }) }}</dt>
+            <dd>{{ b.bound ? (b.house_no + (b.name ? ' · ' + b.name : '')) : i18n.t({ th: 'ยังไม่ผูก', en: 'not bound' }) }}</dd>
             <dt>{{ i18n.t({ th: 'แบต', en: 'Battery' }) }}</dt>
-            <dd [class.warn-text]="b.battery_pct < low">{{ b.battery_pct }}%{{ b.charging ? i18n.t({ th: ' · ชาร์จอยู่', en: ' · charging' }) : '' }}</dd>
+            <dd>{{ b.battery ? b.battery.pct + '%' + (b.battery.charging ? i18n.t({ th: ' · ชาร์จอยู่', en: ' · charging' }) : '') : '—' }}</dd>
             <dt>{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last seen' }) }}</dt>
-            <dd>{{ i18n.t({ th: b.last_seen.th + 'ที่แล้ว', en: b.last_seen.en + ' ago' }) }}</dd>
-            <dt>{{ i18n.t({ th: 'โซน', en: 'Zone' }) }}</dt>
-            <dd>{{ b.zone ? i18n.t(b.zone) : '—' }}</dd>
+            <dd>{{ i18n.t(seen(b.last_seen_at)) }}</dd>
+            <dt>{{ i18n.t({ th: 'ถือ long-poll ล่าสุด', en: 'Last long-poll' }) }}</dt>
+            <dd>{{ i18n.t(seen(b.last_poll_at)) }}</dd>
+            <dt>{{ i18n.t({ th: 'เฟิร์มแวร์', en: 'Firmware' }) }}</dt>
+            <dd>{{ b.fw ?? '—' }}</dd>
             <dt>{{ i18n.t({ th: 'ค่าตั้งค่า', en: 'Config' }) }}</dt>
-            <dd [class.warn-text]="b.config_ver !== demo.config().ver">
-              v{{ b.config_ver }}
-              {{ b.config_ver === demo.config().ver ? i18n.t({ th: '(ตรงกัน)', en: '(up to date)' }) : i18n.t({ th: '(รอตู้ดึงค่าใหม่)', en: '(waiting for the box)' }) }}
+            <dd [class.warn-text]="!b.config.in_sync">
+              v{{ b.config.config_ver }}
+              {{ b.config.in_sync ? i18n.t({ th: '(ตู้มีค่าล่าสุด)', en: '(up to date)' }) : i18n.t({ th: '(รอตู้ดึงค่าใหม่)', en: '(waiting for the box)' }) }}
             </dd>
+            <dt>{{ i18n.t({ th: 'เวลาตรวจ', en: 'Patrol hours' }) }}</dt>
+            <dd>{{ windows(b) }}</dd>
           </dl>
         </section>
 
-        <nav class="list">
-          @if (qrCase && qrCase.slot === 1) {
-            <a class="row" [routerLink]="caseLink(qrCase).path" [queryParams]="caseLink(qrCase).query">
-              <span class="grow">
-                <strong>{{ i18n.t({ th: 'QR หน้าตู้', en: 'Front QR' }) }}</strong>
-                <span class="muted small block">{{ i18n.t(qrCase.reason) }}</span>
-              </span>
-              <span class="chip" [class.danger]="health[qrCase.health].tone === 'danger'" [class.warn]="health[qrCase.health].tone === 'warn'">{{ i18n.t(health[qrCase.health].label) }}</span>
-              <app-icon name="chevronRight" [size]="18" />
-            </a>
-          } @else {
-            <div class="row">
-              <span class="grow">
-                <strong>{{ i18n.t({ th: 'QR หน้าตู้', en: 'Front QR' }) }}</strong>
-                <span class="muted small block">{{ i18n.t(b.qr_front_age) }}</span>
-              </span>
-              <span class="chip ok">{{ i18n.t({ th: 'ปกติ', en: 'OK' }) }}</span>
-            </div>
-          }
-          <div class="row">
-            <span class="grow">
-              <strong>{{ i18n.t({ th: 'QR สำรอง', en: 'Backup QR' }) }}</strong>
-              <span class="muted small block">{{ i18n.t(b.qr_backup) }}</span>
-            </span>
-            <span class="chip ok">{{ i18n.t({ th: 'ปกติ', en: 'OK' }) }}</span>
-          </div>
-          <div class="row">
-            <span class="grow">
-              <strong>{{ i18n.t({ th: 'QR เปิดใช้ตู้', en: 'Activation QR' }) }}</strong>
-              <span class="muted small block">{{ b.qr_activate ? i18n.t(b.qr_activate) : i18n.t({ th: 'ใบใหม่ · รอเจ้าของบ้านสแกน', en: 'New · waiting for the owner' }) }}</span>
-            </span>
-            <span class="chip">{{ b.qr_activate ? i18n.t({ th: 'ใช้แล้ว', en: 'Used' }) : i18n.t({ th: 'รอใช้', en: 'Unused' }) }}</span>
-          </div>
-        </nav>
+        <h2 class="section-title">{{ i18n.t({ th: 'ทดสอบปลุกตู้', en: 'Wake test' }) }}</h2>
+        <app-box-test [boxId]="b.id" (finished)="reload()" />
 
-        @if (b.tech_request; as r) {
-          @if (r.status !== 'done') {
-            <section class="card tech">
-              <div class="tech-head">
-                <app-icon name="wifi" [size]="20" />
-                <strong class="grow">{{ i18n.t({ th: 'เจ้าของบ้านขอช่าง · ', en: 'Technician request · ' }) }}{{ i18n.t(r.reason) }}</strong>
-                <span class="chip" [class.warn]="r.status === 'open'">{{ r.status === 'open' ? i18n.t({ th: 'รอนัด', en: 'To schedule' }) : i18n.t({ th: 'นัดแล้ว', en: 'Scheduled' }) }}</span>
-              </div>
-              <p class="muted small">{{ i18n.t(r.when) }} · {{ i18n.t({ th: 'เจ้าของบ้านได้รับแจ้งทุกครั้งที่เปลี่ยนสถานะ', en: 'The owner is notified on every change' }) }}</p>
-              @if (r.status === 'open') {
-                <button type="button" class="btn secondary" (click)="tech(b.id, 'scheduled')">{{ i18n.t({ th: 'นัดช่างแล้ว', en: 'Mark as scheduled' }) }}</button>
-              } @else {
-                <button type="button" class="btn secondary" (click)="tech(b.id, 'done')">{{ i18n.t({ th: 'ช่างทำเสร็จแล้ว', en: 'Mark as done' }) }}</button>
-              }
-            </section>
-          }
-        }
-
-        @if (b.status === 'unbound') {
-          <p class="info-box muted">{{ i18n.t({ th: 'ยังไม่มีเจ้าของ — ติดตั้งเสร็จแล้วให้เจ้าของบ้านสมัคร และสแกน QR เปิดใช้ตู้ที่อยู่ในตู้', en: 'No owner yet — after install, the owner signs up and scans the activation QR kept inside the box' }) }}</p>
-        }
-        <p class="muted small">{{ i18n.t({ th: 'การเปิดดูข้อมูลเจ้าของในหน้านี้ถูกบันทึก', en: 'Viewing owner details on this page is logged' }) }}</p>
-
-        <div class="stack push-end">
-          @if (b.status === 'unbound') {
-            <a class="btn" [routerLink]="url('T01')" [queryParams]="{ id: b.id }">{{ i18n.t({ th: 'เปิดเช็กลิสต์ติดตั้ง', en: 'Open the install checklist' }) }}</a>
-          } @else if (unbinding()) {
-            <fieldset class="card options confirm">
-              <legend>{{ i18n.t({ th: 'ยกเลิกการผูกตู้ ', en: 'Unbind mailbox ' }) }}{{ b.house_no }}?</legend>
-              @for (r of reasons; track r.v) {
-                <label><input type="radio" name="unbind" [value]="r.v" [checked]="reason() === r.v" (change)="reason.set(r.v)" /> {{ i18n.t(r.label) }}</label>
-              }
-              <p class="muted small">{{ i18n.t({ th: 'เจ้าของบ้านจะไม่เห็นตู้นี้อีก · ระบบออก QR เปิดใช้ตู้ใบใหม่ให้ เจ้าของคนใหม่ผูกได้', en: 'The owner loses this mailbox · a new activation QR is issued for the next owner' }) }}</p>
-              <div class="two">
-                <button type="button" class="btn secondary" (click)="unbinding.set(false)">{{ i18n.t({ th: 'ไม่ยกเลิก', en: 'Keep' }) }}</button>
-                <button type="button" class="btn" [disabled]="!reason()" (click)="unbind(b.id)">{{ i18n.t({ th: 'ยืนยันยกเลิกการผูก', en: 'Unbind' }) }}</button>
-              </div>
-            </fieldset>
-          } @else {
-            <div class="two">
-              @if (b.status === 'service_closed') {
-                <button type="button" class="btn secondary" (click)="service(b.id, true)">{{ i18n.t({ th: 'เปิดให้บริการ', en: 'Reopen service' }) }}</button>
-              } @else {
-                <button type="button" class="btn secondary" (click)="service(b.id, false)">{{ i18n.t({ th: 'ปิดให้บริการ', en: 'Close service' }) }}</button>
-              }
-              <button type="button" class="btn secondary danger" (click)="unbinding.set(true)">{{ i18n.t({ th: 'ยกเลิกการผูกตู้', en: 'Unbind' }) }}</button>
-            </div>
-            @if (b.status === 'service_closed') {
-              <p class="muted small center">{{ i18n.t({ th: 'ปิดบริการอยู่: ไรเดอร์แจ้งส่งของไม่ได้ และเจ้าหน้าที่ตรวจไม่ได้', en: 'Closed: riders cannot report deliveries and officers cannot inspect' }) }}</p>
-            }
+        <h2 class="section-title">{{ i18n.t({ th: 'QR ของตู้ (พิมพ์ได้)', en: 'Box QR codes (printable)' }) }}</h2>
+        <div class="qr-grid">
+          @for (q of activeQr(); track q.id) {
+            <figure class="card">
+              <app-qr-image [text]="q.url" level="H" [label]="i18n.t(slot(q.slot))" />
+              <figcaption class="small">
+                <strong>{{ i18n.t(slot(q.slot)) }}</strong> v{{ q.version }}<br />
+                {{ q.print_code }}
+                @if (q.slot === 'activate') {
+                  <br /><span class="chip" [class.ok]="q.status === 'active'">{{ q.status === 'active' ? i18n.t({ th: 'ยังไม่ใช้', en: 'unused' }) : i18n.t({ th: 'ใช้แล้ว', en: 'used' }) }}</span>
+                }
+              </figcaption>
+            </figure>
           }
         </div>
+        <button type="button" class="btn secondary" (click)="print()">{{ i18n.t({ th: 'พิมพ์หน้านี้', en: 'Print this page' }) }}</button>
+
+        <h2 class="section-title">{{ i18n.t({ th: 'เขียนลงบอร์ด', en: 'Board provisioning' }) }}</h2>
+        <section class="card stack">
+          <dl class="kv small">
+            <dt>box_id</dt><dd><code>{{ b.id }}</code></dd>
+            <dt>{{ i18n.t({ th: 'URL เซิร์ฟเวอร์', en: 'Server URL' }) }}</dt><dd><code>{{ apiUrl }}</code></dd>
+            @if (secret(); as s) {
+              <dt>device_secret</dt><dd><code class="secret">{{ s }}</code></dd>
+            }
+          </dl>
+          @if (!secret()) {
+            <button type="button" class="btn secondary" (click)="reveal()">{{ i18n.t({ th: 'ดูรหัสลับประจำตู้ (บันทึกการเปิดดู)', en: 'Show device secret (access is logged)' }) }}</button>
+          } @else {
+            <button type="button" class="btn secondary" (click)="copy(secret()!)">{{ i18n.t({ th: 'คัดลอกรหัสลับ', en: 'Copy secret' }) }}</button>
+          }
+          <p class="muted small">{{ i18n.t({ th: 'ตู้ต้องเซ็นทุกคำขอด้วยรหัสนี้ (โปรโตคอล §1.1) · ห้ามส่งในแชต', en: 'The box signs every request with it (protocol §1.1) · never paste it in chat' }) }}</p>
+        </section>
+
+        <h2 class="section-title">{{ i18n.t({ th: 'รายงานจากตู้ล่าสุด', en: 'Latest box reports' }) }}</h2>
+        <div class="list">
+          @for (r of b.reports.slice(0, 8); track $index) {
+            <div class="row">
+              <span class="grow">
+                <strong>{{ r.kind }}{{ r.body['type'] ? ' · ' + r.body['type'] : '' }}</strong>
+                <span class="muted small block">{{ reportLine(r.body) }}</span>
+              </span>
+              <span class="muted small">{{ i18n.t(seen(r.at)) }}</span>
+            </div>
+          } @empty {
+            <p class="row muted">{{ i18n.t({ th: 'ตู้ยังไม่เคยส่งรายงาน (ยังไม่เปิดเครื่อง / ยังไม่ต่อ Wi-Fi)', en: 'No reports yet (not powered on / no Wi-Fi yet)' }) }}</p>
+          }
+        </div>
+        @if (b.auth_failures.length) {
+          <h2 class="section-title">{{ i18n.t({ th: 'คำขอที่ลายเซ็นไม่ผ่าน', en: 'Rejected box requests' }) }}</h2>
+          <div class="list">
+            @for (a of b.auth_failures; track $index) {
+              <div class="row"><span class="grow"><strong>{{ a.reason }}</strong></span><span class="muted small">{{ i18n.t(seen(a.at)) }}</span></div>
+            }
+          </div>
+        }
+        <a class="btn secondary" [routerLink]="url('T01')" [queryParams]="{ id: b.id }">{{ i18n.t({ th: 'เปิดเช็กลิสต์ติดตั้ง (ช่าง)', en: 'Open install checklist' }) }}</a>
       </div>
+    } @else {
+      <p class="muted">{{ notFound() ? i18n.t({ th: 'ไม่พบตู้นี้', en: 'Mailbox not found' }) : i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
     }
   `,
   styles: `
     .grow {
       flex: 1;
-    }
-    .row .grow {
       min-width: 0;
     }
     .block {
       display: block;
     }
-    .kv a {
-      color: var(--brand);
-    }
-    .tech {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .tech-head {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .two {
+    .qr-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      figure {
+        margin: 0;
+        padding: 8px;
+        text-align: center;
+      }
+      app-qr-image {
+        background: #fff;
+      }
     }
-    .btn.danger {
-      color: var(--sos);
-      box-shadow: inset 0 0 0 1.5px var(--sos);
+    .secret {
+      word-break: break-all;
     }
-    .confirm legend {
-      float: left;
-      width: 100%;
+    code {
+      font-size: 0.8125rem;
+      word-break: break-all;
     }
-    .confirm .btn {
-      min-height: 48px;
+    @media print {
+      .qr-grid {
+        grid-template-columns: repeat(3, 5cm);
+      }
     }
   `,
 })
-export class AdminBox {
+export class AdminBox implements OnInit {
   protected readonly i18n = inject(I18n);
-  protected readonly demo = inject(AdminDemo);
+  private readonly api = inject(AdminApi);
   private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
   protected readonly boxBadge = boxBadge;
-  protected readonly health = HEALTH;
-  protected readonly low = LOW_BATTERY_PCT;
-  protected readonly reasons = UNBIND_REASONS;
+  protected readonly seen = seenText;
+  protected readonly slot = (s: string | number) => SLOT_LABEL[String(s)];
   readonly id = input<string>();
+  protected readonly box = signal<AdminBoxDetail | null>(null);
+  protected readonly notFound = signal(false);
+  protected readonly secret = signal<string | null>(null);
+  protected readonly activeQr = computed(() => (this.box()?.qr ?? []).filter((q) => q.status === 'active' || q.slot === 'activate'));
+  /** URL ที่ตู้ใช้ = origin + apiBase ของเว็บนี้ (ไม่ฮาร์ดโค้ดโดเมน) */
+  protected readonly apiUrl = location.origin + inject(ApiConfig).apiBase();
 
-  protected readonly box = computed(() => this.demo.box(this.id()) ?? this.demo.boxes()[0]);
-  private readonly plans = inject(PlanDemo);
-  /** แพ็กของเจ้าของตู้ (อ่านอย่างเดียว — เปลี่ยนที่หน้าผู้ใช้) */
-  protected readonly ownerPlan = computed(() => {
-    const id = this.box()?.owner_id;
-    const cur = id ? this.plans.current(id) : undefined;
-    return cur ? this.plans.plan(cur.plan_code) : undefined;
-  });
-  protected readonly unbinding = signal(false);
-  protected readonly reason = signal<string | null>(null);
-
-  protected caseLink = caseUrl;
-
-  protected service(id: string, active: boolean): void {
-    this.demo.setService(id, active);
-    this.toast.show(active ? { th: 'เปิดให้บริการแล้ว', en: 'Service reopened' } : { th: 'ปิดให้บริการตู้นี้แล้ว', en: 'Service closed for this mailbox' });
+  constructor() {
+    const t = setInterval(() => void this.reload(), 5000);
+    inject(DestroyRef).onDestroy(() => clearInterval(t));
   }
 
-  protected unbind(id: string): void {
-    this.demo.unbind(id);
-    this.unbinding.set(false);
-    this.reason.set(null);
-    this.toast.show({ th: 'ยกเลิกการผูกตู้แล้ว', en: 'Mailbox unbound' });
+  ngOnInit(): void {
+    void this.reload();
   }
 
-  protected tech(id: string, status: 'scheduled' | 'done'): void {
-    this.demo.setTechRequest(id, status);
-    this.toast.show(status === 'scheduled' ? { th: 'บันทึกนัดช่างแล้ว', en: 'Marked as scheduled' } : { th: 'ปิดคำขอช่างแล้ว', en: 'Request closed' });
+  async reload(): Promise<void> {
+    const id = this.id();
+    if (!id) return;
+    try {
+      this.box.set(await this.api.box(id));
+    } catch {
+      if (!this.box()) this.notFound.set(true);
+    }
+  }
+
+  protected windows(b: AdminBoxDetail): string {
+    const w = b.config.config.windows ?? [];
+    return w.length ? w.map((x) => x.join('–')).join(' · ') : this.i18n.t({ th: 'ยังไม่อยู่ในโซนไหน', en: 'not in any zone' });
+  }
+
+  protected reportLine(body: Record<string, unknown>): string {
+    const parts: string[] = [];
+    if (body['battery_pct'] !== undefined) parts.push(`${body['battery_pct']}%`);
+    if (body['rssi'] !== undefined) parts.push(`rssi ${body['rssi']}`);
+    if (body['fw']) parts.push(`fw ${body['fw']}`);
+    if (body['reset_reason']) parts.push(String(body['reset_reason']));
+    return parts.join(' · ');
+  }
+
+  protected async reveal(): Promise<void> {
+    const id = this.id();
+    if (!id) return;
+    try {
+      this.secret.set((await this.api.revealSecret(id)).device_secret);
+    } catch {
+      this.toast.show({ th: 'เปิดดูไม่ได้', en: 'Couldn’t load it' });
+    }
+  }
+
+  protected copy(text: string): void {
+    void navigator.clipboard?.writeText(text).catch(() => undefined);
+    this.toast.show({ th: 'คัดลอกแล้ว', en: 'Copied' });
+  }
+
+  protected print(): void {
+    window.print();
   }
 }

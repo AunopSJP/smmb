@@ -1,11 +1,22 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, signal } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { I18n } from '../../core/i18n';
-import { HeadDemo, type DemoZone } from '../../core/mock/head-demo';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked, type OnInit } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
+import { apiError } from '../../core/api';
+import { HeadApi, type HouseHit, type Member, type Zone, type ZoneDetail } from '../../core/head-api';
+import { I18n, type Tr } from '../../core/i18n';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
-import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
+
+// หัวหน้า: L06 โซนทั้งหมด · L07 แก้โซน (ชื่อ · เวลาตรวจ · บ้าน · เจ้าหน้าที่) — ใช้ API จริง (api.md §8.3)
+// บ้านหลังเดียวอยู่ในโซนของหลายหน่วยงานได้ · ตู้รับเวลาตรวจใหม่ตอน boot / รายงานรายวัน
+
+const MAX_WINDOWS = 4;
+
+const ZONE_ERROR: Record<string, Tr> = {
+  WINDOWS_INVALID: { th: 'เวลาตรวจไม่ถูกต้อง (ไม่ทับกัน · เริ่มก่อนจบ · ไม่ข้ามเที่ยงคืน · ไม่เกิน 4 ช่วง)', en: 'Invalid patrol hours (no overlap · start before end · no midnight crossing · max 4)' },
+  ZONE_NAME_TAKEN: { th: 'มีโซนชื่อนี้แล้ว', en: 'A zone with this name exists' },
+  HOUSE_NOT_FOUND: { th: 'มีบ้านที่ยังไม่ผูกตู้ / ไม่พบ', en: 'A house is not bound / not found' },
+};
 
 // ── L06 · โซน ───────────────────────────────────────────────
 
@@ -15,27 +26,29 @@ import { PageHeader } from '../../shared/page-header';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
-      [caption]="agency() + ' · ' + i18n.t({ th: 'หัวหน้าหน่วยงาน', en: 'Agency head' })"
+      [caption]="(api.agency()?.name ?? '') + ' · ' + i18n.t({ th: 'หัวหน้าหน่วยงาน', en: 'Agency head' })"
       [title]="i18n.t({ th: 'โซน', en: 'Zones' })"
       [bell]="url('L09')"
     />
     <div class="stack grow">
-      @for (z of demo.zones(); track z.id) {
-        <a class="card zone" [class.warn]="!z.officer_ids.length" [routerLink]="url('L07')" [queryParams]="{ zone: z.id }">
+      @for (z of zones(); track z.id) {
+        <a class="card zone" [class.warn]="!z.officers_count" [routerLink]="url('L07')" [queryParams]="{ zone: z.id }">
           <span class="title-row">
             <strong>{{ z.name }}</strong>
-            @if (z.mine) {
+            @if (z.is_mine) {
               <span class="chip ok">{{ i18n.t({ th: 'โซนที่ฉันอยู่', en: 'My zone' }) }}</span>
             }
-            <span class="chip push">{{ z.house_count }} {{ i18n.t({ th: 'หลัง', en: 'houses' }) }}</span>
+            <span class="chip push">{{ z.houses_count }} {{ i18n.t({ th: 'หลัง', en: 'houses' }) }}</span>
           </span>
-          @if (z.officer_ids.length) {
-            <span class="muted small">{{ officers(z) }}</span>
+          @if (z.officers_count) {
+            <span class="muted small">{{ z.officers_count }} {{ i18n.t({ th: 'เจ้าหน้าที่', en: 'officers' }) }}</span>
           } @else {
             <span class="warn-text small">{{ i18n.t({ th: 'ยังไม่มีเจ้าหน้าที่', en: 'No officers yet' }) }}</span>
           }
-          <span class="muted small">{{ i18n.t({ th: 'เวลาตรวจ ', en: 'Patrol ' }) }}{{ z.windows.join(' · ') || '—' }}</span>
+          <span class="muted small">{{ i18n.t({ th: 'เวลาตรวจ ', en: 'Patrol ' }) }}{{ windows(z) }}</span>
         </a>
+      } @empty {
+        <p class="muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ยังไม่มีโซน — สร้างโซนแรก', en: 'No zones yet — create the first one' }) }}</p>
       }
       <a class="btn push-end" [routerLink]="url('L07')" [queryParams]="{ zone: 'new' }">+ {{ i18n.t({ th: 'สร้างโซนใหม่', en: 'New zone' }) }}</a>
     </div>
@@ -73,303 +86,315 @@ import { PageHeader } from '../../shared/page-header';
 })
 export class HeadZones implements OnInit {
   protected readonly i18n = inject(I18n);
-  protected readonly demo = inject(HeadDemo);
+  protected readonly api = inject(HeadApi);
   protected readonly url = screenUrl;
+  protected readonly zones = signal<Zone[]>([]);
+  protected readonly loading = signal(true);
 
-  ngOnInit(): void {
-    // ออกจากหน้าแก้โซนโดยไม่บันทึก = ทิ้งร่าง
-    this.demo.draft.set(null);
+  async ngOnInit(): Promise<void> {
+    void this.api.loadAgency().catch(() => undefined);
+    try {
+      this.zones.set(await this.api.zones('all'));
+    } finally {
+      this.loading.set(false);
+    }
   }
-  protected readonly agency = computed(() => (this.i18n.lang() === 'th' ? this.demo.agency.name : this.demo.agency.name_en));
 
-  protected officers(z: DemoZone): string {
-    const names = z.officer_ids.map((id) => this.demo.memberName(id, this.i18n.lang()));
-    return names.length > 2 ? `${names.slice(0, 2).join(', ')} +${names.length - 2}` : names.join(', ');
+  protected windows(z: Zone): string {
+    return z.windows.map((w) => w.join('–')).join(' · ') || '—';
   }
 }
 
-// ── L07 · แก้โซน ──────────────────────────────────────────────
+// ── L07 · แก้โซน / สร้างโซน ──────────────────────────────────────
 
 @Component({
   selector: 'app-head-zone-edit',
-  imports: [RouterLink, PageHeader, Icon],
+  imports: [PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrl: './head-zone-edit.scss',
   template: `
-    @if (demo.draft(); as d) {
-      <app-page-header [caption]="i18n.t({ th: 'แก้ไขโซน', en: 'Edit zone' })" [title]="d.name" [back]="url('L06')" />
-      <div class="stack grow">
+    <app-page-header [caption]="isNew() ? i18n.t({ th: 'สร้างโซน', en: 'New zone' }) : i18n.t({ th: 'แก้ไขโซน', en: 'Edit zone' })" [title]="name() || i18n.t({ th: 'โซนใหม่', en: 'New zone' })" [back]="url('L06')" />
+    <div class="stack grow">
+      <section class="card stack">
+        <label class="field">
+          <span>{{ i18n.t({ th: 'ชื่อโซน', en: 'Zone name' }) }}</span>
+          <input maxlength="50" [value]="name()" (input)="name.set($any($event.target).value)" />
+        </label>
+        <div class="head">
+          <strong>{{ i18n.t({ th: 'เวลาตรวจ', en: 'Patrol hours' }) }}</strong>
+          <span class="muted small">Asia/Bangkok</span>
+        </div>
+        <div class="chips">
+          @for (w of windows(); track $index) {
+            <button type="button" class="pill" (click)="removeWindow($index)" [attr.aria-label]="i18n.t({ th: 'เอาออก ', en: 'Remove ' }) + w.join('–')">{{ w[0] }}–{{ w[1] }} <span aria-hidden="true">×</span></button>
+          } @empty {
+            <span class="warn-text small">{{ i18n.t({ th: 'ยังไม่มีเวลาตรวจ — ตู้จะไม่รับงานตรวจ', en: 'No patrol hours — boxes won’t take inspections' }) }}</span>
+          }
+        </div>
+        @if (windows().length < maxWindows) {
+          <div class="add-window">
+            <input type="time" [value]="from()" (input)="from.set($any($event.target).value)" [attr.aria-label]="i18n.t({ th: 'เริ่ม', en: 'From' })" />
+            <span>–</span>
+            <input type="time" [value]="to()" (input)="to.set($any($event.target).value)" [attr.aria-label]="i18n.t({ th: 'ถึง', en: 'To' })" />
+            <button type="button" class="btn secondary small-btn" (click)="addWindow()">{{ i18n.t({ th: 'เพิ่ม', en: 'Add' }) }}</button>
+          </div>
+        }
+        <p class="muted small">{{ i18n.t({ th: 'ทั้งวัน = 00:00–23:59 · ข้ามเที่ยงคืนให้แยก 2 ช่วง', en: 'All day = 00:00–23:59 · split overnight into 2 windows' }) }}</p>
+        @if (error(); as e) {
+          <p class="err small" role="alert">{{ i18n.t(e) }}</p>
+        }
+        <button type="button" class="btn" [disabled]="busy() || !name().trim()" (click)="saveBasics()">
+          {{ isNew() ? i18n.t({ th: 'สร้างโซน', en: 'Create zone' }) : i18n.t({ th: 'บันทึกชื่อ + เวลาตรวจ', en: 'Save name + hours' }) }}
+        </button>
+      </section>
+
+      @if (zone(); as z) {
         <section class="card stack">
           <div class="head">
-            <strong>{{ i18n.t({ th: 'บ้านในโซน', en: 'Houses' }) }} ({{ d.houses.length }})</strong>
-            <a [routerLink]="url('L07-b')" class="add">+ {{ i18n.t({ th: 'เพิ่ม', en: 'Add' }) }}</a>
+            <strong>{{ i18n.t({ th: 'บ้านในโซน', en: 'Houses' }) }} ({{ z.houses.length }})</strong>
           </div>
           <div class="chips">
-            @for (h of shownHouses(); track h) {
-              <button type="button" class="pill" (click)="removeHouse(h)" [attr.aria-label]="i18n.t({ th: 'เอาออก ', en: 'Remove ' }) + h">{{ h }} <span aria-hidden="true">×</span></button>
-            }
-            @if (d.houses.length > shownHouses().length) {
-              <button type="button" class="pill more" (click)="allHouses.set(true)">+{{ d.houses.length - shownHouses().length }}</button>
-            }
-            @if (!d.houses.length) {
+            @for (h of z.houses; track h.box_id) {
+              <button type="button" class="pill" (click)="removeHouse(h.box_id)" [attr.aria-label]="i18n.t({ th: 'เอาออก ', en: 'Remove ' }) + (h.house_no ?? h.box_id)">
+                {{ h.house_no ?? h.box_id }} <span aria-hidden="true">×</span>
+              </button>
+            } @empty {
               <span class="muted small">{{ i18n.t({ th: 'ยังไม่มีบ้าน', en: 'No houses yet' }) }}</span>
             }
           </div>
-        </section>
-
-        <section class="card stack">
-          <div class="head">
-            <strong>{{ i18n.t({ th: 'เจ้าหน้าที่', en: 'Officers' }) }}</strong>
-            <a [routerLink]="url('L07-c')" class="add">+ {{ i18n.t({ th: 'เพิ่ม', en: 'Add' }) }}</a>
-          </div>
-          <div class="chips">
-            @for (id of d.officer_ids; track id) {
-              <button type="button" class="pill" (click)="removeOfficer(id)">{{ demo.memberName(id, i18n.lang()) }} <span aria-hidden="true">×</span></button>
-            } @empty {
-              <span class="warn-text small">{{ i18n.t({ th: 'ยังไม่มีเจ้าหน้าที่ — SOS จากบ้านในโซนนี้จะไปถึงทั้งหน่วยงาน', en: 'No officers — SOS from these houses goes to the whole agency' }) }}</span>
-            }
-          </div>
-        </section>
-
-        <section class="card stack">
-          <div class="head">
-            <strong>{{ i18n.t({ th: 'เวลาตรวจ', en: 'Patrol hours' }) }}</strong>
-            <button type="button" class="add" (click)="adding.set(!adding())">+ {{ i18n.t({ th: 'เพิ่ม', en: 'Add' }) }}</button>
-          </div>
-          <div class="chips">
-            @for (w of d.windows; track w) {
-              <button type="button" class="pill red" (click)="removeWindow(w)">{{ w }} <span aria-hidden="true">×</span></button>
-            }
-          </div>
-          @if (adding()) {
-            <div class="add-window">
-              <input type="time" #from value="06:00" [attr.aria-label]="i18n.t({ th: 'เริ่ม', en: 'From' })" />
-              <span>–</span>
-              <input type="time" #to value="09:00" [attr.aria-label]="i18n.t({ th: 'ถึง', en: 'To' })" />
-              <button type="button" class="btn small-btn" (click)="addWindow(from.value, to.value)">{{ i18n.t({ th: 'เพิ่ม', en: 'Add' }) }}</button>
+          <form class="add-window" (submit)="$event.preventDefault(); search()">
+            <input type="search" [placeholder]="i18n.t({ th: 'ค้นบ้านเลขที่ / รหัสตู้', en: 'Search house no. / box id' })" [value]="q()" (input)="q.set($any($event.target).value)" />
+            <button type="submit" class="btn secondary small-btn">{{ i18n.t({ th: 'ค้น', en: 'Search' }) }}</button>
+          </form>
+          @for (h of hits(); track h.box_id) {
+            <div class="hit">
+              <span class="grow">
+                <strong>{{ h.house_no }}</strong> <span class="muted small">{{ h.box_id }}{{ h.box_name ? ' · ' + h.box_name : '' }}</span>
+                @if (h.zones.length) {
+                  <span class="muted small block">{{ i18n.t({ th: 'อยู่ในโซน: ', en: 'In zones: ' }) }}{{ zonesOf(h) }}</span>
+                }
+              </span>
+              @if (inZone(h.box_id)) {
+                <span class="chip ok">{{ i18n.t({ th: 'อยู่แล้ว', en: 'Added' }) }}</span>
+              } @else {
+                <button type="button" class="btn small-btn" (click)="addHouse(h.box_id)">+ {{ i18n.t({ th: 'เพิ่ม', en: 'Add' }) }}</button>
+              }
             </div>
-            @if (windowError()) {
-              <p class="err small"><app-icon name="alert" [size]="14" /> {{ i18n.t({ th: 'เวลาเริ่มต้องก่อนเวลาจบ (ไม่ข้ามเที่ยงคืน)', en: 'Start must be before end (no crossing midnight)' }) }}</p>
-            }
+          }
+          @if (searched() && !hits().length) {
+            <p class="muted small">{{ i18n.t({ th: 'ไม่พบ — ค้นได้เฉพาะตู้ที่เจ้าของบ้านผูกแล้ว', en: 'Nothing found — only boxes already bound by an owner' }) }}</p>
           }
         </section>
-        <p class="muted small">{{ i18n.t({ th: 'ตู้ในโซนจะรู้เวลาตรวจใหม่ภายใน 1 วัน', en: 'Mailboxes learn the new hours within 1 day' }) }}</p>
 
-        <button type="button" class="btn big push-end" (click)="save()">{{ i18n.t({ th: 'บันทึกโซน', en: 'Save zone' }) }}</button>
-      </div>
-    }
-  `,
-  styleUrl: './head-zone-edit.scss',
-})
-export class HeadZoneEdit implements OnInit {
-  protected readonly i18n = inject(I18n);
-  protected readonly demo = inject(HeadDemo);
-  private readonly router = inject(Router);
-  private readonly toast = inject(Toast);
-  protected readonly url = screenUrl;
-  /** ?zone=z1 | new */
-  readonly zone = input<string>();
-  protected readonly adding = signal(false);
-  protected readonly windowError = signal(false);
-  protected readonly allHouses = signal(false);
-  protected readonly shownHouses = computed(() => {
-    const h = this.demo.draft()?.houses ?? [];
-    return this.allHouses() ? h : h.slice(0, 3);
-  });
-
-  ngOnInit(): void {
-    const d = this.demo.draft();
-    // กลับมาจากหน้าเลือกบ้าน/เจ้าหน้าที่ → ใช้ร่างเดิม · เปิดโซนใหม่ → เริ่มร่างใหม่
-    if (!d || (this.zone() && this.zone() !== d.id)) this.demo.editZone(this.zone() === 'new' ? undefined : (this.zone() ?? 'z1'));
-  }
-
-  private patch(fn: (d: DemoZone) => DemoZone): void {
-    this.demo.draft.update((d) => (d ? fn(d) : d));
-  }
-
-  protected removeHouse(h: string): void {
-    this.patch((d) => ({ ...d, houses: d.houses.filter((x) => x !== h) }));
-  }
-
-  protected removeOfficer(id: string): void {
-    this.patch((d) => ({ ...d, officer_ids: d.officer_ids.filter((x) => x !== id) }));
-  }
-
-  protected removeWindow(w: string): void {
-    this.patch((d) => ({ ...d, windows: d.windows.filter((x) => x !== w) }));
-  }
-
-  /** ไม่ข้ามเที่ยงคืน (ฐานข้อมูลบังคับ start_time < end_time) */
-  protected addWindow(from: string, to: string): void {
-    if (!from || !to || from >= to) {
-      this.windowError.set(true);
-      return;
-    }
-    this.windowError.set(false);
-    const w = `${from}–${to}`;
-    this.patch((d) => ({ ...d, windows: [...new Set([...d.windows, w])].sort() }));
-    this.adding.set(false);
-  }
-
-  protected save(): void {
-    this.demo.saveDraft();
-    this.demo.draft.set(null);
-    this.toast.show({ th: 'บันทึกโซนแล้ว', en: 'Zone saved' });
-    void this.router.navigateByUrl(screenUrl('L06'));
-  }
-}
-
-// ── L07-b · เพิ่มบ้าน / L07-c · เพิ่มเจ้าหน้าที่ ───────────────────
-
-interface PickItem {
-  key: string;
-  title: string;
-  sub: string;
-  disabled: boolean;
-}
-
-@Component({
-  selector: 'app-head-zone-picker',
-  imports: [PageHeader],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <app-page-header
-      [caption]="demo.draft()?.name ?? ''"
-      [title]="officers ? i18n.t({ th: 'เพิ่มเจ้าหน้าที่', en: 'Add officers' }) : i18n.t({ th: 'เพิ่มบ้านเข้าโซน', en: 'Add houses' })"
-      [back]="url('L07')"
-    />
-    <div class="stack grow">
-      <label class="search">
-        <strong class="small">{{ i18n.t({ th: 'ค้นหา', en: 'Search' }) }}</strong>
-        <input type="search" [placeholder]="i18n.t({ th: 'พิมพ์เพื่อค้นหา', en: 'Type to search' })" (input)="q.set($any($event.target).value)" />
-      </label>
-      <ul class="list">
-        @for (it of items(); track it.key) {
-          <li>
-            <label class="row" [class.off]="it.disabled">
-              <input type="checkbox" [disabled]="it.disabled" [checked]="picked().has(it.key)" (change)="toggle(it.key)" />
-              <span>
-                <strong>{{ it.title }}</strong>
-                <span class="muted small block">{{ it.sub }}</span>
+        <section class="card stack">
+          <div class="head">
+            <strong>{{ i18n.t({ th: 'เจ้าหน้าที่ในโซน', en: 'Officers' }) }} ({{ z.officers.length }})</strong>
+          </div>
+          @for (m of members(); track m.id) {
+            <label class="officer">
+              <input type="checkbox" [checked]="inOfficers(m.id)" (change)="toggleOfficer(m.id, $any($event.target).checked)" />
+              <span class="grow">
+                <strong>{{ m.display_name }}</strong>
+                @if (m.is_head) {
+                  <span class="chip">{{ i18n.t({ th: 'หัวหน้า', en: 'Head' }) }}</span>
+                }
               </span>
             </label>
-          </li>
-        } @empty {
-          <li class="row muted">{{ i18n.t({ th: 'ไม่พบ', en: 'Nothing found' }) }}</li>
-        }
-      </ul>
-      <button type="button" class="btn big push-end" [disabled]="!picked().size" (click)="add()">
-        {{ i18n.t({ th: 'เพิ่ม ', en: 'Add ' }) }}{{ picked().size }}
-        {{ officers ? i18n.t({ th: 'คน', en: 'people' }) : i18n.t({ th: 'หลัง', en: 'houses' }) }}
-      </button>
+          } @empty {
+            <p class="muted small">{{ i18n.t({ th: 'ยังไม่มีสมาชิกที่ใช้งานได้', en: 'No active members yet' }) }}</p>
+          }
+          <p class="muted small">{{ i18n.t({ th: 'หัวหน้าตรวจตู้ได้เฉพาะโซนที่ใส่ตัวเองไว้', en: 'Heads can only inspect zones they are in' }) }}</p>
+        </section>
+
+        <button type="button" class="btn secondary danger-outline" (click)="remove()">{{ i18n.t({ th: 'ลบโซนนี้', en: 'Delete this zone' }) }}</button>
+      }
     </div>
   `,
   styles: `
-    .grow {
-      flex: 1;
-    }
-    .search {
+    .hit,
+    .officer {
       display: flex;
-      flex-direction: column;
-      gap: 6px;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      border-top: 1px solid var(--line);
     }
-    input[type='search'] {
-      font: inherit;
-      min-height: 52px;
-      padding: 8px 14px;
-      border-radius: var(--radius-sm);
-      border: 1.5px solid var(--line);
-      background: var(--surface);
-      color: var(--text);
-    }
-    ul {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-    }
-    label.row {
-      cursor: pointer;
-    }
-    .off {
-      opacity: 0.55;
-      cursor: default;
-    }
-    input[type='checkbox'] {
+    .officer input {
       width: 22px;
       height: 22px;
-      accent-color: var(--brand);
-      flex: none;
     }
     .block {
       display: block;
     }
+    .grow {
+      flex: 1;
+      min-width: 0;
+    }
+    .danger-outline {
+      color: var(--sos);
+    }
   `,
 })
-export class HeadZonePicker implements OnInit {
+export class HeadZoneEdit {
   protected readonly i18n = inject(I18n);
-  protected readonly demo = inject(HeadDemo);
+  private readonly api = inject(HeadApi);
+  private readonly toast = inject(Toast);
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
-  /** L07-c = เลือกเจ้าหน้าที่ · L07-b = เลือกบ้าน */
-  protected readonly officers = inject(ActivatedRoute).snapshot.data['code'] === 'L07-c';
+  protected readonly maxWindows = MAX_WINDOWS;
+  /** ?zone=<uuid>|new */
+  readonly zoneParam = input<string | undefined>(undefined, { alias: 'zone' });
+  protected readonly isNew = computed(() => !this.zoneParam() || this.zoneParam() === 'new');
+
+  protected readonly zone = signal<ZoneDetail | null>(null);
+  protected readonly members = signal<Member[]>([]);
+  protected readonly name = signal('');
+  protected readonly windows = signal<[string, string][]>([]);
+  protected readonly from = signal('06:00');
+  protected readonly to = signal('09:00');
+  protected readonly error = signal<Tr | null>(null);
+  protected readonly busy = signal(false);
   protected readonly q = signal('');
-  protected readonly picked = signal(new Set<string>());
+  protected readonly hits = signal<HouseHit[]>([]);
+  protected readonly searched = signal(false);
 
-  ngOnInit(): void {
-    if (!this.demo.draft()) this.demo.editZone('z1');
-  }
-
-  protected readonly items = computed<PickItem[]>(() => {
-    const d = this.demo.draft();
-    const t = (th: string, en: string) => this.i18n.t({ th, en });
-    const list: PickItem[] = this.officers
-      ? this.demo.activeOfficers().map((m) => {
-          const inThis = d?.officer_ids.includes(m.id) ?? false;
-          const zones = this.demo.zoneOf(m.id).filter((z) => z !== d?.name);
-          return {
-            key: m.id,
-            title: this.demo.memberName(m.id, this.i18n.lang()),
-            sub: inThis
-              ? t(`อยู่${d?.name}แล้ว`, `Already in ${d?.name}`)
-              : zones.length
-                ? t(`อยู่${zones.join(', ')} · 1 คนอยู่หลายโซนได้`, `In ${zones.join(', ')} · can be in several zones`)
-                : t('ยังไม่มีโซน', 'No zone yet'),
-            disabled: inThis,
-          };
-        })
-      : this.demo.housePool
-          .filter((h) => !d?.houses.includes(h.house))
-          .map((h) => ({
-            key: h.house,
-            title: h.house,
-            sub: !h.bound
-              ? t('ยังไม่ผูกตู้', 'No mailbox bound yet')
-              : h.zone
-                ? t(`อยู่${h.zone}แล้ว (ย้ายมาได้)`, `In ${h.zone} (can move)`)
-                : t('ยังไม่มีโซน', 'No zone yet'),
-            disabled: false,
-          }));
-    const q = this.q().trim().toLowerCase();
-    return q ? list.filter((i) => `${i.title} ${i.sub}`.toLowerCase().includes(q)) : list;
-  });
-
-  protected toggle(key: string): void {
-    this.picked.update((s) => {
-      const n = new Set(s);
-      if (n.has(key)) n.delete(key);
-      else n.add(key);
-      return n;
+  constructor() {
+    effect(() => {
+      const id = this.zoneParam();
+      untracked(() => void this.load(id));
     });
   }
 
-  protected add(): void {
-    const keys = [...this.picked()];
-    this.demo.draft.update((d) =>
-      d
-        ? this.officers
-          ? { ...d, officer_ids: [...new Set([...d.officer_ids, ...keys])] }
-          : { ...d, houses: [...new Set([...d.houses, ...keys])] }
-        : d,
-    );
-    void this.router.navigate([screenUrl('L07')], { queryParams: { zone: this.demo.draft()?.id } });
+  private async load(id: string | undefined): Promise<void> {
+    this.zone.set(null);
+    this.error.set(null);
+    this.members.set(await this.api.members('active').catch(() => []));
+    if (!id || id === 'new') {
+      this.name.set('');
+      this.windows.set([]);
+      return;
+    }
+    try {
+      const z = await this.api.zone(id);
+      this.zone.set(z);
+      this.name.set(z.name);
+      this.windows.set(z.windows);
+    } catch {
+      void this.router.navigateByUrl(screenUrl('L06'));
+    }
+  }
+
+  protected addWindow(): void {
+    const [f, t] = [this.from(), this.to()];
+    if (!/^\d{2}:\d{2}$/.test(f) || !/^\d{2}:\d{2}$/.test(t) || f >= t) {
+      this.error.set(ZONE_ERROR['WINDOWS_INVALID']);
+      return;
+    }
+    this.error.set(null);
+    this.windows.update((w) => [...w, [f, t] as [string, string]].sort((a, b) => a[0].localeCompare(b[0])));
+  }
+
+  protected removeWindow(i: number): void {
+    this.windows.update((w) => w.filter((_, j) => j !== i));
+  }
+
+  /** POST /agency/zones (สร้าง) · PATCH /agency/zones/:id (ชื่อ + เวลาตรวจ) */
+  protected async saveBasics(): Promise<void> {
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      if (this.isNew()) {
+        const z = await this.api.createZone(this.name().trim(), this.windows());
+        this.toast.show({ th: 'สร้างโซนแล้ว — เพิ่มบ้านและเจ้าหน้าที่ต่อ', en: 'Zone created — now add houses and officers' });
+        void this.router.navigate([screenUrl('L07')], { queryParams: { zone: z.id }, replaceUrl: true });
+      } else {
+        await this.api.updateZone(this.zone()!.id, { name: this.name().trim(), windows: this.windows() });
+        this.toast.show({ th: 'บันทึกแล้ว — ตู้ได้เวลาตรวจใหม่ตอนรายงานครั้งถัดไป', en: 'Saved — boxes get the new hours at their next report' });
+        await this.load(this.zone()!.id);
+      }
+    } catch (err) {
+      const e = apiError(err);
+      this.error.set(ZONE_ERROR[e.code ?? ''] ?? { th: 'บันทึกไม่ได้', en: 'Couldn’t save' });
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async search(): Promise<void> {
+    const q = this.q().trim();
+    if (!q) return;
+    this.hits.set(await this.api.searchHouses(q).catch(() => []));
+    this.searched.set(true);
+  }
+
+  protected inZone(boxId: string): boolean {
+    return !!this.zone()?.houses.some((h) => h.box_id === boxId);
+  }
+
+  protected zonesOf(h: HouseHit): string {
+    return h.zones.map((z) => `${z.agency_name} / ${z.zone_name}`).join(', ');
+  }
+
+  protected addHouse(boxId: string): Promise<void> {
+    return this.setHouses([...(this.zone()?.houses.map((h) => h.box_id) ?? []), boxId]);
+  }
+
+  protected removeHouse(boxId: string): Promise<void> {
+    return this.setHouses((this.zone()?.houses.map((h) => h.box_id) ?? []).filter((id) => id !== boxId));
+  }
+
+  /** PUT /agency/zones/:id/houses — แทนที่ทั้งชุด */
+  private async setHouses(ids: string[]): Promise<void> {
+    const z = this.zone();
+    if (!z) return;
+    try {
+      await this.api.setHouses(z.id, ids);
+      await this.load(z.id);
+    } catch (err) {
+      const e = apiError(err);
+      this.toast.show(ZONE_ERROR[e.code ?? ''] ?? { th: 'บันทึกไม่ได้', en: 'Couldn’t save' });
+    }
+  }
+
+  protected inOfficers(id: string): boolean {
+    return !!this.zone()?.officers.some((o) => o.id === id);
+  }
+
+  /** PUT /agency/zones/:id/officers — แทนที่ทั้งชุด */
+  protected async toggleOfficer(id: string, on: boolean): Promise<void> {
+    const z = this.zone();
+    if (!z) return;
+    const ids = z.officers.map((o) => o.id).filter((x) => x !== id);
+    if (on) ids.push(id);
+    try {
+      await this.api.setOfficers(z.id, ids);
+      await this.load(z.id);
+    } catch {
+      this.toast.show({ th: 'บันทึกไม่ได้', en: 'Couldn’t save' });
+    }
+  }
+
+  protected async remove(): Promise<void> {
+    const z = this.zone();
+    if (!z || !confirm(this.i18n.t({ th: `ลบโซน "${z.name}"?`, en: `Delete zone "${z.name}"?` }))) return;
+    try {
+      await this.api.removeZone(z.id);
+      void this.router.navigateByUrl(screenUrl('L06'));
+    } catch {
+      this.toast.show({ th: 'ลบไม่ได้', en: 'Couldn’t delete' });
+    }
+  }
+}
+
+/** L07-b / L07-c (เพิ่มบ้าน / เพิ่มเจ้าหน้าที่) — รวมอยู่ในหน้า L07 แล้ว */
+@Component({
+  selector: 'app-head-zone-picker',
+  template: '',
+})
+export class HeadZonePicker {
+  constructor() {
+    const router = inject(Router);
+    const zone = new URLSearchParams(location.search).get('zone');
+    void router.navigate([screenUrl('L07')], { queryParams: zone ? { zone } : {}, replaceUrl: true });
   }
 }

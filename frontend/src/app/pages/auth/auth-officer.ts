@@ -1,7 +1,11 @@
+import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { apiError } from '../../core/api';
 import { I18n } from '../../core/i18n';
 import { Session } from '../../core/session';
+import { PushBlockedError, PushNotifications } from '../../core/push-notifications';
 import { AuthDemo, normalizePhone, PASSWORD_MIN, ROLE_HOME, type FormKey, type SignupForm } from '../../core/mock/auth-demo';
 import { DemoSession, type DemoRole } from '../../core/mock/demo-session';
 import { Toast } from '../../core/toast';
@@ -9,23 +13,21 @@ import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { ContactCard } from '../../shared/contact-card';
-import { MockNote, nowHHmm, PasswordField, TermsCheck } from './auth-parts';
+import { PasswordField, TermsCheck } from './auth-parts';
 import { SIGNUP_ERROR } from './auth-owner';
 import { TERMS, TERMS_VERSION } from '../../core/terms';
 
-// เจ้าหน้าที่: A10 สมัครด้วยรหัสกลุ่ม → A11 รอหัวหน้ายืนยัน (A11-b ถูกปฏิเสธ) → A12 ต้องเปิดแจ้งเตือนก่อน
-// จำลองบนหน้าจอเท่านั้น — ไม่สร้างบัญชีจริง
+// เจ้าหน้าที่: A10 สมัครด้วยรหัสกลุ่ม → A11 รอหัวหน้ายืนยัน (A11-b ถูกปฏิเสธ) → A12 ต้องเปิดแจ้งเตือนก่อน — ใช้ API จริง (api.md §2)
 
 // ── A10 · สมัครเจ้าหน้าที่ ──────────────────────────────────
 
 @Component({
   selector: 'app-auth-signup-officer',
-  imports: [PageHeader, PasswordField, TermsCheck, MockNote, RouterLink],
+  imports: [PageHeader, PasswordField, TermsCheck, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [title]="i18n.t({ th: 'สมัครเจ้าหน้าที่', en: 'Officer sign-up' })" [back]="url('A05')" />
     <form class="stack grow" (submit)="$event.preventDefault(); submit()">
-      <app-mock-note />
       <label class="field" [class.invalid]="tried() && !f().name.trim()">
         <span>{{ i18n.t({ th: 'ชื่อ - นามสกุล (ยศ)', en: 'Full name (with rank)' }) }}</span>
         <input autocomplete="name" [value]="f().name" (input)="set('name', $any($event.target).value)" />
@@ -49,8 +51,7 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
           }
         </p>
       }
-      <button type="submit" class="btn push-end" [disabled]="!f().terms">{{ i18n.t({ th: 'ส่งคำขอสมัคร', en: 'Send request' }) }}</button>
-      <p class="demo-tools">{{ i18n.t({ th: 'จำลอง — รหัสกลุ่มที่ใช้ได้: PX7K-2MQ9 (สภ.เมือง) · RJ4W-9QTC (รปภ.)', en: 'Demo group codes: PX7K-2MQ9 · RJ4W-9QTC' }) }}</p>
+      <button type="submit" class="btn push-end" [disabled]="!f().terms || busy()">{{ i18n.t({ th: 'ส่งคำขอสมัคร', en: 'Send request' }) }}</button>
     </form>
   `,
   styles: `
@@ -66,8 +67,10 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
 export class AuthSignupOfficer {
   protected readonly i18n = inject(I18n);
   private readonly demo = inject(AuthDemo);
-  private readonly session = inject(DemoSession);
+  private readonly session = inject(Session);
+  private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  protected readonly busy = signal(false);
   protected readonly url = screenUrl;
   protected readonly min = PASSWORD_MIN;
   protected readonly errors = SIGNUP_ERROR;
@@ -85,19 +88,37 @@ export class AuthSignupOfficer {
     this.errorCode.set(null);
   }
 
-  /** ของจริง: POST /auth/signup/officer { name, phone, password, group_code, terms_version } */
-  protected submit(): void {
+  /** POST /auth/signup/officer { name, phone, password, group_code, terms_version } → ล็อกอินแล้ว แต่ยังไม่มีบทบาท officer จนกว่าหัวหน้ายืนยัน */
+  protected async submit(): Promise<void> {
     this.tried.set(true);
-    const e = this.demo.signupOfficer(this.f(), nowHHmm());
-    if (e === 'TERMS_NOT_ACCEPTED') return;
-    if (e) {
-      this.errorCode.set(e);
+    const f = this.f();
+    const phone = normalizePhone(f.phone);
+    if (!f.terms) return;
+    if (!f.name.trim() || !phone || f.password.length < this.min || !f.group_code.trim()) {
+      this.errorCode.set('INVALID');
       return;
     }
-    // สมัครแล้ว = ล็อกอินอยู่ แต่ยังไม่มีบทบาท officer จนกว่าหัวหน้ายืนยัน
-    this.session.signIn('officer', [], normalizePhone(this.f().phone) ?? '');
-    this.session.agencyPending.set(true);
-    void this.router.navigateByUrl(screenUrl('A11'));
+    this.busy.set(true);
+    try {
+      const terms = await firstValueFrom(this.http.get<{ version: string }>('/api/v1/terms/current'));
+      await firstValueFrom(
+        this.http.post('/api/v1/auth/signup/officer', {
+          name: f.name.trim(),
+          phone,
+          password: f.password,
+          group_code: f.group_code.replace(/[\s-]/g, '').toUpperCase(),
+          terms_version: terms.version,
+        }),
+      );
+      await this.session.refresh();
+      this.f.set({ ...f, password: '' });
+      void this.router.navigateByUrl(screenUrl('A11'));
+    } catch (err) {
+      const e = apiError(err);
+      this.errorCode.set(e.code === 'PHONE_TAKEN' || e.code === 'GROUP_CODE_INVALID' ? e.code : 'INVALID');
+    } finally {
+      this.busy.set(false);
+    }
   }
 }
 
@@ -138,7 +159,6 @@ export class AuthSignupOfficer {
         <section class="card">
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'หน่วยงาน', en: 'Agency' }) }}</dt><dd>{{ i18n.t(req().agency) }}</dd>
-            <dt>{{ i18n.t({ th: 'ส่งเมื่อ', en: 'Sent' }) }}</dt><dd>{{ req().at }}</dd>
           </dl>
         </section>
         <app-contact-card [label]="{ th: 'รอนานเกินไป? ติดต่อหน่วยงาน', en: 'Waiting too long? Contact the agency' }" [contact]="req().contact" />
@@ -149,11 +169,6 @@ export class AuthSignupOfficer {
           } @else {
             <button type="button" class="btn secondary" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
           }
-          <div class="demo-tools">
-            {{ i18n.t({ th: 'จำลอง:', en: 'Demo:' }) }}
-            <button type="button" (click)="go('A12')">{{ i18n.t({ th: 'หัวหน้าอนุมัติ', en: 'Head approves' }) }}</button>
-            <button type="button" (click)="reject()">{{ i18n.t({ th: 'หัวหน้าปฏิเสธ', en: 'Head declines' }) }}</button>
-          </div>
         </div>
       }
     </div>
@@ -174,26 +189,33 @@ export class AuthWaitingHead {
   protected readonly i18n = inject(I18n);
   private readonly demo = inject(AuthDemo);
   private readonly session = inject(DemoSession);
+  private readonly realSession = inject(Session);
   private readonly toast = inject(Toast);
   private readonly router = inject(Router);
   /** บัญชีมีบทบาทอื่นอยู่แล้ว (เช่น เจ้าของบ้านที่ขอเข้าหน่วยงาน) → กลับไปใช้ต่อได้ระหว่างรอ */
   protected readonly otherHome = computed(() => this.session.roles().find((r) => r !== 'officer' && r !== 'head') ?? null);
   /** ?state=rejected = A11-b */
   readonly state = input<string>();
-  /** ของจริง: Me.agency (ชื่อ + contact ที่หน่วยงานกรอกตอนสมัคร) */
-  protected readonly req = computed(() => this.demo.officerRequest() ?? { agency: { th: 'สภ.เมือง', en: 'Mueang police' }, contact: 'สถานี 02-111-2222', at: '10:42' });
+  /** Me.agency (ชื่อ + contact ที่หน่วยงานกรอกตอนสมัคร) */
+  protected readonly req = computed(() => {
+    const a = this.realSession.me()?.agency;
+    return { agency: { th: a?.name ?? '-', en: a?.name ?? '-' }, contact: a?.contact ?? '' };
+  });
 
-  /** ของจริง: GET /auth/verify → Me.agency_status */
-  protected check(): void {
-    this.toast.show({ th: 'ยังรอหัวหน้ายืนยันอยู่', en: 'Still waiting for your head' });
-  }
-
-  protected go(code: string): void {
-    void this.router.navigateByUrl(screenUrl(code));
-  }
-
-  protected reject(): void {
-    void this.router.navigate([screenUrl('A11')], { queryParams: { state: 'rejected' } });
+  /** GET /me → agency_status: active → ใช้งาน (หรือหน้าเปิดแจ้งเตือน) · rejected → A11-b */
+  protected async check(): Promise<void> {
+    const me = await this.realSession.refresh();
+    if (!me) {
+      void this.router.navigateByUrl(screenUrl('A04'));
+    } else if (me.agency_status === 'active' && (me.roles.includes('officer') || me.roles.includes('head'))) {
+      this.toast.show({ th: 'หัวหน้ายืนยันแล้ว', en: 'Approved by your head' });
+      // ต้องเปิดแจ้งเตือนก่อนไหม — server ตัดสิน (403 PUSH_REQUIRED → A12 ผ่าน apiInterceptor)
+      void this.router.navigateByUrl('/officer');
+    } else if (me.agency_status === 'rejected') {
+      void this.router.navigate([screenUrl('A11')], { queryParams: { state: 'rejected' } });
+    } else {
+      this.toast.show({ th: 'ยังรอหัวหน้ายืนยันอยู่', en: 'Still waiting for your head' });
+    }
   }
 
   protected leave(role: DemoRole): void {
@@ -201,8 +223,6 @@ export class AuthWaitingHead {
     void this.router.navigateByUrl(ROLE_HOME[role]);
   }
 
-  /** ของจริง: POST /auth/signout */
-  private readonly realSession = inject(Session);
   /** ออกจากระบบจริง (ลบ session ที่ server + cookie) */
   protected signout(): void {
     void this.realSession.signout().then(() => this.router.navigateByUrl(screenUrl('A04')));
@@ -260,13 +280,24 @@ export class AuthPushRequired {
   private readonly router = inject(Router);
   protected readonly help = signal(false);
 
-  /** ของจริง: PushNotifications.enable() — สำเร็จแล้ว route ของเจ้าหน้าที่หยุดตอบ 403 PUSH_REQUIRED */
-  protected enable(): void {
-    this.toast.show({ th: 'เปิดแจ้งเตือนแล้ว (จำลอง)', en: 'Notifications on (demo)' });
-    this.session.addRole('officer');
-    this.session.agencyPending.set(false);
-    this.session.role.set('officer');
-    void this.router.navigateByUrl('/officer');
+  private readonly push = inject(PushNotifications);
+  private readonly realSession = inject(Session);
+
+  /** PushNotifications.enable() — สำเร็จแล้ว route ของเจ้าหน้าที่หยุดตอบ 403 PUSH_REQUIRED */
+  protected async enable(): Promise<void> {
+    try {
+      await this.push.enable();
+      await this.realSession.refresh();
+      this.toast.show({ th: 'เปิดแจ้งเตือนแล้ว', en: 'Notifications on' });
+      void this.router.navigateByUrl('/officer');
+    } catch (err) {
+      this.help.set(true);
+      this.toast.show(
+        err instanceof PushBlockedError && err.reason === 'unsupported'
+          ? { th: 'เบราว์เซอร์นี้เปิดแจ้งเตือนไม่ได้', en: 'This browser can’t do notifications' }
+          : { th: 'เปิดแจ้งเตือนไม่ได้ ดูวิธีด้านบน', en: 'Couldn’t turn on notifications — see the steps above' },
+      );
+    }
   }
 }
 
@@ -334,8 +365,20 @@ export class AuthTerms {
     return code ? (map[code] ?? null) : null;
   }
 
-  /** ของจริง: ยอมรับตอนสมัคร = ส่ง terms_version ไปกับ signup · ข้อตกลงเปลี่ยน = POST /me/terms */
-  protected accept(): void {
+  private readonly http = inject(HttpClient);
+  private readonly session = inject(Session);
+  /** ?update=1 — ข้อตกลงเปลี่ยน ต้องยอมรับก่อนใช้งานต่อ */
+  readonly update = input<string>();
+
+  /** ยอมรับตอนสมัคร = ส่ง terms_version ไปกับ signup · ข้อตกลงเปลี่ยน = POST /me/terms */
+  protected async accept(): Promise<void> {
+    if (this.update()) {
+      const terms = await firstValueFrom(this.http.get<{ version: string }>('/api/v1/terms/current'));
+      await firstValueFrom(this.http.post('/api/v1/me/terms', { terms_version: terms.version }));
+      await this.session.refresh();
+      void this.router.navigateByUrl('/');
+      return;
+    }
     const form = this.formOf(this.from());
     if (form) this.demo.forms[form].update((f) => ({ ...f, terms: true }));
     void this.router.navigateByUrl(this.backUrl());

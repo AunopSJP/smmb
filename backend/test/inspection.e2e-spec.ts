@@ -253,4 +253,59 @@ describe('Inspections (e2e)', () => {
     const n = await pool.query(`SELECT 1 FROM app.notification_tb WHERE user_id = $1 AND type = 'box_problem'`, [owner.id]);
     expect(n.rowCount).toBe(1);
   });
+
+  it('scanning twice while the first job is open reuses the inspection (no second wake job) — both scans are logged', async () => {
+    const { b, officer } = await setup();
+    const { out } = await pollWhile(b, () =>
+      Promise.all([
+        as(officer.cookie).post('/api/v1/inspections', { qr_text: b.qr[0].url }),
+        as(officer.cookie).post('/api/v1/inspections', { qr_text: b.qr[0].url }),
+      ]),
+    );
+    const [a1, a2] = out as request.Response[];
+    expect([a1.status, a2.status]).toEqual([201, 201]);
+    expect(a1.body.id).toBe(a2.body.id);
+    const jobs = await pool.query(`SELECT 1 FROM app.box_job_tb WHERE box_id = $1 AND type = 'inspect'`, [b.box_id]);
+    expect(jobs.rowCount).toBe(1);
+    const logs = await pool.query(`SELECT 1 FROM app.scan_log_tb WHERE box_id = $1 AND actor_kind = 'officer' AND result = 'ok'`, [b.box_id]);
+    expect(logs.rowCount).toBe(2);
+  });
+
+  it('head sees today per zone and a scan log that includes the box reading the badge (failures too)', async () => {
+    const { b, head, officer } = await setup();
+    const { out } = await pollWhile(b, () => as(officer.cookie).post('/api/v1/inspections', { qr_text: b.qr[0].url }).expect(201));
+    const ins = (out as request.Response).body;
+    await box(b, 'POST', `/v1/box/jobs/${ins.job_id}/ready`, {}).expect(200);
+    await box(b, 'POST', `/v1/box/jobs/${ins.job_id}/result`, { attempt: 1, read_ok: true, qr_text: 'junk' }).expect(200);
+    const badge = (await as(officer.cookie).get(`/api/v1/inspections/${ins.id}/badge`).expect(200)).body.qr;
+    await box(b, 'POST', `/v1/box/jobs/${ins.job_id}/result`, { attempt: 2, read_ok: true, qr_text: badge }).expect(200);
+
+    const today = (await as(head).get('/api/v1/agency/today').expect(200)).body;
+    expect(today.zones).toHaveLength(1);
+    expect(today.zones[0]).toMatchObject({ houses_total: 1, houses_checked: 1, is_mine: false });
+    expect((await as(head).get('/api/v1/agency/today?zone=mine').expect(200)).body.zones).toHaveLength(0);
+
+    const logs = (await as(head).get('/api/v1/agency/logs').expect(200)).body.data as { qr_kind: string; result: string; officer: { id: string } }[];
+    expect(logs.map((l) => `${l.qr_kind}:${l.result}`)).toEqual(['badge:ok', 'badge:bad_sig', 'front:ok']);
+    expect(logs.every((l) => l.officer.id === officer.id)).toBe(true);
+    // เจ้าหน้าที่ (ไม่ใช่หัวหน้า) ดูไม่ได้
+    await as(officer.cookie).get('/api/v1/agency/logs').expect(404);
+  });
+
+  it('admin can show the device secret again (access is logged) · boot tells the box to stay awake for setup', async () => {
+    const [b] = (await as(admin.cookie).post('/api/v1/admin/boxes', { count: 1 }).expect(201)).body as Registered[];
+    const r = await as(admin.cookie).post(`/api/v1/admin/boxes/${b.box_id}/device-secret`).expect(200);
+    expect(r.body).toEqual({ box_id: b.box_id, device_secret: b.device_secret });
+    const log = await pool.query(`SELECT fields FROM app.data_access_log_tb WHERE actor_user_id = $1 AND subject_kind = 'box' AND subject_id = $2`, [
+      admin.id,
+      b.box_id,
+    ]);
+    expect(log.rows).toEqual([{ fields: ['device_secret'] }]);
+    await as(admin.cookie).post('/api/v1/admin/boxes/BX-99999999/device-secret').expect(404);
+
+    const boot = await box(b, 'POST', '/v1/box/boot', { fw: 't', config_ver: 0 }).expect(200);
+    expect(boot.body.awake_s).toBe(900);
+    const report = await box(b, 'POST', '/v1/box/report', { fw: 't', config_ver: boot.body.config_ver }).expect(200);
+    expect(report.body.awake_s).toBeUndefined();
+  });
 });

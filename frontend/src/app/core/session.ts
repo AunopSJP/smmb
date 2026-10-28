@@ -105,6 +105,14 @@ export function requireRole(role: DemoRole): CanActivateFn {
   };
 }
 
+/** ต้องล็อกอินเท่านั้น (ยังไม่มีบทบาทก็เข้าได้ เช่น หัวหน้าที่หน่วยงานยังรออนุมัติ L02) */
+export const requireSignedIn: CanActivateFn = async (_route, state) => {
+  const session = inject(Session);
+  const router = inject(Router);
+  const me = await session.ensure();
+  return me ? true : router.createUrlTree([screenUrl('A04')], { queryParams: { next: state.url } });
+};
+
 /** หน้าแรก (/) — ล็อกอินอยู่ → หน้าแรกของบทบาท · ยังไม่ล็อกอิน → เข้าสู่ระบบ */
 export const homeRedirect: CanActivateFn = async () => {
   // inject ก่อน await เสมอ (หลัง await ไม่อยู่ใน injection context แล้ว)

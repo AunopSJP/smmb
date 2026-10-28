@@ -4,6 +4,8 @@
 //
 //   node scripts/box-sim.mjs boot   --url http://localhost:3000 --box BX-00001 --secret <64 hex>
 //   node scripts/box-sim.mjs report --battery 15
+//   node scripts/box-sim.mjs live   [--wait 50]              ทำตัวเหมือนบอร์ดจริง: boot → ถือ long-poll วนไป → งานทดสอบผ่านเอง
+//                                                           งานตรวจ: ให้วางข้อความ QR ประจำตัว (ปุ่ม "คัดลอกข้อความ QR" ในหน้า O06 เมื่อเปิด devTools)
 //   node scripts/box-sim.mjs poll   [--wait 50] [--fail]     ถือ long-poll วนไป ได้งานแล้ว ready + ส่งผลอ่าน QR
 //   node scripts/box-sim.mjs event  --type camera_error
 //   node scripts/box-sim.mjs poll   --manual              ได้งานแล้วแค่พิมพ์ออกมา (สั่ง ready / result เองทีละขั้น)
@@ -12,6 +14,7 @@
 //
 // ค่า --url / --box / --secret ใส่เป็น env แทนได้: SMMB_URL, SMMB_BOX, SMMB_SECRET
 import { createHash, createHmac, randomBytes } from 'node:crypto';
+import { createInterface } from 'node:readline/promises';
 
 const args = process.argv.slice(2);
 const cmd = args[0];
@@ -26,8 +29,8 @@ const BASE = String(opt('url', process.env.SMMB_URL ?? 'http://localhost:3000'))
 const BOX = String(opt('box', process.env.SMMB_BOX ?? ''));
 const SECRET = String(opt('secret', process.env.SMMB_SECRET ?? ''));
 
-if (!['boot', 'report', 'poll', 'event', 'ready', 'result'].includes(cmd) || !/^BX-\d+$/.test(BOX) || !/^[0-9a-f]{64}$/i.test(SECRET)) {
-  console.error('usage: box-sim.mjs <boot|report|poll|event|ready|result> --url <server> --box BX-00001 --secret <device_secret 64 hex>');
+if (!['boot', 'report', 'poll', 'live', 'event', 'ready', 'result'].includes(cmd) || !/^BX-\d+$/.test(BOX) || !/^[0-9a-f]{64}$/i.test(SECRET)) {
+  console.error('usage: box-sim.mjs <live|boot|report|poll|event|ready|result> --url <server> --box BX-00001 --secret <device_secret 64 hex>');
   process.exit(2);
 }
 
@@ -113,3 +116,49 @@ if (cmd === 'boot') {
     }
   }
 }
+
+if (cmd === 'live') {
+  // เหมือนเฟิร์มแวร์: boot (ตั้งนาฬิกา + รับค่า) → ถือ long-poll → ได้งาน: ปี๊บ + ready → อ่าน QR → result
+  const wait = Number(opt('wait', 50));
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const boot = await call('POST', '/v1/box/boot', {
+    fw: 'sim-0.2', config_ver: configVer, reset_reason: 'power_on', battery_pct: battery, battery_mv: 3980, charging: true, rssi: -61, wifi_ch: 6,
+  });
+  if (boot.status !== 200) {
+    console.error('boot failed — check --url / --box / --secret');
+    process.exit(1);
+  }
+  console.log(`\n🔔 ปี๊บ — ออนไลน์แล้ว · ถือ long-poll ทุก ${wait} วิ (Ctrl+C หยุด)\n`);
+  for (;;) {
+    const { status, json } = await call('GET', `/v1/box/jobs?wait=${wait}`).catch((err) => {
+      console.error(`network error: ${err.message} — retry in 10 s`);
+      return { status: 0 };
+    });
+    if (status === 0) {
+      await sleep(10_000);
+      continue;
+    }
+    if (status !== 200 || !json?.job) continue;
+    const job = json.job;
+    console.log(`\n🔔 ปี๊บ — ได้งาน ${job.type} ${job.job_id} · เปิดกล้อง`);
+    await sleep(600);
+    await call('POST', `/v1/box/jobs/${job.job_id}/ready`, { flash: false });
+    for (let attempt = 1; attempt <= job.attempt_max; attempt++) {
+      let text = 'SIM-TEST-QR';
+      if (job.type === 'test') {
+        await sleep(1200);
+      } else {
+        // งานตรวจ: ตู้จำลองไม่มีกล้อง — วางข้อความที่อยู่ใน QR ประจำตัว (หน้า O06 ปุ่ม "คัดลอกข้อความ QR" เมื่อเปิด devTools)
+        // ไม่มีคีย์บอร์ด (รันเบื้องหลัง) = อ่านไม่ได้ — ใช้ poll --manual + ready/result แทน
+        text = (await rl.question(`  [ครั้งที่ ${attempt}/${job.attempt_max}] วางข้อความ QR ประจำตัว (เว้นว่าง = อ่านไม่ได้): `).catch(() => '')).trim();
+      }
+      const r = await call('POST', `/v1/box/jobs/${job.job_id}/result`, {
+        attempt, read_ok: !!text, qr_text: text || null, read_ms: 1200, flash: false,
+      });
+      const v = r.json?.status;
+      console.log(v === 'pass' ? '🔔🔔 ผ่าน (ปี๊บสั้น 2)' : v === 'retry' ? '🔔— ลองใหม่ (ปี๊บยาว 1)' : '🔔—🔔—🔔— ไม่ผ่าน (ปี๊บยาว 3)');
+      if (v !== 'retry') break;
+    }
+  }
+}
+

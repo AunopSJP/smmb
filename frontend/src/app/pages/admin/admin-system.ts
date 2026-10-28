@@ -1,11 +1,15 @@
-import { ChangeDetectionStrategy, Component, computed, inject, linkedSignal, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, type OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AdminApi, type BoxConfig } from '../../core/admin-api';
 import { I18n, type Tr } from '../../core/i18n';
-import { AdminDemo, type BoxConfigDefaults, type LogType } from '../../core/mock/admin-demo';
+import { AdminDemo, type LogType } from '../../core/mock/admin-demo';
+
+type BoxConfigDefaults = Omit<BoxConfig, 'windows'>;
 import { downloadText, toCsv } from '../../core/csv';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
+import { NotificationList } from '../../shared/notification-list';
 import { PageHeader } from '../../shared/page-header';
 import { caseUrl } from './admin-qr';
 
@@ -53,7 +57,7 @@ type NumKey = keyof typeof LIMITS;
 
       <label class="row card switch-row">
         <span class="grow">
-          <strong>{{ i18n.t({ th: 'เปิดไฟส่องเมื่อมืด', en: 'Light up when dark' }) }}</strong>
+          <strong>{{ i18n.t({ th: 'เปิดไฟส่องกล้องเมื่อมืด', en: 'Camera light when dark' }) }}</strong>
           <span class="muted small block">{{ i18n.t({ th: 'ช่วยกล้องอ่าน QR ประจำตัวตอนกลางคืน', en: 'Helps the camera read the badge QR at night' }) }}</span>
         </span>
         <input type="checkbox" class="switch" [checked]="form().flash_when_dark" (change)="set('flash_when_dark', $any($event.target).checked)" />
@@ -61,11 +65,11 @@ type NumKey = keyof typeof LIMITS;
 
       <p class="info-box muted">{{ i18n.t({ th: 'ช่วงเวลาตรวจไม่ได้ตั้งที่นี่ — มาจากโซนของแต่ละหน่วยงาน', en: 'Patrol hours are not set here — they come from each agency’s zones' }) }}</p>
       <p class="muted small">
-        {{ i18n.t({ th: 'รุ่นปัจจุบัน v', en: 'Current version v' }) }}{{ demo.config().ver }} · {{ i18n.t({ th: 'แก้ล่าสุด ', en: 'last changed ' }) }}{{ i18n.t(demo.config().updated) }}<br />
+        {{ i18n.t({ th: 'รุ่นปัจจุบัน v', en: 'Current version v' }) }}{{ ver() }}<br />
         {{ i18n.t({ th: 'ตู้ดึงค่าใหม่ไปใช้ภายใน 1 วัน', en: 'Boxes pick up new settings within 1 day' }) }}
       </p>
 
-      <button type="submit" class="btn push-end" [disabled]="!allValid() || !changed()">{{ i18n.t({ th: 'บันทึกค่า', en: 'Save' }) }}</button>
+      <button type="submit" class="btn push-end" [disabled]="!allValid() || !changed() || busy()">{{ i18n.t({ th: 'บันทึกค่า', en: 'Save' }) }}</button>
     </form>
   `,
   styles: `
@@ -83,9 +87,9 @@ type NumKey = keyof typeof LIMITS;
     }
   `,
 })
-export class AdminConfig {
+export class AdminConfig implements OnInit {
   protected readonly i18n = inject(I18n);
-  protected readonly demo = inject(AdminDemo);
+  private readonly api = inject(AdminApi);
   private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
   protected readonly limits = LIMITS;
@@ -96,9 +100,21 @@ export class AdminConfig {
     { key: 'longpoll_wait_s', label: { th: 'ตู้ถามงานใหม่ทุก', en: 'Box asks for jobs every' }, unit: { th: 'วินาที', en: 'sec' }, hint: { th: 'ในเวลาตรวจ · สั้นลงถ้าเราเตอร์บ้านตัดสายเงียบเร็ว', en: 'During patrol hours · shorter if home routers drop idle links' } },
   ];
 
-  /** ฟอร์มเริ่มจากค่าปัจจุบัน และรีเซ็ตเมื่อบันทึก */
-  protected readonly form = linkedSignal<BoxConfigDefaults>(() => ({ ...this.demo.config().values }));
-  protected readonly changed = computed(() => JSON.stringify(this.form()) !== JSON.stringify(this.demo.config().values));
+  /** ค่าที่ server มีอยู่ (GET /admin/box-config) — ฟอร์มเริ่มจากค่านี้ */
+  private readonly saved = signal<BoxConfigDefaults>({ report_at: '03:00', scan_timeout_s: 15, max_attempts: 3, flash_when_dark: true, longpoll_wait_s: 50 });
+  protected readonly form = signal<BoxConfigDefaults>(this.saved());
+  protected readonly ver = signal<number | null>(null);
+  protected readonly busy = signal(false);
+  protected readonly changed = computed(() => JSON.stringify(this.form()) !== JSON.stringify(this.saved()));
+
+  async ngOnInit(): Promise<void> {
+    const r = await this.api.config().catch(() => null);
+    if (!r) return;
+    const v = { report_at: r.config.report_at, scan_timeout_s: r.config.scan_timeout_s, max_attempts: r.config.max_attempts, flash_when_dark: r.config.flash_when_dark, longpoll_wait_s: r.config.longpoll_wait_s };
+    this.saved.set(v);
+    this.form.set({ ...v });
+    this.ver.set(r.config_ver);
+  }
   protected readonly allValid = computed(() => this.numbers.every((f) => this.valid(f.key)) && /^\d{2}:\d{2}$/.test(this.form().report_at));
   protected readonly tooLong = computed(() => this.form().max_attempts * this.form().scan_timeout_s > JOB_LIFETIME_S);
 
@@ -116,11 +132,19 @@ export class AdminConfig {
     this.set(key, raw === '' ? Number.NaN : Number(raw));
   }
 
-  /** ของจริง: PUT /admin/box-config → config_ver + 1 */
-  protected save(): void {
+  /** PUT /admin/box-config → config_ver ใหม่ (ตู้ดึงไปตอน boot / รายงานรายวัน) */
+  protected async save(): Promise<void> {
     if (!this.allValid() || !this.changed()) return;
-    this.demo.saveConfig(this.form());
-    this.toast.show({ th: 'บันทึกแล้ว ตู้ดึงค่าใหม่ภายใน 1 วัน', en: 'Saved — boxes update within 1 day' });
+    this.busy.set(true);
+    try {
+      await this.api.setConfig(this.form());
+      await this.ngOnInit();
+      this.toast.show({ th: 'บันทึกแล้ว ตู้ดึงค่าใหม่ภายใน 1 วัน', en: 'Saved — boxes update within 1 day' });
+    } catch {
+      this.toast.show({ th: 'บันทึกไม่ได้ ตรวจค่าอีกครั้ง', en: 'Couldn’t save — check the values' });
+    } finally {
+      this.busy.set(false);
+    }
   }
 }
 
@@ -223,62 +247,20 @@ export class AdminLogs {
   }
 }
 
-// ── D12 · แจ้งเตือน ─────────────────────────────────────────
+// ── D12 · แจ้งเตือน (GET /me/notifications ของแอดมิน) ─────────────────
 
 @Component({
   selector: 'app-admin-notifications',
-  imports: [RouterLink, PageHeader, Icon],
+  imports: [PageHeader, NotificationList],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header
-      [caption]="i18n.t({ th: 'แอดมิน Smart Mailbox', en: 'Smart Mailbox admin' })"
-      [title]="i18n.t({ th: 'การแจ้งเตือน', en: 'Notifications' })"
-      [back]="url('D01')"
-    />
+    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'การแจ้งเตือน', en: 'Notifications' })" [back]="url('D01')" />
     <div class="stack">
-      <nav class="list">
-        @for (n of items(); track $index) {
-          <a class="row" [routerLink]="n.path" [queryParams]="n.query ?? null">
-            <span class="icon-bubble" [class.danger]="n.tone === 'danger'" [class.warn]="n.tone === 'warn'"><app-icon [name]="n.icon" [size]="20" /></span>
-            <span class="grow">
-              <strong>{{ i18n.t(n.title) }}</strong>
-              <span class="muted small block">{{ i18n.t(n.body) }}</span>
-            </span>
-          </a>
-        }
-      </nav>
-      <p class="muted small">{{ i18n.t({ th: 'แตะรายการเพื่อดูรายละเอียด', en: 'Tap an item for details' }) }}</p>
+      <app-notification-list />
     </div>
-  `,
-  styles: `
-    .grow {
-      flex: 1;
-      min-width: 0;
-    }
-    .block {
-      display: block;
-    }
   `,
 })
 export class AdminNotifications {
   protected readonly i18n = inject(I18n);
-  private readonly demo = inject(AdminDemo);
   protected readonly url = screenUrl;
-
-  /** ลิงก์ของเคส QR ตามขั้นที่ทำอยู่ (ประเภทแจ้งเตือนตาม api.md §14) */
-  protected readonly items = computed(() => {
-    const qr = (id: string) => {
-      const c = this.demo.qrCase(id);
-      return c ? caseUrl(c) : { path: screenUrl('D05'), query: undefined };
-    };
-    const list: { icon: IconName; tone: '' | 'warn' | 'danger'; title: Tr; body: Tr; path: string; query?: Record<string, string> }[] = [
-      { icon: 'alert', tone: 'danger', title: { th: 'QR อาจปลอม · 77/3', en: 'Possible fake QR · 77/3' }, body: { th: 'เจ้าหน้าที่สแกนเจอ QR ไม่ใช่ของระบบ · 22:04', en: 'An officer scanned a QR that is not ours · 22:04' }, ...qr('q1') },
-      { icon: 'scan', tone: 'danger', title: { th: 'QR หน้าตู้ชำรุด · 99/9', en: 'Front QR damaged · 99/9' }, body: { th: 'เจ้าหน้าที่แจ้ง "ขาด" · 22:15', en: 'Officer reported it torn · 22:15' }, ...qr('q2') },
-      { icon: 'user', tone: '', title: { th: 'หน่วยงานใหม่รออนุมัติ', en: 'New agency waiting' }, body: { th: 'สภ.บางพลี · 25 ต.ค.', en: 'Bang Phli police · 25 Oct' }, path: screenUrl('D02') },
-      { icon: 'box', tone: 'warn', title: { th: 'ตู้ 45/2 ไม่รายงานเกิน 26 ชม.', en: 'Box 45/2 silent over 26 h' }, body: { th: 'ติดต่อล่าสุด 27 ชม. ที่แล้ว', en: 'Last seen 27 h ago' }, path: screenUrl('D04'), query: { id: 'BX-00017' } },
-      { icon: 'wifi', tone: '', title: { th: 'เจ้าของบ้านขอช่าง · 99/9', en: 'Technician requested · 99/9' }, body: { th: 'เปลี่ยน Wi-Fi · 26 ต.ค. 14:20', en: 'Change Wi-Fi · 26 Oct 14:20' }, path: screenUrl('D04'), query: { id: 'BX-00042' } },
-      { icon: 'info', tone: '', title: { th: 'แบตต่ำ ' + this.demo.totals.low_battery + ' ตู้', en: this.demo.totals.low_battery + ' boxes low on battery' }, body: { th: 'ต่ำกว่า 20%', en: 'Below 20%' }, path: screenUrl('D03'), query: { filter: 'low' } },
-    ];
-    return list;
-  });
 }

@@ -1,7 +1,7 @@
 import { Location } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, type OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { apiError, isOffline } from '../../core/api';
+import { ApiConfig, apiError, isOffline } from '../../core/api';
 import { I18n, type Tr } from '../../core/i18n';
 import { hhmm, type Inspection, InspectionApi, type OfficerSummary, type ProblemReason, type QrCondition } from '../../core/inspection-api';
 import { screenUrl } from '../../screens/registry';
@@ -621,6 +621,10 @@ export class OfficerWake implements OnInit {
   protected readonly waited = signal(0);
   private timer: ReturnType<typeof setInterval> | null = null;
 
+  protected copyQr(q: string): void {
+    void navigator.clipboard?.writeText(q).catch(() => undefined);
+  }
+
   constructor() {
     inject(DestroyRef).onDestroy(() => this.stop());
   }
@@ -704,6 +708,9 @@ interface WakeLockSentinelLike {
       <div class="qr">
         @if (qr(); as q) {
           <app-qr-image [text]="q" level="M" [label]="i18n.t({ th: 'QR ประจำตัว', en: 'Your badge QR' })" />
+          @if (devTools()) {
+            <button type="button" class="copy-qr" (click)="copyQr(q)">{{ i18n.t({ th: 'คัดลอกข้อความ QR (ตู้จำลอง)', en: 'Copy QR text (box simulator)' }) }}</button>
+          }
         } @else {
           <p class="muted small center">{{ i18n.t({ th: 'กำลังสร้าง QR…', en: 'Making your QR…' }) }}</p>
         }
@@ -751,6 +758,18 @@ interface WakeLockSentinelLike {
       border-radius: var(--radius);
       background: #fff;
     }
+    .copy-qr {
+      display: block;
+      width: 100%;
+      margin-top: 6px;
+      border: 0;
+      background: none;
+      color: #555;
+      font: inherit;
+      font-size: 0.75rem;
+      text-decoration: underline;
+      cursor: pointer;
+    }
     .countdown {
       display: flex;
       align-items: center;
@@ -794,6 +813,8 @@ interface WakeLockSentinelLike {
 })
 export class OfficerBadge implements OnInit {
   protected readonly i18n = inject(I18n);
+  /** config.json devTools: true — ทดสอบกับ npm run box:sim live (ตู้จำลองไม่มีกล้อง) */
+  protected readonly devTools = inject(ApiConfig).devTools;
   private readonly api = inject(InspectionApi);
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
@@ -807,6 +828,10 @@ export class OfficerBadge implements OnInit {
   private wakeLock: WakeLockSentinelLike | null = null;
   private fetching = false;
   protected readonly range = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
+
+  protected copyQr(q: string): void {
+    void navigator.clipboard?.writeText(q).catch(() => undefined);
+  }
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.stop());

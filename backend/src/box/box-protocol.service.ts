@@ -27,7 +27,12 @@ export interface CheckInReply {
   server_time: number;
   config_ver: number;
   config?: BoxConfig;
+  /** เฉพาะ boot: ถือ long-poll ต่อกี่วินาทีแม้นอกเวลาตรวจ (ให้ช่าง/แอดมินทดสอบปลุกตู้หลังเปิดเครื่อง · โปรโตคอล §2.1) */
+  awake_s?: number;
 }
+
+/** หลังเปิดเครื่อง ตู้ถือ long-poll 15 นาที — ตู้ใหม่ยังไม่อยู่โซนไหน (ไม่มีเวลาตรวจ) ก็ยังทดสอบปลุกได้ตอนติดตั้ง */
+export const SETUP_AWAKE_S = 900;
 
 /** API ของตู้ `/v1/box/*` (โปรโตคอล §2) ยกเว้นปุ่มส่งของ (⏸ รอยืนยัน) */
 @Injectable()
@@ -70,7 +75,7 @@ export class BoxProtocolService {
     }
 
     const { config, ver } = await this.configs.forBox(boxId);
-    return { server_time: nowS(), config_ver: ver, ...(body.config_ver === ver ? {} : { config }) };
+    return { server_time: nowS(), config_ver: ver, ...(body.config_ver === ver ? {} : { config }), ...(kind === 'boot' ? { awake_s: SETUP_AWAKE_S } : {}) };
   }
 
   /** เหตุการณ์อื่น (ปุ่ม Boot ล้าง Wi-Fi / แบตวิกฤต / กล้องเสีย) — ส่งครั้งเดียว เก็บไว้ดูอย่างเดียว */

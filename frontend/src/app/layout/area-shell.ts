@@ -7,6 +7,9 @@ import { ToastHost } from '../core/toast';
 import { AREA_LABEL, screen, TABS, type Area } from '../screens/registry';
 import { TabBar } from '../shared/tab-bar';
 
+/** หน้าที่ยังเป็นข้อมูลจำลอง (ยังไม่มี API) — QR เสีย/ปลอม · ประวัติรวมของแอดมิน · แพ็กเกจ · เพิ่มบทบาท */
+const MOCK_SCREENS = new Set(['D05', 'D06', 'D06-b', 'D07', 'D07-b', 'D08', 'D11', 'D14', 'A15', 'A16', 'H13-c']);
+
 /**
  * โครงของแต่ละบทบาท: แถบ "ต้นแบบ" ด้านบน · เนื้อหา · แท็บล่าง (ถ้าบทบาทนั้นมี)
  * จอกว้าง (คอม) แสดงเป็นคอลัมน์ขนาดมือถือตรงกลาง
@@ -17,7 +20,7 @@ import { TabBar } from '../shared/tab-bar';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="frame">
-      @if (mock) {
+      @if (mock()) {
         <a class="demo" routerLink="/demo">
           {{ i18n.t({ th: 'ต้นแบบ · ข้อมูลจำลอง', en: 'Prototype · sample data' }) }} · {{ i18n.t(areaLabel()) }}
           <span aria-hidden="true">⇄</span>
@@ -78,8 +81,8 @@ export class AreaShell {
   private readonly area = this.route.snapshot.data['area'] as Area;
   protected readonly areaLabel = computed(() => AREA_LABEL[this.area]);
   protected readonly tabs = computed(() => TABS[this.area]);
-  /** หัวหน้า / แอดมินยังเป็นข้อมูลจำลอง · เจ้าของบ้าน เจ้าหน้าที่ ไรเดอร์ สมัคร/ล็อกอิน ใช้ API จริง */
-  protected readonly mock = this.area === 'head' || this.area === 'admin';
+  /** แถบ "ต้นแบบ" เฉพาะหน้าที่ยังเป็นข้อมูลจำลอง — ที่เหลือใช้ API จริงทั้งหมด */
+  protected readonly mock = computed(() => MOCK_SCREENS.has(this.code() ?? ''));
 
   /** หน้าลูกปัจจุบันเป็นหน้าเต็มจอไหม (เช่น SOS) → ซ่อนแท็บล่าง */
   private readonly code = toSignal(

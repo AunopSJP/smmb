@@ -96,8 +96,9 @@ for (const b of boxes) {
   console.log(`     device_secret = ${deviceSecret(process.env.BOX_MASTER_KEY, b.box_id)}`);
 }
 console.log(`\n บัญชีจำลอง (รหัสผ่าน ${PASSWORD}): แอดมิน 0800000001 · เจ้าของบ้าน 0812345678 · หัวหน้า 0823456789 · เจ้าหน้าที่ 0834567890`);
-console.log(` ทดสอบปลุกตู้: ล็อกอินแอดมิน แล้ว POST /api/v1/admin/boxes/BX-00001/test-jobs`);
-console.log(` ไม่มีบอร์ด: npm run box:sim -- poll --url http://localhost:${port} --box BX-00001 --secret <device_secret>`);
+console.log(` ทดสอบปลุกตู้: ล็อกอินแอดมิน → ตู้ → เลือกตู้ → "ทดสอบปลุกตู้ + กล้อง" · ติดตั้งตู้ใหม่: เมนู "งานช่าง (ติดตั้ง)"`);
+console.log(` ไม่มีบอร์ด: npm run box:sim -- live --url http://localhost:${port} --box BX-00001 --secret <device_secret>`);
+console.log(`   (ทำตัวเหมือนบอร์ด: boot → ถือ long-poll · งานทดสอบผ่านเอง · งานตรวจให้วางข้อความ QR ประจำตัวจากปุ่มในหน้า O06)`);
 console.log(`${line}\n`);
 
 const stop = async () => {

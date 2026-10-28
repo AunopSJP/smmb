@@ -1,127 +1,135 @@
-import { afterNextRender, ChangeDetectionStrategy, Component, computed, type ElementRef, inject, Injector, input, linkedSignal, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, signal, type OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AdminApi, type AdminAgency, type AdminUser } from '../../core/admin-api';
+import { apiError } from '../../core/api';
+import { AGENCY_TYPE_LABEL, showGroupCode } from '../../core/head-api';
 import { I18n, type Tr } from '../../core/i18n';
-import { AdminDemo, type AdminRole, type AdminUser, type DemoAgency } from '../../core/mock/admin-demo';
-import { PlanDemo } from '../../core/mock/plan-demo';
-import { UserPlan } from './admin-plans';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
-import { MockNote } from '../auth/auth-parts';
 
-const AGENCY_TYPE: Record<DemoAgency['type'], Tr> = {
-  police: { th: 'ตำรวจ', en: 'Police' },
-  guard: { th: 'รปภ.', en: 'Security guards' },
-  other: { th: 'อื่น ๆ', en: 'Other' },
+// แอดมิน: D02 หน่วยงานรออนุมัติ · D13 หน่วยงานทั้งหมด · D09 ผู้ใช้ — ใช้ API จริง (api.md §9.2–9.3)
+
+const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
+  pending: { th: 'รออนุมัติ', en: 'Pending' },
+  approved: { th: 'อนุมัติแล้ว', en: 'Approved' },
+  rejected: { th: 'ไม่อนุมัติ', en: 'Rejected' },
 };
 
-const copyText = (text: string) => void navigator.clipboard?.writeText(text).catch(() => undefined);
-
-// ── D02 · คำขอหน่วยงาน ──────────────────────────────────────
+// ── D02 · หน่วยงานรออนุมัติ ───────────────────────────────────
 
 @Component({
   selector: 'app-admin-agency-requests',
-  imports: [RouterLink, PageHeader],
+  imports: [PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'คำขอหน่วยงาน', en: 'Agency requests' })" [back]="url('D01')" />
+    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'หน่วยงานรออนุมัติ', en: 'Agency requests' })" [back]="url('D01')" />
     <div class="stack">
       @if (approved(); as a) {
-        <section class="card done" role="status">
-          <strong>{{ i18n.t({ th: 'อนุมัติ ', en: 'Approved ' }) }}{{ i18n.t(a.name) }}</strong>
-          <span class="muted small">{{ i18n.t({ th: 'รหัสกลุ่ม', en: 'Group code' }) }}</span>
+        <section class="card ok-card">
+          <strong>{{ i18n.t({ th: 'อนุมัติ ', en: 'Approved ' }) }}{{ a.name }}</strong>
+          <p class="small">{{ i18n.t({ th: 'รหัสกลุ่ม (หัวหน้าเห็นในแอปแล้ว)', en: 'Group code (the head sees it in the app)' }) }}</p>
           <p class="code">{{ a.code }}</p>
-          <p class="muted small">{{ i18n.t({ th: 'หัวหน้าได้รับแจ้งเตือนแล้ว และเห็นรหัสนี้ในแอป — แชร์ให้ลูกทีมใช้สมัคร', en: 'The head was notified and sees this code in the app — they share it with their team' }) }}</p>
-          <div class="two">
-            <button type="button" class="btn secondary" (click)="copy(a.code)">{{ i18n.t({ th: 'คัดลอก', en: 'Copy' }) }}</button>
-            <a class="btn secondary" [routerLink]="url('D13')">{{ i18n.t({ th: 'ดูหน่วยงาน', en: 'See agencies' }) }}</a>
-          </div>
         </section>
       }
-
-      @for (a of demo.pendingAgencies(); track a.id) {
-        <section class="card pending">
-          <strong class="name">{{ i18n.t(a.name) }}</strong>
-          <dl class="kv">
-            <dt>{{ i18n.t({ th: 'ประเภท', en: 'Type' }) }}</dt><dd>{{ i18n.t(type[a.type]) }}</dd>
-            <dt>{{ i18n.t({ th: 'หัวหน้า', en: 'Head' }) }}</dt><dd>{{ i18n.t(a.head) }}</dd>
-            <dt>{{ i18n.t({ th: 'เบอร์', en: 'Phone' }) }}</dt><dd>{{ a.head_phone }}</dd>
-            <dt>{{ i18n.t({ th: 'ส่งเมื่อ', en: 'Sent' }) }}</dt><dd>{{ i18n.t(a.sent) }}</dd>
-          </dl>
+      @for (a of rows(); track a.id) {
+        <section class="card stack">
+          <div>
+            <strong>{{ a.name }}</strong>
+            <span class="chip">{{ i18n.t(type(a.type)) }}</span>
+          </div>
+          <p class="muted small">
+            {{ i18n.t({ th: 'หัวหน้า: ', en: 'Head: ' }) }}{{ heads(a) }} · {{ i18n.t({ th: 'ส่งเมื่อ ', en: 'Sent ' }) }}{{ date(a.created_at) }}
+          </p>
           @if (rejecting() === a.id) {
             <label class="field">
-              <span>{{ i18n.t({ th: 'เหตุผล (ไม่บังคับ)', en: 'Reason (optional)' }) }}</span>
-              <textarea maxlength="200" [value]="reason()" (input)="reason.set($any($event.target).value)"></textarea>
-              <small>{{ i18n.t({ th: 'หัวหน้าจะเห็นข้อความนี้', en: 'The head will see this message' }) }}</small>
+              <span>{{ i18n.t({ th: 'เหตุผล (หัวหน้าเห็น)', en: 'Reason (shown to the head)' }) }}</span>
+              <input maxlength="500" [value]="reason()" (input)="reason.set($any($event.target).value)" />
             </label>
             <div class="two">
               <button type="button" class="btn secondary" (click)="rejecting.set(null)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
-              <button type="button" class="btn" (click)="reject(a.id)">{{ i18n.t({ th: 'ยืนยันปฏิเสธ', en: 'Decline' }) }}</button>
+              <button type="button" class="btn" [disabled]="busy()" (click)="reject(a)">{{ i18n.t({ th: 'ยืนยันไม่อนุมัติ', en: 'Confirm reject' }) }}</button>
             </div>
           } @else {
             <div class="two">
-              <button type="button" class="btn secondary" (click)="startReject(a.id)">{{ i18n.t({ th: 'ปฏิเสธ', en: 'Decline' }) }}</button>
-              <button type="button" class="btn" (click)="approve(a)">{{ i18n.t({ th: 'อนุมัติ', en: 'Approve' }) }}</button>
+              <button type="button" class="btn secondary" (click)="startReject(a.id)">{{ i18n.t({ th: 'ไม่อนุมัติ', en: 'Reject' }) }}</button>
+              <button type="button" class="btn" [disabled]="busy()" (click)="approve(a)">{{ i18n.t({ th: 'อนุมัติ', en: 'Approve' }) }}</button>
             </div>
           }
         </section>
       } @empty {
-        @if (!approved()) {
-          <p class="card muted center">{{ i18n.t({ th: 'ไม่มีคำขอรออนุมัติ', en: 'No requests waiting' }) }}</p>
-        }
+        <p class="muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ไม่มีหน่วยงานรออนุมัติ', en: 'No agencies waiting' }) }}</p>
       }
-      <p class="muted small">{{ i18n.t({ th: 'อนุมัติแล้วระบบสร้างรหัสกลุ่มให้อัตโนมัติ · การเปิดดูเบอร์หัวหน้าถูกบันทึก', en: 'Approving creates a group code automatically · viewing the head’s phone is logged' }) }}</p>
     </div>
   `,
   styles: `
-    .pending {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      border: 2px solid var(--sos);
-    }
-    .name {
-      font-size: 1.125rem;
-    }
-    .done {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      border: 2px solid var(--ok);
-    }
-    .code {
-      font-size: 1.75rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      font-variant-numeric: tabular-nums;
-    }
     .two {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
-      margin-top: 4px;
     }
-    .two .btn {
-      min-height: 48px;
+    .chip {
+      margin-left: 6px;
+    }
+    .ok-card {
+      background: var(--ok-bg);
+      color: var(--ok);
+      text-align: center;
+    }
+    .code {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
     }
   `,
 })
-export class AdminAgencyRequests {
+export class AdminAgencyRequests implements OnInit {
   protected readonly i18n = inject(I18n);
-  protected readonly demo = inject(AdminDemo);
+  private readonly api = inject(AdminApi);
   private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
-  protected readonly type = AGENCY_TYPE;
+  protected readonly type = (t: AdminAgency['type']) => AGENCY_TYPE_LABEL[t];
+  protected readonly rows = signal<AdminAgency[]>([]);
+  protected readonly loading = signal(true);
+  protected readonly busy = signal(false);
   protected readonly rejecting = signal<string | null>(null);
   protected readonly reason = signal('');
-  protected readonly approved = signal<{ name: Tr; code: string } | null>(null);
+  protected readonly approved = signal<{ name: string; code: string } | null>(null);
 
-  protected approve(a: DemoAgency): void {
-    const code = this.demo.approve(a.id);
-    if (!code) return;
-    this.approved.set({ name: a.name, code });
-    this.toast.show({ th: 'อนุมัติแล้ว', en: 'Approved' });
+  async ngOnInit(): Promise<void> {
+    await this.load();
+  }
+
+  private async load(): Promise<void> {
+    try {
+      this.rows.set(await this.api.agencies('pending'));
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  protected heads(a: AdminAgency): string {
+    return a.heads.map((h) => h.display_name).join(', ') || '-';
+  }
+
+  protected date(iso: string): string {
+    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' });
+  }
+
+  /** POST /admin/agencies/:id/approve → หัวหน้าได้บทบาท officer + head · ได้รหัสกลุ่ม */
+  protected async approve(a: AdminAgency): Promise<void> {
+    this.busy.set(true);
+    try {
+      await this.api.approveAgency(a.id);
+      const d = await this.api.agency(a.id);
+      this.approved.set({ name: d.name, code: showGroupCode(d.group_code) });
+      await this.load();
+    } catch {
+      this.toast.show({ th: 'อนุมัติไม่ได้ ลองใหม่', en: 'Couldn’t approve — try again' });
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   protected startReject(id: string): void {
@@ -129,118 +137,46 @@ export class AdminAgencyRequests {
     this.rejecting.set(id);
   }
 
-  protected reject(id: string): void {
-    this.demo.reject(id, this.reason());
-    this.rejecting.set(null);
-    this.toast.show({ th: 'ปฏิเสธคำขอแล้ว', en: 'Request declined' });
-  }
-
-  protected copy(code: string): void {
-    copyText(code);
-    this.toast.show({ th: 'คัดลอกแล้ว', en: 'Copied' });
+  protected async reject(a: AdminAgency): Promise<void> {
+    this.busy.set(true);
+    try {
+      await this.api.rejectAgency(a.id, this.reason().trim() || undefined);
+      this.rejecting.set(null);
+      this.toast.show({ th: 'ไม่อนุมัติแล้ว', en: 'Rejected' });
+      await this.load();
+    } catch {
+      this.toast.show({ th: 'ทำไม่ได้ ลองใหม่', en: 'Couldn’t do it — try again' });
+    } finally {
+      this.busy.set(false);
+    }
   }
 }
 
-// ── D13 · หน่วยงาน ──────────────────────────────────────────
+// ── D13 · หน่วยงานทั้งหมด ───────────────────────────────────
 
 @Component({
   selector: 'app-admin-agencies',
-  imports: [RouterLink, PageHeader, Icon, MockNote],
+  imports: [PageHeader, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'หน่วยงาน', en: 'Agencies' })" [back]="url('D01')" />
     <div class="stack">
+      <a class="btn secondary" [routerLink]="url('D02')">{{ i18n.t({ th: 'ดูคำขอที่รออนุมัติ', en: 'See pending requests' }) }}</a>
       <div class="list">
         @for (a of rows(); track a.id) {
-          @if (a.status === 'pending') {
-            <a class="row" [routerLink]="url('D02')">
-              <span class="icon-bubble"><app-icon name="user" [size]="20" /></span>
-              <span class="grow">
-                <strong>{{ i18n.t(a.name) }}</strong>
-                <span class="muted small block">{{ i18n.t(type[a.type]) }} · {{ i18n.t({ th: 'ส่งคำขอ ', en: 'requested ' }) }}{{ i18n.t(a.sent) }}</span>
+          <div class="row">
+            <span class="grow">
+              <strong>{{ a.name }}</strong>
+              <span class="muted small block">
+                {{ i18n.t(type(a.type)) }} · {{ i18n.t({ th: 'หัวหน้า ', en: 'Head ' }) }}{{ heads(a) }}{{ a.group_code ? ' · ' + code(a.group_code) : '' }}
               </span>
-              <span class="chip danger">{{ i18n.t({ th: 'รออนุมัติ', en: 'Waiting' }) }}</span>
-            </a>
-          } @else {
-            <div class="row">
-              <span class="icon-bubble"><app-icon name="shield" [size]="20" /></span>
-              <span class="grow">
-                <strong>{{ i18n.t(a.name) }}</strong>
-                <span class="muted small block">
-                  {{ i18n.t(type[a.type]) }} ·
-                  @if (a.status === 'approved') {
-                    {{ i18n.t({ th: 'รหัสกลุ่ม ', en: 'code ' }) }}<span class="code">{{ a.group_code }}</span> · {{ a.members }} {{ i18n.t({ th: 'คน', en: 'people' }) }}
-                  } @else {
-                    {{ a.reject_reason ?? i18n.t({ th: 'ไม่ระบุเหตุผล', en: 'no reason given' }) }}
-                  }
-                </span>
-              </span>
-              @if (a.status === 'approved') {
-                <span class="chip ok">{{ i18n.t({ th: 'ใช้งาน', en: 'Active' }) }}</span>
-              } @else {
-                <span class="chip">{{ i18n.t({ th: 'ปฏิเสธแล้ว', en: 'Declined' }) }}</span>
-              }
-            </div>
-          }
+            </span>
+            <span class="chip" [class.ok]="a.status === 'approved'" [class.warn]="a.status === 'pending'">{{ i18n.t(status[a.status]) }}</span>
+          </div>
+        } @empty {
+          <p class="row muted">{{ i18n.t({ th: 'ยังไม่มีหน่วยงาน', en: 'No agencies yet' }) }}</p>
         }
       </div>
-      <p class="muted small">{{ i18n.t({ th: 'รหัสกลุ่มสร้างให้อัตโนมัติเมื่ออนุมัติ', en: 'Group codes are created on approval' }) }}</p>
-
-      @if (created(); as c) {
-        <section class="card done" role="status">
-          <strong>{{ i18n.t({ th: 'สร้าง ', en: 'Created ' }) }}{{ c.name }}{{ i18n.t({ th: ' แล้ว', en: '' }) }}</strong>
-          <span class="muted small">{{ i18n.t({ th: 'รหัสกลุ่ม', en: 'Group code' }) }}</span>
-          <p class="big-code">{{ c.code }}</p>
-          @if (c.temp) {
-            <span class="muted small">{{ i18n.t({ th: 'รหัสผ่านชั่วคราวของหัวหน้า (แสดงครั้งเดียว)', en: 'Head’s temporary password (shown once)' }) }}</span>
-            <p class="big-code">{{ c.temp }}</p>
-            <p class="muted small">{{ i18n.t({ th: 'บอกหัวหน้าเอง · เข้าครั้งแรกต้องเปลี่ยนรหัสและยอมรับข้อตกลง', en: 'Tell the head yourself · they must change it and accept the terms on first sign-in' }) }}</p>
-          } @else {
-            <p class="muted small">{{ i18n.t({ th: 'เบอร์นี้มีบัญชีอยู่แล้ว — ใช้บัญชีเดิม ได้บทบาทหัวหน้าเพิ่ม', en: 'This number already has an account — it keeps it and becomes a head' }) }}</p>
-          }
-          <button type="button" class="btn secondary" (click)="created.set(null)">{{ i18n.t({ th: 'ปิด', en: 'Close' }) }}</button>
-        </section>
-      }
-
-      @if (creating()) {
-        <form class="card stack" (submit)="$event.preventDefault(); create()">
-          <strong>{{ i18n.t({ th: 'สร้างหน่วยงานให้', en: 'Create an agency' }) }}</strong>
-          <app-mock-note />
-          <label class="field">
-            <span>{{ i18n.t({ th: 'ชื่อหน่วยงาน', en: 'Agency name' }) }}</span>
-            <input [value]="form().name" (input)="set('name', $any($event.target).value)" />
-          </label>
-          <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'ประเภท', en: 'Type' })">
-            @for (t of typeKeys; track t) {
-              <button type="button" [attr.aria-pressed]="form().type === t" (click)="set('type', t)">{{ i18n.t(type[t]) }}</button>
-            }
-          </div>
-          <label class="field">
-            <span>{{ i18n.t({ th: 'ชื่อหัวหน้า (ยศ)', en: 'Head’s name (with rank)' }) }}</span>
-            <input [value]="form().head" (input)="set('head', $any($event.target).value)" />
-          </label>
-          <label class="field">
-            <span>{{ i18n.t({ th: 'เบอร์หัวหน้า', en: 'Head’s phone' }) }}</span>
-            <input type="tel" inputmode="tel" [value]="form().phone" (input)="set('phone', $any($event.target).value)" />
-            <small>{{ i18n.t({ th: 'เบอร์ใหม่ = สร้างบัญชีให้พร้อมรหัสชั่วคราว · เบอร์ที่มีบัญชีแล้ว = ใช้บัญชีเดิม', en: 'New number = account with a temporary password · existing number = keeps its account' }) }}</small>
-          </label>
-          <label class="field">
-            <span>{{ i18n.t({ th: 'ช่องทางติดต่อหน่วยงาน', en: 'Agency contact' }) }}</span>
-            <input maxlength="200" [value]="form().contact" (input)="set('contact', $any($event.target).value)" />
-            <small>{{ i18n.t({ th: 'แสดงให้คนที่ขอเข้าหน่วยงานเห็น', en: 'Shown to people asking to join' }) }}</small>
-          </label>
-          @if (createError(); as e) {
-            <p class="danger-text small" role="alert">{{ i18n.t(e) }}</p>
-          }
-          <div class="two">
-            <button type="button" class="btn secondary" (click)="creating.set(false)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
-            <button type="submit" class="btn">{{ i18n.t({ th: 'สร้าง', en: 'Create' }) }}</button>
-          </div>
-        </form>
-      } @else {
-        <button type="button" class="btn secondary" (click)="startCreate()">{{ i18n.t({ th: 'สร้างหน่วยงานให้', en: 'Create an agency' }) }}</button>
-        <p class="muted small">{{ i18n.t({ th: 'ใช้เมื่อหน่วยงานไม่สะดวกสมัครเอง — สร้างแล้วใช้งานได้ทันที ไม่ต้องรออนุมัติ', en: 'For agencies that cannot sign up themselves — active right away' }) }}</p>
-      }
     </div>
   `,
   styles: `
@@ -251,369 +187,221 @@ export class AdminAgencyRequests {
     .block {
       display: block;
     }
-    .code {
-      font-weight: 700;
-      color: var(--text);
-      letter-spacing: 0.04em;
+  `,
+})
+export class AdminAgencies implements OnInit {
+  protected readonly i18n = inject(I18n);
+  private readonly api = inject(AdminApi);
+  protected readonly url = screenUrl;
+  protected readonly status = STATUS_LABEL;
+  protected readonly code = showGroupCode;
+  protected readonly type = (t: AdminAgency['type']) => AGENCY_TYPE_LABEL[t];
+  protected readonly all = signal<AdminAgency[]>([]);
+  protected readonly rows = computed(() => {
+    const order = { pending: 0, approved: 1, rejected: 2 };
+    return [...this.all()].sort((a, b) => order[a.status] - order[b.status]);
+  });
+
+  async ngOnInit(): Promise<void> {
+    this.all.set(await this.api.agencies().catch(() => []));
+  }
+
+  protected heads(a: AdminAgency): string {
+    return a.heads.map((h) => h.display_name).join(', ') || '-';
+  }
+}
+
+// ── D09 · ผู้ใช้ ──────────────────────────────────────────
+
+const ROLE_LABEL: Record<string, Tr> = {
+  admin: { th: 'แอดมิน', en: 'Admin' },
+  owner: { th: 'เจ้าของบ้าน', en: 'Owner' },
+  officer: { th: 'เจ้าหน้าที่', en: 'Officer' },
+  head: { th: 'หัวหน้า', en: 'Head' },
+};
+
+@Component({
+  selector: 'app-admin-users',
+  imports: [PageHeader, Icon],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'ผู้ใช้', en: 'Users' })" [back]="url('D01')" />
+    <div class="stack">
+      <form class="search" (submit)="$event.preventDefault(); search()">
+        <input type="search" [placeholder]="i18n.t({ th: 'ค้นชื่อ / เบอร์', en: 'Search name / phone' })" [value]="q()" (input)="q.set($any($event.target).value)" />
+        <button type="submit" class="btn secondary">{{ i18n.t({ th: 'ค้น', en: 'Search' }) }}</button>
+      </form>
+
+      @if (selected(); as u) {
+        <section class="card stack">
+          <div>
+            <strong>{{ u.name }}</strong> <span class="muted small">{{ u.phone }}</span>
+          </div>
+          <p class="small">
+            @for (b of badges(u); track b) {
+              <span class="chip">{{ i18n.t(roleLabel[b]) }}</span>
+            }
+            @if (u.agency) {
+              <span class="muted"> · {{ u.agency.name }} ({{ u.agency.status }})</span>
+            }
+          </p>
+          <p class="small">
+            {{ i18n.t({ th: 'สถานะบัญชี: ', en: 'Account: ' }) }}<strong [class.danger-text]="u.status === 'disabled'">{{ u.status === 'active' ? i18n.t({ th: 'ใช้งาน', en: 'active' }) : i18n.t({ th: 'ปิด', en: 'disabled' }) }}</strong>
+          </p>
+          @if (temp(); as t) {
+            <div class="info-box">
+              <span class="small">{{ i18n.t({ th: 'รหัสชั่วคราว (แสดงครั้งเดียว — ให้ผู้ใช้เปลี่ยนตอนล็อกอิน)', en: 'Temporary password (shown once — they must change it at sign-in)' }) }}</span>
+              <p class="temp">{{ t }}</p>
+            </div>
+          }
+          @if (error(); as e) {
+            <p class="danger-text small" role="alert">{{ i18n.t(e) }}</p>
+          }
+          <div class="two">
+            <button type="button" class="btn secondary" [disabled]="busy()" (click)="reset(u)">{{ i18n.t({ th: 'รีเซ็ตรหัส', en: 'Reset password' }) }}</button>
+            @if (u.status === 'active') {
+              <button type="button" class="btn secondary" [disabled]="busy()" (click)="setStatus(u, 'disabled')">{{ i18n.t({ th: 'ปิดบัญชี', en: 'Disable' }) }}</button>
+            } @else {
+              <button type="button" class="btn" [disabled]="busy()" (click)="setStatus(u, 'active')">{{ i18n.t({ th: 'เปิดบัญชี', en: 'Enable' }) }}</button>
+            }
+          </div>
+        </section>
+      }
+
+      <nav class="list">
+        @for (u of users(); track u.id) {
+          <button type="button" class="row" [class.on]="u.id === selectedId()" (click)="select(u.id)">
+            <span class="grow">
+              <strong>{{ u.name }}</strong>
+              <span class="muted small block">{{ u.phone }} · {{ roles(u) }}</span>
+            </span>
+            @if (u.status === 'disabled') {
+              <span class="chip danger">{{ i18n.t({ th: 'ปิด', en: 'Off' }) }}</span>
+            }
+            <app-icon name="chevronRight" [size]="18" />
+          </button>
+        } @empty {
+          <p class="row muted">{{ i18n.t({ th: 'ไม่พบผู้ใช้', en: 'No users found' }) }}</p>
+        }
+      </nav>
+    </div>
+  `,
+  styles: `
+    .grow {
+      flex: 1;
+      min-width: 0;
+      text-align: left;
     }
-    .done {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      border: 2px solid var(--ok);
+    .block {
+      display: block;
     }
-    .big-code {
-      font-size: 1.75rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      font-variant-numeric: tabular-nums;
+    .search {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      input {
+        min-height: 44px;
+        padding: 8px 12px;
+        border-radius: var(--radius-sm);
+        border: 1.5px solid var(--line);
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+      }
     }
     .two {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
     }
-  `,
-})
-export class AdminAgencies {
-  protected readonly i18n = inject(I18n);
-  private readonly demo = inject(AdminDemo);
-  private readonly toast = inject(Toast);
-  protected readonly url = screenUrl;
-  protected readonly type = AGENCY_TYPE;
-  protected readonly typeKeys = Object.keys(AGENCY_TYPE) as DemoAgency['type'][];
-  protected readonly creating = signal(false);
-  protected readonly form = signal({ name: '', type: 'police' as DemoAgency['type'], head: '', phone: '', contact: '' });
-  protected readonly createError = signal<Tr | null>(null);
-  protected readonly created = signal<{ name: string; code: string; temp: string | null } | null>(null);
-
-  protected set<K extends 'name' | 'type' | 'head' | 'phone' | 'contact'>(key: K, value: K extends 'type' ? DemoAgency['type'] : string): void {
-    this.form.update((f) => ({ ...f, [key]: value }));
-    this.createError.set(null);
-  }
-
-  protected startCreate(): void {
-    this.form.set({ name: '', type: 'police', head: '', phone: '', contact: '' });
-    this.created.set(null);
-    this.creating.set(true);
-  }
-
-  /** ของจริง: POST /admin/agencies { name, type, head: { name, phone } } — ตัดสินจาก code ของ error */
-  protected create(): void {
-    const f = this.form();
-    const r = this.demo.createAgency(f.name, f.type, f.contact, f.head, f.phone);
-    if (!r.ok) {
-      this.createError.set(
-        r.code === 'ROLE_EXISTS'
-          ? { th: 'เบอร์นี้อยู่หน่วยงานอื่นแล้ว', en: 'This number already belongs to an agency' }
-          : r.code === 'ADMIN_ROLE_EXCLUSIVE'
-            ? { th: 'บัญชีแอดมินเป็นหัวหน้าหน่วยงานไม่ได้', en: 'An admin account cannot be an agency head' }
-            : { th: 'กรอกชื่อหน่วยงาน ชื่อหัวหน้า เบอร์ 10 หลัก และช่องทางติดต่อ (3 ตัวขึ้นไป) ให้ครบ', en: 'Fill in the agency name, head’s name, a 10-digit phone and a contact (3+ characters)' },
-      );
-      return;
+    .row.on {
+      box-shadow: inset 3px 0 0 var(--brand);
     }
-    this.creating.set(false);
-    this.created.set({ name: f.name.trim(), code: r.group_code, temp: r.temp_password });
-    this.toast.show({ th: 'สร้างหน่วยงานแล้ว', en: 'Agency created' });
-  }
-  /** รออนุมัติอยู่บนสุด (api.md §9.2) */
-  protected readonly rows = computed(() => {
-    const order = { pending: 0, approved: 1, rejected: 2 };
-    return [...this.demo.agencies()].sort((a, b) => order[a.status] - order[b.status]);
-  });
-}
-
-// ── D09 · ผู้ใช้ ─────────────────────────────────────────────
-
-const ROLE_LABEL: Record<AdminRole | 'head', Tr> = {
-  owner: { th: 'เจ้าของบ้าน', en: 'Homeowner' },
-  officer: { th: 'เจ้าหน้าที่', en: 'Officer' },
-  head: { th: 'หัวหน้า', en: 'Head' },
-  admin: { th: 'แอดมิน', en: 'Admin' },
-};
-
-const ROLE_ERROR: Record<string, Tr> = {
-  ADMIN_ROLE_EXCLUSIVE: { th: 'แอดมินมีบทบาทอื่นร่วมไม่ได้ — เลือกแอดมินอย่างเดียว หรือเอาแอดมินออก', en: 'An admin cannot have other roles — pick admin alone or remove it' },
-  NO_ROLE: { th: 'ต้องมีอย่างน้อย 1 บทบาท — ถ้าจะหยุดใช้ ให้ปิดบัญชีแทน', en: 'Keep at least one role — to stop access, disable the account instead' },
-  CANNOT_CHANGE_SELF: { th: 'แก้บัญชีตัวเองไม่ได้', en: 'You cannot change your own account' },
-};
-
-@Component({
-  selector: 'app-admin-users',
-  imports: [PageHeader, UserPlan],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'ผู้ใช้', en: 'Users' })" [back]="url('D01')" />
-    <div class="stack">
-      <label class="field">
-        <span>{{ i18n.t({ th: 'ค้นหา', en: 'Search' }) }}</span>
-        <input type="search" [placeholder]="i18n.t({ th: 'ชื่อ / เบอร์', en: 'Name / phone' })" [value]="q()" (input)="q.set($any($event.target).value)" />
-      </label>
-      @if (plans.plans().length > 1) {
-        <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'แพ็กเกจ', en: 'Plan' })">
-          <button type="button" [attr.aria-pressed]="planFilter() === 'all'" (click)="planFilter.set('all')">{{ i18n.t({ th: 'ทุกแพ็ก', en: 'All plans' }) }}</button>
-          @for (p of plans.plans(); track p.code) {
-            <button type="button" [attr.aria-pressed]="planFilter() === p.code" (click)="planFilter.set(p.code)">{{ i18n.t(p.name) }}</button>
-          }
-        </div>
-      }
-
-      <div class="list">
-        @for (u of results(); track u.id) {
-          <button type="button" class="row user" [attr.aria-pressed]="selectedId() === u.id" (click)="select(u.id)">
-            <span class="grow">
-              <strong>{{ i18n.t(u.name) }}@if (u.self) { <span class="muted small"> ({{ i18n.t({ th: 'คุณ', en: 'you' }) }})</span> }</strong>
-              <span class="muted small block">{{ u.phone }}{{ u.house_no ? ' · ' + u.house_no : '' }}{{ u.agency ? ' · ' + i18n.t(u.agency) : '' }}</span>
-            </span>
-            <span class="chips">
-              @if (u.status === 'disabled') {
-                <span class="chip">{{ i18n.t({ th: 'ปิดบัญชี', en: 'Disabled' }) }}</span>
-              } @else {
-                @for (r of badges(u); track r) {
-                  <span class="chip" [class.danger]="r === 'officer' || r === 'head'" [class.dark]="r === 'admin'">{{ i18n.t(roleLabel[r]) }}</span>
-                }
-              }
-            </span>
-          </button>
-        } @empty {
-          <p class="row muted">{{ i18n.t({ th: 'ไม่พบผู้ใช้', en: 'No users found' }) }}</p>
-        }
-      </div>
-
-      @if (selected(); as u) {
-        <section #detail class="card detail" aria-live="polite">
-          <strong class="name">{{ i18n.t(u.name) }}</strong>
-          <dl class="kv">
-            <dt>{{ i18n.t({ th: 'เบอร์', en: 'Phone' }) }}</dt><dd>{{ u.phone }}</dd>
-            @if (u.house_no) {
-              <dt>{{ i18n.t({ th: 'บ้านเลขที่', en: 'House no.' }) }}</dt><dd>{{ u.house_no }}</dd>
-            }
-            @if (u.agency) {
-              <dt>{{ i18n.t({ th: 'หน่วยงาน', en: 'Agency' }) }}</dt><dd>{{ i18n.t(u.agency) }}</dd>
-            }
-            <dt>{{ i18n.t({ th: 'เครื่องที่ล็อกอินอยู่', en: 'Signed-in devices' }) }}</dt><dd>{{ u.active_sessions }}</dd>
-            @if (u.must_change_password) {
-              <dt>{{ i18n.t({ th: 'รหัสผ่าน', en: 'Password' }) }}</dt><dd class="warn-text">{{ i18n.t({ th: 'ต้องเปลี่ยนตอนเข้าครั้งถัดไป', en: 'Must change on next sign-in' }) }}</dd>
-            }
-          </dl>
-          <p class="muted small">{{ i18n.t({ th: 'การเปิดดูข้อมูลนี้ถูกบันทึก', en: 'Viewing these details is logged' }) }}</p>
-        </section>
-
-        @if (u.roles.includes('owner')) {
-          <app-user-plan [userId]="u.id" />
-        }
-
-        @if (temp(); as t) {
-          <!-- ไม่มี SMS/OTP — รหัสชั่วคราวแสดงครั้งเดียว แอดมินบอกเจ้าของบัญชีเอง -->
-          <section class="card temp" role="alert">
-            <strong>{{ i18n.t({ th: 'รหัสผ่านชั่วคราว (แสดงครั้งเดียว)', en: 'Temporary password (shown once)' }) }}</strong>
-            <p class="code">{{ t }}</p>
-            <p class="muted small">{{ i18n.t({ th: 'บอกเจ้าของบัญชีเอง · เข้าครั้งแรกต้องเปลี่ยนรหัส · ทุกเครื่องถูกออกจากระบบแล้ว', en: 'Tell the account owner yourself · they must change it on first sign-in · all devices were signed out' }) }}</p>
-            <button type="button" class="btn secondary" (click)="copy(t)">{{ i18n.t({ th: 'คัดลอก', en: 'Copy' }) }}</button>
-          </section>
-        }
-
-        @if (u.self) {
-          <p class="muted small center">{{ i18n.t({ th: 'นี่คือบัญชีของคุณ — แก้บทบาท รีเซ็ตรหัส หรือปิดบัญชีตัวเองไม่ได้', en: 'This is your account — you cannot change your own roles, password or status here' }) }}</p>
-        } @else if (editing()) {
-          <fieldset class="card roles">
-            <legend>{{ i18n.t({ th: 'บทบาทของ ', en: 'Roles for ' }) }}{{ i18n.t(u.name) }}</legend>
-            @for (r of editable; track r) {
-              <label class="role-row">
-                <span class="grow">{{ i18n.t(roleLabel[r]) }}</span>
-                <input type="checkbox" class="switch" [checked]="draft().includes(r)" (change)="toggleRole(r)" />
-              </label>
-            }
-            @if (u.is_head) {
-              <p class="muted small">{{ i18n.t({ th: 'หัวหน้าตั้งที่หน่วยงาน (หัวหน้าคนอื่นถอดได้)', en: 'Head is set by the agency (another head can remove it)' }) }}</p>
-            }
-            @if (u.roles.includes('officer') && !draft().includes('officer')) {
-              <p class="warn-text small">{{ i18n.t({ th: 'ถอดเจ้าหน้าที่ = ออกจากหน่วยงาน และออกจากทุกโซน', en: 'Removing officer also removes them from the agency and every zone' }) }}</p>
-            }
-            @if (error(); as e) {
-              <p class="danger-text small" role="alert">{{ i18n.t(e) }}</p>
-            }
-            <div class="two">
-              <button type="button" class="btn secondary" (click)="editing.set(false)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
-              <button type="button" class="btn" (click)="saveRoles(u)">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
-            </div>
-          </fieldset>
-        } @else {
-          <div class="two">
-            <button type="button" class="btn secondary" [disabled]="u.status === 'disabled'" (click)="reset(u)">{{ i18n.t({ th: 'รีเซ็ตรหัสผ่าน', en: 'Reset password' }) }}</button>
-            <button type="button" class="btn secondary" [disabled]="u.status === 'disabled'" (click)="editRoles(u)">{{ i18n.t({ th: 'เปลี่ยนบทบาท', en: 'Change roles' }) }}</button>
-          </div>
-          @if (u.status === 'active') {
-            <button type="button" class="btn secondary danger" (click)="setStatus(u, 'disabled')">{{ i18n.t({ th: 'ปิดบัญชี (ออกจากทุกเครื่อง)', en: 'Disable account (signs out everywhere)' }) }}</button>
-          } @else {
-            <button type="button" class="btn" (click)="setStatus(u, 'active')">{{ i18n.t({ th: 'เปิดบัญชีอีกครั้ง', en: 'Enable account' }) }}</button>
-          }
-        }
-      } @else {
-        <p class="muted small center">{{ i18n.t({ th: 'แตะชื่อเพื่อดูรายละเอียดและจัดการ', en: 'Tap a name to see details and manage' }) }}</p>
-      }
-    </div>
-  `,
-  styles: `
-    .grow {
-      flex: 1;
-      min-width: 0;
-    }
-    .block {
-      display: block;
-    }
-    .user {
+    button.row {
       width: 100%;
       border: 0;
       background: none;
       font: inherit;
       color: inherit;
-      text-align: left;
       cursor: pointer;
     }
-    .user[aria-pressed='true'] {
-      background: var(--brand-lighter);
-      box-shadow: inset 4px 0 0 var(--brand);
-    }
-    .chips {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 4px;
-    }
-    .chip.dark {
-      background: var(--text);
-      color: var(--surface);
-    }
-    .detail,
     .temp {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .name {
-      font-size: 1.125rem;
-    }
-    .temp {
-      border: 2px solid var(--ok);
-    }
-    .code {
-      font-size: 1.75rem;
+      font-size: 1.5rem;
       font-weight: 700;
-      letter-spacing: 0.12em;
-      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.06em;
     }
-    .two {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    .btn.danger {
-      color: var(--sos);
-      box-shadow: inset 0 0 0 1.5px var(--sos);
-    }
-    .roles {
-      border: 0;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      legend {
-        float: left;
-        width: 100%;
-        padding: 0;
-        font-weight: 700;
-      }
-    }
-    .role-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-height: 44px;
-      font-weight: 700;
+    .chip {
+      margin-right: 4px;
     }
   `,
 })
-export class AdminUsers {
+export class AdminUsers implements OnInit {
   protected readonly i18n = inject(I18n);
-  private readonly demo = inject(AdminDemo);
+  private readonly api = inject(AdminApi);
   private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
   protected readonly roleLabel = ROLE_LABEL;
-  protected readonly editable: AdminRole[] = ['owner', 'officer', 'admin'];
-
-  /** ?id= จากหน้าตู้ (ลิงก์ชื่อเจ้าของ) */
+  /** ?id= จากหน้าอื่น */
   readonly id = input<string>();
   protected readonly selectedId = linkedSignal<string | null>(() => this.id() ?? null);
   protected readonly q = signal('');
-  protected readonly plans = inject(PlanDemo);
-  /** ?plan= ใน GET /admin/users — กรองเจ้าของบ้านตามแพ็กปัจจุบัน */
-  protected readonly planFilter = signal('all');
-  protected readonly results = computed(() => {
-    const list = this.demo.searchUsers(this.q());
-    const f = this.planFilter();
-    return f === 'all' ? list : list.filter((u) => this.plans.current(u.id)?.plan_code === f);
-  });
-  protected readonly selected = computed(() => this.demo.user(this.selectedId() ?? undefined));
-
+  protected readonly users = signal<AdminUser[]>([]);
+  protected readonly selected = computed(() => this.users().find((u) => u.id === this.selectedId()) ?? null);
   protected readonly temp = signal<string | null>(null);
-  protected readonly editing = signal(false);
-  protected readonly draft = signal<AdminRole[]>([]);
   protected readonly error = signal<Tr | null>(null);
+  protected readonly busy = signal(false);
 
-  protected badges(u: AdminUser): (AdminRole | 'head')[] {
-    return u.is_head ? [...u.roles.filter((r) => r !== 'officer'), 'head'] : u.roles;
+  async ngOnInit(): Promise<void> {
+    await this.search();
   }
 
-  private readonly injector = inject(Injector);
-  private readonly detail = viewChild<ElementRef<HTMLElement>>('detail');
+  protected async search(): Promise<void> {
+    const r = await this.api.users(this.q().trim()).catch(() => null);
+    this.users.set(r?.data ?? []);
+  }
 
-  /** เลือกแล้วเลื่อนให้เห็นรายละเอียด (อยู่ใต้รายการ บนมือถือมักพ้นจอ) */
   protected select(id: string): void {
     this.selectedId.set(id);
     this.temp.set(null);
-    this.editing.set(false);
-    afterNextRender(() => this.detail()?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' }), { injector: this.injector });
-  }
-
-  protected reset(u: AdminUser): void {
-    const t = this.demo.resetPassword(u.id);
-    if (!t) return;
-    this.temp.set(t);
-    this.toast.show({ th: 'รีเซ็ตรหัสแล้ว', en: 'Password reset' });
-  }
-
-  protected copy(text: string): void {
-    copyText(text);
-    this.toast.show({ th: 'คัดลอกแล้ว', en: 'Copied' });
-  }
-
-  protected editRoles(u: AdminUser): void {
-    this.draft.set([...u.roles]);
     this.error.set(null);
-    this.temp.set(null);
-    this.editing.set(true);
   }
 
-  protected toggleRole(r: AdminRole): void {
+  protected badges(u: AdminUser): string[] {
+    const out: string[] = u.roles.filter((r) => r.status === 'active').map((r) => r.role);
+    if (u.agency?.is_head) out.push('head');
+    return out;
+  }
+
+  protected roles(u: AdminUser): string {
+    return this.badges(u).map((b) => this.i18n.t(ROLE_LABEL[b])).join(', ') || this.i18n.t({ th: 'ยังไม่มีบทบาท', en: 'no role yet' });
+  }
+
+  /** POST /admin/users/:id/reset-password → รหัสชั่วคราว ครั้งเดียว + เตะทุก session */
+  protected async reset(u: AdminUser): Promise<void> {
+    this.busy.set(true);
     this.error.set(null);
-    this.draft.update((d) => (d.includes(r) ? d.filter((x) => x !== r) : [...d, r]));
-  }
-
-  /** ของจริง: PUT/DELETE /admin/users/:id/roles/:role ทีละบทบาท → ตัดสินจาก code ของ error */
-  protected saveRoles(u: AdminUser): void {
-    const code = this.demo.setRoles(u.id, this.draft());
-    if (code) {
-      this.error.set(ROLE_ERROR[code]);
-      return;
+    try {
+      this.temp.set((await this.api.resetPassword(u.id)).temp_password);
+    } catch (err) {
+      const e = apiError(err);
+      this.error.set(e.code === 'CANNOT_CHANGE_SELF' ? { th: 'รีเซ็ตรหัสตัวเองไม่ได้ — ใช้เปลี่ยนรหัสผ่าน', en: 'Can’t reset yourself — use change password' } : { th: 'รีเซ็ตไม่ได้', en: 'Couldn’t reset' });
+    } finally {
+      this.busy.set(false);
     }
-    this.editing.set(false);
-    this.toast.show({ th: 'เปลี่ยนบทบาทแล้ว', en: 'Roles updated' });
   }
 
-  protected setStatus(u: AdminUser, status: 'active' | 'disabled'): void {
-    this.demo.setUserStatus(u.id, status);
-    this.temp.set(null);
-    this.toast.show(status === 'disabled' ? { th: 'ปิดบัญชีแล้ว', en: 'Account disabled' } : { th: 'เปิดบัญชีแล้ว', en: 'Account enabled' });
+  protected async setStatus(u: AdminUser, status: 'active' | 'disabled'): Promise<void> {
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      await this.api.setUserStatus(u.id, status);
+      this.toast.show(status === 'active' ? { th: 'เปิดบัญชีแล้ว', en: 'Enabled' } : { th: 'ปิดบัญชีแล้ว', en: 'Disabled' });
+      await this.search();
+    } catch (err) {
+      const e = apiError(err);
+      this.error.set(e.code === 'CANNOT_CHANGE_SELF' ? { th: 'ปิดบัญชีตัวเองไม่ได้', en: 'Can’t disable yourself' } : { th: 'ทำไม่ได้', en: 'Couldn’t do it' });
+    } finally {
+      this.busy.set(false);
+    }
   }
 }

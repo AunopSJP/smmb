@@ -293,8 +293,9 @@ export class AuthSignin implements OnInit {
       return;
     }
     // คำขอเป็นเจ้าหน้าที่/หน่วยงานที่ยังรออยู่ และไม่มีบทบาทอื่นให้ใช้ → หน้ารอ
-    if (!me.roles.length && me.agency_status === 'pending') {
-      void this.router.navigateByUrl(screenUrl(me.agency?.is_head ? 'L02' : 'A11'));
+    if (!me.roles.length && (me.agency_status === 'pending' || me.agency_status === 'rejected')) {
+      const rejected = me.agency_status === 'rejected';
+      void this.router.navigate([screenUrl(me.agency?.is_head ? 'L02' : 'A11')], { queryParams: rejected ? { state: 'rejected' } : {} });
       return;
     }
     const next = this.next();

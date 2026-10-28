@@ -1,5 +1,8 @@
 import { HttpErrorResponse, type HttpInterceptorFn } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
+import { Router } from '@angular/router';
+import { tap } from 'rxjs';
+import { screenUrl } from '../screens/registry';
 
 /**
  * ค่าที่ตั้งตอนรัน (ไม่ต้อง build ใหม่) — ไฟล์ `config.json` ข้าง index.html
@@ -9,12 +12,15 @@ import { inject, Injectable, signal } from '@angular/core';
 @Injectable({ providedIn: 'root' })
 export class ApiConfig {
   readonly apiBase = signal('');
+  /** เครื่องมือทดสอบ (เช่น ปุ่มคัดลอกข้อความ QR ประจำตัวให้ตู้จำลอง) — เปิดเฉพาะเครื่อง dev / ทดสอบ */
+  readonly devTools = signal(false);
 
   async load(): Promise<void> {
     try {
       const res = await fetch('config.json', { cache: 'no-store' });
       if (!res.ok) return;
-      const cfg = (await res.json()) as { apiBase?: unknown };
+      const cfg = (await res.json()) as { apiBase?: unknown; devTools?: unknown };
+      this.devTools.set(cfg.devTools === true);
       if (typeof cfg.apiBase === 'string') this.apiBase.set(cfg.apiBase.replace(/\/+$/, ''));
     } catch {
       // ไม่มีไฟล์ = API อยู่ /api ของโดเมนเดียวกัน (dev ใช้ proxy.conf.json)
@@ -22,10 +28,22 @@ export class ApiConfig {
   }
 }
 
-/** ใส่ apiBase หน้า `/api/...` + ส่ง cookie (`sid`) ไปด้วยทุกคำขอ */
+/**
+ * ใส่ apiBase หน้า `/api/...` + ส่ง cookie (`sid`) ไปด้วยทุกคำขอ
+ * 403 PUSH_REQUIRED (เจ้าหน้าที่/หัวหน้ายังไม่เปิดแจ้งเตือน) → หน้า A12 ที่เดียว ไม่ต้องให้ทุกหน้าจัดการเอง
+ */
 export const apiInterceptor: HttpInterceptorFn = (req, next) => {
   if (!req.url.startsWith('/api/')) return next(req);
-  return next(req.clone({ url: inject(ApiConfig).apiBase() + req.url, withCredentials: true }));
+  const router = inject(Router);
+  return next(req.clone({ url: inject(ApiConfig).apiBase() + req.url, withCredentials: true })).pipe(
+    tap({
+      error: (err: unknown) => {
+        if (err instanceof HttpErrorResponse && err.status === 403 && (err.error as { code?: string } | null)?.code === 'PUSH_REQUIRED') {
+          void router.navigateByUrl(screenUrl('A12'));
+        }
+      },
+    }),
+  );
 };
 
 /** error จาก API (api.md §0) — ตัดสินจาก `code` เท่านั้น ห้ามดู message (กฎข้อ 10) */

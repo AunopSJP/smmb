@@ -67,6 +67,9 @@ export class OwnerApi {
   box(id: string): Promise<BoxDetail> {
     return firstValueFrom(this.http.get<BoxDetail>(`/api/v1/boxes/${encodeURIComponent(id)}`));
   }
+  rename(id: string, name: string): Promise<unknown> {
+    return firstValueFrom(this.http.patch('/api/v1/boxes/' + encodeURIComponent(id), { name }));
+  }
   events(id: string, page = 1): Promise<{ data: BoxEvent[]; page: number; per_page: number }> {
     return firstValueFrom(this.http.get<{ data: BoxEvent[]; page: number; per_page: number }>(`/api/v1/boxes/${encodeURIComponent(id)}/events?page=${page}`));
   }

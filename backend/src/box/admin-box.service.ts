@@ -152,6 +152,21 @@ export class AdminBoxService {
   }
 
   /** งานทดสอบ: ปลุกตู้ → ไฟ + กล้อง → อ่าน QR อะไรก็ได้ (ช่างทดสอบหลังติดตั้ง · วัดเวลา "ได้งาน → ready") */
+  /**
+   * รหัสลับประจำตู้อีกครั้ง (ไว้เขียนลงบอร์ดใหม่ / เปลี่ยนบอร์ด) — คิดจาก BOX_MASTER_KEY เสมอ ไม่ได้เก็บไว้
+   * ทุกครั้งที่เปิดดูบันทึกลง data_access_log_tb (ใคร · ตู้ไหน · เมื่อไหร่)
+   */
+  async revealSecret(boxId: string, adminId: string): Promise<{ box_id: string; device_secret: string }> {
+    return withTx(this.pool, async (db) => {
+      await this.load(db, boxId);
+      await db.query(
+        `INSERT INTO app.data_access_log_tb (actor_user_id, subject_kind, subject_id, fields) VALUES ($1, 'box', $2, '{device_secret}')`,
+        [adminId, boxId],
+      );
+      return { box_id: boxId, device_secret: deviceSecret(this.config.get('BOX_MASTER_KEY', { infer: true }), boxId) };
+    });
+  }
+
   async createTestJob(boxId: string, adminId: string): Promise<JobDto> {
     await this.load(this.pool, boxId);
     const id = await this.jobs.create(boxId, 'test', adminId);
