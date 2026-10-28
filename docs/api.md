@@ -1,6 +1,6 @@
 # API Reference — SMMB Backend (Smart Mailbox)
 
-> สรุปทุก endpoint ที่**วางแผนไว้** ของระบบ SMMB ณ 2026-10-27 — **ยังไม่มีโค้ด backend** ทุกอย่างในไฟล์นี้คือสัญญา (contract) ร่างแรก
+> สรุปทุก endpoint ของระบบ SMMB — ส่วนที่เขียนแล้วมีป้าย ✅ (เขียนแล้ว) ในแต่ละหัวข้อ · ที่เหลือคือสัญญา (contract) ที่ยังไม่มีโค้ด
 > ใช้คู่กับ [`smmb-design.md`](smmb-design.md) (เหตุผล/โครงสร้างข้อมูล/แผนงาน) และ [`HANDOFF.md`](HANDOFF.md) (สถานะงาน)
 > ฝั่งตู้ (ESP32-CAM) ละเอียดอยู่ใน `SMMB_โปรโตคอลตู้-เซิร์ฟเวอร์.md` — §13 ของไฟล์นี้สรุปไว้ให้อ่านเร็ว ๆ
 >
@@ -267,6 +267,7 @@ interface Notification {
 - ✅ Activate QR ใช้ได้**ครั้งเดียว** — ผูกสำเร็จแล้วรหัสนี้ตายทันที (ทำใน transaction เดียวกับการผูก)
 - ✅ ทุกครั้งที่สแกน/พิมพ์ บันทึก scan log แม้ไม่ผ่าน (§12): `qr_kind: "activate"`, `method: scan|code`, `result`
 - 💡 ถ้าเปิดลิงก์ `/a/...` ด้วยกล้องมือถือ (ไม่ได้อยู่ในแอป) → เว็บแอปพาไปหน้าสมัคร/ล็อกอินก่อน แล้วกลับมาเรียก route นี้ต่อ
+- ✅ (2026-10-28 เขียนแล้ว) `POST /boxes/activate` · `PATCH /boxes/:box_id` · `GET /boxes` — บ้านเลขที่ของตู้คัดลอกจากบัญชีเจ้าของตอนผูก · ลิงก์ต้องมาจากโดเมนใน `QR_ALLOWED_HOSTS` · `code` ไม่สนตัวเล็กใหญ่/ขีด · ผิด 3 ครั้งติดกันได้ 429 `CODE_ATTEMPTS_EXCEEDED` · ส่ง `qr_text` กับ `code` พร้อมกันหรือไม่ส่งเลย → 400 · **ยังไม่ทำ** `GET /boxes/:box_id` (BoxDetail)
 
 ### 4.2 ดูตู้
 
@@ -470,6 +471,8 @@ interface Inspection {
 
 ## 7. SOS — `/api/v1/sos`
 
+> ✅ (2026-10-28) บ้านหลังเดียวอยู่ในโซนของหลายหน่วยงานได้ → ขั้น `zone` แจ้งเจ้าหน้าที่ในทุกโซนที่มีบ้านนี้ (ทุกหน่วยงาน) · ขั้น `agency` แจ้งทุกคน + หัวหน้าของ**ทุกหน่วยงาน**ที่ดูแลบ้านนี้ · คนแรกที่กดรับได้เรื่อง (หน่วยงานอื่นเห็น `sos_taken`)
+
 ### 7.1 ฝั่งเจ้าของบ้าน
 
 | method | path | สิทธิ์ | body | ตอบ |
@@ -570,7 +573,7 @@ interface Member { id; name; display_name; phone; status: "pending" | "active" |
 | POST | `/agency/zones` | `head` | `{ name, windows: [["06:00","09:00"],["17:00","21:00"]] }` | `Zone` |
 | GET | `/agency/zones/:id` | `head` | — | `Zone & { houses: ZoneHouse[], officers: Member[] }` (`L07`) |
 | PATCH | `/agency/zones/:id` | `head` | `{ name?, windows? }` | `Zone` — เปลี่ยนเวลา → ตู้ในโซนรับค่าใหม่ภายใน 1 วัน (✅) |
-| PUT | `/agency/zones/:id/houses` | `head` | `{ box_ids: string[] }` แทนที่ทั้งชุด (`L07-b`) | `ZoneHouse[]` · 409 `BOX_IN_OTHER_AGENCY_ZONE` ❓ (ดู design §15) |
+| PUT | `/agency/zones/:id/houses` | `head` | `{ box_ids: string[] }` แทนที่ทั้งชุด (`L07-b`) | `ZoneHouse[]` · 400 `HOUSE_NOT_FOUND` ถ้ามีตู้ที่ไม่มีอยู่/ยังไม่มีเจ้าของ · บ้านที่อยู่ในโซนของหน่วยงานอื่นแล้ว**ใส่ได้** (✅ 2026-10-28) |
 | PUT | `/agency/zones/:id/officers` | `head` | `{ user_ids: string[] }` แทนที่ทั้งชุด (`L07-c`) | `Member[]` · 400 ถ้ามีคนที่ไม่ใช่สมาชิก active |
 | DELETE | `/agency/zones/:id` | `head` | — | 200 · บ้านที่ไม่เหลือโซนไหนเลยกลับเป็น "ยังไม่มีเจ้าหน้าที่ดูแล" |
 | GET | `/agency/houses/search` | `head` | `?q=` บ้านเลขที่ | `{ box_id, house_no, box_name, zones: {agency_name, zone_name}[] }[]` — ใช้ตอนเพิ่มบ้านเข้าโซน |
@@ -580,7 +583,7 @@ interface Zone { id; name; windows: [string, string][]; tz: "Asia/Bangkok"; hous
 interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus }
 ```
 
-- ✅ (2026-10-27 เขียนแล้ว) `GET`/`POST`/`PATCH`/`DELETE` โซน + `PUT …/officers` · `GET /agency/zones?zone=mine|all` (ตัวกรอง ไม่ใช่สิทธิ์) · **ยังไม่ทำ `PUT …/houses` และ `/agency/houses/search`** จนกว่าจะตอบว่าบ้านหลังเดียวอยู่ในโซนของหลายหน่วยงานได้ไหม (design §15)
+- ✅ (2026-10-27 เขียนแล้ว) `GET`/`POST`/`PATCH`/`DELETE` โซน + `PUT …/officers` · `GET /agency/zones?zone=mine|all` (ตัวกรอง ไม่ใช่สิทธิ์) · ✅ (2026-10-28) `PUT …/houses` + `GET /agency/houses/search?q=` (ค้นบ้านเลขที่หรือรหัสตู้ · เฉพาะตู้ที่มีเจ้าของ · สูงสุด 20 รายการ · `zones` บอกโซนของทุกหน่วยงานที่ดูแลบ้านนั้นอยู่) · **บ้านหลังเดียวอยู่ในโซนของหลายหน่วยงานได้** (ผู้ใช้ตอบ 2026-10-28) → SOS ขั้นหน่วยงานแจ้งทุกหน่วยงานที่ดูแลบ้านนั้น (§7)
 - `windows`: `"HH:mm"` · `start < end` (ไม่ข้ามเที่ยงคืน — ตรวจข้ามคืนให้แยก 2 ช่วง) · ไม่ทับกัน (ชนขอบได้) · ไม่เกิน 4 ช่วง · เรียงตามเวลาให้ · ผิด → 400 `WINDOWS_INVALID`
 - ชื่อโซนซ้ำในหน่วยงานเดียว (ไม่สนตัวเล็กใหญ่) → 409 `ZONE_NAME_TAKEN` · ใส่คนที่ไม่ใช่สมาชิก active ของหน่วยงาน → 400 `OFFICER_NOT_MEMBER` · โซนของหน่วยงานอื่น/ที่ลบแล้ว → 404 · ลบโซน = เก็บประวัติ (soft delete) + ถอดคนและบ้านออก
 - ตู้อยู่ได้หลายโซน → เวลาตรวจที่ส่งให้ตู้ = **รวมช่วงของทุกโซน** (merge ที่ทับกัน) — ดู design §5
@@ -635,7 +638,9 @@ interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus }
 |---|---|---|---|
 | GET | `/admin/boxes` | `?status&battery_lt&q&agency_id&page&per_page` | paginated (`D03`): id · บ้านเลขที่ · เจ้าของ · ออนไลน์ · แบต · ติดต่อล่าสุด · fw · โซน |
 | GET | `/admin/boxes/:box_id` | — | `D04`: ทุกอย่าง + รายงานรายวัน 14 วันล่าสุด + QR ทุกใบ + คำขอช่าง (**data access log**) |
-| POST | `/admin/boxes` | `{ count }` หรือ `{ box_ids }` | 201 ลงทะเบียนตู้ตอนผลิต → `{ box_id, device_secret, qr: PrintableQr[] }[]` (`device_secret` ได้**ครั้งเดียว** เขียนลงบอร์ด) |
+| POST | `/admin/boxes` | `{ count }` (1–50) | 201 ลงทะเบียนตู้ตอนผลิต → `{ box_id, device_secret, qr: PrintableQr[] }[]` (`device_secret` ได้**ครั้งเดียว** เขียนลงบอร์ด) |
+| POST | `/admin/boxes/:box_id/test-jobs` | — | 201 `Job` — งานทดสอบ: ปลุกตู้ที่ถือ long-poll อยู่ → ไฟ + กล้อง → อ่าน QR อะไรก็ได้ = ผ่าน (ช่างทดสอบหลังติดตั้ง · วัดเวลาปลุก) |
+| GET | `/admin/boxes/:box_id/test-jobs/:job_id` | — | `Job`: `status` (`waiting`/`delivered`/`ready`/`passed`/`failed`/`expired`) · `delivered_at` · `ready_at` · `wake_ms` · `attempts[]` (รวม `qr_text` ที่กล้องอ่านได้) |
 | PATCH | `/admin/boxes/:box_id/service` | `{ active: boolean, reason? }` | ✅ เปิดปิดบริการ — ปิดแล้วไรเดอร์เห็น `R03-b`, ตรวจไม่ได้ |
 | POST | `/admin/boxes/:box_id/unbind` | `{ reason }` | ✅ ยกเลิกการผูก (เช่น ขายบ้าน) → ออก Activate QR ใหม่ให้ |
 | GET | `/admin/boxes/:box_id/qr` | — | `QrCode[]` ทุกใบทุกรุ่น (รวมใบที่ยกเลิกแล้ว) |
@@ -664,6 +669,9 @@ interface PrintableQr {           // สำหรับไฟล์พิมพ�
 ```
 
 - `GET /admin/boxes/:box_id/qr/print.pdf?slots=1,2` 💡 ไฟล์ PDF พร้อมพิมพ์ (QR + รหัสใต้ QR + รหัสตู้)
+- ✅ (2026-10-28 เขียนแล้ว) `POST /admin/boxes` (`{ count }` อย่างเดียว — ตัด `{ box_ids }` ออก) · `GET /admin/boxes?q&page&per_page` (ยังไม่มีตัวกรอง status/battery/agency) · `GET /admin/boxes/:box_id` (ฉบับย่อ: สถานะ · แบต · fw · `config` ที่ตู้ควรได้ + `in_sync` · QR ทุกใบ · 20 รายการล่าสุดที่ตู้ส่งมา · 10 ครั้งล่าสุดที่ลายเซ็นไม่ผ่าน — ยังไม่มีข้อมูลเจ้าของ จึงยังไม่ลง data access log) · งานทดสอบ
+- `PrintableQr` ยังไม่มี `svg` — หน้าเว็บสร้างรูป QR จาก `url` เอง · `device_secret` = HMAC(`BOX_MASTER_KEY`, box_id) คำนวณใหม่ได้จาก master key จึงไม่เก็บในฐานข้อมูลและไม่แสดงในหน้าตู้
+- ยังไม่ทำ: เปิดปิดบริการ · unbind · ออก QR ใหม่ · สุขภาพ QR · คำขอช่าง · ค่าทับเฉพาะตู้
 
 ### 9.5 ค่าตั้งค่าตู้
 
@@ -683,6 +691,8 @@ interface BoxConfigDefaults {
 }
 // ช่วงเวลาตรวจ (windows) ไม่อยู่ที่นี่ — มาจากโซน (§8.3) แล้ว server รวมให้แต่ละตู้
 ```
+
+- ✅ (2026-10-28 เขียนแล้ว) `GET`/`PUT /admin/box-config` · ช่วงค่า §0 · `config_ver` ไม่ได้นับเพิ่ม แต่คิดจาก hash ของค่าทั้งก้อน (ค่าเปลี่ยน = เลขเปลี่ยนเอง) · **ยังไม่ทำ** `PUT /admin/boxes/:box_id/config`
 
 ### 9.6 Log ทั้งหมด
 
@@ -815,7 +825,9 @@ X-Signature:  hex(HMAC-SHA256(device_secret, METHOD|PATH|TIMESTAMP|NONCE|SHA256(
   - ลายเซ็นตู้ = พิสูจน์ว่ามีคนอยู่หน้าตู้จริง (น่าเชื่อกว่าสแกน QR ที่อาจมาจากรูปถ่าย)
   - ส่งไม่ได้ → ลองใหม่ 3 ครั้ง (5 / 15 / 45 วิ) แล้ว**ทิ้ง** + นับใน `delivery_fail` ของรายงานรายวัน (ไม่เก็บไว้ส่งทีหลัง เหมือนกติกาผลสแกน) ❓
   - ในเวลาตรวจที่ตู้ถือ long-poll อยู่ → เปิด connection ที่สองส่งคำขอนี้ ไม่ต้องรอ long-poll หมด
-- 💡 prefix `/v1/box/` (ไม่มี `/api`) ตามไฟล์โปรโตคอล — reverse proxy ส่งเข้า NestJS ตัวเดียวกัน · ถ้าจะรวมเป็น `/api/v1/box/` ต้องแก้ไฟล์โปรโตคอลและเฟิร์มแวร์พร้อมกัน ❓
+- ✅ prefix `/v1/box/` (ไม่มี `/api`) ตามไฟล์โปรโตคอล — reverse proxy ส่งเข้า NestJS ตัวเดียวกัน (เขียนแล้วตามนี้ 2026-10-28)
+- ✅ (2026-10-28 เขียนแล้ว) 13.1–13.6 · สูตรลายเซ็นละเอียด + ค่าตัวอย่าง อยู่ไฟล์โปรโตคอล §1.1 · 401 `BOX_AUTH_FAILED` มี `reason` (`missing_headers`/`unknown_box`/`bad_signature`/`clock_skew`/`replay`) + `server_time` · ทุกคำตอบมี header `X-Server-Time` · งาน `type: "test"` จากแอดมิน · nonce เก็บใน Postgres 10 นาที · **13.7 ปุ่มส่งของยังไม่เขียน (⏸)**
+- long-poll ปลุกด้วยตัวแปรในหน่วยความจำ → ใช้ได้เมื่อรัน backend **ตัวเดียว** (ถ้าวันหนึ่งรันหลายตัวต้องเปลี่ยนเป็น LISTEN/NOTIFY)
 
 ---
 
@@ -896,6 +908,10 @@ payload ที่ส่งให้ service worker (✅ 2026-10-27 — รูป
 | `SOS_ALREADY_TAKEN` | 409 | accept | `O09-b` |
 | `SOS_CANCELLED` | 410 | accept | `O09-c` |
 | `LAST_HEAD` | 409 | ถอดหัวหน้า | — |
+| `HOUSE_NOT_FOUND` | 400 | `PUT /agency/zones/:id/houses` | รีเฟรชผลค้น (`L07-b`) |
+| `BOX_AUTH_FAILED` | 401 | ทุก `/v1/box/*` (มี `reason`, `server_time`) | ตู้: ไฟแดง / ตั้งนาฬิกาแล้วลองใหม่ |
+| `JOB_NOT_FOUND` / `JOB_EXPIRED` | 404 / 410 | `/v1/box/jobs/:id/*` | ตู้: ปิดกล้อง กลับไปรองาน |
+| `ATTEMPT_INVALID` | 400 | `/v1/box/jobs/:id/result` | — |
 | `WINDOWS_INVALID` | 400 | สร้าง/แก้โซน | `L07` แสดงข้อความใต้ช่องเวลา |
 | `ZONE_NAME_TAKEN` | 409 | สร้าง/แก้โซน | `L07` |
 | `OFFICER_NOT_MEMBER` | 400 | `PUT /agency/zones/:id/officers` | รีเฟรชรายชื่อ (`L07-c`) |
@@ -907,13 +923,13 @@ payload ที่ส่งให้ service worker (✅ 2026-10-27 — รูป
 
 ## 🔜 ยังไม่ทำ / ยังไม่ตัดสิน (รวมจากทั้งไฟล์)
 
-- ทุก endpoint ในไฟล์นี้ — **ยังไม่มีโค้ด** (ลำดับทำดู `smmb-design.md` §13)
+- endpoint ที่ยังไม่มีป้าย ✅ (เขียนแล้ว) — ยังไม่มีโค้ด (ลำดับทำดู `smmb-design.md` §13)
 - ❓ SSE หรือ poll ทุก 1 วิ สำหรับหน้า `O05`/`O06` และหน้ารอ SOS
 - ❓ เพดานส่งของต่อตู้ของไรเดอร์ / เกณฑ์ "ไรเดอร์พิมพ์แทนสแกนเกินเกณฑ์" (เสนอ 3 ครั้งใน 7 วัน)
-- ❓ บ้านเดียวอยู่ในโซนของ**หลายหน่วยงาน**ได้ไหม (เช่น ตำรวจ + รปภ.หมู่บ้าน) — กระทบ `PUT /agency/zones/:id/houses` และขั้น SOS
+- ~~บ้านเดียวอยู่ในโซนของหลายหน่วยงานได้ไหม~~ ✅ ได้ (2026-10-28) · SOS ขั้นหน่วยงานแจ้งทุกหน่วยงานที่ดูแลบ้านนั้น
 - ❓ ปิดสิทธิ์เจ้าหน้าที่ = ถอดออกจากโซนด้วยไหม
 - ❓ ชื่อโดเมนจริง (ทั้งไฟล์ใช้ `smmb.app` เป็นตัวอย่าง)
-- ❓ prefix ของ API ตู้ `/v1/box/` vs `/api/v1/box/`
+- ~~prefix ของ API ตู้~~ ✅ `/v1/box/` (เขียนแล้ว 2026-10-28)
 - ❓ ระยะเวลาเก็บ log / นโยบายข้อมูลส่วนบุคคล
 - 🧪 สมาชิกในบ้าน (§4.6) — รอลูกค้าตัดสิน
 - ❓ แพ็กในอนาคตมีอะไร ต่างกันตรงไหน หมดอายุแล้วตัดอะไร (§4.5 — ✅ ผูกกับเจ้าของบ้าน, เริ่มต้นฟรี)

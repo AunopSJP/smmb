@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  Body,
   Controller,
   createParamDecorator,
   ExecutionContext,
@@ -29,6 +28,16 @@ const BoxId = createParamDecorator((_: unknown, ctx: ExecutionContext): string =
 
 type Body = Record<string, unknown>;
 
+/**
+ * body ที่ BoxAuthGuard แปลงจากไบต์ที่เซ็นแล้ว — ใช้แทน @Body() เพื่อไม่ให้ ValidationPipe กลาง (forbidNonWhitelisted) ตีกลับ
+ * ฟิลด์ที่ตู้ส่งเพิ่ม (เฟิร์มแวร์รุ่นใหม่ต้องส่งของใหม่ได้โดยเซิร์ฟเวอร์ไม่พัง) · ค่าแต่ละตัวอ่านแบบผ่อนปรนใน service
+ * (ValidationPipe ไม่ตรวจ custom decorator เป็นค่าเริ่มต้น)
+ */
+const BoxBody = createParamDecorator((_: unknown, ctx: ExecutionContext): Body => {
+  const body = ctx.switchToHttp().getRequest<BoxRequest>().body as unknown;
+  return body && typeof body === 'object' && !Buffer.isBuffer(body) ? (body as Body) : {};
+});
+
 const jobId = (id: string) => {
   if (!/^J-[0-9a-f]{6}$/.test(id)) throw new NotFoundException();
   return id;
@@ -45,21 +54,21 @@ const jobId = (id: string) => {
 export class BoxProtocolController {
   constructor(
     private readonly box: BoxProtocolService,
-    private readonly jobs: BoxJobService,
+    private readonly jobService: BoxJobService,
   ) {}
 
   /** §2.1 เปิดเครื่อง — ยอมให้นาฬิกาเพี้ยน (ยังไม่เคยตั้งเวลา) */
   @Post('boot')
   @HttpCode(HttpStatus.OK)
   @AllowClockSkew()
-  boot(@BoxId() id: string, @Body() body: Body) {
+  boot(@BoxId() id: string, @BoxBody() body: Body) {
     return this.box.checkIn(id, 'boot', body);
   }
 
   /** §2.2 รายงานรายวัน */
   @Post('report')
   @HttpCode(HttpStatus.OK)
-  report(@BoxId() id: string, @Body() body: Body) {
+  report(@BoxId() id: string, @BoxBody() body: Body) {
     return this.box.checkIn(id, 'report', body);
   }
 
@@ -80,22 +89,22 @@ export class BoxProtocolController {
   /** §2.4 เปิดไฟ + กล้องแล้ว · งานหมดอายุ/จบแล้ว → 410 JOB_EXPIRED */
   @Post('jobs/:job_id/ready')
   @HttpCode(HttpStatus.OK)
-  async ready(@BoxId() id: string, @Param('job_id') job: string, @Body() body: Body) {
-    await this.jobs.ready(id, jobId(job), bool(body.flash));
+  async ready(@BoxId() id: string, @Param('job_id') job: string, @BoxBody() body: Body) {
+    await this.jobService.ready(id, jobId(job), bool(body.flash));
     return { server_time: nowS(), config_ver: await this.box.configVer(id) };
   }
 
   /** §2.5 ผลอ่าน QR ทุกครั้งที่ลอง — server ตัดสิน pass / retry / fail */
   @Post('jobs/:job_id/result')
   @HttpCode(HttpStatus.OK)
-  async result(@BoxId() id: string, @Param('job_id') job: string, @Body() body: Body) {
+  async result(@BoxId() id: string, @Param('job_id') job: string, @BoxBody() body: Body) {
     const attempt = int(body.attempt, 1, 5);
     const readOk = bool(body.read_ok);
     if (attempt === null || readOk === null) throw new BadRequestException('attempt (1–5) and read_ok are required');
     if (body.qr_text !== undefined && body.qr_text !== null && text(body.qr_text, 1024) === null) {
       throw new BadRequestException('qr_text must be a string (max 1024)');
     }
-    const verdict = await this.jobs.result(id, jobId(job), {
+    const verdict = await this.jobService.result(id, jobId(job), {
       attempt,
       read_ok: readOk,
       qr_text: text(body.qr_text, 1024),
@@ -108,7 +117,7 @@ export class BoxProtocolController {
   /** §2.6 เหตุการณ์อื่น */
   @Post('events')
   @HttpCode(HttpStatus.OK)
-  event(@BoxId() id: string, @Body() body: Body) {
+  event(@BoxId() id: string, @BoxBody() body: Body) {
     if (typeof body.type !== 'string' || !/^[a-z_]{1,40}$/.test(body.type)) {
       throw new BadRequestException('type is required (e.g. wifi_reset_button, battery_critical, camera_error)');
     }

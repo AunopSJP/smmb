@@ -36,7 +36,13 @@ class DbShutdown implements OnApplicationShutdown {
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) =>
         // lazyConnect: เซิร์ฟเวอร์ขึ้นได้แม้ Redis ล่ม — health จะรายงานว่า down
-        new Redis(config.get('REDIS_URL', { infer: true }), { lazyConnect: true, maxRetriesPerRequest: 1 }),
+        // Redis ล่ม → คำสั่งล้มทันที (ไม่รอคิว) ให้ rate limit ปล่อยผ่านเร็ว ๆ — ไม่งั้นทุกคำขอ (รวมตู้) ช้าหลายวินาที
+        new Redis(config.get('REDIS_URL', { infer: true }), {
+          lazyConnect: true,
+          maxRetriesPerRequest: 1,
+          connectTimeout: 1000,
+          enableOfflineQueue: false,
+        }),
     },
     DbShutdown,
   ],

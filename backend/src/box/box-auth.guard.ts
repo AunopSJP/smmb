@@ -56,6 +56,7 @@ export class BoxAuthGuard implements CanActivate {
     const sig = h('x-signature');
 
     const fail = async (reason: FailReason): Promise<never> => {
+      this.logger.warn(`${boxId || '-'} ${req.method} ${req.originalUrl}: ${reason}`);
       await this.pool
         .query(`INSERT INTO app.box_auth_log_tb (claimed_box_id, reason, method, path, ip) VALUES ($1, $2, $3, $4, $5)`, [
           boxId.slice(0, 20) || null,

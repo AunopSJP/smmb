@@ -28,8 +28,28 @@ class UpdateZoneDto {
   @IsOptional() @IsArray() windows?: unknown[];
 }
 
+class SetHousesDto {
+  @IsArray() @ArrayMaxSize(2000) @Matches(/^BX-\d{5,10}$/, { each: true }) box_ids!: string[];
+}
+
+class HouseSearchQuery {
+  @Transform(trim) @IsString() @Length(1, 50) q!: string;
+}
+
 class SetOfficersDto {
   @IsArray() @ArrayMaxSize(500) @Matches(/^U-\d{1,12}$/, { each: true }) user_ids!: string[];
+}
+
+// docs/api.md §8.3 — ค้นบ้านเพื่อเพิ่มเข้าโซน (/agency/houses/search)
+@Controller('api/v1/agency/houses')
+export class HouseController {
+  constructor(private readonly zones: ZoneService) {}
+
+  @RequireRole('head')
+  @Get('search')
+  search(@Query() q: HouseSearchQuery) {
+    return this.zones.searchHouses(q.q);
+  }
 }
 
 // docs/api.md §8.3 — หัวหน้าจัดการทุกโซนของหน่วยงานตัวเอง
@@ -66,6 +86,12 @@ export class ZoneController {
   @Patch(':id')
   async update(@Auth() auth: AuthContext, @Param() p: ZoneIdParam, @Body() dto: UpdateZoneDto) {
     return this.zones.update(await this.agencyId(auth), auth.userId, p.id, dto);
+  }
+
+  @RequireRole('head')
+  @Put(':id/houses')
+  async setHouses(@Auth() auth: AuthContext, @Param() p: ZoneIdParam, @Body() dto: SetHousesDto) {
+    return this.zones.setHouses(await this.agencyId(auth), p.id, dto.box_ids);
   }
 
   @RequireRole('head')

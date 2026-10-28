@@ -9,12 +9,15 @@ import { BoxJobService } from './box-job.service.js';
 import { BoxProtocolController } from './box-protocol.controller.js';
 import { BoxProtocolService } from './box-protocol.service.js';
 import { JobHub } from './job-hub.js';
+import { OwnerBoxController } from './owner-box.controller.js';
+import { OwnerBoxService } from './owner-box.service.js';
+import { CodeAttempts } from '../rate-limit/code-attempts.js';
 
-/** ตู้: API ของตู้ `/v1/box/*` + แอดมินลงทะเบียน/ดูตู้/งานทดสอบ/ค่าตั้งค่า (เฟส 2) */
+/** ตู้: API ของตู้ `/v1/box/*` + แอดมินลงทะเบียน/ดูตู้/งานทดสอบ/ค่าตั้งค่า + เจ้าของบ้านผูกตู้ (เฟส 2) */
 @Module({
   imports: [AuthModule, PushModule],
-  controllers: [BoxProtocolController, AdminBoxController],
-  providers: [AdminBoxService, BoxAuthGuard, BoxConfigService, BoxJobService, BoxProtocolService, JobHub],
+  controllers: [BoxProtocolController, AdminBoxController, OwnerBoxController],
+  providers: [AdminBoxService, BoxAuthGuard, BoxConfigService, BoxJobService, BoxProtocolService, CodeAttempts, JobHub, OwnerBoxService],
   exports: [BoxConfigService, BoxJobService],
 })
 export class BoxModule {}

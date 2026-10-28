@@ -78,6 +78,7 @@ export class AdminBoxController {
   /** แก้ค่ากลาง → config_ver ของทุกตู้เปลี่ยน → ตู้รับค่าใหม่ตอน boot/รายงานรายวันครั้งถัดไป */
   @Put('box-config')
   setConfig(@Auth() auth: AuthContext, @Body() body: BoxConfigDto) {
-    return this.configs.setDefaults({ ...body }, auth.userId);
+    const { report_at, scan_timeout_s, max_attempts, flash_when_dark, longpoll_wait_s } = body;
+    return this.configs.setDefaults({ report_at, scan_timeout_s, max_attempts, flash_when_dark, longpoll_wait_s }, auth.userId);
   }
 }
