@@ -167,10 +167,73 @@ SMMB — คำสั่งสำหรับ Codex บนเครื่อง 
 ⚠ device_secret คือรหัสลับของตู้ ส่งให้ทีมเฟิร์มแวร์เท่านั้น
 
 
+ขั้นที่ 9 — แก้ตามผลตรวจ hub.sjp-dev.net (2026-10-28)
+-----------------------------------------------------
+ตรวจจากภายนอกแล้ว: API https://hub.sjp-dev.net/smmb-api/ ใช้ได้ · เว็บ https://hub.sjp-dev.net/smmb/ base href ถูก
+deep link ทุกหน้าเปิดได้ · บัญชีจำลองถูกเปลี่ยนรหัสแล้ว (ดี) · ที่ต้องทำ:
+
+9.1 ดึงโค้ดล่าสุด แล้ว restart (มีแก้ 4 จุดในโค้ด):
+      cd /opt/smmb && git pull
+      cd backend && npm ci && sudo systemctl restart smmb-mock
+    - ผูกตู้ด้วยลิงก์ที่มี path นำหน้า (https://hub.sjp-dev.net/smmb/a/<token>) — เดิมใช้ไม่ได้
+    - body ใหญ่เกิน / JSON พัง ตอบ 413 / 400 (เดิมตอบ 500)
+    - log คำขอตู้มี IP ต่อท้าย: "... → 200 (12 ms) from <ip>"
+    - ไม่มี Redis แล้วเตือนครั้งเดียว (เดิมพิมพ์ "[ioredis] Unhandled error event" รัว ๆ)
+
+9.2 backend/.env ให้ตรงกับโดเมนจริง:
+      PUBLIC_BASE_URL=https://hub.sjp-dev.net/smmb
+      QR_ALLOWED_HOSTS=hub.sjp-dev.net
+    (ลิงก์ใน QR สร้างจากค่านี้ — ไม่กระทบ device_secret)
+
+9.3 TRUST_PROXY (สำคัญ — ไม่ตั้ง = ทุกคนใช้ IP เดียวกันคือ proxy → rate limit / ล็อกรหัสผิด รวมกันทั้งระบบ)
+    - ยิงจากเครื่องนอก: curl -s https://hub.sjp-dev.net/smmb-api/v1/box/jobs  (ได้ 401 ไม่เป็นไร)
+    - ดู journalctl -u smmb-mock -n 5 → บรรทัด [Box] ... from <ip>
+    - ถ้า <ip> เป็น 127.0.0.1 / ::1 / IP ของ Cloudflare → ตั้ง TRUST_PROXY ใน .env แล้ว restart
+        Cloudflare → nginx → node  ปกติใช้ TRUST_PROXY=2
+        nginx → node (ไม่มี Cloudflare)          TRUST_PROXY=1
+      nginx ต้องส่ง: proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    - ทำซ้ำจนเห็น IP จริงของเครื่องที่ยิง (เทียบกับ curl ifconfig.me ของเครื่องนั้น)
+
+9.4 nginx (location /smmb-api/):
+    - proxy_read_timeout 75s;  (long-poll ถือ 50 วิ — ค่าเริ่มต้น 60s เฉียดเกินไป)
+    - ห้าม rewrite/ตัด path — ตอนนี้ backend เห็น path เต็ม /smmb-api/v1/box/... และตู้เซ็น path นี้
+      ถ้าเปลี่ยนวิธีส่ง path ทีหลัง ลายเซ็นของบอร์ดจะไม่ผ่านทั้งหมด (บอกผู้ใช้ก่อนเปลี่ยน)
+    - client_max_body_size ≥ 32k ก็พอ
+    - ไฟล์ manifest.webmanifest ตอบ content-type application/octet-stream → ควรเป็น
+      application/manifest+json (เพิ่มใน mime.types / types { application/manifest+json webmanifest; })
+
+9.5 systemd: ใช้ KillMode ค่าเริ่มต้น (control-group) ห้ามตั้ง KillMode=process
+    (npm run เป็นตัวแม่ของ node — stop แค่ตัวแม่ node จะค้าง ถือพอร์ต 3000/54329 ไว้ แล้ว start ใหม่ไม่ขึ้น)
+    เช็กหลัง stop: ss -ltnp | grep -E ':3000|:54329'  ต้องว่าง
+
+9.6 หน้าเว็บต่อ API จริงแล้ว (2026-10-28 — core flow: ล็อกอิน · เจ้าของบ้าน · เจ้าหน้าที่ตรวจตู้ · SOS · ไรเดอร์)
+    หน้าเว็บเรียก /api/... → บนโดเมนนี้ API อยู่ /smmb-api/... → ต้องตั้งไฟล์ config.json ข้าง index.html ของเว็บ:
+      หลัง build (npm --prefix frontend run build -- --base-href /smmb/) แก้ไฟล์ dist/smmb-web/browser/config.json
+      (หรือไฟล์ config.json ในโฟลเดอร์ที่ nginx เสิร์ฟ /smmb/) ให้เป็น:
+        { "apiBase": "/smmb-api" }
+    - ไม่ต้อง build ใหม่เมื่อแก้ไฟล์นี้ · service worker ไม่ cache ไฟล์นี้
+    - ตรวจ: เปิด https://hub.sjp-dev.net/smmb/ → ต้องพาไปหน้า "เข้าสู่ระบบ" · ล็อกอินด้วยบัญชีจำลองได้
+      (cookie sid ใช้ร่วมกันได้เพราะ /smmb กับ /smmb-api อยู่โดเมนเดียวกัน)
+    - หน้าหัวหน้า / แอดมิน ยังเป็นข้อมูลจำลอง (เข้าได้ที่ /smmb/demo) — ตั้งใจ (ผู้ใช้: เอาแค่ฝั่งผู้ใช้ก่อน)
+
+9.7 กล้องสแกน QR ในเว็บต้องใช้ HTTPS (hub เป็น HTTPS อยู่แล้ว) · มือถือต้องอนุญาตกล้องให้เว็บ
+    เจ้าหน้าที่ใช้งานได้โดยยังไม่เปิดแจ้งเตือน เฉพาะโหมด mock (SKIP_PUSH_REQUIRED) — ของจริงต้องเปิด
+    โหมด mock สร้าง VAPID key ให้เอง (backend/.mockdb.vapid.json) → เปิดแจ้งเตือนบนมือถือได้จริง
+
+
 =====================================================================
 ภาคผนวก — สิ่งที่เฟิร์มแวร์ ESP32-CAM ต้องทำ (สรุปให้ทีมเฟิร์มแวร์)
 รายละเอียดเต็ม: docs/SMMB_โปรโตคอลตู้-เซิร์ฟเวอร์.md
 =====================================================================
+เซิร์ฟเวอร์ทดสอบ (2026-10-28): https://hub.sjp-dev.net/smmb-api
+  - ต้องใช้ HTTPS (http:// จะถูก redirect 308) · ผ่าน Cloudflare
+  - path ที่ส่ง "และที่เซ็น" ต้องมี /smmb-api นำหน้า เช่น POST /smmb-api/v1/box/boot
+    ข้อความที่เซ็น: POST|/smmb-api/v1/box/boot|<ts>|<nonce>|<sha256 body>
+  - ใบรับรอง: Let's Encrypt (YE1 → Root YE → ISRG Root X2) ต่ออายุทุก ~2–3 เดือน และ Cloudflare เปลี่ยน CA ได้
+    → ช่วงทดสอบใช้ชุด CA ในตัวของ ESP32 (esp_crt_bundle_attach / Arduino: client.setCACertBundle)
+       หรือใส่ ISRG Root X1 + ISRG Root X2 · ห้ามปักหมุดใบ leaf
+  - long-poll 50 วิผ่าน Cloudflare ได้ (Cloudflare ตัดที่ 100 วิ)
+
 ทุกคำขอใส่ header 4 ตัว:
     X-Box-Id:     BX-00001
     X-Timestamp:  เวลาปัจจุบัน วินาที UTC
@@ -192,13 +255,20 @@ SMMB — คำสั่งสำหรับ Codex บนเครื่อง 
   3. ในช่วง windows: GET /v1/box/jobs?wait=50 วนไปเรื่อย ๆ
        204 = ไม่มีงาน → ถามใหม่ทันที
        200 = {"job":{"job_id":"J-xxxxxx","type":"test"|"inspect","expires_at":..,"scan_timeout_s":20,"attempt_max":3}}
-  4. ได้งาน → เปิดไฟ + กล้อง → POST /v1/box/jobs/<job_id>/ready  {"light":"on","flash":false}
+  4. ได้งาน → เปิดกล้อง + ปี๊บ → POST /v1/box/jobs/<job_id>/ready  {"flash":false}
   5. อ่าน QR ทีละครั้ง (ไม่เกิน scan_timeout_s) → POST /v1/box/jobs/<job_id>/result
        {"attempt":1,"read_ok":true,"qr_text":"<ข้อความที่อ่านได้>","read_ms":2400,"flash":false}
        อ่านไม่ได้ → {"attempt":1,"read_ok":false,"qr_text":null,...}
-     → {"status":"pass"} ไฟเขียว · {"status":"retry","attempts_left":2} สแกนใหม่ · {"status":"fail"} ไฟแดง
+     → {"status":"pass"} ปี๊บ 2 · {"status":"retry","attempts_left":2} ปี๊บยาว สแกนใหม่ · {"status":"fail"} ปี๊บยาว 3
      งานทดสอบ (type "test"): อ่าน QR อะไรก็ได้สำเร็จ = pass
   6. เหตุการณ์อื่น: POST /v1/box/events {"type":"wifi_reset_button" | "battery_critical" | "camera_error"}
+
+งานตรวจจริง (type "inspect"): เจ้าหน้าที่ยื่นจอมือถือที่มี "QR ประจำตัว" ให้กล้องตู้อ่าน
+  - qr_text ที่ส่งมาต้องเป็นข้อความเต็มใน QR นั้น (ขึ้นต้น SMMB-O1.) — ตู้ไม่ต้องตรวจเอง เซิร์ฟเวอร์ตัดสิน
+  - QR เปลี่ยนทุก 30 วิ · ต้องเป็นของงาน (job) นี้ · หมดอายุแล้วไม่ผ่าน → retry
+ตู้ไม่มีไฟสถานะ ใช้ Buzzer (2026-10-28) · ไม่มีปุ่มหน้าตู้แล้ว (ไม่ต้องทำ /v1/box/deliveries)
+  เสียงที่เสนอ: ready = ปี๊บสั้น 1 · pass = ปี๊บสั้น 2 · retry = ปี๊บยาว 1 · fail = ปี๊บยาว 3 · ผิดพลาด = ยาว 1 + สั้น 2
+  (รายละเอียด: โปรโตคอล §2.5) · ready ส่งแค่ {"flash": false} (ไม่มี "light" แล้ว — ส่งมาก็ไม่ error)
 
 error ที่ต้องรับมือ:
   401 BOX_AUTH_FAILED + "reason": missing_headers / unknown_box / bad_signature / clock_skew / replay

@@ -195,6 +195,17 @@ describe('Boxes (e2e)', () => {
       expect(rows.map((r) => r.reason)).toEqual(['bad_signature', 'bad_signature', 'clock_skew', 'replay']);
     });
 
+    it('a body that is too big or not JSON is a client error (413 / 400), not 500', async () => {
+      const [b] = await register();
+      const big = JSON.stringify({ pad: 'x'.repeat(20_000) });
+      await http().post('/v1/box/boot').set('Content-Type', 'application/json').send(big).expect(413);
+      // เซ็นถูกแต่ body ไม่ใช่ JSON → 400
+      const ts = String(nowS());
+      const sig = signRequest(b.device_secret, 'POST', '/v1/box/report', ts, 'notjson-nonce', 'not json');
+      await box(b, 'POST', '/v1/box/report', { a: 1 }, { rawBody: 'not json', ts: Number(ts), nonce: 'notjson-nonce', sig }).expect(400);
+      await http().post('/api/v1/auth/signin').set('Content-Type', 'application/json').send('{"broken"').expect(400);
+    });
+
     it('a low battery in the daily report notifies the admins', async () => {
       const [b] = await register();
       await box(b, 'POST', '/v1/box/report', { battery_pct: 15 }).expect(200);
@@ -302,6 +313,13 @@ describe('Boxes (e2e)', () => {
         { result: 'ok', method: 'scan' },
         { result: 'already_owned', method: 'scan' },
       ]);
+    });
+
+    it('works when the web app lives under a path (https://host/smmb/a/<token>)', async () => {
+      const [b] = await register();
+      const owner = await signupOwner();
+      const token = b.qr.find((q) => q.slot === 'activate')!.url.split('/a/')[1];
+      await as(owner.cookie).post('/api/v1/boxes/activate', { qr_text: `http://localhost/smmb/a/${token}` }).expect(200);
     });
 
     it('typing the code under the QR works too; 3 wrong codes in a row → wait', async () => {

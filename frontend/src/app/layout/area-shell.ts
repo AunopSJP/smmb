@@ -17,10 +17,12 @@ import { TabBar } from '../shared/tab-bar';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="frame">
-      <a class="demo" routerLink="/">
-        {{ i18n.t({ th: 'ต้นแบบ · ข้อมูลจำลอง', en: 'Prototype · sample data' }) }} · {{ i18n.t(areaLabel()) }}
-        <span aria-hidden="true">⇄</span>
-      </a>
+      @if (mock) {
+        <a class="demo" routerLink="/demo">
+          {{ i18n.t({ th: 'ต้นแบบ · ข้อมูลจำลอง', en: 'Prototype · sample data' }) }} · {{ i18n.t(areaLabel()) }}
+          <span aria-hidden="true">⇄</span>
+        </a>
+      }
       <main [class.full]="fullscreen()">
         <router-outlet />
       </main>
@@ -76,6 +78,8 @@ export class AreaShell {
   private readonly area = this.route.snapshot.data['area'] as Area;
   protected readonly areaLabel = computed(() => AREA_LABEL[this.area]);
   protected readonly tabs = computed(() => TABS[this.area]);
+  /** หัวหน้า / แอดมินยังเป็นข้อมูลจำลอง · เจ้าของบ้าน เจ้าหน้าที่ ไรเดอร์ สมัคร/ล็อกอิน ใช้ API จริง */
+  protected readonly mock = this.area === 'head' || this.area === 'admin';
 
   /** หน้าลูกปัจจุบันเป็นหน้าเต็มจอไหม (เช่น SOS) → ซ่อนแท็บล่าง */
   private readonly code = toSignal(

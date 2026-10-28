@@ -2,7 +2,7 @@ import { HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/commo
 import pg from 'pg';
 import { AppError } from '../common/http-exception.filter.js';
 import { PG_POOL } from '../db/db.module.js';
-import { isPgError, PG_UNIQUE_VIOLATION, withTx, type Db } from '../db/tx.js';
+import { withTx, type Db } from '../db/tx.js';
 import { BoxConfigService } from './box-config.service.js';
 import { newJobId } from './box-crypto.js';
 import { JobHub } from './job-hub.js';
@@ -23,6 +23,25 @@ export interface BoxJobForBox {
   scan_timeout_s: number;
   attempt_max: number;
 }
+
+/** ข้อมูลที่ตู้ส่งมาในผลอ่าน QR แต่ละครั้ง */
+export interface AttemptBody {
+  attempt: number;
+  read_ok: boolean;
+  qr_text: string | null;
+  read_ms: number | null;
+  flash: boolean | null;
+}
+
+/**
+ * ตัวตัดสินผลของงานแต่ละชนิด (งานตรวจตู้จริงลงทะเบียนจาก InspectionModule — box ไม่ต้องรู้จัก inspection)
+ * ทำงานใน transaction เดียวกับการบันทึก attempt · `after` = งานหลัง commit (เช่นส่งแจ้งเตือน)
+ */
+export type JobJudge = (
+  db: Db,
+  job: { box_job_id: string; box_id: string; max_attempts: number },
+  body: AttemptBody,
+) => Promise<{ status: Verdict; attempts_left?: number; reason: string | null; after?: () => Promise<void> }>;
 
 /** ผลที่ตอบตู้ (โปรโตคอล §2.5) */
 export interface VerdictDto {
@@ -86,30 +105,54 @@ const iso = (d: Date | null) => (d ? d.toISOString() : null);
 /** งานปลุกตู้ (box_job_tb) — สร้าง · ส่งให้ตู้ทาง long-poll · ready · ผลอ่าน QR */
 @Injectable()
 export class BoxJobService {
+  private readonly judges = new Map<JobType, JobJudge>([
+    ['test', async (_db, job, b) => judgeTest(b.attempt, b.read_ok, b.qr_text, job.max_attempts)],
+  ]);
+
   constructor(
     @Inject(PG_POOL) private readonly pool: pg.Pool,
     private readonly configs: BoxConfigService,
     private readonly hub: JobHub,
   ) {}
 
+  registerJudge(type: JobType, judge: JobJudge): void {
+    this.judges.set(type, judge);
+  }
+
+  /** ตู้ถือ long-poll อยู่ตอนนี้ไหม (ใช้เช็ก "ตู้ออนไลน์" ก่อนสร้างงานตรวจ) */
+  isWaiting(boxId: string): boolean {
+    return this.hub.isWaiting(boxId);
+  }
+
   /** สร้างงาน + ปลุก long-poll ของตู้ทันที · ค่าสแกนใช้ค่าของตู้ ณ ตอนสร้าง */
-  async create(boxId: string, type: JobType, createdBy: string | null): Promise<string> {
-    const { config } = await this.configs.forBox(boxId);
-    for (let i = 0; ; i++) {
+  /**
+   * สร้างงาน · ค่าสแกนใช้ค่าของตู้ ณ ตอนสร้าง · ปกติปลุก long-poll ของตู้ทันที
+   * opts.db = สร้างใน transaction ของผู้เรียก (ต้องปลุกเองด้วย wake() หลัง commit — wake: false)
+   */
+  async create(boxId: string, type: JobType, createdBy: string | null, opts: { wake?: boolean; db?: Db } = {}): Promise<string> {
+    const db = opts.db ?? this.pool;
+    // ใช้ connection เดียวกับ transaction ของผู้เรียก (โหมด mock มี connection เดียว — ขอใหม่จาก pool = ค้างตลอด)
+    const { config } = await this.configs.forBox(boxId, db);
+    for (let i = 0; i < 10; i++) {
       const id = newJobId();
-      try {
-        await this.pool.query(
-          `INSERT INTO app.box_job_tb (box_job_id, box_id, type, created_by, max_attempts, scan_timeout_s, expire_date)
-           VALUES ($1, $2, $3, $4, $5, $6, now() + make_interval(secs => $7))`,
-          [id, boxId, type, createdBy, config.max_attempts, config.scan_timeout_s, JOB_TTL_S],
-        );
-        this.hub.wake(boxId);
+      // id ชนกัน (สั้น 6 hex) → สุ่มใหม่ · ใช้ ON CONFLICT เพราะ error จะทำให้ transaction ของผู้เรียกพัง
+      const { rowCount } = await db.query(
+        `INSERT INTO app.box_job_tb (box_job_id, box_id, type, created_by, max_attempts, scan_timeout_s, expire_date)
+         VALUES ($1, $2, $3, $4, $5, $6, now() + make_interval(secs => $7))
+         ON CONFLICT (box_job_id) DO NOTHING`,
+        [id, boxId, type, createdBy, config.max_attempts, config.scan_timeout_s, JOB_TTL_S],
+      );
+      if (rowCount) {
+        if (opts.wake !== false) this.hub.wake(boxId);
         return id;
-      } catch (err) {
-        if (i < 5 && isPgError(err, PG_UNIQUE_VIOLATION)) continue;
-        throw err;
       }
     }
+    throw new Error('could not allocate a job id');
+  }
+
+  /** ปลุก long-poll ของตู้ (ใช้หลัง commit เมื่อสร้างงานด้วย wake: false) */
+  wake(boxId: string): void {
+    this.hub.wake(boxId);
   }
 
   /**
@@ -161,9 +204,10 @@ export class BoxJobService {
   async result(
     boxId: string,
     jobId: string,
-    body: { attempt: number; read_ok: boolean; qr_text: string | null; read_ms: number | null; flash: boolean | null },
+    body: AttemptBody,
   ): Promise<VerdictDto> {
-    return withTx(this.pool, async (db) => {
+    let after: (() => Promise<void>) | undefined;
+    const reply = await withTx(this.pool, async (db): Promise<VerdictDto> => {
       const job = await this.lock(db, boxId, jobId);
       const prev = await db.query<{ verdict: Verdict }>(
         `SELECT verdict FROM app.box_job_attempt_tb WHERE box_job_id = $1 AND attempt = $2`,
@@ -176,11 +220,10 @@ export class BoxJobService {
         throw new AppError(HttpStatus.BAD_REQUEST, 'ATTEMPT_INVALID', `attempt must be 1–${job.max_attempts}`);
       }
 
-      if (job.type !== 'test') {
-        // ตรวจตู้จริง (เทียบ QR ประจำตัวกับ job + เจ้าหน้าที่) มาในเฟส 3
-        throw new AppError(HttpStatus.NOT_IMPLEMENTED, 'NOT_IMPLEMENTED', 'inspection jobs are not available yet');
-      }
-      const v = judgeTest(body.attempt, body.read_ok, body.qr_text, job.max_attempts);
+      const judge = this.judges.get(job.type);
+      if (!judge) throw new AppError(HttpStatus.NOT_IMPLEMENTED, 'NOT_IMPLEMENTED', `no judge for ${job.type} jobs`);
+      const v = await judge(db, job, body);
+      after = v.after;
 
       await db.query(
         `INSERT INTO app.box_job_attempt_tb (box_job_id, attempt, read_ok, qr_text, read_ms, flash, verdict, reason)
@@ -193,6 +236,8 @@ export class BoxJobService {
       }
       return v.status === 'retry' ? { status: 'retry', attempts_left: v.attempts_left } : { status: v.status };
     });
+    if (after) await after().catch(() => undefined); // แจ้งเตือนล้มเหลวไม่ทำให้ตู้ได้ error
+    return reply;
   }
 
   /** งานของตู้นี้ (แอดมินดู) — ตู้อื่น → 404 */

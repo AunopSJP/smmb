@@ -48,3 +48,19 @@ describe('front QR token', () => {
     expect(frontQrSig('k'.repeat(32), 'BX-00042', '2', 1)).not.toBe(t.slice(-6));
   });
 });
+
+describe('badge QR (officer)', () => {
+  const key = 'q'.repeat(32);
+  it('round-trips, and any change or another key is rejected', async () => {
+    const { badgeToken, readBadge } = await import('./box-crypto.js');
+    const t = badgeToken(key, { j: 'J-8f31c2', u: 'U-0071', e: 1761124030 });
+    expect(t).toMatch(/^SMMB-O1\.[\w-]+\.[\w-]{22}$/);
+    expect(readBadge(key, t)).toEqual({ j: 'J-8f31c2', u: 'U-0071', e: 1761124030 });
+    expect(readBadge('k'.repeat(32), t)).toBeNull();
+    const [, payload, sig] = t.split('.');
+    const other = Buffer.from(JSON.stringify({ j: 'J-000000', u: 'U-0071', e: 1761124030 })).toString('base64url');
+    expect(readBadge(key, `SMMB-O1.${other}.${sig}`)).toBeNull();
+    expect(readBadge(key, `SMMB-O1.${payload}.${sig}.x`)).toBeNull();
+    expect(readBadge(key, 'hello')).toBeNull();
+  });
+});

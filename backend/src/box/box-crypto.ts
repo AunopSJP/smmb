@@ -55,3 +55,75 @@ export const showPrintCode = (code: string) => `${code.slice(0, 4)}-${code.slice
 
 /** id งานปลุกตู้ `J-8f31c2` — สั้นเพราะอยู่ใน QR ประจำตัว (ชนกันได้ → ผู้เรียกลองใหม่) */
 export const newJobId = () => `J-${randomBytes(3).toString('hex')}`;
+
+// ── QR ประจำตัวเจ้าหน้าที่ (โปรโตคอล §3.3) ─────────────────────────────
+// SMMB-O1.<base64url(JSON {j,u,e})>.<base64url(HMAC-SHA256(คีย์ QR, "badge|" + ส่วนกลาง) ตัด 16 ไบต์)>
+// สร้างที่ server เท่านั้น · ผูกกับ job (j) + เจ้าหน้าที่ (u) · หมดอายุ e (วินาที UTC)
+
+export interface BadgePayload {
+  j: string;
+  u: string;
+  e: number;
+}
+
+const BADGE_PREFIX = 'SMMB-O1.';
+const b64url = (b: Buffer | string) => Buffer.from(b).toString('base64url');
+const badgeSig = (qrKey: string, payload: string) =>
+  createHmac('sha256', qrKey).update(`badge|${payload}`).digest().subarray(0, 16).toString('base64url');
+
+export function badgeToken(qrKey: string, p: BadgePayload): string {
+  const payload = b64url(JSON.stringify({ j: p.j, u: p.u, e: p.e }));
+  return `${BADGE_PREFIX}${payload}.${badgeSig(qrKey, payload)}`;
+}
+
+/** ตรวจลายเซ็นของ QR ประจำตัว → payload หรือ null (ไม่ใช่ของระบบ / ถูกแก้) · หมดอายุ/ผิด job ให้ผู้เรียกเช็กเอง */
+export function readBadge(qrKey: string, text: string): BadgePayload | null {
+  if (!text.startsWith(BADGE_PREFIX)) return null;
+  const [payload, sig, extra] = text.slice(BADGE_PREFIX.length).trim().split('.');
+  if (!payload || !sig || extra !== undefined) return null;
+  const expected = badgeSig(qrKey, payload);
+  if (sig.length !== expected.length || !timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  try {
+    const p = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Partial<BadgePayload>;
+    return typeof p.j === 'string' && typeof p.u === 'string' && typeof p.e === 'number' ? { j: p.j, u: p.u, e: p.e } : null;
+  } catch {
+    return null;
+  }
+}
+
+// ── delivery ticket ของไรเดอร์ (api.md §5) ─────────────────────────────
+// ออกตอนสแกน/พิมพ์รหัสผ่าน → ต้องมีตอนกดแจ้งส่งของ (POST ต้องผ่านการสแกนก่อนเสมอ) · อายุ 10 นาที · ใช้ได้ครั้งเดียว (n)
+
+export interface TicketPayload {
+  /** box_qr_code_id */
+  q: string;
+  m: 'scan' | 'code';
+  e: number;
+  /** สุ่ม — กุญแจกันใช้ซ้ำ */
+  n: string;
+}
+
+const TICKET_PREFIX = 'SMMB-T1.';
+const ticketSig = (key: string, payload: string) =>
+  createHmac('sha256', key).update(`ticket|${payload}`).digest().subarray(0, 16).toString('base64url');
+
+export function deliveryTicket(key: string, p: Omit<TicketPayload, 'n'>): string {
+  const payload = b64url(JSON.stringify({ q: p.q, m: p.m, e: p.e, n: randomBytes(9).toString('base64url') }));
+  return `${TICKET_PREFIX}${payload}.${ticketSig(key, payload)}`;
+}
+
+export function readTicket(key: string, text: string): TicketPayload | null {
+  if (!text.startsWith(TICKET_PREFIX)) return null;
+  const [payload, sig, extra] = text.slice(TICKET_PREFIX.length).split('.');
+  if (!payload || !sig || extra !== undefined) return null;
+  const expected = ticketSig(key, payload);
+  if (sig.length !== expected.length || !timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  try {
+    const p = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Partial<TicketPayload>;
+    return typeof p.q === 'string' && (p.m === 'scan' || p.m === 'code') && typeof p.e === 'number' && typeof p.n === 'string'
+      ? { q: p.q, m: p.m, e: p.e, n: p.n }
+      : null;
+  } catch {
+    return null;
+  }
+}

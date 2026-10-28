@@ -21,6 +21,8 @@ export interface Env {
   BOX_MASTER_KEY: string;
   /** คีย์ลายเซ็น QR หน้าตู้ (และ QR ประจำตัวเจ้าหน้าที่ในเฟส 3) · แยกต่อ environment */
   QR_SIGNING_KEY: string;
+  /** โหมด mock เท่านั้น: เจ้าหน้าที่ใช้งานได้โดยยังไม่เปิดแจ้งเตือน (ทดสอบบนมือถือที่ยังลงเว็บแอปไม่ได้) · production ห้ามตั้ง */
+  SKIP_PUSH_REQUIRED: boolean;
 }
 
 const NODE_ENVS = ['development', 'test', 'production'] as const;
@@ -78,7 +80,9 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     SESSION_TTL_DAYS: posInt('SESSION_TTL_DAYS', 30),
     BOX_MASTER_KEY: secret('BOX_MASTER_KEY'),
     QR_SIGNING_KEY: secret('QR_SIGNING_KEY'),
+    SKIP_PUSH_REQUIRED: str('SKIP_PUSH_REQUIRED', '') === '1',
   };
+  if (env.SKIP_PUSH_REQUIRED && env.NODE_ENV === 'production') errors.push('SKIP_PUSH_REQUIRED is not allowed in production');
   if (env.BOX_MASTER_KEY && env.BOX_MASTER_KEY === env.QR_SIGNING_KEY) errors.push('BOX_MASTER_KEY and QR_SIGNING_KEY must differ');
 
   if (errors.length) throw new Error(`Invalid environment:\n- ${errors.join('\n- ')}`);

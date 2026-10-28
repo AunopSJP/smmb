@@ -1,6 +1,6 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Ip, Param, Patch, Post } from '@nestjs/common';
-import { Transform } from 'class-transformer';
-import { IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
+import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Ip, Param, Patch, Post, Query } from '@nestjs/common';
+import { Transform, Type } from 'class-transformer';
+import { IsInt, IsOptional, IsString, Length, Matches, Max, MaxLength, Min } from 'class-validator';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
 import { OwnerBoxService } from './owner-box.service.js';
@@ -15,6 +15,11 @@ class BoxIdParam {
 class ActivateDto {
   @IsOptional() @IsString() @MaxLength(300) qr_text?: string;
   @IsOptional() @IsString() @MaxLength(20) code?: string;
+}
+
+class EventsQuery {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page = 1;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) per_page = 20;
 }
 
 class RenameBoxDto {
@@ -37,6 +42,18 @@ export class OwnerBoxController {
   @Get()
   list(@Auth() auth: AuthContext) {
     return this.boxes.list(auth.userId);
+  }
+
+  /** หน้าหลัก (H03) */
+  @Get(':box_id')
+  detail(@Auth() auth: AuthContext, @Param() p: BoxIdParam) {
+    return this.boxes.detail(auth.userId, p.box_id);
+  }
+
+  /** ประวัติ (H12) */
+  @Get(':box_id/events')
+  events(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Query() q: EventsQuery) {
+    return this.boxes.events(auth.userId, p.box_id, q.page, q.per_page);
   }
 
   @Patch(':box_id')

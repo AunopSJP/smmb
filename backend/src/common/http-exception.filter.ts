@@ -17,6 +17,13 @@ export class AppError extends HttpException {
   }
 }
 
+/** error ของ body-parser มี `status` 4xx + `expose: true` + `type` (เช่น 'entity.too.large', 'entity.parse.failed') */
+function isClientBodyError(e: unknown): e is { status: number; type?: string } {
+  if (!e || typeof e !== 'object') return false;
+  const x = e as { status?: unknown; expose?: unknown; type?: unknown };
+  return typeof x.status === 'number' && x.status >= 400 && x.status < 500 && x.expose === true && typeof x.type === 'string';
+}
+
 /** แปลงทุก error ให้เป็นรูปแบบเดียวกันตาม docs/api.md §0 */
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -41,6 +48,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message = b.message ?? exception.message;
         code = b.code;
       }
+    } else if (isClientBodyError(exception)) {
+      // error จากตัวอ่าน body (express/body-parser) เช่น body ใหญ่เกิน (413) · JSON พัง (400) — ความผิดของ client ไม่ใช่ 500
+      status = exception.status;
+      message = exception.type === 'entity.too.large' ? 'request body too large' : 'request body could not be read';
     } else {
       // ไม่ส่งรายละเอียดภายในออกไปให้ client
       this.logger.error(exception instanceof Error ? exception.stack : String(exception));

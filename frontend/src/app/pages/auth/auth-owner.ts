@@ -1,18 +1,28 @@
+import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal, type OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { apiError } from '../../core/api';
 import { I18n, type Tr } from '../../core/i18n';
 import { AuthDemo, normalizePhone, PASSWORD_MIN, type SignupForm } from '../../core/mock/auth-demo';
-import { DemoSession } from '../../core/mock/demo-session';
+import { Session } from '../../core/session';
+import { QrScanner } from '../../shared/qr-scanner';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { Steps, type Step } from '../../shared/steps';
-import { AdminDemo } from '../../core/mock/admin-demo';
 import { ContactCard } from '../../shared/contact-card';
-import { MockNote, PasswordField, TermsCheck } from './auth-parts';
+import { PasswordField, TermsCheck } from './auth-parts';
 
-// เจ้าของบ้าน: A06 สมัคร → A07 สแกน QR เปิดใช้ตู้ → A08 ตั้งชื่อตู้ → A09 เสร็จ (api.md §2, §4.1)
-// จำลองบนหน้าจอเท่านั้น — ไม่สร้างบัญชีจริง
+// เจ้าของบ้าน: A06 สมัคร → A07 สแกน QR เปิดใช้ตู้ → A08 ตั้งชื่อตู้ → A09 เสร็จ (api.md §2, §4.1) — ใช้ API จริง
+
+/** api.md §4.2 */
+interface BoxSummary {
+  id: string;
+  name: string;
+  house_no: string;
+  status: string;
+}
 
 export const SIGNUP_ERROR: Record<string, Tr> = {
   PHONE_TAKEN: { th: 'เบอร์นี้มีบัญชีแล้ว — ล็อกอินแล้วเพิ่มบทบาทแทน', en: 'This number already has an account — sign in and add the role instead' },
@@ -24,12 +34,11 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
 
 @Component({
   selector: 'app-auth-signup-owner',
-  imports: [RouterLink, PageHeader, PasswordField, TermsCheck, MockNote],
+  imports: [RouterLink, PageHeader, PasswordField, TermsCheck],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'ขั้น 1 จาก 2', en: 'Step 1 of 2' })" [title]="i18n.t({ th: 'สมัครเจ้าของบ้าน', en: 'Homeowner sign-up' })" [back]="url('A05')" />
     <form class="stack grow" (submit)="$event.preventDefault(); submit()">
-      <app-mock-note />
       <label class="field" [class.invalid]="tried() && !f().name.trim()">
         <span>{{ i18n.t({ th: 'ชื่อ - นามสกุล', en: 'Full name' }) }}</span>
         <input autocomplete="name" [value]="f().name" (input)="set('name', $any($event.target).value)" />
@@ -54,7 +63,7 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
           }
         </p>
       }
-      <button type="submit" class="btn push-end" [disabled]="!f().terms">{{ i18n.t({ th: 'สมัครและไปผูกตู้', en: 'Sign up and add my mailbox' }) }}</button>
+      <button type="submit" class="btn push-end" [disabled]="!f().terms || busy()">{{ i18n.t({ th: 'สมัครและไปผูกตู้', en: 'Sign up and add my mailbox' }) }}</button>
     </form>
   `,
   styles: `
@@ -70,8 +79,10 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
 export class AuthSignupOwner implements OnInit {
   protected readonly i18n = inject(I18n);
   private readonly demo = inject(AuthDemo);
-  private readonly session = inject(DemoSession);
+  private readonly session = inject(Session);
+  private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  protected readonly busy = signal(false);
   protected readonly url = screenUrl;
   protected readonly min = PASSWORD_MIN;
   /** ?state=no-terms = A06-b (กรอกครบแต่ยังไม่ติ๊กยอมรับ) */
@@ -97,18 +108,31 @@ export class AuthSignupOwner implements OnInit {
     this.errorCode.set(null);
   }
 
-  /** ของจริง: POST /auth/signup/owner { name, phone, password, house_no, terms_version } */
-  protected submit(): void {
+  /** POST /auth/signup/owner { name, phone, password, house_no, terms_version } → ได้ cookie = ล็อกอินแล้ว */
+  protected async submit(): Promise<void> {
     this.tried.set(true);
-    const e = this.demo.signupOwner(this.f());
-    if (e === 'TERMS_NOT_ACCEPTED') return;
-    if (e) {
-      this.errorCode.set(e);
+    const f = this.f();
+    const phone = normalizePhone(f.phone);
+    if (!f.terms || !f.name.trim() || !phone || f.password.length < this.min || !f.house_no.trim()) {
+      if (f.terms) this.errorCode.set('INVALID');
       return;
     }
-    // สมัครสำเร็จ = ล็อกอินแล้ว (cookie) เป็นเจ้าของบ้าน
-    this.session.signIn('owner', ['owner'], normalizePhone(this.f().phone) ?? '');
-    void this.router.navigateByUrl(screenUrl('A07'));
+    this.busy.set(true);
+    try {
+      const terms = await firstValueFrom(this.http.get<{ version: string }>('/api/v1/terms/current'));
+      await firstValueFrom(
+        this.http.post('/api/v1/auth/signup/owner', { name: f.name.trim(), phone, password: f.password, house_no: f.house_no.trim(), terms_version: terms.version }),
+      );
+      await this.session.refresh();
+      this.session.use('owner');
+      this.f.set({ ...f, password: '' });
+      void this.router.navigateByUrl(screenUrl('A07'));
+    } catch (err) {
+      const e = apiError(err);
+      this.errorCode.set(e.code === 'PHONE_TAKEN' ? 'PHONE_TAKEN' : 'INVALID');
+    } finally {
+      this.busy.set(false);
+    }
   }
 }
 
@@ -122,7 +146,7 @@ const ACTIVATE_STEPS: Step[] = [
 
 @Component({
   selector: 'app-auth-activate',
-  imports: [PageHeader, Steps, Icon, ContactCard],
+  imports: [PageHeader, Steps, Icon, ContactCard, RouterLink, QrScanner],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @switch (view()) {
@@ -160,10 +184,19 @@ const ACTIVATE_STEPS: Step[] = [
         <app-page-header [caption]="i18n.t({ th: 'ขั้น 2 จาก 2', en: 'Step 2 of 2' })" [title]="i18n.t({ th: 'ผูกตู้กับบัญชี', en: 'Add your mailbox' })" [back]="url('A06')" />
         <div class="stack grow">
           <app-steps [steps]="steps" [current]="1" />
-          @if (qr()) {
+          @if (needSignin()) {
+            <p class="info-box">
+              {{ i18n.t({ th: 'ล็อกอินหรือสมัครเจ้าของบ้านก่อน แล้วระบบจะพากลับมาผูกตู้นี้', en: 'Sign in or sign up first — we’ll bring you back to bind this box' }) }}<br />
+              <a [routerLink]="url('A04')" [queryParams]="{ next: here() }">{{ i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</a> ·
+              <a [routerLink]="url('A06')">{{ i18n.t({ th: 'สมัครเจ้าของบ้าน', en: 'Sign up' }) }}</a>
+            </p>
+          } @else if (qr()) {
             <p class="info-box ok-text"><strong>{{ i18n.t({ th: 'เปิดจากลิงก์ QR เปิดใช้ตู้แล้ว — กดผูกตู้ได้เลย', en: 'Opened from the activation QR link — tap to bind' }) }}</strong></p>
-          } @else {
-            <div class="camera" aria-hidden="true">{{ i18n.t({ th: 'ภาพกล้อง (จำลอง)', en: 'Camera (demo)' }) }}</div>
+          } @else if (scanning()) {
+            <app-qr-scanner (scanned)="send({ qr_text: $event.text })" (failed)="scanning.set(false); typing.set(true)" />
+          }
+          @if (message(); as m) {
+            <p class="danger-text small" role="alert">{{ i18n.t(m) }}</p>
           }
           @if (typing()) {
             <label class="field">
@@ -173,21 +206,15 @@ const ACTIVATE_STEPS: Step[] = [
           }
           <div class="stack push-end">
             @if (typing()) {
-              <button type="button" class="btn" [disabled]="code().replace('-', '').length < 8" (click)="byCode()">{{ i18n.t({ th: 'ผูกตู้', en: 'Bind mailbox' }) }}</button>
+              <button type="button" class="btn" [disabled]="code().replace('-', '').length < 8 || busy() || needSignin()" (click)="byCode()">{{ i18n.t({ th: 'ผูกตู้', en: 'Bind mailbox' }) }}</button>
               <button type="button" class="btn secondary" (click)="typing.set(false)">{{ i18n.t({ th: 'กลับไปสแกน', en: 'Back to scanning' }) }}</button>
             } @else {
-              <button type="button" class="btn" (click)="scan()">
+              <button type="button" class="btn" [disabled]="busy() || needSignin() || scanning()" (click)="scan()">
                 <app-icon name="scan" [size]="22" />
                 {{ qr() ? i18n.t({ th: 'ผูกตู้นี้กับบัญชี', en: 'Bind this mailbox' }) : i18n.t({ th: 'สแกน QR เปิดใช้ตู้', en: 'Scan the activation QR' }) }}
               </button>
               <button type="button" class="btn secondary" (click)="typing.set(true)">{{ i18n.t({ th: 'พิมพ์รหัสใต้ QR', en: 'Type the code under the QR' }) }}</button>
             }
-            <div class="demo-tools">
-              {{ i18n.t({ th: 'จำลองผลสแกน:', en: 'Demo scan result:' }) }}
-              <button type="button" (click)="result('A7K2M9QX4T8P3W6R')">{{ i18n.t({ th: 'สำเร็จ', en: 'OK' }) }}</button>
-              <button type="button" (click)="result('front-qr')">{{ i18n.t({ th: 'สแกน QR หน้าตู้ (ผิด)', en: 'Front QR (wrong)' }) }}</button>
-              <button type="button" (click)="result('B3N8V2C6X9Z4L7Q1')">{{ i18n.t({ th: 'ตู้มีเจ้าของแล้ว', en: 'Already owned' }) }}</button>
-            </div>
           </div>
         </div>
       }
@@ -197,57 +224,81 @@ const ACTIVATE_STEPS: Step[] = [
     .grow {
       flex: 1;
     }
-    .camera {
-      display: grid;
-      place-items: center;
-      min-height: 200px;
-      border-radius: var(--radius);
-      background: #1f2937;
-      color: #cbd5e1;
-      font-size: 0.875rem;
+    app-qr-scanner {
+      width: min(100%, 300px);
+      align-self: center;
     }
   `,
 })
-export class AuthActivate {
+export class AuthActivate implements OnInit {
   protected readonly i18n = inject(I18n);
-  private readonly demo = inject(AuthDemo);
+  private readonly http = inject(HttpClient);
+  private readonly session = inject(Session);
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
   protected readonly steps = ACTIVATE_STEPS;
-  /** ?state=invalid|taken = A07-b / A07-c · ?qr= มาจากลิงก์ /a/<token> */
+  /** ?state=invalid|taken = A07-b / A07-c · ?qr= มาจากลิงก์ /a/<token> (กล้องมือถือธรรมดาเปิดลิงก์มา) */
   readonly state = input<string>();
   readonly qr = input<string>();
   protected readonly view = computed(() => (this.state() === 'invalid' || this.state() === 'taken' ? this.state() : 'scan'));
   protected readonly typing = signal(false);
+  protected readonly scanning = signal(false);
+  protected readonly busy = signal(false);
+  protected readonly needSignin = signal(false);
+  protected readonly message = signal<Tr | null>(null);
   protected readonly code = signal('');
+  protected readonly support = signal<string | null>(null);
+  protected readonly here = computed(() => screenUrl('A07') + (this.qr() ? `?qr=${encodeURIComponent(this.qr()!)}` : ''));
 
-  /** ของจริง: เปิดกล้อง อ่าน QR แล้ว POST /boxes/activate { qr_text } · ต้นแบบ: ใช้ลิงก์ที่เปิดมา หรือผลจำลองที่สำเร็จ */
+  async ngOnInit(): Promise<void> {
+    const me = await this.session.ensure();
+    this.needSignin.set(!me);
+    if (this.view() === 'taken') {
+      const r = await firstValueFrom(this.http.get<{ contact: string | null }>('/api/v1/support')).catch(() => null);
+      this.support.set(r?.contact ?? null);
+    }
+  }
+
+  /** มาจากลิงก์ → ผูกเลย · ไม่งั้นเปิดกล้อง */
   protected scan(): void {
-    this.result(this.qr() ?? 'A7K2M9QX4T8P3W6R');
+    const token = this.qr();
+    if (token) void this.send({ qr_text: new URL(`a/${token}`, document.baseURI).href });
+    else this.scanning.set(true);
   }
 
   protected byCode(): void {
-    this.handle(this.demo.activate({ code: this.code() }));
+    void this.send({ code: this.code() });
   }
 
-  protected result(token: string): void {
-    this.handle(this.demo.activate({ token }));
-  }
-
-  private handle(r: ReturnType<AuthDemo['activate']>): void {
-    if (r.ok) {
-      void this.router.navigateByUrl(screenUrl('A08'));
-      return;
+  /** POST /boxes/activate { qr_text } | { code } → A08 · ตัดสินจาก code ของ error */
+  protected async send(body: { qr_text: string } | { code: string }): Promise<void> {
+    this.scanning.set(false);
+    this.busy.set(true);
+    this.message.set(null);
+    try {
+      const r = await firstValueFrom(this.http.post<{ box: BoxSummary }>('/api/v1/boxes/activate', body));
+      this.session.use('owner');
+      void this.router.navigate([screenUrl('A08')], { queryParams: { box: r.box.id } });
+    } catch (err) {
+      const e = apiError(err);
+      if (e.code === 'BOX_ALREADY_OWNED' || e.code === 'QR_INVALID') {
+        void this.router.navigate([screenUrl('A07')], { queryParams: { state: e.code === 'BOX_ALREADY_OWNED' ? 'taken' : 'invalid' } });
+      } else if (e.code === 'CODE_ATTEMPTS_EXCEEDED') {
+        this.message.set({ th: 'พิมพ์ผิดหลายครั้ง รอสักครู่แล้วลองใหม่', en: 'Too many wrong codes — wait a moment and retry' });
+      } else if (e.status === 404 || e.status === 401) {
+        // ยังไม่มีบทบาทเจ้าของบ้าน / ยังไม่ล็อกอิน
+        this.message.set({ th: 'บัญชีนี้ยังไม่ใช่เจ้าของบ้าน — เพิ่มบทบาทเจ้าของบ้านก่อน', en: 'This account isn’t a homeowner yet — add the homeowner role first' });
+      } else {
+        this.message.set({ th: 'ผูกตู้ไม่ได้ ลองใหม่อีกครั้ง', en: 'Couldn’t bind the box — try again' });
+      }
+    } finally {
+      this.busy.set(false);
     }
-    void this.router.navigate([screenUrl('A07')], { queryParams: { state: r.code === 'BOX_ALREADY_OWNED' ? 'taken' : 'invalid' } });
   }
 
   protected retry(): void {
     void this.router.navigateByUrl(screenUrl('A07'));
   }
-
-  /** ของจริง: GET /api/v1/support */
-  protected readonly support = inject(AdminDemo).supportContact;
 }
 
 // ── A08 · ตั้งชื่อตู้ ───────────────────────────────────────
@@ -270,6 +321,9 @@ export class AuthActivate {
           <button type="button" [attr.aria-pressed]="name() === i18n.t(s)" (click)="name.set(i18n.t(s))">{{ i18n.t(s) }}</button>
         }
       </div>
+      @if (failed()) {
+        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'บันทึกไม่ได้ ลองใหม่อีกครั้ง', en: 'Couldn’t save — try again' }) }}</p>
+      }
       <button type="submit" class="btn push-end" [disabled]="!valid()">{{ i18n.t({ th: 'บันทึกชื่อตู้', en: 'Save name' }) }}</button>
     </form>
   `,
@@ -290,11 +344,14 @@ export class AuthActivate {
 })
 export class AuthNameBox {
   protected readonly i18n = inject(I18n);
-  private readonly demo = inject(AuthDemo);
+  private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
-  protected readonly boxId = computed(() => this.demo.activatedBox() ?? 'BX-00071');
-  protected readonly name = signal(this.demo.boxName());
+  /** ?box=BX-00042 */
+  readonly box = input<string>('');
+  protected readonly boxId = computed(() => this.box());
+  protected readonly name = signal('');
+  protected readonly failed = signal(false);
   protected readonly valid = computed(() => {
     const n = this.name().trim();
     return n.length >= 1 && n.length <= 40;
@@ -305,11 +362,16 @@ export class AuthNameBox {
     { th: 'บ้านแม่', en: "Mum's house" },
   ];
 
-  /** ของจริง: PATCH /boxes/:box_id { name } */
-  protected save(): void {
+  /** PATCH /boxes/:box_id { name } */
+  protected async save(): Promise<void> {
     if (!this.valid()) return;
-    this.demo.boxName.set(this.name().trim());
-    void this.router.navigateByUrl(screenUrl('A09'));
+    this.failed.set(false);
+    try {
+      await firstValueFrom(this.http.patch(`/api/v1/boxes/${encodeURIComponent(this.box())}`, { name: this.name().trim() }));
+      void this.router.navigate([screenUrl('A09')], { queryParams: { box: this.box() } });
+    } catch {
+      this.failed.set(true);
+    }
   }
 }
 
@@ -324,7 +386,7 @@ export class AuthNameBox {
       <div class="result">
         <span class="big-icon white"><app-icon name="check" [size]="36" /></span>
         <h1>{{ i18n.t({ th: 'ตู้เป็นของคุณแล้ว', en: 'The mailbox is yours' }) }}</h1>
-        <p>{{ demo.boxName() }} · {{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ demo.ownerHouse() ?? '99/9' }}</p>
+        <p>{{ boxInfo()?.name }} · {{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ boxInfo()?.house_no }}</p>
       </div>
       <p class="summary">
         <strong>{{ i18n.t({ th: 'ต่อไป', en: 'Next' }) }}</strong><br />
@@ -351,16 +413,19 @@ export class AuthNameBox {
     }
   `,
 })
-export class AuthOwnerDone {
+export class AuthOwnerDone implements OnInit {
   protected readonly i18n = inject(I18n);
-  protected readonly demo = inject(AuthDemo);
-  private readonly session = inject(DemoSession);
+  private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  readonly box = input<string>('');
+  protected readonly boxInfo = signal<BoxSummary | null>(null);
 
-  /** ผู้ใช้ใหม่ = หน้าหลักสถานะ H03-b */
+  async ngOnInit(): Promise<void> {
+    const boxes = await firstValueFrom(this.http.get<BoxSummary[]>('/api/v1/boxes')).catch(() => []);
+    this.boxInfo.set(boxes.find((b) => b.id === this.box()) ?? boxes[0] ?? null);
+  }
+
   protected home(): void {
-    this.session.addRole('owner');
-    this.session.role.set('owner');
-    void this.router.navigate(['/home'], { queryParams: { state: 'new' } });
+    void this.router.navigateByUrl('/home');
   }
 }

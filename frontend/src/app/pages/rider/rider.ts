@@ -1,29 +1,71 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, type OnInit, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, Injectable, input, type OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { apiError } from '../../core/api';
 import { I18n } from '../../core/i18n';
-import { DELIVERY_LIMIT_PER_HOUR, normalizeCode, RiderDemo, type RiderError } from '../../core/mock/rider-demo';
+import { DELIVERY_LIMIT_PER_HOUR, normalizeCode } from '../../core/mock/rider-demo';
 import { screenUrl } from '../../screens/registry';
 import { Brand } from '../../shared/brand';
 import { Icon } from '../../shared/icon';
 
 // ไรเดอร์ — ไม่ต้องสมัคร ไม่ล็อกอิน ไม่เก็บข้อมูลตัวตน (api.md §5)
 // ทางเข้าจริง: สแกน QR หน้าตู้ด้วยกล้องมือถือ → ลิงก์ /b/<token> → หน้า R02 · สแกนไม่ได้ → พิมพ์รหัสใต้ QR (R01)
-// ปุ่มส่งของหน้าตู้ยังรอยืนยัน — จึงยังไม่บอกในหน้าจอ (CLAUDE.md "ห้ามทำ")
+// ตู้ไม่มีปุ่มหน้าตู้แล้ว (2026-10-28) — แจ้งส่งของได้ทาง QR / รหัสใต้ QR เท่านั้น · ใช้ API จริง
 
 const hhmm = (ts: number) => new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
 
 /** ตัดสินจาก code ของ error เท่านั้น (CLAUDE.md กฎข้อ 10) */
-const ERROR_SCREEN: Partial<Record<RiderError, string>> = {
+const ERROR_SCREEN: Record<string, string> = {
   QR_INVALID: 'R03',
+  QR_REVOKED: 'R03',
   BOX_SERVICE_CLOSED: 'R03-b',
   DELIVERY_LIMIT: 'R03-c',
 };
+
+interface Ticket {
+  house_no: string;
+  box_status: 'active' | 'service_closed';
+  delivery_ticket: string;
+}
+
+/** ตู้ที่ไรเดอร์เพิ่งสแกน/พิมพ์รหัสผ่าน (api.md §5) — เก็บในหน่วยความจำเท่านั้น ไม่เก็บอะไรของไรเดอร์ */
+@Injectable({ providedIn: 'root' })
+export class RiderApi {
+  private readonly http = inject(HttpClient);
+  readonly ticket = signal<Ticket | null>(null);
+
+  /** คืน code ของ error (หรือ null ถ้าผ่าน) */
+  async open(path: string): Promise<string | null> {
+    try {
+      const t = await firstValueFrom(this.http.get<Ticket>(path));
+      this.ticket.set(t);
+      return t.box_status === 'active' ? null : 'BOX_SERVICE_CLOSED';
+    } catch (err) {
+      const e = apiError(err);
+      return e.code ?? (e.status === 0 ? 'OFFLINE' : 'QR_INVALID');
+    }
+  }
+
+  async deliver(): Promise<string | null> {
+    const t = this.ticket();
+    if (!t) return 'TICKET_EXPIRED';
+    try {
+      await firstValueFrom(this.http.post('/api/v1/public/deliveries', { delivery_ticket: t.delivery_ticket }));
+      this.ticket.set(null);
+      return null;
+    } catch (err) {
+      const e = apiError(err);
+      return e.code ?? (e.status === 0 ? 'OFFLINE' : 'ERROR');
+    }
+  }
+}
 
 // ── R01 · พิมพ์รหัสตู้ ──────────────────────────────────────
 
 @Component({
   selector: 'app-rider-code',
-  imports: [Brand, RouterLink],
+  imports: [Brand],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-brand />
@@ -50,15 +92,12 @@ const ERROR_SCREEN: Partial<Record<RiderError, string>> = {
       </label>
       @if (locked()) {
         <p class="danger-text small" role="alert">
-          {{ i18n.t({ th: 'พิมพ์ผิดหลายครั้ง รอ ' + waitSec() + ' วินาทีแล้วลองใหม่', en: 'Too many wrong codes — try again in ' + waitSec() + ' s' }) }}
+          {{ i18n.t({ th: 'พิมพ์ผิดหลายครั้ง รอสักครู่แล้วลองใหม่', en: 'Too many wrong codes — wait a moment and try again' }) }}
         </p>
+      } @else if (offline()) {
+        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ต่อเน็ตไม่ได้ ลองใหม่อีกครั้ง', en: 'No connection — try again' }) }}</p>
       }
-      <button type="submit" class="btn dark push-end" [disabled]="!ready() || locked()">{{ i18n.t({ th: 'ไปหน้าส่งของ', en: 'Continue' }) }}</button>
-      <div class="demo-tools">
-        {{ i18n.t({ th: 'จำลอง — รหัส:', en: 'Demo codes:' }) }} H4KD-9TRW (99/9) · C2PZ-8HNM (12/4) · T6WB-3KRV ({{ i18n.t({ th: 'ปิดบริการ', en: 'closed' }) }})
-        · {{ i18n.t({ th: 'เปิดจากลิงก์ QR:', en: 'Open a QR link:' }) }}
-        <a routerLink="/b/BX00042-1-K7M2QX">99/9</a>
-      </div>
+      <button type="submit" class="btn dark push-end" [disabled]="!ready() || busy()">{{ i18n.t({ th: 'ไปหน้าส่งของ', en: 'Continue' }) }}</button>
     </form>
   `,
   styles: `
@@ -86,34 +125,25 @@ const ERROR_SCREEN: Partial<Record<RiderError, string>> = {
 })
 export class RiderCode {
   protected readonly i18n = inject(I18n);
-  private readonly demo = inject(RiderDemo);
+  private readonly api = inject(RiderApi);
   private readonly router = inject(Router);
   protected readonly code = signal('');
   protected readonly ready = computed(() => normalizeCode(this.code()).length === 8);
+  protected readonly busy = signal(false);
+  protected readonly locked = signal(false);
+  protected readonly offline = signal(false);
 
-  /** นาฬิกาสำหรับนับถอยหลังตอนถูกพักการพิมพ์รหัส */
-  private readonly now = signal(Date.now());
-  protected readonly locked = computed(() => this.now() < this.demo.codeLockedUntil());
-  protected readonly waitSec = computed(() => Math.max(0, Math.ceil((this.demo.codeLockedUntil() - this.now()) / 1000)));
-
-  constructor() {
-    const timer = setInterval(() => this.now.set(Date.now()), 1000);
-    inject(DestroyRef).onDestroy(() => clearInterval(timer));
+  /** GET /public/codes/:code → { house_no, box_status, delivery_ticket } · ผิด 3 ครั้งติดกัน → 429 รอ */
+  protected async go(): Promise<void> {
+    if (!this.ready() || this.busy()) return;
+    this.busy.set(true);
+    const code = await this.api.open(`/api/v1/public/codes/${encodeURIComponent(normalizeCode(this.code()))}`);
+    this.busy.set(false);
+    this.locked.set(code === 'CODE_ATTEMPTS_EXCEEDED' || code === 'RATE_LIMITED');
+    this.offline.set(code === 'OFFLINE');
+    if (code === null) void this.router.navigateByUrl(screenUrl('R02'));
+    else if (ERROR_SCREEN[code]) void this.router.navigateByUrl(screenUrl(ERROR_SCREEN[code]));
   }
-
-  /** ของจริง: GET /public/codes/:code → { house_no, box_status, delivery_ticket } */
-  protected go(): void {
-    if (!this.ready()) return;
-    const r = this.demo.openCode(this.code());
-    this.now.set(Date.now());
-    if (r.ok) {
-      void this.router.navigateByUrl(screenUrl('R02'));
-      return;
-    }
-    const target = ERROR_SCREEN[r.code];
-    if (target) void this.router.navigateByUrl(screenUrl(target));
-  }
-
 }
 
 // ── R02 · ส่งของ ────────────────────────────────────────────
@@ -124,7 +154,7 @@ export class RiderCode {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-brand />
-    @if (demo.ticket(); as t) {
+    @if (api.ticket(); as t) {
       <div class="stack grow">
         <section class="card house">
           <p class="muted small">{{ i18n.t({ th: 'ส่งของถึง', en: 'Delivering to' }) }}</p>
@@ -152,18 +182,26 @@ export class RiderCode {
             {{ i18n.t({ th: 'ส่งของ', en: 'Delivered' }) }}
           </button>
           <p class="muted small center">{{ i18n.t({ th: 'เจ้าหน้าที่ กรุณาสแกนผ่านแอป Smart Mailbox', en: 'Officers: please scan with the Smart Mailbox app' }) }}</p>
-          <div class="demo-tools">
-            {{ i18n.t({ th: 'จำลอง:', en: 'Demo:' }) }}
-            <button type="button" (click)="demo.expireTicket()">{{ i18n.t({ th: 'เปิดค้าง 10 นาที', en: 'Left open 10 min' }) }}</button>
-            <button type="button" (click)="demo.fillLimit(t.box_id)">{{ i18n.t({ th: 'ตู้นี้แจ้งครบ ' + limit + ' ครั้งแล้ว', en: 'Box hit ' + limit + ' this hour' }) }}</button>
-          </div>
+          @if (failed()) {
+            <p class="danger-text small center" role="alert">{{ i18n.t({ th: 'ส่งไม่ได้ ลองใหม่อีกครั้ง', en: 'Couldn’t send — try again' }) }}</p>
+          }
         </div>
+      </div>
+    } @else if (loading()) {
+      <p class="muted center">{{ i18n.t({ th: 'กำลังเปิดตู้…', en: 'Opening the mailbox…' }) }}</p>
+    } @else {
+      <div class="stack grow">
+        <p>{{ i18n.t({ th: 'สแกน QR หน้าตู้ด้วยกล้องมือถือ หรือพิมพ์รหัสใต้ QR', en: 'Scan the QR on the box with your phone camera, or type the code under it' }) }}</p>
+        <a class="btn dark push-end" [routerLink]="url('R01')">{{ i18n.t({ th: 'พิมพ์รหัสใต้ QR', en: 'Type the code' }) }}</a>
       </div>
     }
   `,
   styles: `
     .grow {
       flex: 1;
+    }
+    .center {
+      text-align: center;
     }
     .house {
       text-align: center;
@@ -197,44 +235,43 @@ export class RiderCode {
 })
 export class RiderDeliver implements OnInit {
   protected readonly i18n = inject(I18n);
-  protected readonly demo = inject(RiderDemo);
+  protected readonly api = inject(RiderApi);
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
-  protected readonly limit = DELIVERY_LIMIT_PER_HOUR;
-  /** ?qr=<token> มาจากลิงก์ /b/<token> */
+  /** ?qr=<token> มาจากลิงก์ /b/<token> (กล้องมือถือเปิดลิงก์ใน QR หน้าตู้) */
   readonly qr = input<string>();
   protected readonly busy = signal(false);
+  protected readonly loading = signal(false);
   protected readonly expired = signal(false);
+  protected readonly failed = signal(false);
 
-  /** ของจริง: GET /public/qr/:token */
-  ngOnInit(): void {
-    const token = this.qr() ?? (this.demo.ticket() ? null : 'BX00042-1-K7M2QX'); // ต้นแบบ: เปิดตรง ๆ = ตู้ 99/9
-    if (!token) return;
-    const r = this.demo.openQr(token);
-    if (!r.ok) {
-      const target = ERROR_SCREEN[r.code] ?? 'R03';
-      void this.router.navigateByUrl(screenUrl(target), { replaceUrl: true });
-    }
+  /** GET /public/qr/:token */
+  async ngOnInit(): Promise<void> {
+    const token = this.qr();
+    if (!token) return; // มาจาก R01 (มี ticket แล้ว) หรือเปิดตรง ๆ
+    this.loading.set(true);
+    const code = await this.api.open(`/api/v1/public/qr/${encodeURIComponent(token)}`);
+    this.loading.set(false);
+    if (code) void this.router.navigateByUrl(screenUrl(ERROR_SCREEN[code] ?? 'R03'), { replaceUrl: true });
   }
 
-  /** ของจริง: POST /public/deliveries { delivery_ticket } — กันกดซ้ำระหว่างส่ง */
-  protected deliver(): void {
-    const t = this.demo.ticket();
+  /** POST /public/deliveries { delivery_ticket } — กันกดซ้ำระหว่างส่ง */
+  protected async deliver(): Promise<void> {
+    const t = this.api.ticket();
     if (!t || this.busy()) return;
     this.busy.set(true);
-    const r = this.demo.deliver(t);
+    this.failed.set(false);
+    const code = await this.api.deliver();
     this.busy.set(false);
-    if (r.ok) {
-      this.demo.ticket.set(null);
-      void this.router.navigate([screenUrl('R04')], { queryParams: { house: t.house_no, at: hhmm(r.at) }, replaceUrl: true });
-      return;
-    }
-    if (r.code === 'TICKET_EXPIRED') {
+    if (code === null) {
+      void this.router.navigate([screenUrl('R04')], { queryParams: { house: t.house_no, at: hhmm(Date.now()) }, replaceUrl: true });
+    } else if (code === 'TICKET_EXPIRED') {
       this.expired.set(true);
-      return;
+    } else if (ERROR_SCREEN[code]) {
+      void this.router.navigateByUrl(screenUrl(ERROR_SCREEN[code]));
+    } else {
+      this.failed.set(true);
     }
-    const target = ERROR_SCREEN[r.code];
-    if (target) void this.router.navigateByUrl(screenUrl(target));
   }
 }
 

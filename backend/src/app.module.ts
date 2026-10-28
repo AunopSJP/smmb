@@ -5,6 +5,9 @@ import { AdminModule } from './admin/admin.module.js';
 import { AgencyModule } from './agency/agency.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { BoxModule } from './box/box.module.js';
+import { InspectionModule } from './inspection/inspection.module.js';
+import { RiderModule } from './rider/rider.module.js';
+import { SosModule } from './sos/sos.module.js';
 import { AllExceptionsFilter } from './common/http-exception.filter.js';
 import { validateEnv } from './config/env.js';
 import { DbModule } from './db/db.module.js';
@@ -24,6 +27,9 @@ import { SupportModule } from './support/support.module.js';
     AdminModule,
     SupportModule,
     BoxModule,
+    InspectionModule,
+    RiderModule,
+    SosModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: AllExceptionsFilter }],

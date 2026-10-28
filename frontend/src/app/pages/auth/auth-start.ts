@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject, input, signal, type OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { I18n, type Tr } from '../../core/i18n';
-import { AuthDemo, DEMO_PASSWORD, normalizePhone, ROLE_HOME, type DemoAccountRole } from '../../core/mock/auth-demo';
-import { AdminDemo } from '../../core/mock/admin-demo';
-import { DemoSession } from '../../core/mock/demo-session';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import { normalizePhone, type DemoAccountRole } from '../../core/mock/auth-demo';
+import { ROLE_HOME, Session } from '../../core/session';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { Brand } from '../../shared/brand';
@@ -203,16 +204,10 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
         </p>
 
         <div class="stack push-end">
-          <button type="submit" class="btn" [disabled]="!ready()">{{ error() ? i18n.t({ th: 'ลองอีกครั้ง', en: 'Try again' }) : i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</button>
+          <button type="submit" class="btn" [disabled]="!ready() || busy()">{{ error() ? i18n.t({ th: 'ลองอีกครั้ง', en: 'Try again' }) : i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</button>
           <p class="center small">
             {{ i18n.t({ th: 'ยังไม่มีบัญชี? ', en: 'No account? ' }) }}<a class="link" [routerLink]="url('A05')">{{ i18n.t({ th: 'สมัครสมาชิก', en: 'Sign up' }) }}</a>
           </p>
-          <div class="demo-tools">
-            {{ i18n.t({ th: 'บัญชีทดลอง (รหัส ' + demoPassword + '):', en: 'Demo accounts (password ' + demoPassword + '):' }) }}
-            @for (a of demoAccounts; track a.phone) {
-              <button type="button" (click)="phone.set(a.phone)">{{ a.phone }} {{ i18n.t(a.label) }}</button>
-            }
-          </div>
         </div>
       </form>
     }
@@ -250,86 +245,89 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
 })
 export class AuthSignin implements OnInit {
   protected readonly i18n = inject(I18n);
-  private readonly demo = inject(AuthDemo);
-  private readonly session = inject(DemoSession);
+  private readonly session = inject(Session);
+  private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
   protected readonly roleChoice = ROLE_CHOICE;
-  protected readonly demoPassword = DEMO_PASSWORD;
-  /** ของจริง: GET /api/v1/support (public — ยังไม่ล็อกอินก็เห็น) */
-  protected readonly support = inject(AdminDemo).supportContact;
-  protected readonly demoAccounts: { phone: string; label: Tr }[] = [
-    { phone: '089-111-2222', label: { th: 'เจ้าของบ้าน', en: 'owner' } },
-    { phone: '081-234-5678', label: { th: 'เจ้าหน้าที่', en: 'officer' } },
-    { phone: '081-000-1111', label: { th: 'หัวหน้า', en: 'head' } },
-    { phone: '086-444-5555', label: { th: 'สองบทบาท', en: 'two roles' } },
-    { phone: '087-666-7777', label: { th: 'ถูกรีเซ็ตรหัส', en: 'password reset' } },
-    { phone: '080-000-0000', label: { th: 'แอดมิน', en: 'admin' } },
-  ];
+  /** ช่องทางติดต่อผู้ดูแล (api.md §3.1 — public) */
+  protected readonly support = signal<string | null>(null);
 
-  /** ?state=wrong = A04-b */
-  readonly state = input<string>();
+  /** ?next=/officer/… — กลับไปหน้าที่ตั้งใจเปิดหลังล็อกอิน */
+  readonly next = input<string>();
   protected readonly phone = signal('');
   protected readonly password = signal('');
+  protected readonly busy = signal(false);
   protected readonly error = signal<{ title: Tr; sub: Tr } | null>(null);
   protected readonly choose = signal<DemoAccountRole[] | null>(null);
-  /** บัญชีที่เพิ่งล็อกอินผ่าน (ใช้ตอนเลือกบทบาท) */
-  private signedIn: { phone: string; roles: DemoAccountRole[] } | null = null;
 
   protected ready(): boolean {
     return !!normalizePhone(this.phone()) && this.password().length > 0;
   }
 
-  ngOnInit(): void {
-    if (this.state() === 'wrong') {
-      this.phone.set('081-234-5678');
-      this.error.set(this.wrong(4));
-    }
+  async ngOnInit(): Promise<void> {
+    const r = await firstValueFrom(this.http.get<{ contact: string | null }>('/api/v1/support')).catch(() => null);
+    this.support.set(r?.contact ?? null);
   }
 
-  private wrong(left: number): { title: Tr; sub: Tr } {
-    return {
-      title: { th: 'เบอร์หรือรหัสผ่านไม่ถูกต้อง', en: 'Wrong phone number or password' },
-      sub: { th: `ลองใหม่ได้อีก ${left} ครั้ง`, en: `${left} tries left` },
-    };
-  }
-
-  /** ของจริง: POST /auth/signin → ตัดสินจาก code ของ error เท่านั้น */
-  protected submit(): void {
-    if (!this.ready()) return;
-    const r = this.demo.signin(this.phone(), this.password());
+  /** POST /auth/signin → ตัดสินจาก code ของ error เท่านั้น (กฎข้อ 10) */
+  protected async submit(): Promise<void> {
+    if (!this.ready() || this.busy()) return;
+    this.busy.set(true);
+    const r = await this.session.signin(normalizePhone(this.phone()) ?? this.phone(), this.password());
+    this.busy.set(false);
     if (!r.ok) {
       this.password.set('');
-      this.error.set(
-        r.code === 'ACCOUNT_LOCKED'
-          ? { title: { th: 'ลองผิดหลายครั้ง พักไว้ 15 นาที', en: 'Too many tries — locked for 15 minutes' }, sub: { th: 'ลืมรหัส ติดต่อหัวหน้าหรือผู้ดูแลให้รีเซ็ต', en: 'Forgot it? Ask your head or the admin to reset it' } }
-          : this.wrong(r.left ?? 0),
-      );
+      this.error.set(this.errorText(r.code, r.status));
       return;
     }
     this.error.set(null);
-    this.signedIn = { phone: r.phone, roles: r.roles };
+    const me = r.me;
     // ถูกรีเซ็ตรหัส → ต้องเปลี่ยนก่อน (403 PASSWORD_CHANGE_REQUIRED ทุก route)
-    if (r.must_change_password) {
-      this.session.signIn(r.roles[0] ?? 'owner', r.roles, r.phone);
+    if (me.must_change_password) {
       void this.router.navigate([screenUrl('A14')], { queryParams: { forced: 1 } });
       return;
     }
-    // คำขอที่ยังรออยู่ → หน้ารอ (403 ACCOUNT_PENDING)
-    if (r.pending) {
-      this.session.signIn(r.pending === 'agency' ? 'head' : 'officer', r.roles, r.phone);
-      this.session.agencyPending.set(r.pending === 'officer');
-      void this.router.navigateByUrl(screenUrl(r.pending === 'agency' ? 'L02' : 'A11'));
+    if (me.terms_update_required) {
+      void this.router.navigate([screenUrl('A13')], { queryParams: { update: 1 } });
+      return;
+    }
+    // คำขอเป็นเจ้าหน้าที่/หน่วยงานที่ยังรออยู่ และไม่มีบทบาทอื่นให้ใช้ → หน้ารอ
+    if (!me.roles.length && me.agency_status === 'pending') {
+      void this.router.navigateByUrl(screenUrl(me.agency?.is_head ? 'L02' : 'A11'));
+      return;
+    }
+    const next = this.next();
+    if (next && next.startsWith('/') && !next.startsWith('//')) {
+      void this.router.navigateByUrl(next);
       return;
     }
     // หัวหน้าเป็นเจ้าหน้าที่อยู่แล้ว — ไม่ต้องให้เลือกระหว่างสองอย่างนี้
-    const roles = r.roles.includes('head') ? r.roles.filter((x) => x !== 'officer') : r.roles;
+    const roles = (me.roles.includes('head') ? me.roles.filter((x) => x !== 'officer') : me.roles) as DemoAccountRole[];
     if (roles.length > 1) this.choose.set(roles);
-    else this.enter(roles[0]);
+    else if (roles.length === 1) this.enter(roles[0]);
+    else this.error.set({ title: { th: 'บัญชีนี้ยังไม่มีบทบาทที่ใช้ได้', en: 'This account has no usable role yet' }, sub: { th: 'ติดต่อผู้ดูแล', en: 'Contact the admin' } });
+  }
+
+  private errorText(code: string | null, status: number): { title: Tr; sub: Tr } {
+    switch (code) {
+      case 'ACCOUNT_LOCKED':
+        return { title: { th: 'ลองผิดหลายครั้ง พักไว้ 15 นาที', en: 'Too many tries — locked for 15 minutes' }, sub: { th: 'ลืมรหัส ติดต่อหัวหน้าหรือผู้ดูแลให้รีเซ็ต', en: 'Forgot it? Ask your head or the admin to reset it' } };
+      case 'ACCOUNT_DISABLED':
+        return { title: { th: 'บัญชีนี้ถูกปิด', en: 'This account is disabled' }, sub: { th: 'ติดต่อผู้ดูแล', en: 'Contact the admin' } };
+      case 'RATE_LIMITED':
+        return { title: { th: 'ลองบ่อยเกินไป', en: 'Too many attempts' }, sub: { th: 'รอ 1 นาทีแล้วลองใหม่', en: 'Wait a minute and try again' } };
+      case 'INVALID_CREDENTIALS':
+        return { title: { th: 'เบอร์หรือรหัสผ่านไม่ถูกต้อง', en: 'Wrong phone number or password' }, sub: { th: 'ผิด 5 ครั้งจะถูกพักบัญชี 15 นาที', en: '5 wrong tries locks the account for 15 minutes' } };
+      default:
+        return status === 0
+          ? { title: { th: 'ต่อเซิร์ฟเวอร์ไม่ได้', en: 'Can’t reach the server' }, sub: { th: 'ตรวจเน็ตแล้วลองใหม่', en: 'Check your connection and retry' } }
+          : { title: { th: 'เข้าสู่ระบบไม่ได้', en: 'Couldn’t sign in' }, sub: { th: 'ลองใหม่อีกครั้ง', en: 'Please try again' } };
+    }
   }
 
   protected enter(role: DemoAccountRole): void {
-    this.session.signIn(role, this.signedIn?.roles ?? [role], this.signedIn?.phone ?? '');
+    this.session.use(role);
     void this.router.navigateByUrl(ROLE_HOME[role]);
   }
 }

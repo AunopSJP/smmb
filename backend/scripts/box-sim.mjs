@@ -6,6 +6,9 @@
 //   node scripts/box-sim.mjs report --battery 15
 //   node scripts/box-sim.mjs poll   [--wait 50] [--fail]     ถือ long-poll วนไป ได้งานแล้ว ready + ส่งผลอ่าน QR
 //   node scripts/box-sim.mjs event  --type camera_error
+//   node scripts/box-sim.mjs poll   --manual              ได้งานแล้วแค่พิมพ์ออกมา (สั่ง ready / result เองทีละขั้น)
+//   node scripts/box-sim.mjs ready  --job J-xxxxxx
+//   node scripts/box-sim.mjs result --job J-xxxxxx --attempt 1 --text 'SMMB-O1....'   (ไม่ใส่ --text = อ่านไม่ได้)
 //
 // ค่า --url / --box / --secret ใส่เป็น env แทนได้: SMMB_URL, SMMB_BOX, SMMB_SECRET
 import { createHash, createHmac, randomBytes } from 'node:crypto';
@@ -23,8 +26,8 @@ const BASE = String(opt('url', process.env.SMMB_URL ?? 'http://localhost:3000'))
 const BOX = String(opt('box', process.env.SMMB_BOX ?? ''));
 const SECRET = String(opt('secret', process.env.SMMB_SECRET ?? ''));
 
-if (!['boot', 'report', 'poll', 'event'].includes(cmd) || !/^BX-\d+$/.test(BOX) || !/^[0-9a-f]{64}$/i.test(SECRET)) {
-  console.error('usage: box-sim.mjs <boot|report|poll|event> --url <server> --box BX-00001 --secret <device_secret 64 hex>');
+if (!['boot', 'report', 'poll', 'event', 'ready', 'result'].includes(cmd) || !/^BX-\d+$/.test(BOX) || !/^[0-9a-f]{64}$/i.test(SECRET)) {
+  console.error('usage: box-sim.mjs <boot|report|poll|event|ready|result> --url <server> --box BX-00001 --secret <device_secret 64 hex>');
   process.exit(2);
 }
 
@@ -78,6 +81,13 @@ if (cmd === 'boot') {
   });
 } else if (cmd === 'event') {
   await call('POST', '/v1/box/events', { type: String(opt('type', 'camera_error')) });
+} else if (cmd === 'ready') {
+  await call('POST', `/v1/box/jobs/${opt('job')}/ready`, { flash: false });
+} else if (cmd === 'result') {
+  const text = opt('text', null);
+  await call('POST', `/v1/box/jobs/${opt('job')}/result`, {
+    attempt: Number(opt('attempt', 1)), read_ok: typeof text === 'string', qr_text: typeof text === 'string' ? text : null, read_ms: 1500, flash: false,
+  });
 } else if (cmd === 'poll') {
   const wait = Number(opt('wait', 50));
   const fail = opt('fail', false) === true;
@@ -89,6 +99,7 @@ if (cmd === 'boot') {
     });
     if (status === 0) { await sleep(30_000); continue; }
     if (status !== 200 || !json?.job) continue;
+    if (opt('manual', false) === true) { console.log('job received — run ready / result yourself'); await sleep(65_000); continue; }
     const job = json.job;
     await sleep(800); // เปิดไฟ + กล้อง
     await call('POST', `/v1/box/jobs/${job.job_id}/ready`, { light: 'on', flash: false });

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { I18n, type Tr } from '../../core/i18n';
+import { Session } from '../../core/session';
 import { AuthDemo, normalizePhone, PASSWORD_MIN, type SignupForm } from '../../core/mock/auth-demo';
 import { DemoSession } from '../../core/mock/demo-session';
 import { HeadDemo } from '../../core/mock/head-demo';
@@ -218,8 +219,10 @@ export class HeadPending {
   /** ของจริง: GET /api/v1/support */
   protected readonly support = inject(AdminDemo).supportContact;
 
+  private readonly realSession = inject(Session);
+  /** ออกจากระบบจริง (ลบ session ที่ server + cookie) */
   protected signout(): void {
-    void this.router.navigateByUrl(screenUrl('A04'));
+    void this.realSession.signout().then(() => this.router.navigateByUrl(screenUrl('A04')));
   }
 }
 

@@ -1,6 +1,10 @@
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import { apiError } from '../../core/api';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { I18n, type Tr } from '../../core/i18n';
+import { Session } from '../../core/session';
 import { AuthDemo, formatPhone, PASSWORD_MIN, ROLE_HOME, type SignupForm } from '../../core/mock/auth-demo';
 import { DemoSession, type DemoRole } from '../../core/mock/demo-session';
 import { Toast } from '../../core/toast';
@@ -191,8 +195,6 @@ export class AccountActions {
 })
 export class AuthChangePassword {
   protected readonly i18n = inject(I18n);
-  private readonly demo = inject(AuthDemo);
-  private readonly session = inject(DemoSession);
   private readonly toast = inject(Toast);
   private readonly router = inject(Router);
   /** ?forced=1 หลังถูกรีเซ็ต (Me.must_change_password / 403 PASSWORD_CHANGE_REQUIRED) · ?from= หน้าที่กดมา */
@@ -210,29 +212,37 @@ export class AuthChangePassword {
   protected readonly match = computed(() => this.next() === this.confirm());
   protected readonly same = computed(() => this.next() === this.current());
 
-  /** ของจริง: POST /auth/change-password { current_password, new_password } → ตัดสินจาก code ของ error */
-  protected submit(): void {
+  /** POST /auth/change-password { current_password, new_password } → ตัดสินจาก code ของ error · สำเร็จ = ทุกเครื่องออกจากระบบ */
+  protected async submit(): Promise<void> {
     this.tried.set(true);
     this.error.set(null);
     if (!this.nextOk() || !this.match() || this.same()) return;
-    const r = this.demo.changePassword(this.session.phone(), this.current(), this.next());
-    if (!r.ok) {
+    try {
+      await firstValueFrom(this.http.post('/api/v1/auth/change-password', { current_password: this.current(), new_password: this.next() }));
+    } catch (err) {
+      const e = apiError(err);
       this.current.set('');
       this.error.set(
-        r.code === 'ACCOUNT_LOCKED'
+        e.code === 'ACCOUNT_LOCKED'
           ? { th: 'ลองผิดหลายครั้ง พักไว้ 15 นาที', en: 'Too many tries — locked for 15 minutes' }
-          : r.code === 'INVALID_CREDENTIALS'
-            ? { th: `รหัส${this.forced() ? 'ชั่วคราว' : 'ปัจจุบัน'}ไม่ถูกต้อง · ลองได้อีก ${r.left} ครั้ง`, en: `Wrong ${this.forced() ? 'temporary' : 'current'} password · ${r.left} tries left` }
-            : { th: 'รหัสใหม่ต้องยาว 8–128 ตัว', en: 'The new password must be 8–128 characters' },
+          : e.code === 'INVALID_CREDENTIALS'
+            ? { th: `รหัส${this.forced() ? 'ชั่วคราว' : 'ปัจจุบัน'}ไม่ถูกต้อง · ผิด 5 ครั้งจะถูกพักบัญชี`, en: `Wrong ${this.forced() ? 'temporary' : 'current'} password · 5 wrong tries locks the account` }
+            : e.status === 400
+              ? { th: 'รหัสใหม่ต้องยาว 8–128 ตัว', en: 'The new password must be 8–128 characters' }
+              : { th: 'เปลี่ยนรหัสไม่ได้ ลองใหม่อีกครั้ง', en: 'Couldn’t change it — try again' },
       );
       return;
     }
+    await this.realSession.signout();
     this.toast.show({ th: 'เปลี่ยนรหัสแล้ว — ล็อกอินใหม่ด้วยรหัสใหม่', en: 'Password changed — sign in with the new one' });
     void this.router.navigateByUrl(screenUrl('A04'));
   }
 
+  private readonly http = inject(HttpClient);
+  private readonly realSession = inject(Session);
+  /** ออกจากระบบจริง (ลบ session ที่ server + cookie) */
   protected signout(): void {
-    void this.router.navigateByUrl(screenUrl('A04'));
+    void this.realSession.signout().then(() => this.router.navigateByUrl(screenUrl('A04')));
   }
 }
 

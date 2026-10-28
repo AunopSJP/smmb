@@ -1,4 +1,5 @@
-import type { Route, Routes } from '@angular/router';
+import type { CanActivateFn, Route, Routes } from '@angular/router';
+import { homeRedirect, requireRole } from './core/session';
 import { AreaShell } from './layout/area-shell';
 import { AREA_PREFIX, SCREENS, type Area } from './screens/registry';
 
@@ -136,11 +137,21 @@ export const BUILT_CODES = Object.keys(BUILT);
 
 const placeholder: Loader = () => import('./screens/screen-placeholder').then((m) => m.ScreenPlaceholder);
 
+/**
+ * ส่วนที่ใช้ข้อมูลจริง (ต้องล็อกอินจริง) — core flow: เจ้าของบ้าน · เจ้าหน้าที่
+ * หัวหน้า / แอดมิน ยังเป็นหน้าข้อมูลจำลอง (เข้าจาก /demo)
+ */
+const GUARD: Partial<Record<Area, CanActivateFn>> = {
+  owner: requireRole('owner'),
+  officer: requireRole('officer'),
+};
+
 function areaRoute(area: Area): Route {
   return {
     path: AREA_PREFIX[area],
     component: AreaShell,
     data: { area },
+    ...(GUARD[area] ? { canActivate: [GUARD[area]] } : {}),
     children: SCREENS.filter((s) => s.area === area).map((s) => ({
       path: s.path,
       loadComponent: BUILT[s.code] ?? placeholder,
@@ -151,11 +162,13 @@ function areaRoute(area: Area): Route {
 }
 
 export const routes: Routes = [
+  // หน้าแรก: ล็อกอินอยู่ → หน้าของบทบาท · ไม่งั้น → เข้าสู่ระบบ
+  { path: '', pathMatch: 'full', canActivate: [homeRedirect], children: [] },
+  // หน้าเลือกบทบาทจำลอง + ตั้งค่าการแสดงผล (ไว้ดูหน้าหัวหน้า/แอดมินที่ยังเป็นข้อมูลจำลอง)
   {
-    path: '',
-    pathMatch: 'full',
+    path: 'demo',
     loadComponent: () => import('./pages/demo-start').then((m) => m.DemoStart),
-    title: 'Smart Mailbox',
+    title: 'Smart Mailbox · demo',
   },
   ...(['owner', 'officer', 'head', 'admin', 'rider', 'auth'] as const).map(areaRoute),
   // ลิงก์ใน QR หน้าตู้ (PUBLIC_BASE_URL/b/<token>) — กล้องมือถือเปิดแล้วไปหน้าส่งของของไรเดอร์ (api.md §5)

@@ -1,23 +1,32 @@
-import { NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { I18n } from '../../core/i18n';
-import { MOCK_OWNER, MOCK_SOS_OFFICER } from '../../core/mock/mock-data';
-import { SosDemo, STAGE_CALL_AT } from '../../core/mock/sos-demo';
+import { mmss, OwnerApi, secondsSince, type Sos } from '../../core/owner-api';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { CallButtons } from './call-buttons';
 
-const mmss = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+/** ขั้นที่ 3 (ให้โทรเอง) ที่วินาทีนี้ (✅ design §7) */
+const STAGE_CALL_AT = 60;
+/** หน้ารอ SOS ถามสถานะทุก 1 วิ (✅) */
+const POLL_MS = 1000;
+
+/** ถาม GET /sos/:id ทุก 1 วิ ระหว่างอยู่หน้านี้ — ใช้ร่วมทุกหน้า SOS ของเจ้าของบ้าน */
+function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void): void {
+  const tick = () => api.sos(id()).then(onData).catch(() => undefined);
+  void tick();
+  const t = setInterval(tick, POLL_MS);
+  inject(DestroyRef).onDestroy(() => clearInterval(t));
+}
 
 // ── H09 · กำลังหาเจ้าหน้าที่ (3 ขั้น) ─────────────────────────────
 
 @Component({
   selector: 'app-sos-waiting',
-  imports: [NgTemplateOutlet, RouterLink, Icon, CallButtons],
+  imports: [RouterLink, Icon, CallButtons],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @let st = sos.stage();
+    @let st = sos()?.stage ?? 'zone';
     <div class="sos-page" role="main" aria-live="polite">
       @if (st === 'call_yourself') {
         <header class="sos-head">
@@ -28,11 +37,10 @@ const mmss = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, '0')}:
         <div class="sos-body">
           <app-call-buttons [big]="true" />
           <p class="note"><span class="dot live"></span>{{ i18n.t({ th: 'ยังรอเจ้าหน้าที่รับเรื่องอยู่เบื้องหลัง', en: 'Still waiting for an officer in the background' }) }}</p>
-          <ng-container *ngTemplateOutlet="tools" />
         </div>
       } @else {
         <header class="sos-head">
-          <span class="pill">{{ i18n.t({ th: 'SOS ส่งแล้ว · บ้านเลขที่ ', en: 'SOS sent · house ' }) }}{{ house }}</span>
+          <span class="pill">{{ i18n.t({ th: 'SOS ส่งแล้ว · บ้านเลขที่ ', en: 'SOS sent · house ' }) }}{{ sos()?.box?.house_no }}</span>
           <h1>
             {{ st === 'zone' ? i18n.t({ th: 'กำลังหาเจ้าหน้าที่…', en: 'Finding an officer…' }) : i18n.t({ th: 'กำลังแจ้งทั้งหน่วยงาน…', en: 'Alerting the whole agency…' }) }}
           </h1>
@@ -74,7 +82,6 @@ const mmss = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, '0')}:
               </span>
             </li>
           </ol>
-          <ng-container *ngTemplateOutlet="tools" />
         </div>
       }
 
@@ -83,18 +90,9 @@ const mmss = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, '0')}:
           <p class="muted small center">{{ i18n.t({ th: 'ฉุกเฉิน โทรได้ทันทีไม่ต้องรอ', en: 'Emergency? Call now, no need to wait' }) }}</p>
           <app-call-buttons />
         }
-        <a class="btn secondary" [routerLink]="url('H10')">{{ i18n.t({ th: 'ยกเลิก SOS', en: 'Cancel SOS' }) }}</a>
+        <a class="btn secondary" [routerLink]="url('H10')" [queryParams]="{ id: id() }">{{ i18n.t({ th: 'ยกเลิก SOS', en: 'Cancel SOS' }) }}</a>
       </footer>
     </div>
-
-    <ng-template #tools>
-      <div class="demo-tools">
-        {{ i18n.t({ th: 'จำลอง:', en: 'Demo:' }) }}
-        <button type="button" (click)="sos.skip(30)">+30 {{ i18n.t({ th: 'วิ', en: 's' }) }}</button>
-        <button type="button" (click)="sos.accept()">{{ i18n.t({ th: 'มีคนรับ', en: 'Officer accepts' }) }}</button>
-        <button type="button" (click)="noOfficer()">{{ i18n.t({ th: 'บ้านไม่มีเจ้าหน้าที่', en: 'No officer' }) }}</button>
-      </div>
-    </ng-template>
   `,
   styles: `
     .steps {
@@ -160,29 +158,28 @@ const mmss = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, '0')}:
     }
   `,
 })
-export class SosWaiting implements OnInit {
+export class SosWaiting {
   protected readonly i18n = inject(I18n);
-  protected readonly sos = inject(SosDemo);
+  private readonly api = inject(OwnerApi);
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
-  protected readonly house = MOCK_OWNER.house_no;
-  protected readonly time = computed(() => mmss(this.sos.elapsedSec()));
-  protected readonly toCall = computed(() => Math.max(0, STAGE_CALL_AT - this.sos.elapsedSec()));
+  /** ?id=<sos id> */
+  readonly id = input<string>('');
+  protected readonly sos = signal<Sos | null>(null);
+  private readonly now = signal(Date.now());
+  private readonly elapsed = computed(() => (this.now(), this.sos() ? secondsSince(this.sos()!.created_at) : 0));
+  protected readonly time = computed(() => mmss(this.elapsed()));
+  protected readonly toCall = computed(() => Math.max(0, STAGE_CALL_AT - this.elapsed()));
 
   constructor() {
-    // มีคนรับ → ไปหน้า H11 เอง
-    effect(() => {
-      if (this.sos.status() === 'accepted') void this.router.navigateByUrl(screenUrl('H11'));
+    pollSos(this.api, () => this.id(), (s) => {
+      this.sos.set(s);
+      this.now.set(Date.now());
+      // มีคนรับ → H11 · ปิด/ยกเลิกแล้ว → หน้าผล / หน้าหลัก
+      if (s.status === 'accepted') void this.router.navigate([screenUrl('H11')], { queryParams: { id: s.id }, replaceUrl: true });
+      else if (s.status === 'closed') void this.router.navigate([screenUrl('H11-b')], { queryParams: { id: s.id }, replaceUrl: true });
+      else if (s.status === 'cancelled') void this.router.navigateByUrl(screenUrl('H03'), { replaceUrl: true });
     });
-  }
-
-  ngOnInit(): void {
-    if (this.sos.status() !== 'open') this.sos.start();
-  }
-
-  protected noOfficer(): void {
-    this.sos.reset();
-    void this.router.navigateByUrl(screenUrl('H08'));
   }
 }
 
@@ -226,7 +223,7 @@ export class SosNoOfficer {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="sheet-backdrop sos-dim">
-      <p class="behind">{{ i18n.t({ th: 'กำลังหาเจ้าหน้าที่…', en: 'Finding an officer…' }) }} {{ time() }}</p>
+      <p class="behind">{{ i18n.t({ th: 'กำลังหาเจ้าหน้าที่…', en: 'Finding an officer…' }) }}</p>
       <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="cancel-title">
         <h2 id="cancel-title">{{ i18n.t({ th: 'ยกเลิก SOS ใช่ไหม?', en: 'Cancel your SOS?' }) }}</h2>
         <p class="muted small">{{ i18n.t({ th: 'เลือกเหตุผล ระบบจะแจ้งเจ้าหน้าที่ให้ทราบว่ายกเลิกแล้ว', en: 'Pick a reason — officers will be told it is cancelled' }) }}</p>
@@ -236,7 +233,10 @@ export class SosNoOfficer {
         <button type="button" class="btn secondary option" (click)="cancel('mistake')">
           <app-icon name="alert" [size]="20" />{{ i18n.t({ th: 'กดผิด', en: 'Pressed by mistake' }) }}
         </button>
-        <a class="btn" [routerLink]="back()">{{ i18n.t({ th: 'ไม่ยกเลิก รอเจ้าหน้าที่ต่อ', en: 'Keep waiting for an officer' }) }}</a>
+        @if (failed()) {
+          <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ยกเลิกไม่ได้ ลองใหม่อีกครั้ง', en: 'Couldn’t cancel — try again' }) }}</p>
+        }
+        <a class="btn" [routerLink]="url('H09')" [queryParams]="{ id: id() }">{{ i18n.t({ th: 'ไม่ยกเลิก รอเจ้าหน้าที่ต่อ', en: 'Keep waiting for an officer' }) }}</a>
       </section>
     </div>
   `,
@@ -259,15 +259,24 @@ export class SosNoOfficer {
 })
 export class SosCancel {
   protected readonly i18n = inject(I18n);
-  private readonly sos = inject(SosDemo);
+  private readonly api = inject(OwnerApi);
   private readonly router = inject(Router);
-  protected readonly time = computed(() => mmss(this.sos.elapsedSec()));
-  protected readonly back = computed(() => screenUrl(this.sos.status() === 'accepted' ? 'H11' : 'H09'));
+  protected readonly url = screenUrl;
+  readonly id = input<string>('');
+  protected readonly failed = signal(false);
 
-  protected cancel(reason: 'safe' | 'mistake'): void {
-    this.sos.cancel(reason);
-    this.sos.reset();
-    void this.router.navigateByUrl(screenUrl('H03'));
+  /** POST /sos/:id/cancel → แจ้งเจ้าหน้าที่ทุกคนที่ได้รับ (ปิดไปแล้วก็กลับหน้าหลักเหมือนกัน) */
+  protected async cancel(reason: 'safe' | 'mistake'): Promise<void> {
+    this.failed.set(false);
+    try {
+      await this.api.cancelSos(this.id(), reason);
+    } catch (err) {
+      if ((err as { status?: number }).status !== 409) {
+        this.failed.set(true);
+        return;
+      }
+    }
+    void this.router.navigateByUrl(screenUrl('H03'), { replaceUrl: true });
   }
 }
 
@@ -288,20 +297,18 @@ export class SosCancel {
         <section class="card officer">
           <span class="icon-bubble danger"><app-icon name="user" [size]="20" /></span>
           <span>
-            <strong>{{ lang() === 'th' ? o.name : o.name_en }}</strong>
-            <span class="muted small block">{{ lang() === 'th' ? o.agency : o.agency_en }}</span>
+            <strong>{{ sos()?.accepted_by?.display_name }}</strong>
+            <span class="muted small block">{{ sos()?.accepted_by?.agency_name }}</span>
           </span>
         </section>
-        <a class="btn" [href]="'tel:' + o.phone">{{ i18n.t({ th: 'โทรหาเจ้าหน้าที่', en: 'Call the officer' }) }}</a>
+        @if (sos()?.accepted_by?.phone; as phone) {
+          <a class="btn" [href]="'tel:' + phone">{{ i18n.t({ th: 'โทรหาเจ้าหน้าที่ ', en: 'Call the officer ' }) }}{{ phone }}</a>
+        }
         <p class="muted small center">{{ i18n.t({ th: 'เบอร์โทรเห็นได้เฉพาะตอน SOS เปิดอยู่', en: 'The number is only shown while the SOS is open' }) }}</p>
         <p class="note"><span class="dot"></span>{{ i18n.t({ th: 'เมื่อเจ้าหน้าที่ปิดเรื่อง จะแจ้งให้ทราบ', en: 'You will be notified when the officer closes it' }) }}</p>
-        <div class="demo-tools">
-          {{ i18n.t({ th: 'จำลอง:', en: 'Demo:' }) }}
-          <button type="button" (click)="close()">{{ i18n.t({ th: 'เจ้าหน้าที่ปิดเรื่อง', en: 'Officer closes' }) }}</button>
-        </div>
       </div>
       <footer class="sos-foot">
-        <a class="btn secondary" [routerLink]="url('H10')">{{ i18n.t({ th: 'ยกเลิก SOS', en: 'Cancel SOS' }) }}</a>
+        <a class="btn secondary" [routerLink]="url('H10')" [queryParams]="{ id: id() }">{{ i18n.t({ th: 'ยกเลิก SOS', en: 'Cancel SOS' }) }}</a>
       </footer>
     </div>
   `,
@@ -337,25 +344,20 @@ export class SosCancel {
     }
   `,
 })
-export class SosAccepted implements OnInit {
+export class SosAccepted {
   protected readonly i18n = inject(I18n);
-  protected readonly lang = this.i18n.lang;
-  private readonly sos = inject(SosDemo);
+  private readonly api = inject(OwnerApi);
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
-  protected readonly o = MOCK_SOS_OFFICER;
+  readonly id = input<string>('');
+  protected readonly sos = signal<Sos | null>(null);
 
-  ngOnInit(): void {
-    // เปิดหน้านี้ตรง ๆ (ต้นแบบ) → ทำให้เป็นสถานะ "มีคนรับ"
-    if (this.sos.status() !== 'accepted') {
-      this.sos.start();
-      this.sos.accept();
-    }
-  }
-
-  protected close(): void {
-    this.sos.close();
-    void this.router.navigateByUrl(screenUrl('H11-b'));
+  constructor() {
+    pollSos(this.api, () => this.id(), (s) => {
+      this.sos.set(s);
+      if (s.status === 'closed') void this.router.navigate([screenUrl('H11-b')], { queryParams: { id: s.id }, replaceUrl: true });
+      else if (s.status === 'cancelled') void this.router.navigateByUrl(screenUrl('H03'), { replaceUrl: true });
+    });
   }
 }
 
@@ -370,19 +372,18 @@ export class SosAccepted implements OnInit {
       <div class="sos-body">
         <span class="check"><app-icon name="check" [size]="30" /></span>
         <h1 class="center">{{ i18n.t({ th: 'ปิดเรื่องแล้ว', en: 'SOS closed' }) }}</h1>
-        <p class="muted small center">
-          {{ i18n.t({ th: 'ใช้เวลาจนมีคนรับ ', en: 'Time until accepted: ' }) }}{{ sos.minutesToAccept() || 1 }}
-          {{ i18n.t({ th: 'นาที', en: 'min' }) }}
-        </p>
+        @if (toAccept(); as m) {
+          <p class="muted small center">{{ i18n.t({ th: 'ใช้เวลาจนมีคนรับ ', en: 'Time until accepted: ' }) }}{{ m }}</p>
+        }
         <section class="card stack">
           <div>
             <p class="muted small">{{ i18n.t({ th: 'ดูแลโดย', en: 'Handled by' }) }}</p>
-            <strong>{{ lang() === 'th' ? o.name + ' · ' + o.agency : o.name_en + ' · ' + o.agency_en }}</strong>
+            <strong>{{ sos()?.accepted_by?.display_name }} · {{ sos()?.accepted_by?.agency_name }}</strong>
           </div>
           <div class="divider"></div>
           <div>
             <p class="muted small">{{ i18n.t({ th: 'หมายเหตุจากเจ้าหน้าที่', en: 'Note from the officer' }) }}</p>
-            <p>{{ lang() === 'th' ? o.close_note : o.close_note_en }}</p>
+            <p>{{ sos()?.close_note }}</p>
           </div>
         </section>
       </div>
@@ -418,15 +419,23 @@ export class SosAccepted implements OnInit {
     }
   `,
 })
-export class SosClosed {
+export class SosClosed implements OnInit {
   protected readonly i18n = inject(I18n);
-  protected readonly lang = this.i18n.lang;
-  protected readonly sos = inject(SosDemo);
+  private readonly api = inject(OwnerApi);
   private readonly router = inject(Router);
-  protected readonly o = MOCK_SOS_OFFICER;
+  readonly id = input<string>('');
+  protected readonly sos = signal<Sos | null>(null);
+  protected readonly toAccept = computed(() => {
+    const s = this.sos();
+    if (!s?.accepted_by) return null;
+    return mmss(Math.max(0, Math.round((new Date(s.accepted_by.at).getTime() - new Date(s.created_at).getTime()) / 1000)));
+  });
+
+  async ngOnInit(): Promise<void> {
+    this.sos.set(await this.api.sos(this.id()).catch(() => null));
+  }
 
   protected home(): void {
-    this.sos.reset();
     void this.router.navigateByUrl(screenUrl('H03'));
   }
 }

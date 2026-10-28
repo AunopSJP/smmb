@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { I18n } from '../../core/i18n';
+import { Session } from '../../core/session';
 import { AuthDemo, normalizePhone, PASSWORD_MIN, ROLE_HOME, type FormKey, type SignupForm } from '../../core/mock/auth-demo';
 import { DemoSession, type DemoRole } from '../../core/mock/demo-session';
 import { Toast } from '../../core/toast';
@@ -201,8 +202,10 @@ export class AuthWaitingHead {
   }
 
   /** ของจริง: POST /auth/signout */
+  private readonly realSession = inject(Session);
+  /** ออกจากระบบจริง (ลบ session ที่ server + cookie) */
   protected signout(): void {
-    void this.router.navigateByUrl(screenUrl('A04'));
+    void this.realSession.signout().then(() => this.router.navigateByUrl(screenUrl('A04')));
   }
 }
 

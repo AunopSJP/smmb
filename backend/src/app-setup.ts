@@ -25,7 +25,8 @@ export function configureApp(app: NestExpressApplication): void {
       const started = Date.now();
       res.on('finish', () => {
         const box = typeof req.headers['x-box-id'] === 'string' ? req.headers['x-box-id'] : '-';
-        log.log(`${box} ${req.method} ${req.originalUrl} → ${res.statusCode} (${Date.now() - started} ms)`);
+        // IP ไว้เช็กว่าตั้ง TRUST_PROXY ถูก (หลัง proxy ต้องเห็น IP จริงของบอร์ด ไม่ใช่ 127.0.0.1)
+        log.log(`${box} ${req.method} ${req.originalUrl} → ${res.statusCode} (${Date.now() - started} ms) from ${req.ip ?? '-'}`);
       });
       next();
     });

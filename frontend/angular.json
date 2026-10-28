@@ -29,7 +29,13 @@
                 "input": "public"
               }
             ],
-            "styles": ["src/styles.scss"]
+            "styles": [
+              "src/styles.scss"
+            ],
+            "allowedCommonJsDependencies": [
+              "jsqr",
+              "qrcode"
+            ]
           },
           "configurations": {
             "production": {

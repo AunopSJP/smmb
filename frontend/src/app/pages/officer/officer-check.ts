@@ -1,34 +1,71 @@
 import { Location } from '@angular/common';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  DestroyRef,
-  inject,
-  input,
-  OnInit,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, type OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { apiError, isOffline } from '../../core/api';
 import { I18n, type Tr } from '../../core/i18n';
-import { nowHHmm, OfficerDemo } from '../../core/mock/officer-demo';
+import { hhmm, type Inspection, InspectionApi, type OfficerSummary, type ProblemReason, type QrCondition } from '../../core/inspection-api';
 import { screenUrl } from '../../screens/registry';
-import { FakeQr } from '../../shared/fake-qr';
 import { Icon } from '../../shared/icon';
+import { QrImage } from '../../shared/qr-image';
+import { cameraAsked, cameraPermission, markCameraAsked, QrScanner, type ScannerFailure } from '../../shared/qr-scanner';
 
-/** QR ประจำตัวเปลี่ยนทุกกี่วินาที (api.md §6.3) */
-const BADGE_TTL = 30;
-/** ลองยื่น QR ประจำตัวได้กี่ครั้ง */
-const MAX_ATTEMPTS = 3;
+/** ตู้ยังไม่พร้อมภายในกี่วินาที → ถามว่าได้ยินเสียงตู้ไหม (api.md §6.3) */
+const WAKE_TIMEOUT_S = 30;
+/** หน้ารอตู้ / รอผล ถามสถานะทุก 1 วิ (✅) */
+const POLL_MS = 1000;
 
-const go = (router: Router, code: string, query?: Record<string, string>) =>
-  void router.navigate([screenUrl(code)], { queryParams: query });
+const go = (router: Router, code: string, query?: Record<string, string | number>) =>
+  void router.navigate([screenUrl(code)], { queryParams: query, replaceUrl: code !== 'O02' });
 
-// ── O02 · สแกน QR หน้าตู้ ─────────────────────────────────────
+/**
+ * ผลของ POST /inspections → หน้าถัดไป (ตัดสินจาก code เท่านั้น — กฎข้อ 10)
+ * คืนข้อความให้แสดงในหน้าเดิม ถ้าไม่ต้องเปลี่ยนหน้า
+ */
+async function startInspection(api: InspectionApi, router: Router, body: Parameters<InspectionApi['start']>[0]): Promise<Tr | null> {
+  try {
+    const ins = await api.start(body);
+    go(router, ins.ask_qr_condition ? 'O03' : 'O05', { id: ins.id });
+    return null;
+  } catch (err) {
+    const e = apiError(err);
+    switch (e.code) {
+      case 'QR_NOT_SYSTEM':
+        go(router, 'O04');
+        return null;
+      case 'NOT_IN_ZONE':
+        go(router, 'O04-b', { reason: 'zone' });
+        return null;
+      case 'OUTSIDE_PATROL_WINDOW': {
+        const w = e.body['next_window'] as { start?: string; end?: string } | null;
+        go(router, 'O04-b', { reason: 'window', ...(w?.start ? { start: w.start, end: w.end ?? '' } : {}) });
+        return null;
+      }
+      case 'BOX_SERVICE_CLOSED':
+        go(router, 'O04-b', { reason: 'closed' });
+        return null;
+      case 'BOX_OFFLINE':
+        go(router, 'O04-b', { reason: 'offline' });
+        return null;
+      case 'QR_INVALID':
+        return 'code' in body
+          ? { th: 'รหัสไม่ถูกต้อง ตรวจรหัสใต้ QR อีกครั้ง', en: 'Wrong code — check the code under the QR' }
+          : (go(router, 'O04-b', { reason: 'invalid' }), null);
+      case 'CODE_ATTEMPTS_EXCEEDED':
+      case 'RATE_LIMITED':
+        return { th: 'ลองผิดหลายครั้ง รอสักครู่แล้วลองใหม่', en: 'Too many tries — wait a moment and try again' };
+      default:
+        return isOffline(e)
+          ? { th: 'ต่อเน็ตไม่ได้ ตรวจสัญญาณแล้วลองใหม่ (ไม่บันทึกแบบออฟไลน์)', en: 'No connection — check your signal and retry (nothing is saved offline)' }
+          : { th: 'มีข้อผิดพลาด ลองใหม่อีกครั้ง', en: 'Something went wrong — try again' };
+    }
+  }
+}
+
+// ── O02 · สแกน QR หน้าตู้ (กล้องจริง) ─────────────────────────────
 
 @Component({
   selector: 'app-officer-scan',
-  imports: [RouterLink, Icon],
+  imports: [RouterLink, Icon, QrScanner],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="camera">
@@ -39,19 +76,20 @@ const go = (router: Router, code: string, query?: Record<string, string>) =>
         <h1>{{ i18n.t({ th: 'สแกน QR หน้าตู้', en: 'Scan the mailbox QR' }) }}</h1>
       </header>
       <p class="aim">{{ i18n.t({ th: 'เล็ง QR หน้าตู้ให้อยู่ในกรอบ', en: 'Fit the mailbox QR inside the frame' }) }}</p>
-      <div class="frame" role="img" [attr.aria-label]="i18n.t({ th: 'ภาพกล้อง', en: 'Camera view' })">
-        <span class="line"></span>
-      </div>
-      <p class="hint">{{ i18n.t({ th: 'ภาพกล้อง · ระบบสแกนให้อัตโนมัติ', en: 'Camera view · scans automatically' }) }}</p>
-      <button type="button" class="torch" [attr.aria-pressed]="torch()" (click)="torch.set(!torch())">
-        {{ torch() ? i18n.t({ th: 'ปิดไฟฉาย', en: 'Torch off' }) : i18n.t({ th: 'เปิดไฟฉาย', en: 'Torch on' }) }}
-      </button>
-      <div class="demo-tools light">
-        {{ i18n.t({ th: 'จำลอง:', en: 'Demo:' }) }}
-        <button type="button" (click)="scanned()">{{ i18n.t({ th: 'สแกนติด 99/9', en: 'Scanned 99/9' }) }}</button>
-        <button type="button" (click)="fake()">{{ i18n.t({ th: 'QR ปลอม', en: 'Fake QR' }) }}</button>
-        <button type="button" (click)="otherZone()">{{ i18n.t({ th: 'บ้านโซนอื่น', en: 'Other zone' }) }}</button>
-      </div>
+      @if (ready()) {
+        @if (busy()) {
+          <p class="checking" role="status">{{ i18n.t({ th: 'กำลังตรวจสอบ…', en: 'Checking…' }) }}</p>
+        } @else {
+          <app-qr-scanner class="scanner" (scanned)="onScan($event)" (failed)="onFail($event)">
+            <span torch-label>{{ i18n.t({ th: 'ไฟฉาย', en: 'Torch' }) }}</span>
+          </app-qr-scanner>
+        }
+      }
+      @if (message(); as m) {
+        <p class="msg" role="alert">{{ i18n.t(m) }}</p>
+        <button type="button" class="torch" (click)="message.set(null)">{{ i18n.t({ th: 'สแกนอีกครั้ง', en: 'Scan again' }) }}</button>
+      }
+      <p class="hint">{{ i18n.t({ th: 'ระบบสแกนให้อัตโนมัติ · ใช้ปุ่มในแอปเท่านั้น (กล้องมือถือธรรมดาจะเปิดหน้าไรเดอร์)', en: 'Scans automatically · use this button, not the normal camera app' }) }}</p>
       <section class="sheet">
         <h2>{{ i18n.t({ th: 'สแกนไม่ติด?', en: 'Can’t scan?' }) }}</h2>
         <p class="muted small">
@@ -62,36 +100,53 @@ const go = (router: Router, code: string, query?: Record<string, string>) =>
     </div>
   `,
   styleUrl: './officer-scan.scss',
+  styles: `
+    .scanner {
+      width: min(80vw, 300px);
+    }
+    .checking {
+      margin: 48px 0;
+      font-weight: 700;
+    }
+    .msg {
+      background: rgb(255 255 255 / 12%);
+      border-radius: 12px;
+      padding: 10px 14px;
+      text-align: center;
+    }
+  `,
 })
 export class OfficerScan implements OnInit {
   protected readonly i18n = inject(I18n);
-  private readonly demo = inject(OfficerDemo);
+  private readonly api = inject(InspectionApi);
   private readonly router = inject(Router);
   private readonly location = inject(Location);
   protected readonly url = screenUrl;
-  protected readonly torch = signal(false);
+  protected readonly ready = signal(false);
+  protected readonly busy = signal(false);
+  protected readonly message = signal<Tr | null>(null);
 
-  ngOnInit(): void {
-    // ครั้งแรกต้องขอสิทธิ์กล้องก่อน (O02-c)
-    if (this.demo.camera() === 'unknown') void this.router.navigateByUrl(screenUrl('O02-c'), { replaceUrl: true });
-    else if (this.demo.camera() === 'denied') void this.router.navigateByUrl(screenUrl('O02-b'), { replaceUrl: true });
+  async ngOnInit(): Promise<void> {
+    const perm = await cameraPermission();
+    if (perm === 'denied') return go(this.router, 'O02-b', { camera: 'denied' });
+    // ครั้งแรก: อธิบายก่อนว่าขอกล้องไปทำอะไร (O02-c) แล้วเบราว์เซอร์ค่อยถาม
+    if (perm !== 'granted' && !cameraAsked()) return go(this.router, 'O02-c');
+    this.ready.set(true);
   }
 
   protected back(): void {
     this.location.back();
   }
 
-  protected scanned(): void {
-    this.demo.startInspection(this.demo.nextHouse() ?? '99/9');
-    go(this.router, 'O05');
+  protected async onScan(e: { text: string; ms: number }): Promise<void> {
+    this.busy.set(true);
+    const msg = await startInspection(this.api, this.router, { qr_text: e.text, scan_ms: e.ms });
+    this.busy.set(false);
+    this.message.set(msg);
   }
 
-  protected fake(): void {
-    go(this.router, 'O04');
-  }
-
-  protected otherZone(): void {
-    go(this.router, 'O04-b', { reason: 'zone' });
+  protected onFail(f: ScannerFailure): void {
+    go(this.router, 'O02-b', { camera: f });
   }
 }
 
@@ -110,15 +165,15 @@ export class OfficerScan implements OnInit {
       <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="cam-title">
         <h2 id="cam-title" class="perm">
           <span class="icon-bubble"><app-icon name="scan" [size]="20" /></span>
-          {{ host }} {{ i18n.t({ th: 'ต้องการใช้กล้อง', en: 'wants to use the camera' }) }}
+          {{ i18n.t({ th: 'แอปจะขอใช้กล้อง', en: 'The app will ask for the camera' }) }}
         </h2>
         <p class="small">
-          {{ i18n.t({ th: 'ใช้สแกน QR หน้าตู้เท่านั้น', en: 'Only to scan mailbox QR codes' }) }}<br />
-          {{ i18n.t({ th: 'ถ้าไม่อนุญาต ต้องพิมพ์รหัสใต้ QR ทุกครั้ง', en: 'Without it you must type the code every time' }) }}
+          {{ i18n.t({ th: 'ใช้สแกน QR หน้าตู้เท่านั้น ไม่ถ่ายรูปเก็บ', en: 'Only to scan mailbox QR codes — no photos are kept' }) }}<br />
+          {{ i18n.t({ th: 'กด "อนุญาต" ในหน้าต่างที่เด้งขึ้นมา · ถ้าไม่อนุญาต ต้องพิมพ์รหัสใต้ QR ทุกครั้ง', en: 'Tap "Allow" in the pop-up · without it you must type the code every time' }) }}
         </p>
         <div class="two">
-          <button type="button" class="btn secondary" (click)="answer(false)">{{ i18n.t({ th: 'ไม่อนุญาต', en: 'Don’t allow' }) }}</button>
-          <button type="button" class="btn" (click)="answer(true)">{{ i18n.t({ th: 'อนุญาต', en: 'Allow' }) }}</button>
+          <button type="button" class="btn secondary" (click)="answer(false)">{{ i18n.t({ th: 'พิมพ์รหัสแทน', en: 'Type instead' }) }}</button>
+          <button type="button" class="btn" (click)="answer(true)">{{ i18n.t({ th: 'ใช้กล้อง', en: 'Use camera' }) }}</button>
         </div>
       </section>
     </div>
@@ -127,18 +182,21 @@ export class OfficerScan implements OnInit {
 })
 export class OfficerCamera {
   protected readonly i18n = inject(I18n);
-  private readonly demo = inject(OfficerDemo);
   private readonly router = inject(Router);
-  /** ชื่อโดเมนจริงของเว็บ (ห้ามฮาร์ดโค้ด — CLAUDE.md กฎข้อ 8) */
-  protected readonly host = location.host;
 
   protected answer(allow: boolean): void {
-    this.demo.camera.set(allow ? 'granted' : 'denied');
-    void this.router.navigateByUrl(screenUrl(allow ? 'O02' : 'O02-b'), { replaceUrl: true });
+    markCameraAsked();
+    go(this.router, allow ? 'O02' : 'O02-b');
   }
 }
 
 // ── O02-b · พิมพ์รหัสใต้ QR ────────────────────────────────────
+
+const CAMERA_NOTE: Record<string, Tr> = {
+  denied: { th: 'ไม่ได้ให้สิทธิ์กล้อง จึงใช้วิธีพิมพ์แทน (เปิดสิทธิ์ได้ที่การตั้งค่าเบราว์เซอร์)', en: 'Camera not allowed, so type the code (allow it in browser settings)' },
+  unsupported: { th: 'เครื่องนี้เปิดกล้องในเว็บไม่ได้ (ต้องเปิดผ่าน https)', en: 'This browser can’t open the camera (needs https)' },
+  error: { th: 'เปิดกล้องไม่ได้ ใช้วิธีพิมพ์แทน', en: 'Couldn’t open the camera — type the code instead' },
+};
 
 @Component({
   selector: 'app-officer-code',
@@ -146,15 +204,13 @@ export class OfficerCamera {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pad">
-      @if (demo.camera() !== 'denied') {
-        <a class="back-link" [routerLink]="url('O02')"><app-icon name="chevronLeft" [size]="16" />{{ i18n.t({ th: 'กลับไปสแกน', en: 'Back to scanning' }) }}</a>
-      } @else {
-        <a class="back-link" [routerLink]="url('O01')"><app-icon name="chevronLeft" [size]="16" />{{ i18n.t({ th: 'หน้าสรุป', en: 'Summary' }) }}</a>
-      }
+      <a class="back-link" [routerLink]="url(camera() ? 'O01' : 'O02')"><app-icon name="chevronLeft" [size]="16" />{{
+        camera() ? i18n.t({ th: 'หน้าสรุป', en: 'Summary' }) : i18n.t({ th: 'กลับไปสแกน', en: 'Back to scanning' })
+      }}</a>
       <h1>{{ i18n.t({ th: 'พิมพ์รหัสใต้ QR', en: 'Type the code under the QR' }) }}</h1>
       <p class="muted small">{{ i18n.t({ th: 'รหัส 8 ตัว อยู่ใต้ QR หน้าตู้', en: 'The 8-character code under the mailbox QR' }) }}</p>
-      @if (demo.camera() === 'denied') {
-        <p class="chip warn note">{{ i18n.t({ th: 'ไม่ได้ให้สิทธิ์กล้อง จึงใช้วิธีพิมพ์แทน', en: 'Camera not allowed, so type the code instead' }) }}</p>
+      @if (note(); as n) {
+        <p class="chip warn note">{{ i18n.t(n) }}</p>
       }
       <form class="stack grow" (submit)="check($event)">
         <label class="field">
@@ -168,24 +224,21 @@ export class OfficerCamera {
             inputmode="text"
             maxlength="9"
             [value]="value()"
-            (input)="value.set(normalize(code.value)); code.value = value(); error.set(false)"
-            [attr.aria-invalid]="error()"
+            (input)="value.set(normalize(code.value)); code.value = value(); error.set(null)"
+            [attr.aria-invalid]="!!error()"
             aria-describedby="code-hint"
           />
-          <span id="code-hint" class="muted small" [class.err]="error()">
-            @if (error()) {
-              {{ i18n.t({ th: 'รหัสต้องมี 8 ตัว', en: 'The code has 8 characters' }) }}
+          <span id="code-hint" class="muted small" [class.err]="!!error()" [attr.role]="error() ? 'alert' : null">
+            @if (error(); as e) {
+              {{ i18n.t(e) }}
             } @else {
-              {{ i18n.t({ th: 'ตัวพิมพ์ใหญ่ทั้งหมด ไม่มีตัว O กับ I ให้สับสน', en: 'Capital letters only — no O or I to confuse' }) }}
+              {{ i18n.t({ th: 'ไม่สนตัวเล็กใหญ่ ไม่มีตัว 0 O 1 I L ให้สับสน', en: 'Any case — no 0, O, 1, I or L to confuse' }) }}
             }
           </span>
         </label>
-        <div class="demo-tools">
-          {{ i18n.t({ th: 'จำลอง:', en: 'Demo:' }) }}
-          <button type="button" (click)="value.set('H4KD9TRW')">{{ i18n.t({ th: 'ใส่รหัสถูก', en: 'Fill a valid code' }) }}</button>
-          <button type="button" (click)="wrong()">{{ i18n.t({ th: 'รหัสผิด', en: 'Wrong code' }) }}</button>
-        </div>
-        <button type="submit" class="btn push-end">{{ i18n.t({ th: 'ตรวจสอบรหัส', en: 'Check the code' }) }}</button>
+        <button type="submit" class="btn push-end" [disabled]="busy()">
+          {{ busy() ? i18n.t({ th: 'กำลังตรวจสอบ…', en: 'Checking…' }) : i18n.t({ th: 'ตรวจสอบรหัส', en: 'Check the code' }) }}
+        </button>
       </form>
     </div>
   `,
@@ -241,35 +294,36 @@ export class OfficerCamera {
 })
 export class OfficerCode {
   protected readonly i18n = inject(I18n);
-  protected readonly demo = inject(OfficerDemo);
+  private readonly api = inject(InspectionApi);
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
+  /** ?camera=denied|unsupported|error — มาจากเปิดกล้องไม่ได้ */
+  readonly camera = input<string>();
+  protected readonly note = computed(() => CAMERA_NOTE[this.camera() ?? ''] ?? null);
   protected readonly value = signal('');
-  protected readonly error = signal(false);
+  protected readonly error = signal<Tr | null>(null);
+  protected readonly busy = signal(false);
 
   /** ไม่สนตัวเล็กใหญ่ / ขีด / ช่องว่าง (api.md §5) */
   protected normalize(v: string): string {
     return v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
   }
 
-  protected check(e: Event): void {
+  protected async check(e: Event): Promise<void> {
     e.preventDefault();
     if (this.value().length !== 8) {
-      this.error.set(true);
+      this.error.set({ th: 'รหัสต้องมี 8 ตัว', en: 'The code has 8 characters' });
       return;
     }
-    this.demo.startInspection(this.demo.nextHouse() ?? '99/9');
-    go(this.router, 'O03');
-  }
-
-  protected wrong(): void {
-    go(this.router, 'O04-b', { reason: 'code' });
+    this.busy.set(true);
+    this.error.set(await startInspection(this.api, this.router, { code: this.value() }));
+    this.busy.set(false);
   }
 }
 
 // ── O03 · QR หน้าตู้ดูเป็นยังไง ─────────────────────────────────
 
-const CONDITIONS: { v: string; label: Tr; wide?: boolean }[] = [
+const CONDITIONS: { v: QrCondition; label: Tr; wide?: boolean }[] = [
   { v: 'faded', label: { th: 'ซีด / จาง', en: 'Faded' } },
   { v: 'torn', label: { th: 'ขาด / ฉีก', en: 'Torn' } },
   { v: 'missing', label: { th: 'หาย / ไม่มี', en: 'Missing' } },
@@ -282,7 +336,7 @@ const CONDITIONS: { v: string; label: Tr; wide?: boolean }[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pad">
-      <p class="ok-text small strong">{{ i18n.t({ th: 'รหัสถูกต้อง · บ้านเลขที่ ', en: 'Code OK · house ' }) }}{{ demo.inspecting() }}</p>
+      <p class="ok-text small strong">{{ i18n.t({ th: 'รหัสถูกต้อง · บ้านเลขที่ ', en: 'Code OK · house ' }) }}{{ ins()?.box?.house_no }}</p>
       <h1>{{ i18n.t({ th: 'QR หน้าตู้ดูเป็นยังไง?', en: 'How does the mailbox QR look?' }) }}</h1>
       <p class="muted small">{{ i18n.t({ th: 'ช่วยบอกหน่อย ระบบจะแจ้งให้เปลี่ยนให้', en: 'Tell us and we will arrange a replacement' }) }}</p>
       <div class="grid" role="radiogroup" [attr.aria-label]="i18n.t({ th: 'สภาพ QR', en: 'QR condition' })">
@@ -292,8 +346,8 @@ const CONDITIONS: { v: string; label: Tr; wide?: boolean }[] = [
           </button>
         }
       </div>
-      <p class="muted small">{{ i18n.t({ th: 'ตอบแล้วตรวจตู้ต่อได้ทันที', en: 'Answer and carry on with the inspection' }) }}</p>
-      <button type="button" class="btn push-end" [disabled]="!picked()" (click)="next()">
+      <p class="muted small">{{ i18n.t({ th: 'ตอบแล้วตรวจตู้ต่อได้ทันที (ตู้กำลังตื่นอยู่)', en: 'Answer and carry on — the box is already waking' }) }}</p>
+      <button type="button" class="btn push-end" [disabled]="!picked() || busy()" (click)="next()">
         {{ i18n.t({ th: 'ส่ง แล้วตรวจต่อ', en: 'Send and continue' }) }}
       </button>
     </div>
@@ -330,15 +384,27 @@ const CONDITIONS: { v: string; label: Tr; wide?: boolean }[] = [
     }
   `,
 })
-export class OfficerQrCondition {
+export class OfficerQrCondition implements OnInit {
   protected readonly i18n = inject(I18n);
-  protected readonly demo = inject(OfficerDemo);
+  private readonly api = inject(InspectionApi);
   private readonly router = inject(Router);
+  readonly id = input<string>('');
   protected readonly conditions = CONDITIONS;
-  protected readonly picked = signal<string | null>(null);
+  protected readonly picked = signal<QrCondition | null>(null);
+  protected readonly busy = signal(false);
+  protected readonly ins = signal<Inspection | null>(null);
 
-  protected next(): void {
-    go(this.router, 'O05');
+  async ngOnInit(): Promise<void> {
+    this.ins.set(await this.api.get(this.id()).catch(() => null));
+  }
+
+  protected async next(): Promise<void> {
+    const c = this.picked();
+    if (!c) return;
+    this.busy.set(true);
+    // ส่งไม่ได้ก็ตรวจต่อ (ไม่บล็อกการตรวจ ✅)
+    await this.api.qrCondition(this.id(), c).catch(() => null);
+    go(this.router, 'O05', { id: this.id() });
   }
 }
 
@@ -354,14 +420,17 @@ export class OfficerQrCondition {
         <span class="big-icon danger" aria-hidden="true">!</span>
         <h1 class="danger-text">{{ i18n.t({ th: 'QR นี้ไม่ใช่ของระบบ', en: 'This QR is not from our system' }) }}</h1>
         <p class="muted small">
-          {{ i18n.t({ th: 'อาจมีคนแปะ QR ปลอมทับไว้ อย่าสแกนด้วยกล้องมือถือธรรมดา', en: 'Someone may have stuck a fake QR on top. Don’t scan it with the normal phone camera' }) }}
+          {{ i18n.t({ th: 'อาจมีคนแปะ QR ปลอมทับไว้ อย่าสแกนด้วยกล้องมือถือธรรมดา · ไม่ได้บันทึกการตรวจ', en: 'Someone may have stuck a fake QR on top. Don’t scan it with the normal camera · not recorded' }) }}
         </p>
         <p class="info-box">
           <strong class="ok-text"><app-icon name="check" [size]="14" /> {{ i18n.t({ th: 'แจ้งแอดมินแล้วอัตโนมัติ', en: 'Admin alerted automatically' }) }}</strong><br />
-          <span class="muted">{{ i18n.t({ th: 'แอดมินจะส่งช่างมาตรวจ และแจ้งหัวหน้าโซน', en: 'A technician will be sent and the zone head told' }) }}</span>
+          <span class="muted">{{ i18n.t({ th: 'ถ้าเป็น QR หน้าตู้ ลองพิมพ์รหัสใต้ QR แทน', en: 'If this is the mailbox QR, try typing the code under it' }) }}</span>
         </p>
       </div>
-      <a class="btn push-end" [routerLink]="url('O01')">{{ i18n.t({ th: 'กลับหน้าสรุป', en: 'Back to summary' }) }}</a>
+      <div class="stack push-end">
+        <a class="btn" [routerLink]="url('O02-b')">{{ i18n.t({ th: 'พิมพ์รหัสใต้ QR', en: 'Type the code' }) }}</a>
+        <a class="btn secondary" [routerLink]="url('O01')">{{ i18n.t({ th: 'กลับหน้าสรุป', en: 'Back to summary' }) }}</a>
+      </div>
     </div>
   `,
   styles: `
@@ -375,20 +444,28 @@ export class OfficerNotSystem {
   protected readonly url = screenUrl;
 }
 
-// ── O04-b · ตรวจไม่ได้ (ไม่ใช่โซน / นอกเวลา / รหัสผิด) ─────────────
+// ── O04-b · ตรวจไม่ได้ ──────────────────────────────────────────
 
 const DENIED: Record<string, { title: Tr; body: Tr }> = {
   zone: {
     title: { th: 'ไม่ใช่บ้านในโซนของคุณ', en: 'Not a house in your zone' },
-    body: { th: 'บ้านเลขที่ 88/1 อยู่โซน B · ไม่ได้บันทึกการตรวจ', en: 'House 88/1 is in zone B · not recorded' },
+    body: { th: 'ตรวจได้เฉพาะบ้านในโซนที่หัวหน้าใส่คุณไว้ · ไม่ได้บันทึกการตรวจ', en: 'You can only inspect houses in your zones · not recorded' },
   },
   window: {
     title: { th: 'ตอนนี้นอกเวลาตรวจ', en: 'Outside patrol hours' },
-    body: { th: 'รอบถัดไป 17:00–21:00 · ไม่ได้บันทึกการตรวจ', en: 'Next round 17:00–21:00 · not recorded' },
+    body: { th: 'ตรวจได้เฉพาะในเวลาตรวจของโซน · ไม่ได้บันทึกการตรวจ', en: 'Inspections only count during patrol hours · not recorded' },
   },
-  code: {
-    title: { th: 'รหัสไม่ถูกต้อง', en: 'Wrong code' },
-    body: { th: 'ตรวจรหัสใต้ QR อีกครั้ง · ผิดหลายครั้งจะต้องรอสักพัก', en: 'Check the code again · too many tries means a short wait' },
+  closed: {
+    title: { th: 'ตู้นี้ปิดบริการอยู่', en: 'This mailbox is closed' },
+    body: { th: 'แอดมินปิดบริการตู้นี้ไว้ · ไม่ได้บันทึกการตรวจ', en: 'The admin closed this mailbox · not recorded' },
+  },
+  offline: {
+    title: { th: 'ตู้ไม่ออนไลน์', en: 'The mailbox is offline' },
+    body: { th: 'ตู้ไม่ได้ต่อเน็ตอยู่ตอนนี้ ปลุกตู้ไม่ได้ · ไม่ได้บันทึกการตรวจ', en: 'The box isn’t connected right now, so it can’t be woken · not recorded' },
+  },
+  invalid: {
+    title: { th: 'QR นี้ใช้ไม่ได้แล้ว', en: 'This QR is no longer valid' },
+    body: { th: 'อาจเป็นใบเก่าที่ถูกเปลี่ยนแล้ว ลองพิมพ์รหัสใต้ QR', en: 'It may be an old replaced QR — try typing the code' },
   },
 };
 
@@ -403,9 +480,12 @@ const DENIED: Record<string, { title: Tr; body: Tr }> = {
         <span class="big-icon warn" aria-hidden="true">!</span>
         <h1>{{ i18n.t(d.title) }}</h1>
         <p class="muted small">{{ i18n.t(d.body) }}</p>
+        @if (reason() === 'window' && start()) {
+          <p class="info-box">{{ i18n.t({ th: 'รอบถัดไป ', en: 'Next round ' }) }}<strong>{{ start() }}–{{ end() }}</strong></p>
+        }
       </div>
       <div class="stack push-end">
-        <a class="btn" [routerLink]="url(reason() === 'code' ? 'O02-b' : 'O02')">{{ i18n.t({ th: 'สแกนใหม่', en: 'Scan again' }) }}</a>
+        <a class="btn" [routerLink]="url(reason() === 'invalid' ? 'O02-b' : 'O02')">{{ i18n.t({ th: 'สแกนหลังอื่น', en: 'Scan another' }) }}</a>
         <a class="btn secondary" [routerLink]="url('O01')">{{ i18n.t({ th: 'กลับหน้าสรุป', en: 'Back to summary' }) }}</a>
       </div>
     </div>
@@ -414,16 +494,19 @@ const DENIED: Record<string, { title: Tr; body: Tr }> = {
 export class OfficerDenied {
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
-  /** ?reason=zone|window|code */
+  /** ?reason=zone|window|closed|offline|invalid (+ start, end ของรอบถัดไป) */
   readonly reason = input<string>('zone');
+  readonly start = input<string>();
+  readonly end = input<string>();
   protected readonly text = computed(() => DENIED[this.reason() ?? 'zone'] ?? DENIED['zone']);
 }
 
 // ── O05 · กำลังปลุกตู้ / O05-b ตู้ไม่ตอบ ─────────────────────────
 
-const PROBLEMS: { v: string; label: Tr }[] = [
-  { v: 'no_light', label: { th: 'ไฟไม่ติดเลย', en: 'No light at all' } },
-  { v: 'light_no_scan', label: { th: 'ไฟติด แต่ไม่สแกน', en: 'Light on, but not scanning' } },
+const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
+  { v: 'no_response', label: { th: 'ไม่มีเสียงจากตู้เลย', en: 'No sound from the box at all' } },
+  { v: 'no_scan', label: { th: 'ตู้มีเสียง แต่ไม่สแกน', en: 'The box beeped, but isn’t scanning' } },
+  { v: 'scan_failed_3', label: { th: 'ตู้สแกนไม่ผ่าน 3 ครั้ง', en: 'The box failed to scan 3 times' } },
   { v: 'damaged', label: { th: 'ตู้เสียหาย / ถูกงัด', en: 'Damaged / forced open' } },
 ];
 
@@ -444,33 +527,32 @@ const PROBLEMS: { v: string; label: Tr }[] = [
         <div class="result">
           <span class="big-icon warn" aria-hidden="true">!</span>
           <h1>{{ i18n.t({ th: 'ตู้ไม่ตอบ', en: 'The mailbox isn’t responding' }) }}</h1>
-          <p class="muted small">{{ i18n.t({ th: 'รอมา 30 วินาทีแล้ว ไฟที่ตู้ติดไหม?', en: 'Waited 30 seconds. Is the box light on?' }) }}</p>
+          <p class="muted small">{{ i18n.t({ th: 'รอมา 30 วินาทีแล้ว ได้ยินเสียงจากตู้ไหม?', en: 'Waited 30 seconds. Did you hear the box beep?' }) }}</p>
         </div>
         <fieldset class="options">
-          <legend class="small">{{ i18n.t({ th: 'ดูที่ตู้แล้วเลือก', en: 'Look at the box and choose' }) }}</legend>
+          <legend class="small">{{ i18n.t({ th: 'ฟังที่ตู้แล้วเลือก', en: 'Listen at the box and choose' }) }}</legend>
           @for (p of problems; track p.v) {
             <label><input type="radio" name="problem" [value]="p.v" [checked]="problem() === p.v" (change)="problem.set(p.v)" />{{ i18n.t(p.label) }}</label>
           }
         </fieldset>
+        @if (failed()) {
+          <p class="err small" role="alert">{{ i18n.t({ th: 'ส่งไม่ได้ ลองใหม่อีกครั้ง', en: 'Couldn’t send — try again' }) }}</p>
+        }
         <p class="muted small">{{ i18n.t({ th: 'ระบบจะแจ้งเจ้าของบ้านและแอดมินให้', en: 'We will tell the owner and the admin' }) }}</p>
         <div class="stack push-end">
-          <button type="button" class="btn orange" (click)="reported.set(true)">{{ i18n.t({ th: 'แจ้งปัญหาตู้', en: 'Report a box problem' }) }}</button>
-          <button type="button" class="btn secondary" (click)="retry()">{{ i18n.t({ th: 'ลองปลุกตู้อีกครั้ง', en: 'Try waking it again' }) }}</button>
+          <button type="button" class="btn orange" [disabled]="busy()" (click)="report()">{{ i18n.t({ th: 'แจ้งปัญหาตู้', en: 'Report a box problem' }) }}</button>
+          <a class="btn secondary" [routerLink]="url('O02')">{{ i18n.t({ th: 'สแกนปลุกตู้ใหม่', en: 'Scan to wake it again' }) }}</a>
         </div>
       } @else {
         <div class="result waking" aria-live="polite">
-          <p class="ok-text small strong"><app-icon name="check" [size]="14" /> {{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ demo.inspecting() }} · {{ i18n.t({ th: 'ในโซนของคุณ', en: 'in your zone' }) }}</p>
+          <p class="ok-text small strong"><app-icon name="check" [size]="14" /> {{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ ins()?.box?.house_no }} · {{ i18n.t({ th: 'ในโซนของคุณ', en: 'in your zone' }) }}</p>
           <div class="spinner" aria-hidden="true"><span>{{ i18n.t({ th: 'ตู้', en: 'Box' }) }}</span></div>
           <h1>{{ i18n.t({ th: 'กำลังปลุกตู้…', en: 'Waking the mailbox…' }) }}</h1>
           <p class="muted small">
             {{ i18n.t({ th: 'ไม่ต้องกดอะไรที่ตู้', en: 'No need to touch the box' }) }}<br />
-            {{ i18n.t({ th: 'ไฟที่ตู้จะติด แล้วกล้องเปิดเอง', en: 'Its light turns on and the camera starts by itself' }) }}
+            {{ i18n.t({ th: 'ตู้จะส่งเสียงปี๊บ แล้วกล้องเปิดเอง', en: 'It beeps and its camera starts by itself' }) }}
           </p>
-          <p class="muted small">{{ i18n.t({ th: 'ปกติใช้ 1–3 วินาที', en: 'Usually 1–3 seconds' }) }}</p>
-        </div>
-        <div class="demo-tools push-end">
-          {{ i18n.t({ th: 'จำลอง:', en: 'Demo:' }) }}
-          <button type="button" (click)="noResponse.set(true)">{{ i18n.t({ th: 'ตู้ไม่ตอบ', en: 'No response' }) }}</button>
+          <p class="muted small">{{ i18n.t({ th: 'ปกติใช้ 1–3 วินาที', en: 'Usually 1–3 seconds' }) }} · {{ waited() }}s</p>
         </div>
       }
     </div>
@@ -478,6 +560,9 @@ const PROBLEMS: { v: string; label: Tr }[] = [
   styles: `
     .strong {
       font-weight: 700;
+    }
+    .err {
+      color: var(--sos);
     }
     .waking {
       padding-top: 48px;
@@ -519,70 +604,109 @@ const PROBLEMS: { v: string; label: Tr }[] = [
 })
 export class OfficerWake implements OnInit {
   protected readonly i18n = inject(I18n);
-  protected readonly demo = inject(OfficerDemo);
+  private readonly api = inject(InspectionApi);
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
   protected readonly problems = PROBLEMS;
-  /** ?problem=1 → เปิดที่หน้าแจ้งปัญหาตู้เลย (มาจาก "ตู้ไม่สแกน") */
+  readonly id = input<string>('');
+  /** ?problem=1 → เปิดที่หน้าแจ้งปัญหาตู้เลย · ?reason=… เลือกไว้ก่อน */
   readonly problemParam = input<string>(undefined, { alias: 'problem' });
+  readonly reasonParam = input<string>(undefined, { alias: 'reason' });
+  protected readonly ins = signal<Inspection | null>(null);
   protected readonly noResponse = signal(false);
-  protected readonly problem = signal('no_light');
+  protected readonly problem = signal<ProblemReason>('no_response');
   protected readonly reported = signal(false);
-  private timer: ReturnType<typeof setTimeout> | null = null;
+  protected readonly busy = signal(false);
+  protected readonly failed = signal(false);
+  protected readonly waited = signal(0);
+  private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.clear());
+    inject(DestroyRef).onDestroy(() => this.stop());
   }
 
   ngOnInit(): void {
     if (this.problemParam()) {
       this.noResponse.set(true);
-      this.problem.set('light_no_scan');
-    } else {
-      this.wake();
+      const r = this.reasonParam();
+      if (PROBLEMS.some((p) => p.v === r)) this.problem.set(r as ProblemReason);
+      else this.problem.set('no_scan');
+      return;
     }
+    const started = Date.now();
+    const tick = async () => {
+      this.waited.set(Math.floor((Date.now() - started) / 1000));
+      const ins = await this.api.get(this.id()).catch(() => null);
+      if (!ins) return;
+      this.ins.set(ins);
+      if (ins.status === 'ready') return this.leave('O06');
+      if (ins.status === 'passed') return this.leave('O08');
+      if (ins.status === 'failed') return this.leave('O06-c');
+      if (ins.status === 'box_problem') {
+        this.stop();
+        this.reported.set(true);
+      } else if (ins.status === 'expired' || this.waited() >= WAKE_TIMEOUT_S) {
+        this.stop();
+        this.noResponse.set(true);
+      }
+    };
+    void tick();
+    this.timer = setInterval(() => void tick(), POLL_MS);
   }
 
-  protected retry(): void {
-    this.noResponse.set(false);
-    this.wake();
+  protected async report(): Promise<void> {
+    this.busy.set(true);
+    this.failed.set(false);
+    try {
+      await this.api.problem(this.id(), this.problem());
+      this.reported.set(true);
+    } catch {
+      this.failed.set(true);
+    }
+    this.busy.set(false);
   }
 
-  /** ตู้ตอบ (จำลอง 2.5 วิ) → หน้า QR ประจำตัว */
-  private wake(): void {
-    this.clear();
-    this.timer = setTimeout(() => {
-      if (!this.noResponse()) go(this.router, 'O06');
-    }, 2500);
+  private leave(code: string): void {
+    this.stop();
+    go(this.router, code, { id: this.id() });
   }
 
-  private clear(): void {
-    if (this.timer) clearTimeout(this.timer);
+  private stop(): void {
+    if (this.timer) clearInterval(this.timer);
     this.timer = null;
   }
 }
 
 // ── O06 · QR ประจำตัว ─────────────────────────────────────────
 
+/** ตอนแสดง QR ประจำตัว: กันจอดับ (Screen Wake Lock — เบราว์เซอร์ที่ไม่รองรับก็ข้ามไป) */
+interface WakeLockSentinelLike {
+  release(): Promise<void>;
+}
+
 @Component({
   selector: 'app-officer-badge',
-  imports: [RouterLink, Icon, FakeQr],
+  imports: [RouterLink, Icon, QrImage],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pad">
-      @if (demo.attempt() > 1) {
+      @if ((ins()?.attempt ?? 1) > 1) {
         <p class="retry" role="alert">
           <strong>{{ i18n.t({ th: 'ตู้อ่านไม่ผ่าน ลองอีกครั้ง', en: 'The box couldn’t read it — try again' }) }}</strong><br />
           <span class="small">{{ i18n.t({ th: 'ลองขยับให้ใกล้ขึ้น หรือเอียงจอเลี่ยงแสงสะท้อน', en: 'Move closer, or tilt to avoid glare' }) }}</span>
         </p>
       } @else {
-        <p class="ok-text small strong"><app-icon name="check" [size]="14" /> {{ i18n.t({ th: 'ตู้บ้านเลขที่ ', en: 'Mailbox at ' }) }}{{ demo.inspecting() }} {{ i18n.t({ th: 'พร้อมแล้ว', en: 'is ready' }) }}</p>
+        <p class="ok-text small strong"><app-icon name="check" [size]="14" /> {{ i18n.t({ th: 'ตู้บ้านเลขที่ ', en: 'Mailbox at ' }) }}{{ ins()?.box?.house_no }} {{ i18n.t({ th: 'พร้อมแล้ว', en: 'is ready' }) }}</p>
       }
       <h1>{{ i18n.t({ th: 'หันจอนี้เข้าหากล้องตู้', en: 'Point this screen at the box camera' }) }}</h1>
-      <p class="muted small">{{ i18n.t({ th: 'ห่างประมาณ 1 ฝ่ามือ ถือนิ่ง ๆ', en: 'About a hand’s width away, hold still' }) }}</p>
+      <p class="muted small">{{ i18n.t({ th: 'ห่างประมาณ 1 ฝ่ามือ ถือนิ่ง ๆ · ตู้ส่งเสียงเมื่ออ่านได้', en: 'About a hand’s width away, hold still · the box beeps when it reads it' }) }}</p>
 
       <div class="qr">
-        <app-fake-qr [seed]="seed()" [label]="i18n.t({ th: 'QR ประจำตัว', en: 'Your badge QR' })" />
+        @if (qr(); as q) {
+          <app-qr-image [text]="q" level="M" [label]="i18n.t({ th: 'QR ประจำตัว', en: 'Your badge QR' })" />
+        } @else {
+          <p class="muted small center">{{ i18n.t({ th: 'กำลังสร้าง QR…', en: 'Making your QR…' }) }}</p>
+        }
       </div>
 
       <div class="countdown" aria-live="off">
@@ -592,20 +716,16 @@ export class OfficerWake implements OnInit {
           <span class="muted small block">{{ i18n.t({ th: 'ถ่ายรูปไปใช้แทนไม่ได้', en: 'A photo of it won’t work' }) }}</span>
         </span>
       </div>
-      <div class="attempts" [attr.aria-label]="i18n.t({ th: 'ครั้งที่ ', en: 'Try ' }) + demo.attempt() + ' / 3'">
-        @for (i of [1, 2, 3]; track i) {
-          <span [class.failed]="i < demo.attempt()" [class.now]="i === demo.attempt()"></span>
-        }
-        <small class="muted">{{ i18n.t({ th: 'ครั้งที่ ', en: 'Try ' }) }}{{ demo.attempt() }} {{ i18n.t({ th: 'จาก', en: 'of' }) }} 3</small>
-      </div>
-
-      <div class="demo-tools">
-        {{ i18n.t({ th: 'จำลอง:', en: 'Demo:' }) }}
-        <button type="button" (click)="pass()">{{ i18n.t({ th: 'ตู้อ่านผ่าน', en: 'Box reads OK' }) }}</button>
-        <button type="button" (click)="fail()">{{ i18n.t({ th: 'ตู้อ่านไม่ผ่าน', en: 'Box fails to read' }) }}</button>
-      </div>
-      <p class="muted small center push-end">{{ i18n.t({ th: 'แอปเพิ่มความสว่างจอให้อัตโนมัติ', en: 'Screen brightness is raised automatically' }) }}</p>
-      <a class="btn secondary" [routerLink]="url('O05')" [queryParams]="{ problem: 1 }">
+      @if (ins(); as i) {
+        <div class="attempts" [attr.aria-label]="i18n.t({ th: 'ครั้งที่ ', en: 'Try ' }) + i.attempt + ' / ' + i.attempts_max">
+          @for (n of range(i.attempts_max); track n) {
+            <span [class.failed]="n < i.attempt" [class.now]="n === i.attempt"></span>
+          }
+          <small class="muted">{{ i18n.t({ th: 'ครั้งที่ ', en: 'Try ' }) }}{{ i.attempt }} {{ i18n.t({ th: 'จาก', en: 'of' }) }} {{ i.attempts_max }}</small>
+        </div>
+      }
+      <p class="muted small center push-end">{{ i18n.t({ th: 'เพิ่มความสว่างจอให้สุดจะอ่านง่ายขึ้น', en: 'Turn screen brightness up for an easier read' }) }}</p>
+      <a class="btn secondary" [routerLink]="url('O05')" [queryParams]="{ id: id(), problem: 1 }">
         {{ i18n.t({ th: 'ตู้ไม่สแกน · แจ้งปัญหาตู้', en: 'Box won’t scan · report a problem' }) }}
       </a>
     </div>
@@ -625,8 +745,8 @@ export class OfficerWake implements OnInit {
     }
     .qr {
       align-self: center;
-      width: min(100%, 240px);
-      padding: 12px;
+      width: min(100%, 280px);
+      padding: 8px;
       border: 2px solid var(--text);
       border-radius: var(--radius);
       background: #fff;
@@ -672,40 +792,83 @@ export class OfficerWake implements OnInit {
     }
   `,
 })
-export class OfficerBadge {
+export class OfficerBadge implements OnInit {
   protected readonly i18n = inject(I18n);
-  protected readonly demo = inject(OfficerDemo);
+  private readonly api = inject(InspectionApi);
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
-  protected readonly seed = signal(Date.now() % 100000);
-  protected readonly left = signal(BADGE_TTL);
+  readonly id = input<string>('');
+  protected readonly ins = signal<Inspection | null>(null);
+  protected readonly qr = signal<string | null>(null);
+  protected readonly left = signal(30);
+  private expiresAt = 0;
+  private poll: ReturnType<typeof setInterval> | null = null;
+  private clock: ReturnType<typeof setInterval> | null = null;
+  private wakeLock: WakeLockSentinelLike | null = null;
+  private fetching = false;
+  protected readonly range = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
 
   constructor() {
-    // นับถอยหลัง · ครบ 30 วิ ขอ QR ใหม่ (ของจริง: GET /inspections/:id/badge)
-    const t = setInterval(() => {
-      if (this.left() <= 1) {
-        this.seed.update((s) => s + 1);
-        this.left.set(BADGE_TTL);
-      } else {
-        this.left.update((s) => s - 1);
-      }
-    }, 1000);
-    inject(DestroyRef).onDestroy(() => clearInterval(t));
+    inject(DestroyRef).onDestroy(() => this.stop());
   }
 
-  protected pass(): void {
-    this.demo.markChecked(this.demo.inspecting(), nowHHmm());
-    go(this.router, 'O08');
+  async ngOnInit(): Promise<void> {
+    await this.keepScreenOn();
+    await this.refreshBadge();
+    // นับถอยหลัง · เหลือ ≤ 2 วิ ขอ QR ใหม่ล่วงหน้า (ตู้อ่าน QR ที่หมดอายุแล้วไม่ผ่าน)
+    this.clock = setInterval(() => {
+      const s = Math.max(0, Math.ceil((this.expiresAt - Date.now()) / 1000));
+      this.left.set(s);
+      if (s <= 2) void this.refreshBadge();
+    }, 500);
+    const tick = async () => {
+      const ins = await this.api.get(this.id()).catch(() => null);
+      if (!ins) return;
+      this.ins.set(ins);
+      if (ins.status === 'passed') this.leave('O08');
+      else if (ins.status === 'failed' || ins.status === 'expired') this.leave('O06-c');
+      else if (ins.status === 'box_problem') this.leave('O01');
+    };
+    void tick();
+    this.poll = setInterval(() => void tick(), POLL_MS);
   }
 
-  protected fail(): void {
-    if (this.demo.attempt() >= MAX_ATTEMPTS) {
-      go(this.router, 'O06-c');
-      return;
+  private async refreshBadge(): Promise<void> {
+    if (this.fetching) return;
+    this.fetching = true;
+    try {
+      const b = await this.api.badge(this.id());
+      this.qr.set(b.qr);
+      this.expiresAt = new Date(b.expires_at).getTime();
+      this.left.set(Math.ceil((this.expiresAt - Date.now()) / 1000));
+    } catch (err) {
+      // 410 = การตรวจจบแล้ว → ตัวถามสถานะจะพาไปหน้าผลเอง
+      if (apiError(err).code === 'NOT_READY') go(this.router, 'O05', { id: this.id() });
+    } finally {
+      this.fetching = false;
     }
-    this.demo.attempt.update((a) => a + 1);
-    this.seed.update((s) => s + 1);
-    this.left.set(BADGE_TTL);
+  }
+
+  private async keepScreenOn(): Promise<void> {
+    try {
+      const wl = (navigator as Navigator & { wakeLock?: { request(type: 'screen'): Promise<WakeLockSentinelLike> } }).wakeLock;
+      this.wakeLock = (await wl?.request('screen')) ?? null;
+    } catch {
+      this.wakeLock = null;
+    }
+  }
+
+  private leave(code: string): void {
+    this.stop();
+    go(this.router, code, { id: this.id() });
+  }
+
+  private stop(): void {
+    if (this.poll) clearInterval(this.poll);
+    if (this.clock) clearInterval(this.clock);
+    this.poll = this.clock = null;
+    void this.wakeLock?.release().catch(() => undefined);
+    this.wakeLock = null;
   }
 }
 
@@ -719,16 +882,16 @@ export class OfficerBadge {
     <div class="pad">
       <div class="result">
         <span class="big-icon warn" aria-hidden="true">!</span>
-        <h1>{{ i18n.t({ th: 'ตู้สแกนไม่ผ่าน 3 ครั้ง', en: 'The box failed to scan 3 times' }) }}</h1>
-        <p class="muted small">{{ i18n.t({ th: 'ตู้อาจมีปัญหา เช่น กล้องสกปรก หรือไฟส่องเสีย', en: 'The box may have a problem, like a dirty camera or broken light' }) }}</p>
+        <h1>{{ i18n.t({ th: 'ตู้สแกนไม่ผ่าน', en: 'The box couldn’t scan your QR' }) }}</h1>
+        <p class="muted small">{{ i18n.t({ th: 'ตู้อาจมีปัญหา เช่น กล้องสกปรก หรือหมดเวลาก่อนอ่านได้', en: 'The box may have a problem, like a dirty camera, or time ran out' }) }}</p>
         <p class="info-box muted">
           {{ i18n.t({ th: 'บ้านนี้ยังไม่นับว่าตรวจแล้ว', en: 'This house is not counted as checked' }) }}<br />
-          {{ i18n.t({ th: 'ระบบจะแจ้งเจ้าของบ้านและแอดมินให้', en: 'We will tell the owner and the admin' }) }}
+          {{ i18n.t({ th: 'กดแจ้งปัญหา ระบบจะบอกเจ้าของบ้านและแอดมินให้', en: 'Report it and we’ll tell the owner and the admin' }) }}
         </p>
       </div>
       <div class="stack push-end">
-        <a class="btn orange" [routerLink]="url('O05')" [queryParams]="{ problem: 1 }">{{ i18n.t({ th: 'แจ้งปัญหาตู้', en: 'Report a box problem' }) }}</a>
-        <a class="btn secondary" [routerLink]="url('O02')">{{ i18n.t({ th: 'ข้ามไปหลังถัดไป', en: 'Skip to the next house' }) }}</a>
+        <a class="btn orange" [routerLink]="url('O05')" [queryParams]="{ id: id(), problem: 1, reason: 'scan_failed_3' }">{{ i18n.t({ th: 'แจ้งปัญหาตู้', en: 'Report a box problem' }) }}</a>
+        <a class="btn secondary" [routerLink]="url('O02')">{{ i18n.t({ th: 'สแกนใหม่ / หลังถัดไป', en: 'Scan again / next house' }) }}</a>
       </div>
     </div>
   `,
@@ -736,6 +899,7 @@ export class OfficerBadge {
 export class OfficerBadgeFailed {
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
+  readonly id = input<string>('');
 }
 
 // ── O08 · ตรวจแล้ว ───────────────────────────────────────────
@@ -749,17 +913,19 @@ export class OfficerBadgeFailed {
       <div class="result">
         <span class="big-icon white"><app-icon name="check" [size]="36" /></span>
         <h1>{{ i18n.t({ th: 'ตรวจแล้ว', en: 'Inspection recorded' }) }}</h1>
-        <p class="house">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ demo.inspecting() }} · {{ time }}</p>
+        <p class="house">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ ins()?.box?.house_no }} · {{ time(ins()?.checked_at) }}</p>
         <p class="small">{{ i18n.t({ th: 'เจ้าของบ้านได้รับแจ้งเตือนแล้ว', en: 'The owner has been notified' }) }}</p>
       </div>
-      <p class="summary">
-        <strong>{{ i18n.t({ th: 'ตรวจแล้ว ', en: 'Checked ' }) }}{{ demo.checked() }} / {{ demo.zoneTotal }} {{ i18n.t({ th: 'หลัง', en: 'houses' }) }}</strong><br />
-        @if (demo.nextHouse(); as next) {
-          <span class="small">{{ i18n.t({ th: 'หลังถัดไป บ้านเลขที่ ', en: 'Next: house ' }) }}{{ next }}</span>
-        } @else {
-          <span class="small">{{ i18n.t({ th: 'ครบทุกหลังในรายการแล้ว', en: 'Every house on the list is done' }) }}</span>
-        }
-      </p>
+      @if (summary(); as s) {
+        <p class="summary">
+          <strong>{{ i18n.t({ th: 'ตรวจแล้ว ', en: 'Checked ' }) }}{{ s.houses_checked }} / {{ s.houses_total }} {{ i18n.t({ th: 'หลัง', en: 'houses' }) }}</strong><br />
+          @if (s.next_house; as next) {
+            <span class="small">{{ i18n.t({ th: 'หลังถัดไป บ้านเลขที่ ', en: 'Next: house ' }) }}{{ next.house_no }}</span>
+          } @else {
+            <span class="small">{{ i18n.t({ th: 'ครบทุกหลังในโซนแล้ว', en: 'Every house in your zone is done' }) }}</span>
+          }
+        </p>
+      }
       <div class="stack push-end">
         <a class="btn on-color" [routerLink]="url('O02')">{{ i18n.t({ th: 'สแกนหลังถัดไป', en: 'Scan the next house' }) }}</a>
         <a class="btn outline-light" [routerLink]="url('O01')">{{ i18n.t({ th: 'กลับหน้าสรุป', en: 'Back to summary' }) }}</a>
@@ -788,9 +954,18 @@ export class OfficerBadgeFailed {
     }
   `,
 })
-export class OfficerDone {
+export class OfficerDone implements OnInit {
   protected readonly i18n = inject(I18n);
-  protected readonly demo = inject(OfficerDemo);
+  private readonly api = inject(InspectionApi);
   protected readonly url = screenUrl;
-  protected readonly time = nowHHmm();
+  protected readonly time = hhmm;
+  readonly id = input<string>('');
+  protected readonly ins = signal<Inspection | null>(null);
+  protected readonly summary = signal<OfficerSummary | null>(null);
+
+  async ngOnInit(): Promise<void> {
+    const [ins, summary] = await Promise.all([this.api.get(this.id()).catch(() => null), this.api.summary().catch(() => null)]);
+    this.ins.set(ins);
+    this.summary.set(summary);
+  }
 }

@@ -27,6 +27,10 @@ export class JobHub {
     for (const fn of this.waiters.get(boxId) ?? []) fn();
   }
 
+  isWaiting(boxId: string): boolean {
+    return (this.waiters.get(boxId)?.size ?? 0) > 0;
+  }
+
   /** จำนวนตู้ที่กำลังถือ long-poll (ไว้ดูตอนทดสอบ) */
   get waiting(): number {
     return this.waiters.size;

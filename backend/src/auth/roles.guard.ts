@@ -1,5 +1,7 @@
 import { CanActivate, ExecutionContext, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
+import type { Env } from '../config/env.js';
 import { AppError } from '../common/http-exception.filter.js';
 import { ROLES, type AuthedRequest, type RequiredRole } from './auth.decorators.js';
 import { AccessService, type Access } from './access.service.js';
@@ -38,6 +40,7 @@ export class RolesGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly access: AccessService,
+    private readonly config: ConfigService<Env, true>,
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
@@ -50,7 +53,8 @@ export class RolesGuard implements CanActivate {
     if (!req.auth) throw new NotFoundException(); // route public ที่ติด RequireRole = ตั้งค่าผิด → ปิดไว้
     const access = await this.access.load(req.auth.userId);
     checkRoles(required, access);
-    if (needsPush(required, access) && !(await this.access.hasActivePush(req.auth.userId))) {
+    const skipPush = this.config.get('SKIP_PUSH_REQUIRED', { infer: true });
+    if (!skipPush && needsPush(required, access) && !(await this.access.hasActivePush(req.auth.userId))) {
       throw new AppError(HttpStatus.FORBIDDEN, 'PUSH_REQUIRED', 'turn on notifications to use officer features');
     }
     return true;

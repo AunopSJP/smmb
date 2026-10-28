@@ -1,4 +1,4 @@
-import { Global, Inject, Injectable, Module, OnApplicationShutdown } from '@nestjs/common';
+import { Global, Inject, Injectable, Logger, Module, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import pg from 'pg';
 import { Redis } from 'ioredis';
@@ -34,15 +34,25 @@ class DbShutdown implements OnApplicationShutdown {
     {
       provide: REDIS,
       inject: [ConfigService],
-      useFactory: (config: ConfigService<Env, true>) =>
+      useFactory: (config: ConfigService<Env, true>) => {
         // lazyConnect: เซิร์ฟเวอร์ขึ้นได้แม้ Redis ล่ม — health จะรายงานว่า down
         // Redis ล่ม → คำสั่งล้มทันที (ไม่รอคิว) ให้ rate limit ปล่อยผ่านเร็ว ๆ — ไม่งั้นทุกคำขอ (รวมตู้) ช้าหลายวินาที
-        new Redis(config.get('REDIS_URL', { infer: true }), {
+        const redis = new Redis(config.get('REDIS_URL', { infer: true }), {
           lazyConnect: true,
           maxRetriesPerRequest: 1,
           connectTimeout: 1000,
           enableOfflineQueue: false,
-        }),
+        });
+        // ไม่มี handler = ioredis พิมพ์ "Unhandled error event" ทุกครั้งที่ต่อใหม่ (โหมด mock ไม่มี Redis) → เตือนครั้งเดียวพอ
+        let warned = false;
+        redis.on('error', (err: Error) => {
+          if (warned) return;
+          warned = true;
+          new Logger('Redis').warn(`Redis unavailable (${err.message || err.name}) — rate limits are skipped until it is back`);
+        });
+        redis.on('ready', () => (warned = false));
+        return redis;
+      },
     },
     DbShutdown,
   ],

@@ -368,6 +368,8 @@ interface PlanInfo {
 
 ## 5. ไรเดอร์ (public) — `/api/v1/public`
 
+> ✅ (2026-10-28 เขียนแล้ว + หน้า `R01`–`R04` ต่อ API จริง) · **ปุ่มหน้าตู้ถูกตัดออก** — แจ้งส่งของได้ทาง QR / รหัสใต้ QR เท่านั้น · ticket = `SMMB-T1.…` ลงลายเซ็น ใช้ได้ครั้งเดียว · ตู้ที่ยังไม่มีเจ้าของตอบ `box_status: "service_closed"` · `QR_REVOKED` แสดงเหมือน `R03`
+
 ✅ ไม่ต้องสมัคร ไม่ต้องลงแอป ไม่ล็อกอิน ไม่เก็บข้อมูลไรเดอร์ ไม่ถ่ายรูป · ✅ ส่งของได้ทุกเวลา
 ✅ **แจ้งส่งของได้ 2 ทาง (อัปเดต 2026-10-27)**:
 1. **สแกน QR หน้าตู้** (หรือพิมพ์รหัสใต้ QR) — ลิงก์ `https://smmb.app/b/BX00042-1-K7M2QX` → กล้องมือถือเปิดเว็บแอปหน้า `R02` → API ข้างล่าง
@@ -390,6 +392,8 @@ interface PlanInfo {
 ---
 
 ## 6. ตรวจตู้ — `/api/v1/inspections` · `officer`, `head`
+
+> ✅ (2026-10-28 เขียนแล้ว + หน้า `O01`–`O08` ต่อ API จริง · กล้องจริง) · ใช้ **poll ทุก 1 วิ** (ไม่มี `/stream`) · `OUTSIDE_PATROL_WINDOW` มี `next_window` · `box-problem` reason: `no_response` (ไม่มีเสียงจากตู้) · `no_scan` (มีเสียงแต่ไม่สแกน) · `scan_failed_3` · `damaged` · `other` (ตู้ใช้ Buzzer ไม่มีไฟสถานะ) · ยังไม่ทำ `GET /officer/houses` (อยู่ใน `summary.houses` แล้ว) · ยังไม่แจ้งเตือนตอน `BOX_OFFLINE`
 
 ลำดับเต็มอยู่ใน `smmb-design.md` §6 และโปรโตคอลตู้ §4 — ตรงนี้คือสัญญาฝั่งแอปเจ้าหน้าที่
 
@@ -470,6 +474,8 @@ interface Inspection {
 ---
 
 ## 7. SOS — `/api/v1/sos`
+
+> ✅ (2026-10-28 เขียนแล้ว + หน้า `H08`–`H11-b`, `O01-b/c`, `O09`–`O12` ต่อ API จริง) · ใช้ poll (ไม่มี `/stream`) · เพิ่ม `GET /sos/:id/card` (มุมมองเจ้าหน้าที่ = `SosCard` + `mine`) · `SosCard.mine` · 409 `SOS_ALREADY_OPEN` คืน `sos` · ยกเลิก/ปิดซ้ำ → 409 `SOS_CLOSED`
 
 > ✅ (2026-10-28) บ้านหลังเดียวอยู่ในโซนของหลายหน่วยงานได้ → ขั้น `zone` แจ้งเจ้าหน้าที่ในทุกโซนที่มีบ้านนี้ (ทุกหน่วยงาน) · ขั้น `agency` แจ้งทุกคน + หัวหน้าของ**ทุกหน่วยงาน**ที่ดูแลบ้านนี้ · คนแรกที่กดรับได้เรื่อง (หน่วยงานอื่นเห็น `sos_taken`)
 
@@ -815,7 +821,7 @@ X-Signature:  hex(HMAC-SHA256(device_secret, METHOD|PATH|TIMESTAMP|NONCE|SHA256(
 | 13.4 | เปิดไฟ + กล้องแล้ว | `POST /v1/box/jobs/{job_id}/ready` `{ light, flash }` | 200 → `Inspection.status = ready` · 410 job หมดอายุ |
 | 13.5 | อ่าน QR ประจำตัวได้/ไม่ได้ (ทุกครั้งที่ลอง) | `POST /v1/box/jobs/{job_id}/result` `{ attempt, read_ok, qr_text, read_ms, flash }` | `{ status: "pass" }` · `{ status: "retry", attempts_left }` · `{ status: "fail" }` → ไฟ เขียว/กะพริบ/แดง |
 | 13.6 | เหตุการณ์อื่น | `POST /v1/box/events` `{ type: "wifi_reset_button" \| "battery_critical" \| "camera_error" }` | 200 (ส่งครั้งเดียว ไม่ได้ก็ไม่เป็นไร) |
-| 13.7 | **ไรเดอร์กดปุ่มหน้าตู้** (ได้ทุกเวลา — ปุ่มปลุกตู้จากหลับลึก) | `POST /v1/box/deliveries` `{ pressed_at, press_count, battery_pct }` | `{ server_time, status: "ok" \| "limited" \| "service_closed" }` → ไฟ เขียว / ส้มกะพริบ 💡 / แดง |
+| ~~13.7~~ | ❌ **ตัดออก 2026-10-28 — ตู้ไม่มีปุ่มหน้าตู้** · ~~ไรเดอร์กดปุ่มหน้าตู้~~ | `POST /v1/box/deliveries` `{ pressed_at, press_count, battery_pct }` | `{ server_time, status: "ok" \| "limited" \| "service_closed" }` → ไฟ เขียว / ส้มกะพริบ 💡 / แดง |
 
 - ✅ ตู้**ไม่ตัดสินเอง**ว่าผ่านไหม ส่ง `qr_text` ที่อ่านได้ เซิร์ฟเวอร์ตรวจ: ลายเซ็นตู้ · `j` = job ของตู้นี้ · `u` = คนที่สแกน QR หน้าตู้ · ยังไม่หมดอายุ
 - ✅ ส่งผลไม่ได้ → **ทิ้ง** ไม่เก็บไว้ส่งทีหลัง (นับใน `scan_fail` ของรายงานรายวัน)
@@ -898,6 +904,7 @@ payload ที่ส่งให้ service worker (✅ 2026-10-27 — รูป
 | `BOX_ALREADY_OWNED` | 409 | activate | `A07-c` |
 | `BOX_SERVICE_CLOSED` | 403 | public, inspections | `R03-b`, `O04-b` |
 | `DELIVERY_LIMIT` | 429 | public deliveries | `R03-c` |
+| `SOS_CLOSED` | 409 | cancel / close | ข้อความ |
 | `TICKET_EXPIRED` | 410 | public deliveries | สแกนใหม่ |
 | `NOT_IN_ZONE` | 403 | inspections | `O04-b` |
 | `OUTSIDE_PATROL_WINDOW` | 409 | inspections | `O04-b` |

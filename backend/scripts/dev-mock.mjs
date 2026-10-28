@@ -6,14 +6,16 @@
 // - ฐานข้อมูล = PGlite (Postgres ตัวจริงที่ฝังในโปรแกรม) เก็บในโฟลเดอร์ backend/.mockdb/ → ปิดเปิดใหม่ข้อมูลยังอยู่
 // - ครั้งแรกใส่ข้อมูลจำลอง: แอดมิน · เจ้าของบ้าน · หน่วยงาน + หัวหน้า + เจ้าหน้าที่ · โซนตรวจทั้งวัน · ตู้ BX-00001 (ผูกแล้ว) + BX-00002 (ยังไม่ผูก)
 // - ไม่มี Redis ก็ทำงานได้ (rate limit ปล่อยผ่าน) · ทุกคำขอจากตู้พิมพ์ลง console
+// - สร้าง VAPID key ให้เอง (.mockdb.vapid.json) · เจ้าหน้าที่ไม่ถูกบังคับเปิดแจ้งเตือน (SKIP_PUSH_REQUIRED)
 // - ใช้ตอน dev / ทดสอบบอร์ดเท่านั้น — ห้ามใช้กับเซิร์ฟเวอร์จริง
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { resolve } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
 import { btree_gist } from '@electric-sql/pglite/contrib/btree_gist';
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
 import pg from 'pg';
+import webpush from 'web-push';
 
 if (process.env.NODE_ENV === 'production') {
   console.error('dev:mock refuses to run with NODE_ENV=production');
@@ -43,6 +45,17 @@ for (const [k, v] of Object.entries(defaults)) if (!process.env[k]) process.env[
 process.env.DATABASE_URL = `postgres://postgres:postgres@127.0.0.1:${DB_PORT}/postgres?sslmode=disable`;
 process.env.DB_POOL_MAX = '1'; // PGlite มี session เดียว → ต่อทีละ connection (transaction ไม่ปนกัน)
 process.env.BOX_REQUEST_LOG = '1';
+// เจ้าหน้าที่ใช้งานได้แม้ยังไม่เปิดแจ้งเตือน (มือถือทดสอบอาจยังลงเว็บแอปไม่ได้) — ของจริงยังบังคับตามเดิม
+process.env.SKIP_PUSH_REQUIRED = '1';
+// ไม่มี VAPID key → สร้างให้แล้วเก็บไว้ (ใช้ชุดเดิมทุกครั้ง — เปลี่ยน = เครื่องที่เปิดแจ้งเตือนไว้ต้องเปิดใหม่)
+if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+  const file = resolve('.mockdb.vapid.json');
+  if (!existsSync(file)) writeFileSync(file, JSON.stringify(webpush.generateVAPIDKeys()));
+  const keys = JSON.parse(readFileSync(file, 'utf8'));
+  process.env.VAPID_PUBLIC_KEY = keys.publicKey;
+  process.env.VAPID_PRIVATE_KEY = keys.privateKey;
+  process.env.VAPID_SUBJECT ||= 'mailto:dev@example.com';
+}
 
 // 1) ฐานข้อมูลฝังในโปรแกรม + เปิดพอร์ตให้ pg ต่อเหมือน Postgres ปกติ
 const db = await PGlite.create({ dataDir: DATA_DIR, extensions: { btree_gist } });
