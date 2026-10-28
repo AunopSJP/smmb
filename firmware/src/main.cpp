@@ -183,9 +183,29 @@ static bool sendReport() {
   return false;
 }
 
-static void sendEvent(const char* type) {
-  String body = String("{\"type\":\"") + type + "\"}";
-  apiCall("POST", "/v1/box/events", body);  // ส่งครั้งเดียว ไม่ได้ก็ช่าง
+static void sendEvent(const char* type, const char* jobId = nullptr) {
+  JsonDocument doc;
+  doc["type"] = type;
+  if (jobId) doc["job_id"] = jobId;
+  String body;
+  serializeJson(doc, body);
+  const ApiResult result = apiCall("POST", "/v1/box/events", body, 1500);
+  if (result.status != 200) Serial.printf("[diag] %s delivery failed (%d)\n", type, result.status);
+}
+
+static void sendCameraScanEvent(const String& jobId, uint8_t attempt, const QrRead& read) {
+  JsonDocument doc;
+  doc["type"] = "camera_scan_result";
+  doc["job_id"] = jobId;
+  doc["attempt"] = attempt;
+  doc["frames"] = read.frames;
+  doc["qr_shapes"] = read.qrShapes;
+  doc["read_ok"] = read.ok;
+  doc["read_ms"] = read.ms;
+  String body;
+  serializeJson(doc, body);
+  const ApiResult result = apiCall("POST", "/v1/box/events", body, 1500);
+  if (result.status != 200) Serial.printf("[diag] camera_scan_result delivery failed (%d)\n", result.status);
 }
 
 // ── งานปลุกตู้ (ตรวจ / ทดสอบ) §8 ─────────────────────────────────────────
@@ -195,11 +215,13 @@ static void runJob(JsonObject job) {
   uint8_t attemptMax = job["attempt_max"] | boxConfig.maxAttempts;
   uint8_t scanTimeoutS = job["scan_timeout_s"] | boxConfig.scanTimeoutS;
   if (!jobId.length()) return;
+  const bool cameraTest = type == "test";
   Serial.printf("[job] %s %s · %u tries × %us\n", type.c_str(), jobId.c_str(), attemptMax, scanTimeoutS);
   const unsigned long t0 = millis();
 
+  if (cameraTest) sendEvent("camera_test_started", jobId.c_str());
   if (!cameraStart()) {
-    sendEvent("camera_error");
+    sendEvent("camera_error", cameraTest ? jobId.c_str() : nullptr);
     beepError();
     return;
   }
@@ -211,6 +233,17 @@ static void runJob(JsonObject job) {
     cameraStop();
     if (ready.status == 401) onAuthFailed(ready);
     return;  // 410 = งานหมดอายุ / 404 = ไม่ใช่งานของตู้นี้ → กลับไปรอ
+  }
+  if (cameraTest) {
+    JsonDocument diagnostic;
+    diagnostic["type"] = "camera_ready";
+    diagnostic["job_id"] = jobId;
+    diagnostic["width"] = 640;
+    diagnostic["height"] = 480;
+    String body;
+    serializeJson(diagnostic, body);
+    const ApiResult sent = apiCall("POST", "/v1/box/events", body, 1500);
+    if (sent.status != 200) Serial.printf("[diag] camera_ready delivery failed (%d)\n", sent.status);
   }
 
   for (uint8_t attempt = 1; attempt <= attemptMax; attempt++) {
@@ -232,6 +265,7 @@ static void runJob(JsonObject job) {
       else beepError();
       break;
     }
+    if (cameraTest) sendCameraScanEvent(jobId, attempt, q);
     JsonDocument res;
     deserializeJson(res, r.body);
     String status = res["status"] | "";

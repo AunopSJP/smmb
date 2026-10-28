@@ -14,6 +14,7 @@ Thumbs.db
 
 # ฐานข้อมูลโหมด mock (npm run dev:mock)
 .mockdb/
+.mockdb-*/
 .mockdb.vapid.json
 
 # เฟิร์มแวร์ ESP32 (PlatformIO build + library ที่ดาวน์โหลด)

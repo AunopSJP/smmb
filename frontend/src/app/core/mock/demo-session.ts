@@ -2,17 +2,16 @@ import { Injectable, signal } from '@angular/core';
 
 export type DemoRole = 'owner' | 'officer' | 'head' | 'admin';
 
-/** บัญชีตั้งต้นเมื่อเข้าจากหน้าเลือกบทบาท (/) — เบอร์ตรงกับบัญชีทดลองใน auth-demo.ts */
+/** บัญชีตั้งต้นเมื่อเข้าจากหน้าเลือกบทบาท — ให้ตรงกับ seed ของ backend/scripts/dev-mock.mjs */
 export const DEFAULT_ACCOUNT: Record<DemoRole, { roles: DemoRole[]; phone: string }> = {
-  owner: { roles: ['owner'], phone: '0891112222' },
-  officer: { roles: ['officer'], phone: '0812345678' },
-  head: { roles: ['officer', 'head'], phone: '0810001111' },
-  admin: { roles: ['admin'], phone: '0800000000' },
+  owner: { roles: ['owner'], phone: '0812345678' },
+  officer: { roles: ['officer'], phone: '0834567890' },
+  head: { roles: ['officer', 'head'], phone: '0823456789' },
+  admin: { roles: ['admin'], phone: '0800000001' },
 };
 
 /**
- * บัญชีจำลองที่ "ล็อกอิน" อยู่ — ยังไม่มีการล็อกอินจริง (เรื่องบัญชี/ฐานข้อมูลยังไม่ได้ตัดสินใจ)
- * ตอนต่อ backend: แทนด้วย `Me` จาก `GET /api/v1/auth/verify` (roles, phone, agency_status)
+ * บทบาทที่เลือกในเว็บ — ข้อมูลยืนยันตัวตนจริงมาจาก `Session` และ backend
  */
 @Injectable({ providedIn: 'root' })
 export class DemoSession {
@@ -20,7 +19,7 @@ export class DemoSession {
   readonly role = signal<DemoRole>('owner');
   /** บทบาททั้งหมดของบัญชี = Me.roles (หลายบทบาทได้ · head มาพร้อม officer · admin อยู่คนเดียว) */
   readonly roles = signal<DemoRole[]>(['owner']);
-  readonly phone = signal('0891112222');
+  readonly phone = signal('0812345678');
   /** ส่งคำขอเข้าหน่วยงานแล้ว รอหัวหน้า = Me.agency_status 'pending' */
   readonly agencyPending = signal(false);
 

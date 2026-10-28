@@ -6,8 +6,13 @@
 #include "quirc/quirc.h"
 #include "img_converters.h"
 
+static constexpr int QR_CENTER_WIDTH = 480;
+static constexpr int QR_CENTER_HEIGHT = 400;
+static constexpr uint8_t QR_FULL_FRAME_INTERVAL = 4;
+
 static bool running = false;
 static struct quirc* qr = nullptr;
+static struct quirc* qrFull = nullptr;
 static bool flashOn = false;
 
 bool cameraRunning() { return running; }
@@ -48,7 +53,8 @@ bool cameraStart() {
     return false;
   }
   if (!qr) qr = quirc_new();
-  if (!qr) {
+  if (!qrFull) qrFull = quirc_new();
+  if (!qr || !qrFull) {
     Serial.println("[cam] quirc_new failed (no memory)");
     esp_camera_deinit();
     return false;
@@ -124,6 +130,44 @@ static bool decodeAll(String& out) {
   return false;
 }
 
+static bool scanFrame(camera_fb_t* fb, struct quirc* decoder, bool fullFrame, String& text, bool& foundShape) {
+  const int frameWidth = static_cast<int>(fb->width);
+  const int frameHeight = static_cast<int>(fb->height);
+  const int scanWidth = fullFrame ? frameWidth : min(frameWidth, QR_CENTER_WIDTH);
+  const int scanHeight = fullFrame ? frameHeight : min(frameHeight, QR_CENTER_HEIGHT);
+  const int offsetX = (frameWidth - scanWidth) / 2;
+  const int offsetY = (frameHeight - scanHeight) / 2;
+  if (quirc_resize(decoder, scanWidth, scanHeight) < 0) return false;
+
+  int width = 0;
+  int height = 0;
+  uint8_t* image = quirc_begin(decoder, &width, &height);
+  for (int y = 0; y < height; y++) {
+    memcpy(image + static_cast<size_t>(y) * width,
+           fb->buf + static_cast<size_t>(offsetY + y) * frameWidth + offsetX,
+           width);
+  }
+  quirc_end(decoder);
+  foundShape = quirc_count(decoder) > 0;
+  if (!foundShape) return false;
+
+  struct quirc* previous = qr;
+  qr = decoder;
+  const bool decoded = decodeAll(text);
+  if (!decoded) {
+    // บางเลนส์ให้ภาพกลับซ้าย-ขวา จึงลองถอดภาพกลับด้านอีกครั้ง
+    image = quirc_begin(decoder, &width, &height);
+    for (int y = 0; y < height; y++) {
+      uint8_t* row = image + static_cast<size_t>(y) * width;
+      for (int x = 0; x < width / 2; x++) std::swap(row[x], row[width - 1 - x]);
+    }
+    quirc_end(decoder);
+    decodeAll(text);
+  }
+  qr = previous;
+  return text.length() > 0;
+}
+
 QrRead cameraScanQr(uint32_t timeoutMs) {
   QrRead r;
   if (!running) return r;
@@ -137,39 +181,26 @@ QrRead cameraScanQr(uint32_t timeoutMs) {
       continue;
     }
     frames++;
-    if (quirc_resize(qr, fb->width, fb->height) < 0) {
-      esp_camera_fb_return(fb);
-      Serial.println("[cam] quirc_resize failed (no memory)");
-      break;
-    }
-    int w = 0, h = 0;
-    uint8_t* img = quirc_begin(qr, &w, &h);
-    memcpy(img, fb->buf, (size_t)w * h);
-    esp_camera_fb_return(fb);
-    quirc_end(qr);
     String text;
-    bool found = quirc_count(qr) > 0;
+    bool found = false;
+    const bool fullFrame = frames % QR_FULL_FRAME_INTERVAL == 0;
+    const bool decoded = scanFrame(fb, fullFrame ? qrFull : qr, fullFrame, text, found);
+    esp_camera_fb_return(fb);
     if (found) framesWithShape++;
-    if (found && !decodeAll(text)) {
-      // ภาพกลับด้านซ้าย-ขวา (กระจก) ถอดไม่ได้ → กลับภาพแล้วลองอีกครั้ง
-      img = quirc_begin(qr, &w, &h);
-      for (int y = 0; y < h; y++) {
-        uint8_t* row = img + (size_t)y * w;
-        for (int x = 0; x < w / 2; x++) std::swap(row[x], row[w - 1 - x]);
-      }
-      quirc_end(qr);
-      decodeAll(text);
-      lastErr = lastDecodeErr;
-    }
+    if (found && !decoded) lastErr = lastDecodeErr;
     if (text.length()) {
       r.ok = true;
       r.text = text;
       r.ms = millis() - start;
+      r.frames = static_cast<uint16_t>(frames);
+      r.qrShapes = static_cast<uint16_t>(framesWithShape);
       Serial.printf("[cam] QR in %u ms after %d frames: %.60s\n", r.ms, frames, text.c_str());
       return r;
     }
   }
   r.ms = millis() - start;
+  r.frames = static_cast<uint16_t>(frames);
+  r.qrShapes = static_cast<uint16_t>(framesWithShape);
   Serial.printf("[cam] no QR in %u ms (%d frames · frames with a QR shape: %d · last decode error: %s)\n", r.ms, frames, framesWithShape,
                 lastErr ? quirc_strerror(lastErr) : "-");
   return r;

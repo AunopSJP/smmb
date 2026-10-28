@@ -37,12 +37,28 @@ export interface AdminBoxRow {
   fw: string | null;
 }
 
+export type CameraDiagnosticState = 'started' | 'ready' | 'scan_result' | 'error';
+
+export interface CameraDiagnostics {
+  state: CameraDiagnosticState;
+  at: string;
+  job_id: string | null;
+  width: number | null;
+  height: number | null;
+  attempt: number | null;
+  frames: number | null;
+  qr_shapes: number | null;
+  read_ok: boolean | null;
+  read_ms: number | null;
+}
+
 export interface AdminBoxDetail extends AdminBoxRow {
   service_active: boolean;
   registered_at: string;
   config: { config_ver: number; config: BoxConfig; box_config_ver: number | null; in_sync: boolean };
   qr: (PrintableQr & { id: string; version: number; status: string; health: string; issued_at: string })[];
   reports: { kind: 'boot' | 'report' | 'event'; at: string; body: Record<string, unknown> }[];
+  camera_diagnostics: CameraDiagnostics | null;
   auth_failures: { reason: string; at: string }[];
 }
 
@@ -67,6 +83,40 @@ const BOX_COLS = `box_id, house_no, name, owner_user_id, service_active, battery
   last_seen_date, last_poll_date, fw, config_override, config_ver_seen, created_date`;
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
+const intField = (value: unknown, max: number): number | null =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= max ? value : null;
+const CAMERA_STATE_BY_TYPE: Record<string, CameraDiagnosticState> = {
+  camera_test_started: 'started',
+  camera_ready: 'ready',
+  camera_scan_result: 'scan_result',
+  camera_error: 'error',
+};
+
+function mapCameraDiagnostics(
+  reports: { kind: 'boot' | 'report' | 'event'; created_date: Date; body: Record<string, unknown> }[],
+): CameraDiagnostics | null {
+  for (const report of reports) {
+    if (report.kind !== 'event') continue;
+    const type = report.body['type'];
+    if (typeof type !== 'string' || !Object.hasOwn(CAMERA_STATE_BY_TYPE, type)) continue;
+
+    const jobId = report.body['job_id'];
+    const readOk = report.body['read_ok'];
+    return {
+      state: CAMERA_STATE_BY_TYPE[type],
+      at: report.created_date.toISOString(),
+      job_id: typeof jobId === 'string' && /^J-[0-9a-f]{6}$/.test(jobId) ? jobId : null,
+      width: intField(report.body['width'], 1920),
+      height: intField(report.body['height'], 1920),
+      attempt: intField(report.body['attempt'], 5),
+      frames: intField(report.body['frames'], 1000),
+      qr_shapes: intField(report.body['qr_shapes'], 1000),
+      read_ok: typeof readOk === 'boolean' ? readOk : null,
+      read_ms: intField(report.body['read_ms'], 60_000),
+    };
+  }
+  return null;
+}
 
 /** แอดมิน: ลงทะเบียนตู้ · ดูตู้ · งานทดสอบ (api.md §9.4) */
 @Injectable()
@@ -147,6 +197,7 @@ export class AdminBoxService {
         issued_at: r.created_date.toISOString(),
       })),
       reports: reports.rows.map((r) => ({ kind: r.kind, at: r.created_date.toISOString(), body: r.body })),
+      camera_diagnostics: mapCameraDiagnostics(reports.rows),
       auth_failures: fails.rows.map((r) => ({ reason: r.reason, at: r.created_date.toISOString() })),
     };
   }

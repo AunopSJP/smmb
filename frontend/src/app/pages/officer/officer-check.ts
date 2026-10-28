@@ -707,7 +707,7 @@ interface WakeLockSentinelLike {
 
       <div class="qr">
         @if (qr(); as q) {
-          <app-qr-image [text]="q" level="M" [label]="i18n.t({ th: 'QR ประจำตัว', en: 'Your badge QR' })" />
+          <app-qr-image [text]="q" level="L" [label]="i18n.t({ th: 'QR ประจำตัว', en: 'Your badge QR' })" />
           @if (devTools()) {
             <button type="button" class="copy-qr" (click)="copyQr(q)">{{ i18n.t({ th: 'คัดลอกข้อความ QR (ตู้จำลอง)', en: 'Copy QR text (box simulator)' }) }}</button>
           }
@@ -752,7 +752,7 @@ interface WakeLockSentinelLike {
     }
     .qr {
       align-self: center;
-      width: min(100%, 280px);
+      width: min(100%, 320px);
       padding: 8px;
       border: 2px solid var(--text);
       border-radius: var(--radius);

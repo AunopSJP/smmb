@@ -47,7 +47,21 @@ export interface AdminBoxDetail extends AdminBoxRow {
   config: { config_ver: number; config: BoxConfig; box_config_ver: number | null; in_sync: boolean };
   qr: (PrintableQr & { id: string; version: number; status: string; health: string; issued_at: string })[];
   reports: { kind: 'boot' | 'report' | 'event'; at: string; body: Record<string, unknown> }[];
+  camera_diagnostics: CameraDiagnostics | null;
   auth_failures: { reason: string; at: string }[];
+}
+
+export interface CameraDiagnostics {
+  state: 'started' | 'ready' | 'scan_result' | 'error';
+  at: string;
+  job_id: string | null;
+  width: number | null;
+  height: number | null;
+  attempt: number | null;
+  frames: number | null;
+  qr_shapes: number | null;
+  read_ok: boolean | null;
+  read_ms: number | null;
 }
 
 export type JobStatus = 'waiting' | 'delivered' | 'ready' | 'passed' | 'failed' | 'expired';

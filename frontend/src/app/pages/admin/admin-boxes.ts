@@ -123,6 +123,26 @@ type BoxFilter = 'all' | 'unbound' | 'offline' | 'low';
     </div>
   `,
   styles: `
+    .status {
+      margin: 0 0 12px;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      background: var(--icon-bg);
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+    .status.ok {
+      background: var(--ok-bg);
+      color: var(--ok);
+    }
+    .status.warn {
+      background: var(--warn-bg, var(--icon-bg));
+      color: var(--warn, var(--text));
+    }
+    .status.danger {
+      background: var(--danger-bg, var(--icon-bg));
+      color: var(--danger, var(--sos));
+    }
     .grow {
       flex: 1;
       min-width: 0;
@@ -273,6 +293,52 @@ export class AdminBoxes implements OnInit {
 
         <h2 class="section-title">{{ i18n.t({ th: 'ทดสอบปลุกตู้', en: 'Wake test' }) }}</h2>
         <app-box-test [boxId]="b.id" (finished)="reload()" />
+
+        <h2 class="section-title">{{ i18n.t({ th: 'สถานะบอร์ดและกล้อง', en: 'Board and camera status' }) }}</h2>
+        <section class="card">
+          @if (b.camera_diagnostics; as camera) {
+            @switch (camera.state) {
+              @case ('started') {
+                <p class="status warn">{{ i18n.t({ th: 'เริ่มทดสอบกล้องแล้ว', en: 'Camera test started' }) }}</p>
+              }
+              @case ('ready') {
+                <p class="status ok">{{ i18n.t({ th: 'กล้องเริ่มทำงานแล้ว รอผลอ่าน QR', en: 'Camera initialized; waiting for QR scan' }) }}</p>
+              }
+              @case ('scan_result') {
+                @if (camera.read_ok) {
+                  <p class="status ok">{{ i18n.t({ th: 'กล้องอ่าน QR ได้', en: 'Camera read a QR code' }) }}</p>
+                } @else if ((camera.frames ?? 0) > 0) {
+                  <p class="status warn">{{ i18n.t({ th: 'กล้องรับภาพได้ แต่ยังไม่พบ QR', en: 'Camera captured frames but found no QR code' }) }}</p>
+                } @else {
+                  <p class="status danger">{{ i18n.t({ th: 'ยังไม่ได้ภาพจากกล้อง', en: 'No camera frames were captured' }) }}</p>
+                }
+              }
+              @case ('error') {
+                <p class="status danger">{{ i18n.t({ th: 'เปิดกล้องไม่สำเร็จ', en: 'Camera initialization failed' }) }}</p>
+              }
+            }
+            <dl class="kv small">
+              <dt>{{ i18n.t({ th: 'รายงานล่าสุด', en: 'Latest report' }) }}</dt><dd>{{ i18n.t(seen(camera.at)) }}</dd>
+              @if (camera.job_id) {
+                <dt>{{ i18n.t({ th: 'งานทดสอบ', en: 'Test job' }) }}</dt><dd>{{ camera.job_id }}</dd>
+              }
+              @if (camera.width !== null && camera.height !== null) {
+                <dt>{{ i18n.t({ th: 'ความละเอียด', en: 'Resolution' }) }}</dt><dd>{{ camera.width }} × {{ camera.height }}</dd>
+              }
+              @if (camera.frames !== null) {
+                <dt>{{ i18n.t({ th: 'จำนวนภาพที่อ่าน', en: 'Frames captured' }) }}</dt><dd>{{ camera.frames }}</dd>
+              }
+              @if (camera.qr_shapes !== null) {
+                <dt>{{ i18n.t({ th: 'ภาพที่พบรูปทรง QR', en: 'Frames with a QR shape' }) }}</dt><dd>{{ camera.qr_shapes }}</dd>
+              }
+              @if (camera.read_ms !== null) {
+                <dt>{{ i18n.t({ th: 'เวลาอ่าน', en: 'Scan time' }) }}</dt><dd>{{ camera.read_ms }} {{ i18n.t({ th: 'มิลลิวินาที', en: 'ms' }) }}</dd>
+              }
+            </dl>
+          } @else {
+            <p class="muted small">{{ i18n.t({ th: 'ยังไม่มีรายงานทดสอบกล้อง · กด “ทดสอบปลุกตู้” ด้านบน', en: 'No camera test report yet · run the wake test above' }) }}</p>
+          }
+        </section>
 
         <h2 class="section-title">{{ i18n.t({ th: 'QR ของตู้ (พิมพ์ได้)', en: 'Box QR codes (printable)' }) }}</h2>
         <div class="qr-grid">

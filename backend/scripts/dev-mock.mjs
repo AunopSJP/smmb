@@ -10,7 +10,7 @@
 // - ใช้ตอน dev / ทดสอบบอร์ดเท่านั้น — ห้ามใช้กับเซิร์ฟเวอร์จริง
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
-import { resolve } from 'node:path';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
 import { btree_gist } from '@electric-sql/pglite/contrib/btree_gist';
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
@@ -22,9 +22,24 @@ if (process.env.NODE_ENV === 'production') {
   process.exit(1);
 }
 
-const DATA_DIR = resolve('.mockdb');
+const DATA_DIR = resolve(process.env.SMMB_MOCK_DATA_DIR?.trim() || '.mockdb');
+const dataDirRelative = relative(resolve('.'), DATA_DIR);
+if (!dataDirRelative || dataDirRelative === '..' || dataDirRelative.startsWith(`..${sep}`) || isAbsolute(dataDirRelative)) {
+  console.error('SMMB_MOCK_DATA_DIR must stay inside the backend workspace (for example .mockdb-sales-demo)');
+  process.exit(1);
+}
 const DB_PORT = Number(process.env.MOCK_DB_PORT ?? 54329);
 const PASSWORD = 'demo1234'; // ตรงกับข้อมูลจำลองของหน้าเว็บ (frontend core/mock)
+const LAN_IPS = Object.values(networkInterfaces())
+  .flat()
+  .filter((n) => n && n.family === 'IPv4' && !n.internal)
+  .map((n) => n.address);
+const demoHost = process.env.SMMB_DEMO_HOST?.trim() || LAN_IPS[0] || 'localhost';
+const publicUrl = new URL(process.env.PUBLIC_BASE_URL || `http://${demoHost}:4200`);
+const loopbackHosts = new Set(['localhost', '127.0.0.1', '::1']);
+if (loopbackHosts.has(publicUrl.hostname) && demoHost !== 'localhost') publicUrl.hostname = demoHost;
+const publicBaseUrl = publicUrl.toString().replace(/\/$/, '');
+const publicHost = publicUrl.hostname;
 
 if (process.argv.includes('--reset') && existsSync(DATA_DIR)) {
   rmSync(DATA_DIR, { recursive: true, force: true });
@@ -36,8 +51,8 @@ const defaults = {
   NODE_ENV: 'development',
   PORT: '3000',
   REDIS_URL: 'redis://127.0.0.1:6379',
-  PUBLIC_BASE_URL: 'http://localhost:4200',
-  QR_ALLOWED_HOSTS: 'localhost',
+  PUBLIC_BASE_URL: publicBaseUrl,
+  QR_ALLOWED_HOSTS: `${publicHost},localhost`,
   BOX_MASTER_KEY: 'smmb-mock-master-key-dev-only-0000000000',
   QR_SIGNING_KEY: 'smmb-mock-qr-signing-key-dev-only-000000',
 };
@@ -82,13 +97,10 @@ await client.end();
 
 // 3) บอกข้อมูลที่ต้องใช้ แล้วเปิดเซิร์ฟเวอร์
 const port = process.env.PORT;
-const lan = Object.values(networkInterfaces())
-  .flat()
-  .filter((n) => n && n.family === 'IPv4' && !n.internal)
-  .map((n) => n.address);
 const line = '─'.repeat(78);
 console.log(`\n${line}\n SMMB backend — โหมด mock (ข้อมูลอยู่ ${DATA_DIR})${seeded ? '' : ' · ใส่ข้อมูลจำลองแล้ว'}\n${line}`);
-console.log(` URL ให้บอร์ด ESP32 (วงแลนเดียวกัน): ${lan.map((ip) => `http://${ip}:${port}`).join('  ') || '(ไม่พบ IP วงแลน)'}`);
+console.log(` URL ให้บอร์ด ESP32 (วงแลนเดียวกัน): ${LAN_IPS.map((ip) => `http://${ip}:${port}`).join('  ') || '(ไม่พบ IP วงแลน)'}`);
+console.log(` URL เว็บและ QR สำหรับมือถือ: ${publicBaseUrl}`);
 console.log(` บนเครื่องนี้: http://localhost:${port}/api/health/live`);
 console.log(`\n ตู้ (เขียน box_id + device_secret ลงบอร์ด):`);
 for (const b of boxes) {

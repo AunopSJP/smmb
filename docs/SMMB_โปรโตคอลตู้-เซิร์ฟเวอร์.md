@@ -267,7 +267,9 @@ X-Signature    86c6520798d17a12cf2af3d156f02f1a361cb5ac3138245135d6176bd901de6c
 ```json
 { "type": "wifi_reset_button" }
 ```
-- ประเภท : `wifi_reset_button` · `battery_critical` (< 5% ก่อนดับ) · `camera_error` (เซิร์ฟเวอร์รับชื่ออื่นที่เป็น `a-z _` ได้ด้วย ไว้เพิ่มทีหลัง)
+- ประเภท : `wifi_reset_button` · `battery_critical` (< 5% ก่อนดับ) · `camera_error` · สถานะกล้องในงานทดสอบ `camera_test_started`, `camera_ready`, `camera_scan_result`
+- `camera_test_started` / `camera_ready` มี `job_id` · `camera_ready` เพิ่ม `width`, `height` · `camera_scan_result` เพิ่ม `attempt`, `frames`, `qr_shapes`, `read_ok`, `read_ms`
+- สถานะกล้องส่งเฉพาะงาน `type: "test"` เพื่อแสดงใน D04 · ไม่ส่งภาพ · ส่งไม่ได้ก็ไม่เปลี่ยนผล `/result` · การตรวจจริงใช้ flow และการตัดสินของเซิร์ฟเวอร์เดิม
 - ส่งแบบ "พยายามครั้งเดียว" ส่งไม่ได้ก็ไม่เป็นไร
 
 ### ~~2.7 `POST /v1/box/deliveries`~~ — ❌ ตัดออก 28 ต.ค. (ตู้ไม่มีปุ่มหน้าตู้)

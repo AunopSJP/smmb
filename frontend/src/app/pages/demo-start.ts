@@ -1,12 +1,14 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { DisplaySettings, type TextSize, type Theme } from '../core/display-settings';
 import { I18n, type Lang } from '../core/i18n';
-import { DemoSession, type DemoRole } from '../core/mock/demo-session';
+import { Session } from '../core/session';
+import { DEMO_PASSWORD } from '../core/mock/auth-demo';
+import { DEFAULT_ACCOUNT, type DemoRole } from '../core/mock/demo-session';
 import { AREA_LABEL, SCREENS, screenUrl, type Area } from '../screens/registry';
 import { Icon, type IconName } from '../shared/icon';
 
-/** หน้าเริ่มต้นของต้นแบบ — เลือกบทบาทจำลอง + ตั้งค่าการแสดงผล (ยังไม่มีล็อกอินจริง) */
+/** หน้าเริ่มเดโม — ล็อกอินด้วยบัญชี seed ของ backend และเลือก flow ที่นำเสนอ */
 @Component({
   selector: 'app-demo-start',
   imports: [Icon],
@@ -16,14 +18,14 @@ import { Icon, type IconName } from '../shared/icon';
       <header>
         <h1>Smart Mailbox</h1>
         <p class="muted">
-          {{ i18n.t({ th: 'ต้นแบบหน้าจอ · ใช้ข้อมูลจำลอง ยังไม่เชื่อมเซิร์ฟเวอร์', en: 'Screen prototype · sample data, no server yet' }) }}
+          {{ i18n.t({ th: 'เดโมขาย · ใช้ข้อมูลตัวอย่างบน Backend จริง · บอร์ดเชื่อมต่อได้', en: 'Sales demo · sample data on the live backend · hardware can connect' }) }}
         </p>
       </header>
 
       <h2 class="section-title">{{ i18n.t({ th: 'ดูในฐานะ', en: 'View as' }) }}</h2>
       <nav class="list">
         @for (a of areas; track a.area) {
-          <button class="row" type="button" (click)="open(a.area)">
+          <button class="row" type="button" [disabled]="busy()" (click)="open(a.area)">
             <span class="icon-bubble"><app-icon [name]="a.icon" [size]="22" /></span>
             <span class="grow">
               <strong>{{ i18n.t(label(a.area)) }}</strong>
@@ -33,6 +35,9 @@ import { Icon, type IconName } from '../shared/icon';
           </button>
         }
       </nav>
+      @if (error()) {
+        <p class="error" role="alert">{{ i18n.t(error()!) }}</p>
+      }
 
       <h2 class="section-title">{{ i18n.t({ th: 'การแสดงผล', en: 'Display' }) }}</h2>
       <section class="card stack">
@@ -85,6 +90,13 @@ import { Icon, type IconName } from '../shared/icon';
       text-align: left;
       cursor: pointer;
     }
+    button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+    .error {
+      color: var(--danger, #b42318);
+    }
     .grow {
       flex: 1;
     }
@@ -111,8 +123,10 @@ import { Icon, type IconName } from '../shared/icon';
 export class DemoStart {
   protected readonly i18n = inject(I18n);
   protected readonly display = inject(DisplaySettings);
-  private readonly session = inject(DemoSession);
+  private readonly session = inject(Session);
   private readonly router = inject(Router);
+  protected readonly busy = signal(false);
+  protected readonly error = signal<{ th: string; en: string } | null>(null);
 
   protected readonly areas: { area: Area; icon: IconName }[] = [
     { area: 'owner', icon: 'home' },
@@ -145,9 +159,21 @@ export class DemoStart {
     return SCREENS.filter((s) => s.area === a).length;
   }
 
-  protected open(area: Area): void {
+  protected async open(area: Area): Promise<void> {
     if (area === 'owner' || area === 'officer' || area === 'head' || area === 'admin') {
-      this.session.useDefault(area as DemoRole);
+      this.busy.set(true);
+      this.error.set(null);
+      const account = DEFAULT_ACCOUNT[area as DemoRole];
+      const result = await this.session.signin(account.phone, DEMO_PASSWORD);
+      this.busy.set(false);
+      if (!result.ok) {
+        this.error.set({
+          th: 'เข้า Backend demo ไม่ได้ · เปิด backend ด้วย npm run dev:mock ก่อน',
+          en: 'Could not reach the demo backend · start it with npm run dev:mock first',
+        });
+        return;
+      }
+      this.session.use(area as DemoRole);
     }
     // ล็อกอิน/สมัคร เริ่มที่หน้าเข้าสู่ระบบ (A01–A03 เป็นหน้าก่อนล็อกอินที่ขึ้นตามเครื่อง)
     const start = area === 'auth' ? 'A04' : SCREENS.find((s) => s.area === area)!.code;

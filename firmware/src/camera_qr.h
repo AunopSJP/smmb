@@ -14,6 +14,8 @@ struct QrRead {
   bool ok = false;
   String text;
   uint32_t ms = 0;
+  uint16_t frames = 0;
+  uint16_t qrShapes = 0;
 };
 
 /** อ่าน QR ภายใน timeoutMs — ได้ข้อความแรกที่ถอดได้ */

@@ -60,7 +60,7 @@ ApiResult apiCall(const char* method, const String& suffix, const String& body, 
   const bool ok = https ? http.begin(secure, url) : http.begin(plain, url);
   if (!ok) return r;
 
-  http.setConnectTimeout(10000);
+  http.setConnectTimeout((uint16_t)min<uint32_t>(timeoutMs, 10000));
   http.setTimeout((uint16_t)min<uint32_t>(timeoutMs, 65000));
   static const char* headerKeys[] = {"X-Server-Time"};
   http.collectHeaders(headerKeys, 1);

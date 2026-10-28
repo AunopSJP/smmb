@@ -70,6 +70,10 @@ async function call(method, path, payload) {
   return { status: res.status, json };
 }
 
+async function diagnostic(type, data = {}) {
+  return call('POST', '/v1/box/events', { type, ...data });
+}
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const battery = Number(opt('battery', 87));
 
@@ -104,14 +108,21 @@ if (cmd === 'boot') {
     if (status !== 200 || !json?.job) continue;
     if (opt('manual', false) === true) { console.log('job received — run ready / result yourself'); await sleep(65_000); continue; }
     const job = json.job;
+    if (job.type === 'test') await diagnostic('camera_test_started', { job_id: job.job_id });
     await sleep(800); // เปิดไฟ + กล้อง
-    await call('POST', `/v1/box/jobs/${job.job_id}/ready`, { light: 'on', flash: false });
+    const ready = await call('POST', `/v1/box/jobs/${job.job_id}/ready`, { light: 'on', flash: false });
+    if (job.type === 'test' && ready.status === 200) await diagnostic('camera_ready', { job_id: job.job_id, width: 640, height: 480 });
     for (let attempt = 1; attempt <= job.attempt_max; attempt++) {
       await sleep(1500); // กล้องอ่าน QR
       const read = !fail;
       const r = await call('POST', `/v1/box/jobs/${job.job_id}/result`, {
         attempt, read_ok: read, qr_text: read ? 'SIM-QR-TEXT' : null, read_ms: 1500, flash: false,
       });
+      if (job.type === 'test' && r.status === 200) {
+        await diagnostic('camera_scan_result', {
+          job_id: job.job_id, attempt, frames: 24, qr_shapes: read ? 1 : 0, read_ok: read, read_ms: 1500,
+        });
+      }
       if (r.json?.status !== 'retry') break;
     }
   }
@@ -141,8 +152,10 @@ if (cmd === 'live') {
     if (status !== 200 || !json?.job) continue;
     const job = json.job;
     console.log(`\n🔔 ปี๊บ — ได้งาน ${job.type} ${job.job_id} · เปิดกล้อง`);
+    if (job.type === 'test') await diagnostic('camera_test_started', { job_id: job.job_id });
     await sleep(600);
-    await call('POST', `/v1/box/jobs/${job.job_id}/ready`, { flash: false });
+    const ready = await call('POST', `/v1/box/jobs/${job.job_id}/ready`, { flash: false });
+    if (job.type === 'test' && ready.status === 200) await diagnostic('camera_ready', { job_id: job.job_id, width: 640, height: 480 });
     for (let attempt = 1; attempt <= job.attempt_max; attempt++) {
       let text = 'SIM-TEST-QR';
       if (job.type === 'test') {
@@ -155,6 +168,11 @@ if (cmd === 'live') {
       const r = await call('POST', `/v1/box/jobs/${job.job_id}/result`, {
         attempt, read_ok: !!text, qr_text: text || null, read_ms: 1200, flash: false,
       });
+      if (job.type === 'test' && r.status === 200) {
+        await diagnostic('camera_scan_result', {
+          job_id: job.job_id, attempt, frames: 18, qr_shapes: text ? 1 : 0, read_ok: !!text, read_ms: 1200,
+        });
+      }
       const v = r.json?.status;
       console.log(v === 'pass' ? '🔔🔔 ผ่าน (ปี๊บสั้น 2)' : v === 'retry' ? '🔔— ลองใหม่ (ปี๊บยาว 1)' : '🔔—🔔—🔔— ไม่ผ่าน (ปี๊บยาว 3)');
       if (v !== 'retry') break;

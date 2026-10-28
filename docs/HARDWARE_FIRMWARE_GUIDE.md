@@ -234,6 +234,9 @@ String signRequest(const char* secret, const char* method, const String& path,
 | เปิดกล้องพร้อม | `POST /v1/box/jobs/{job_id}/ready` | `{ "flash": false }` | 200 · 410 `JOB_EXPIRED` · 404 `JOB_NOT_FOUND` |
 | อ่าน QR แต่ละครั้ง | `POST /v1/box/jobs/{job_id}/result` | `{ attempt, read_ok, qr_text, read_ms, flash }` | 200 `{ status: "pass" \| "retry" \| "fail", attempts_left? }` |
 | เหตุการณ์อื่น | `POST /v1/box/events` | `{ "type": "wifi_reset_button" \| "battery_critical" \| "camera_error" }` | 200 · ส่งครั้งเดียว ไม่ได้ก็ไม่เป็นไร · ชื่อ type ใช้ได้เฉพาะ a-z และ _ |
+| สถานะกล้อง (เฉพาะงาน `test`) | `POST /v1/box/events` | `camera_test_started` / `camera_ready` / `camera_scan_result` | HMAC เหมือน endpoint อื่น · ไม่ส่งภาพ · แสดงในแอดมิน D04 |
+
+ข้อมูลกล้องส่งดังนี้: `camera_test_started` มี `job_id` · `camera_ready` มี `job_id`, `width`, `height` · `camera_scan_result` มี `job_id`, `attempt`, `frames`, `qr_shapes`, `read_ok`, `read_ms` · การส่งสถานะเป็น best-effort และไม่เปลี่ยนผล `/result`
 
 - `wait` 0–55 (ไม่ส่ง = 55) · ใช้ค่า `longpoll_wait_s` จาก config
 - `reset_reason` จาก `esp_reset_reason()` เช่น `power_on`, `deep_sleep`, `brownout`, `panic`
