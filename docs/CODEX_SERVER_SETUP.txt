@@ -1,0 +1,209 @@
+=====================================================================
+SMMB — คำสั่งสำหรับ Codex บนเครื่อง Server (Ubuntu)
+เป้าหมาย: เปิด backend โหมด mock ให้รันค้างไว้ตลอด เพื่อให้ทีมเขียนเฟิร์มแวร์ ESP32-CAM
+          ต่อเข้ามาทดสอบได้ทุกเมื่อ
+เขียนเมื่อ 2026-10-28
+=====================================================================
+
+อ่านก่อนเริ่ม (สำคัญ)
+---------------------
+- โปรเจกต์นี้คือ SMMB (Smart Mailbox): ตู้หน้าบ้าน ESP32-CAM คุยกับ backend NestJS ผ่าน HTTPS/HTTP REST
+  ทุกคำขอจากตู้เซ็นด้วย HMAC-SHA256
+- ตอนนี้ผู้ใช้สั่ง: "ใช้ MockData ไปก่อน เอาแค่ core ให้บอร์ด ESP32 ต่อ backend ได้"
+  → งานของคุณคือ "ติดตั้ง + รัน + ตรวจว่าใช้ได้" เท่านั้น ไม่ต้องเพิ่มฟีเจอร์
+- ตอบผู้ใช้เป็นภาษาไทย
+- เอกสารที่ต้องใช้ (อยู่ในโปรเจกต์):
+    CLAUDE.md                                  กฎของโปรเจกต์ (อ่านส่วน "เฟส 2 — ตู้" และ "ห้ามทำ")
+    README.md                                  วิธีรัน (หัวข้อ "โหมด mock")
+    docs/SMMB_โปรโตคอลตู้-เซิร์ฟเวอร์.md      โปรโตคอลตู้ §1.1 สูตรลายเซ็น + ค่าตัวอย่าง · §8 วิธีทดสอบบอร์ด
+
+ห้ามทำ
+------
+1. ห้ามแก้สูตรลายเซ็น (backend/src/box/box-crypto.ts) และรูปแบบ API /v1/box/* — เฟิร์มแวร์เขียนตามนี้
+2. ห้ามแก้ไฟล์ใน backend/sql/migrations/ ที่มีอยู่แล้ว
+3. ห้ามเขียน POST /v1/box/deliveries (ปุ่มหน้าตู้ — ยังรอทีมยืนยัน)
+4. ห้ามตั้ง NODE_ENV=production กับโหมด mock (สคริปต์จะไม่ยอมรันอยู่แล้ว)
+5. ห้าม commit / push ไฟล์ backend/.env และโฟลเดอร์ backend/.mockdb/
+6. ห้ามก๊อป node_modules มาจากเครื่อง Windows (ตัวเข้ารหัสรหัสผ่าน argon2 เป็นไฟล์เฉพาะ OS)
+
+
+ขั้นที่ 1 — เตรียมเครื่อง
+-------------------------
+- ต้องมี Node.js 24 ขึ้นไป + npm + git
+    node -v        # ต้องได้ v24.x ขึ้นไป
+  ถ้าไม่มี/เก่า: ติดตั้ง Node 24 (เช่นผ่าน NodeSource หรือ nvm) แล้วเช็กใหม่
+- ไม่ต้องติดตั้ง PostgreSQL / Redis / Docker (โหมด mock ใช้ฐานข้อมูลฝังในโปรแกรม)
+
+ขั้นที่ 2 — เอาโค้ดมาไว้บนเครื่อง
+---------------------------------
+- ถ้ามี git remote: git clone <repo> /opt/smmb   (หรือ git pull ถ้ามีอยู่แล้ว)
+- ถ้าผู้ใช้ก๊อปโฟลเดอร์มาเอง: ลบของที่ไม่ควรติดมาก่อน
+    rm -rf /opt/smmb/backend/node_modules /opt/smmb/frontend/node_modules
+    rm -rf /opt/smmb/backend/.mockdb
+    rm -f  /opt/smmb/backend/.env
+  (ถ้าโฟลเดอร์อยู่ที่อื่น ให้ใช้ path จริงแทน /opt/smmb ทุกที่ในไฟล์นี้)
+
+ขั้นที่ 3 — ติดตั้ง + ตั้งค่า
+-----------------------------
+    cd /opt/smmb/backend
+    npm ci
+    cp .env.example .env
+
+แก้ backend/.env:
+    PORT=3000
+    PUBLIC_BASE_URL=http://<IP หรือโดเมนของเซิร์ฟเวอร์>:3000
+    QR_ALLOWED_HOSTS=<IP หรือโดเมนของเซิร์ฟเวอร์>
+    BOX_MASTER_KEY=<ผลของ: openssl rand -hex 32>
+    QR_SIGNING_KEY=<ผลของ: openssl rand -hex 32  (คนละค่ากับข้างบน)>
+  - VAPID_* เว้นว่างได้ (ยังไม่ส่ง push)
+  - DATABASE_URL / REDIS_URL ไม่ต้องแก้ (โหมด mock ตั้งเอง)
+  - สำคัญ: BOX_MASTER_KEY ตั้งแล้ว "ห้ามเปลี่ยน" — device_secret ของทุกตู้คิดจากค่านี้
+    เปลี่ยน = ต้องเขียนรหัสลับลงบอร์ดใหม่ทั้งหมด
+
+ลองรันมือก่อน 1 ครั้ง:
+    npm run dev:mock
+  ต้องเห็นกรอบข้อความ "SMMB backend — โหมด mock" + URL + box_id + device_secret + บัญชีจำลอง
+  แล้วกด Ctrl+C ปิด
+
+ขั้นที่ 4 — เปิดพอร์ต
+---------------------
+    sudo ufw allow 3000/tcp      (ถ้าใช้ ufw)
+  ถ้าเครื่องอยู่บน cloud ให้เปิดพอร์ต 3000 ใน security group / firewall ของผู้ให้บริการด้วย
+
+  ⚠ เรื่องความปลอดภัย: โหมด mock มีบัญชีจำลองที่รหัสผ่านรู้กันทั่วไป (demo1234)
+    ถ้าพอร์ตนี้เปิดออกอินเทอร์เน็ต ให้ทำอย่างใดอย่างหนึ่ง:
+    (ก) จำกัด IP ที่เข้าได้: sudo ufw allow from <IP ทีมเฟิร์มแวร์/วงแลน> to any port 3000 proto tcp
+    (ข) เปลี่ยนรหัสบัญชีจำลองทุกบัญชีทันทีหลังเปิด (ดูขั้นที่ 7)
+    ถามผู้ใช้ว่าจะเลือกแบบไหน ถ้าไม่แน่ใจ
+
+ขั้นที่ 5 — ให้รันค้างไว้ตลอด (systemd)
+---------------------------------------
+หา path ของ npm:  which npm
+สร้างไฟล์ /etc/systemd/system/smmb-mock.service :
+
+    [Unit]
+    Description=SMMB backend (mock mode, for ESP32-CAM testing)
+    After=network-online.target
+    Wants=network-online.target
+
+    [Service]
+    Type=simple
+    User=<ผู้ใช้ที่เป็นเจ้าของโฟลเดอร์ /opt/smmb>
+    WorkingDirectory=/opt/smmb/backend
+    Environment=NODE_ENV=development
+    ExecStart=<path ของ npm> run dev:mock
+    Restart=always
+    RestartSec=5
+
+    [Install]
+    WantedBy=multi-user.target
+
+แล้วรัน:
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now smmb-mock
+    sudo systemctl status smmb-mock
+    journalctl -u smmb-mock -n 60 --no-pager      # ดูกรอบข้อความ + device_secret
+    journalctl -u smmb-mock -f                     # ดูสด ๆ ตอนบอร์ดต่อเข้ามา
+
+- ถ้าติดตั้ง Node ด้วย nvm: ExecStart ต้องเป็น path เต็มของ npm ใน nvm และ PATH ต้องมี node
+  (เพิ่ม Environment=PATH=<โฟลเดอร์ bin ของ node>:/usr/bin:/bin)
+- ทุกคำขอจากตู้จะขึ้นใน log แบบนี้:
+    [Box] BX-00001 POST /v1/box/boot → 200 (15 ms)
+    [BoxAuth] BX-00001 POST /v1/box/report: bad_signature     ← ลายเซ็นไม่ผ่าน + เหตุผล
+
+ขั้นที่ 6 — ตรวจว่าใช้ได้ (ทำครบทุกข้อ)
+--------------------------------------
+ตั้งตัวแปร (เอา device_secret ของ BX-00001 จาก journalctl):
+    cd /opt/smmb/backend
+    export SMMB_URL=http://localhost:3000 SMMB_BOX=BX-00001 SMMB_SECRET=<device_secret ของ BX-00001>
+
+6.1 เซิร์ฟเวอร์ขึ้น
+    curl -s http://localhost:3000/api/health/live          → {"ok":true,...}
+    (/api/health ตอบ 503 เพราะไม่มี Redis — ปกติของโหมด mock ไม่ต้องแก้)
+
+6.2 ตู้จำลองคุยได้
+    npm run box:sim -- boot          → 200 + config (windows [["00:00","23:59"]])
+    npm run box:sim -- report        → 200
+
+6.3 ปลุกตู้ด้วยงานทดสอบ (เปิด 2 terminal)
+    terminal A:  npm run box:sim -- poll
+    terminal B:
+      curl -s -c /tmp/smmb.jar -H 'Content-Type: application/json' \
+        -d '{"phone":"0800000001","password":"demo1234"}' http://localhost:3000/api/v1/auth/signin
+      curl -s -b /tmp/smmb.jar -X POST http://localhost:3000/api/v1/admin/boxes/BX-00001/test-jobs
+      # จด "id" (J-xxxxxx) แล้ว:
+      curl -s -b /tmp/smmb.jar http://localhost:3000/api/v1/admin/boxes/BX-00001/test-jobs/<id>
+    → terminal A ต้องได้ job ทันที → ready 200 → result {"status":"pass"}
+    → คำสั่งสุดท้ายต้องได้ "status":"passed" และมี wake_ms
+    กด Ctrl+C ปิด terminal A
+
+6.4 ลองจากเครื่องอื่นในวงเดียวกัน/จากข้างนอก (แทน localhost ด้วย IP เซิร์ฟเวอร์)
+    curl -s http://<IP เซิร์ฟเวอร์>:3000/api/health/live
+    ต่อไม่ได้ = firewall / security group ยังไม่เปิด
+
+6.5 (ถ้าผู้ใช้ให้รัน) เทสต์อัตโนมัติ:  npm test   → ต้องผ่านทั้งหมด
+
+ขั้นที่ 7 — (ถ้าเลือกแบบ ข) เปลี่ยนรหัสบัญชีจำลอง
+-------------------------------------------------
+ทำทีละบัญชี (0800000001, 0812345678, 0823456789, 0834567890):
+    curl -s -c /tmp/u.jar -H 'Content-Type: application/json' \
+      -d '{"phone":"<เบอร์>","password":"demo1234"}' http://localhost:3000/api/v1/auth/signin
+    curl -s -b /tmp/u.jar -H 'Content-Type: application/json' \
+      -d '{"current_password":"demo1234","new_password":"<รหัสใหม่ 8 ตัวขึ้นไป>"}' \
+      http://localhost:3000/api/v1/auth/change-password
+บอกรหัสใหม่ให้ผู้ใช้ทางแชตเท่านั้น ห้ามเขียนลงไฟล์ในโปรเจกต์
+(ถ้าสั่ง npm run dev:mock -- --reset ข้อมูลจะกลับเป็นรหัส demo1234 อีกครั้ง)
+
+ขั้นที่ 8 — สรุปส่งกลับให้ผู้ใช้ (ทีมเฟิร์มแวร์ต้องใช้)
+-------------------------------------------------------
+ส่งข้อความนี้ให้ผู้ใช้ (กรอกค่าจริง):
+    URL เซิร์ฟเวอร์ให้บอร์ด:  http://<IP หรือโดเมน>:3000
+    ตู้ทดสอบ:                BX-00001 (ผูกแล้ว ถือ long-poll ได้ตลอดวัน)
+                             device_secret = <64 ตัว>
+                             BX-00002 (ยังไม่ผูก) device_secret = <64 ตัว>
+    ดู log สด:               journalctl -u smmb-mock -f
+    ปลุกตู้ (งานทดสอบ):      ขั้นที่ 6.3
+    ผลการตรวจขั้นที่ 6:       ผ่าน/ไม่ผ่านข้อไหน
+⚠ device_secret คือรหัสลับของตู้ ส่งให้ทีมเฟิร์มแวร์เท่านั้น
+
+
+=====================================================================
+ภาคผนวก — สิ่งที่เฟิร์มแวร์ ESP32-CAM ต้องทำ (สรุปให้ทีมเฟิร์มแวร์)
+รายละเอียดเต็ม: docs/SMMB_โปรโตคอลตู้-เซิร์ฟเวอร์.md
+=====================================================================
+ทุกคำขอใส่ header 4 ตัว:
+    X-Box-Id:     BX-00001
+    X-Timestamp:  เวลาปัจจุบัน วินาที UTC
+    X-Nonce:      สุ่มใหม่ทุกครั้ง 8–64 ตัว (A-Z a-z 0-9 _ -)
+    X-Signature:  hex ตัวเล็กของ HMAC-SHA256(key, ข้อความ)
+      key       = สตริง device_secret 64 ตัว "ทั้งก้อน" (ไม่ต้องแปลง hex เป็นไบต์)
+      ข้อความ   = METHOD|PATH|TIMESTAMP|NONCE|hex(SHA256(body))
+      PATH      = path รวม query เช่น /v1/box/jobs?wait=50
+      body ว่าง = SHA-256 ของค่าว่าง (e3b0c442...b855)
+    POST ใส่ Content-Type: application/json และเซ็นจาก "ไบต์ที่ส่งจริง" (ห้ามจัดรูป JSON หลังเซ็น)
+ค่าตัวอย่างให้เทียบว่าเซ็นถูก: โปรโตคอล §1.1 (box BX-00042 + master key ตัวอย่าง)
+ทุกคำตอบมี header X-Server-Time → ใช้ตั้งนาฬิกา (บูตครั้งแรกนาฬิกาเพี้ยนได้เฉพาะ /boot)
+
+ลำดับที่บอร์ดต้องทำ:
+  1. POST /v1/box/boot    {"fw":"1.0.0","config_ver":0,"reset_reason":"power_on","battery_pct":87,"charging":true,"rssi":-61}
+     → {"server_time":..,"config_ver":N,"config":{windows,tz,report_at,scan_timeout_s,max_attempts,flash_when_dark,longpoll_wait_s}}
+     เก็บ config_ver ไว้ ครั้งหน้าส่งค่านี้ (ตรงแล้วจะไม่ได้ config ซ้ำ)
+  2. POST /v1/box/report  (วันละครั้งตาม report_at) — ฟิลด์เหมือน boot + solar_mv, temp_c, wake_count ฯลฯ
+  3. ในช่วง windows: GET /v1/box/jobs?wait=50 วนไปเรื่อย ๆ
+       204 = ไม่มีงาน → ถามใหม่ทันที
+       200 = {"job":{"job_id":"J-xxxxxx","type":"test"|"inspect","expires_at":..,"scan_timeout_s":20,"attempt_max":3}}
+  4. ได้งาน → เปิดไฟ + กล้อง → POST /v1/box/jobs/<job_id>/ready  {"light":"on","flash":false}
+  5. อ่าน QR ทีละครั้ง (ไม่เกิน scan_timeout_s) → POST /v1/box/jobs/<job_id>/result
+       {"attempt":1,"read_ok":true,"qr_text":"<ข้อความที่อ่านได้>","read_ms":2400,"flash":false}
+       อ่านไม่ได้ → {"attempt":1,"read_ok":false,"qr_text":null,...}
+     → {"status":"pass"} ไฟเขียว · {"status":"retry","attempts_left":2} สแกนใหม่ · {"status":"fail"} ไฟแดง
+     งานทดสอบ (type "test"): อ่าน QR อะไรก็ได้สำเร็จ = pass
+  6. เหตุการณ์อื่น: POST /v1/box/events {"type":"wifi_reset_button" | "battery_critical" | "camera_error"}
+
+error ที่ต้องรับมือ:
+  401 BOX_AUTH_FAILED + "reason": missing_headers / unknown_box / bad_signature / clock_skew / replay
+      clock_skew → ตั้งนาฬิกาจาก server_time แล้วลองใหม่ 1 ครั้ง
+  404 JOB_NOT_FOUND / 410 JOB_EXPIRED → ปิดกล้อง กลับไปรองาน
+ส่งผลไม่ได้ → ทิ้ง ไม่เก็บไว้ส่งทีหลัง
+
+ตัวอย่างโค้ดการเซ็นที่ถูกต้อง (Node.js): backend/scripts/box-sim.mjs  (ฟังก์ชัน sign)
