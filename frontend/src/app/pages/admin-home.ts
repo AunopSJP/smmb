@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { I18n, type Tr } from '../core/i18n';
 import { AdminDemo } from '../core/mock/admin-demo';
 import { PlanDemo } from '../core/mock/plan-demo';
+import { Toast } from '../core/toast';
 import { caseUrl } from './admin/admin-qr';
 import { screenUrl } from '../screens/registry';
 import { Icon, type IconName } from '../shared/icon';
@@ -78,6 +79,19 @@ import { PageHeader } from '../shared/page-header';
           </a>
         }
       </nav>
+      <section class="card support">
+        <span class="muted small">{{ i18n.t({ th: 'ช่องทางติดต่อผู้ดูแล (แสดงให้ผู้ใช้เห็นตอนต้องติดต่อแอดมิน)', en: 'Admin contact (shown when users need the admin)' }) }}</span>
+        @if (editingSupport()) {
+          <input class="support-input" maxlength="500" [value]="supportDraft()" (input)="supportDraft.set($any($event.target).value)" />
+          <div class="two">
+            <button type="button" class="btn secondary" (click)="editingSupport.set(false)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
+            <button type="button" class="btn" [disabled]="!supportDraft().trim()" (click)="saveSupport()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
+          </div>
+        } @else {
+          <strong>{{ demo.supportContact() ?? i18n.t({ th: 'ยังไม่ได้ตั้ง', en: 'Not set' }) }}</strong>
+          <button type="button" class="btn secondary" (click)="editSupport()">{{ i18n.t({ th: 'แก้ไข', en: 'Edit' }) }}</button>
+        }
+      </section>
       <a class="btn secondary signout" [routerLink]="url('A04')">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</a>
     </div>
   `,
@@ -98,6 +112,25 @@ import { PageHeader } from '../shared/page-header';
       flex-direction: column;
       gap: 2px;
     }
+    .support {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .support-input {
+      min-height: 48px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--line);
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+    }
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
     .signout {
       color: var(--brand);
       box-shadow: inset 0 0 0 1.5px var(--line);
@@ -108,6 +141,23 @@ export class AdminHome {
   protected readonly i18n = inject(I18n);
   protected readonly demo = inject(AdminDemo);
   protected readonly plans = inject(PlanDemo);
+  private readonly toast = inject(Toast);
+  protected readonly editingSupport = signal(false);
+  protected readonly supportDraft = signal('');
+
+  protected editSupport(): void {
+    this.supportDraft.set(this.demo.supportContact() ?? '');
+    this.editingSupport.set(true);
+  }
+
+  /** ของจริง: PUT /admin/settings/support-contact { contact } */
+  protected saveSupport(): void {
+    const v = this.supportDraft().trim();
+    if (!v) return;
+    this.demo.supportContact.set(v);
+    this.editingSupport.set(false);
+    this.toast.show({ th: 'บันทึกช่องทางติดต่อแล้ว', en: 'Contact saved' });
+  }
   protected readonly url = screenUrl;
 
   /** งานค้าง: QR อาจปลอม · หน่วยงานรออนุมัติ · ตู้เงียบ — หายไปเมื่อจัดการแล้ว */

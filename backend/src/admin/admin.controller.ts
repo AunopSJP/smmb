@@ -19,6 +19,7 @@ import { normalizePhone } from '../auth/phone.js';
 import type { AuthContext } from '../auth/session.service.js';
 import { RateLimit } from '../rate-limit/rate-limit.guard.js';
 import { AdminAgencyService } from './admin-agency.service.js';
+import { SupportService } from '../support/support.service.js';
 import { AdminUsersService } from './admin-users.service.js';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
@@ -52,7 +53,12 @@ class HeadInfo {
 class CreateAgencyDto {
   @Transform(trim) @IsString() @Length(1, 200) name!: string;
   @IsIn(['police', 'guard', 'other']) type!: 'police' | 'guard' | 'other';
+  @Transform(trim) @IsString() @Length(3, 200) contact!: string;
   @ValidateNested() @Type(() => HeadInfo) head!: HeadInfo;
+}
+
+class SupportContactDto {
+  @Transform(trim) @IsString() @Length(1, 500) contact!: string;
 }
 
 class ListUsersQuery {
@@ -79,6 +85,7 @@ export class AdminController {
   constructor(
     private readonly agencies: AdminAgencyService,
     private readonly users: AdminUsersService,
+    private readonly support: SupportService,
   ) {}
 
   // ── §9.2 หน่วยงาน ──────────────────────────────────────────────────────
@@ -109,6 +116,13 @@ export class AdminController {
   @Post('agencies')
   createAgency(@Auth() auth: AuthContext, @Body() dto: CreateAgencyDto) {
     return this.agencies.create(auth.userId, dto);
+  }
+
+  // ── §3.1 ช่องทางติดต่อผู้ดูแล ─────────────────────────────────────────
+
+  @Put('settings/support-contact')
+  setSupportContact(@Auth() auth: AuthContext, @Body() dto: SupportContactDto) {
+    return this.support.set(auth.userId, dto.contact);
   }
 
   // ── §9.3 ผู้ใช้ ────────────────────────────────────────────────────────

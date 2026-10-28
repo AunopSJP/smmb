@@ -84,15 +84,18 @@ client **ห้ามเดาจาก `message`** ให้ดู `code` เ�
 
 `?page=1&per_page=20` (per_page สูงสุด 100) → `{ data: T[], page, per_page, total }`
 
-### rate limit — 💡 ตัวเลขยังไม่ได้ตกลง
+### rate limit — ✅ ตัวเลขที่ใช้ (ผู้ใช้ให้เลือกตามความเหมาะสม 2026-10-27)
 
 | route | เพดาน | เกินแล้ว |
 |---|---|---|
 | ค่าเริ่มต้น (ต่อ route ต่อ IP) | 100 ครั้ง/นาที | 429 |
-| `POST /auth/signin` | 5 ครั้ง/นาที ต่อ IP + ล็อกบัญชีชั่วคราวเมื่อผิดติดกัน | 401 `ACCOUNT_LOCKED` |
-| พิมพ์รหัสใต้ QR (ทุก route ที่รับ `code`) | ผิดติดกันหลายครั้ง → หน่วงเวลาเพิ่มขึ้นเรื่อย ๆ (กันเดารหัส) | 429 `CODE_ATTEMPTS_EXCEEDED` |
-| `POST /public/deliveries` + ปุ่มหน้าตู้ (ไรเดอร์) | ✅ จำกัดจำนวนครั้ง**ต่อตู้** นับรวมทั้ง QR และปุ่ม (ตัวเลข ❓) | 429 `DELIVERY_LIMIT` → หน้า `R03-c` · ปุ่ม: ตู้ได้ `status: "limited"` |
+| `POST /auth/signin` | 5 ครั้ง/นาที ต่อ IP · รหัสผิด 5 ครั้งใน 15 นาที (signin + change-password รวมกัน) → พักบัญชี 15 นาที | 401 `ACCOUNT_LOCKED` |
+| signup / `/me/roles/owner` / `/me/agency/join` | 10 ครั้ง/นาที ต่อ IP (กันเดารหัสกลุ่ม) | 429 |
+| พิมพ์รหัสใต้ QR (ทุก route ที่รับ `code`) | ผิด 3 ครั้งติดกัน (ต่อ IP) → รอ 30 วิ · ผิดอีกรอบรอเพิ่มเป็น 2 เท่า สูงสุด 15 นาที · ถูก 1 ครั้งนับใหม่ | 429 `CODE_ATTEMPTS_EXCEEDED` |
+| `POST /public/deliveries` + ปุ่มหน้าตู้ (ไรเดอร์) | **5 ครั้ง/ชั่วโมง ต่อตู้** นับรวมทั้ง QR และปุ่ม | 429 `DELIVERY_LIMIT` → หน้า `R03-c` · ปุ่ม: ตู้ได้ `status: "limited"` |
 | `GET /inspections/:id/badge` | 4 ครั้ง/นาที ต่อการตรวจ (ขอใหม่ทุก 30 วิ + เผื่อ) | 429 |
+
+**ตัวเลขอื่นที่ใช้ (✅ 2026-10-27)**: session 30 วัน ต่ออายุเมื่อใช้ · รหัสผ่าน 8–128 ตัว · delivery ticket 10 นาที · ไรเดอร์พิมพ์แทนสแกน 3 ครั้งใน 7 วัน = QR น่าสงสัย · หน้ารอตู้/รอ SOS poll ทุก 1 วิ · job ตรวจ 60 วิ · QR ประจำตัวเปลี่ยนทุก 30 วิ · ลองสแกน 3 ครั้ง · เวลาตรวจไม่เกิน 4 ช่วงต่อโซน · แบตต่ำ < 20% · QR ใกล้ครบอายุ ≥ 11 เดือน · ตู้หลุดกลางเวลาตรวจ > 10 นาที · ตู้เงียบ > 26 ชม. · เก็บ log 1 ปี · ค่าตั้งค่าตู้ (§9.5): `scan_timeout_s` 10–60 · `max_attempts` 1–5 · `longpoll_wait_s` 20–55
 
 > ⚠️ **ต้องตั้ง `TRUST_PROXY` ตอนขึ้นเซิร์ฟเวอร์จริง** (มี reverse proxy หน้า NestJS) ไม่งั้น IP ใน log/rate limit เป็น IP ของ proxy หมด
 
@@ -131,7 +134,7 @@ client **ห้ามเดาจาก `message`** ให้ดู `code` เ�
 |---|---|---|---|---|
 | POST | `/auth/signup/owner` | public | `{ name, phone, password, house_no, terms_version }` | 201 + set cookie `sid` → ไปหน้า `A07` ผูกตู้ · 409 `PHONE_TAKEN` · 400 `TERMS_NOT_ACCEPTED` (`A06-b`) |
 | POST | `/auth/signup/officer` | public | `{ name, phone, password, group_code, terms_version }` | 201 + cookie · สถานะ `pending` (`A11`) · 404 `GROUP_CODE_INVALID` · 409 `PHONE_TAKEN` |
-| POST | `/auth/signup/agency` | public | `{ agency: { name, type: "police"\|"guard"\|"other" }, head: { name, phone, password }, terms_version }` | 201 + cookie · หน่วยงานสถานะ `pending` (`L02`) |
+| POST | `/auth/signup/agency` | public | `{ agency: { name, type: "police"\|"guard"\|"other", contact }, head: { name, phone, password }, terms_version }` — `contact` 3–200 ตัว (บังคับ ✅ 2026-10-27) ช่องทางติดต่อที่ตั้งใจเปิดเผย แสดงให้คนที่ขอเข้าหน่วยงาน | 201 + cookie · หน่วยงานสถานะ `pending` (`L02`) |
 | POST | `/auth/signin` | public | `{ phone, password }` | 200 `{ ok: true, data: Me }` + cookie · 401 `INVALID_CREDENTIALS` (`A04-b` — เบอร์ไม่มีบัญชีก็ตอบแบบเดียวกัน) · 401 `ACCOUNT_LOCKED` · 401 `ACCOUNT_DISABLED` (บอกเฉพาะเมื่อรหัสถูก) · 429 `RATE_LIMITED` |
 | POST | `/auth/signout` | login | — | 200 ล้าง cookie เครื่องนี้ |
 | GET | `/auth/verify` | login | — | 200 `Me` (ด้านล่าง) — client เรียกตอนเปิดแอปและตอนกลับมาที่แท็บ |
@@ -163,7 +166,7 @@ interface Me {
   name: string;               // ชื่อจริง (เห็นเฉพาะตัวเอง/แอดมิน/หัวหน้าของตัวเอง)
   display_name: string;       // ชื่อที่ใช้แสดงต่อคนอื่น เช่น "ส.ต.ต. สมชาย"
   phone: string;
-  agency: { id; name; type; is_head: boolean } | null;   // officer / head
+  agency: { id; name; type; is_head: boolean; contact: string | null } | null;   // officer / head (รวมคนที่รอ/ถูกปฏิเสธ — contact ใช้ในหน้า A11 / A11-b)
   prefs: Prefs;               // §3
   push: { subscribed: boolean };   // เครื่องนี้ (session นี้) มี push subscription แล้วหรือยัง
   must_change_password: boolean;   // หลังหัวหน้า/แอดมินรีเซ็ตรหัส → client พาไปหน้าเปลี่ยนรหัส
@@ -236,6 +239,19 @@ interface Notification {
   data: Record<string, unknown>;          // ตาม type (§14)
 }
 ```
+
+---
+
+### 3.1 ช่องทางติดต่อ (✅ 2026-10-27 — ผู้ใช้กำหนด)
+
+| method | path | สิทธิ์ | body | ตอบ |
+|---|---|---|---|---|
+| GET | `/support` | public | — | `{ contact: string \| null }` ช่องทางติดต่อผู้ดูแลระบบ — แสดงใน `A04` (ลืมรหัส) · `A07-c` · `L02-b` |
+| PUT | `/admin/settings/support-contact` | `admin` | `{ contact }` 1–500 ตัว | `{ contact }` (หน้า `D01`) |
+| PATCH | `/agency` | `head` | `{ contact }` 3–200 ตัว | `{ contact }` แก้ช่องทางติดต่อของหน่วยงาน (หน้า `L03`) |
+
+- ช่องทางติดต่อเป็นข้อมูลที่**เจ้าของตั้งใจเปิดเผย** (กรอกเอง) แยกจากเบอร์ล็อกอิน — เบอร์ล็อกอินยังเห็นข้ามบทบาทได้เฉพาะตอน SOS (§11)
+- หน่วยงาน: กรอกตอนสมัคร (`/auth/signup/agency`) หรือแอดมินใส่ตอนสร้าง (`POST /admin/agencies`) → คนที่ขอเข้าเห็นใน `Me.agency.contact`
 
 ---
 
@@ -517,7 +533,7 @@ interface SosCard {
 
 | method | path | สิทธิ์ | ตอบ |
 |---|---|---|---|
-| GET | `/agency` | หัวหน้า (รวมหน่วยงานที่ยัง pending / rejected — ใช้แสดง `L02` / `L02-b` · ไม่ต้องเปิดแจ้งเตือน) | `{ id, name, type, status: "pending" \| "approved" \| "rejected", group_code: string \| null, reject_reason: string \| null, heads: {id, display_name}[] }` — `group_code` มีเมื่อ `approved` (`L03` แชร์ให้ลูกทีม) · ไม่ใช่หัวหน้า → 404 |
+| GET | `/agency` | หัวหน้า (รวมหน่วยงานที่ยัง pending / rejected — ใช้แสดง `L02` / `L02-b` · ไม่ต้องเปิดแจ้งเตือน) | `{ id, name, type, status: "pending" \| "approved" \| "rejected", group_code: string \| null, reject_reason: string \| null, contact: string \| null, heads: {id, display_name}[] }` — `group_code` มีเมื่อ `approved` (`L03` แชร์ให้ลูกทีม) · ไม่ใช่หัวหน้า → 404 |
 | POST | `/agency/group-code/rotate` | `head` | `{ group_code }` ใหม่ — รหัสเก่าใช้สมัครไม่ได้ (คนที่สมัครไปแล้วไม่กระทบ) |
 | GET | `/agency/today` | `head` | `?zone=mine\|all\|<zone_id>` → ภาพรวมทีมวันนี้ (`L04`): ต่อโซน `{ zone, is_mine, houses_total, houses_checked, officers_on_duty }` + SOS วันนี้ + ตู้ offline ในโซน · 🔜 ยังไม่ทำ (ต้องมีโซน/การตรวจก่อน) |
 
@@ -564,7 +580,9 @@ interface Zone { id; name; windows: [string, string][]; tz: "Asia/Bangkok"; hous
 interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus }
 ```
 
-- `windows`: ไม่ทับกันเอง, `start < end`, ไม่ข้ามเที่ยงคืน 💡 (ถ้าต้องตรวจข้ามคืนให้แยกเป็น 2 ช่วง)
+- ✅ (2026-10-27 เขียนแล้ว) `GET`/`POST`/`PATCH`/`DELETE` โซน + `PUT …/officers` · `GET /agency/zones?zone=mine|all` (ตัวกรอง ไม่ใช่สิทธิ์) · **ยังไม่ทำ `PUT …/houses` และ `/agency/houses/search`** จนกว่าจะตอบว่าบ้านหลังเดียวอยู่ในโซนของหลายหน่วยงานได้ไหม (design §15)
+- `windows`: `"HH:mm"` · `start < end` (ไม่ข้ามเที่ยงคืน — ตรวจข้ามคืนให้แยก 2 ช่วง) · ไม่ทับกัน (ชนขอบได้) · ไม่เกิน 4 ช่วง · เรียงตามเวลาให้ · ผิด → 400 `WINDOWS_INVALID`
+- ชื่อโซนซ้ำในหน่วยงานเดียว (ไม่สนตัวเล็กใหญ่) → 409 `ZONE_NAME_TAKEN` · ใส่คนที่ไม่ใช่สมาชิก active ของหน่วยงาน → 400 `OFFICER_NOT_MEMBER` · โซนของหน่วยงานอื่น/ที่ลบแล้ว → 404 · ลบโซน = เก็บประวัติ (soft delete) + ถอดคนและบ้านออก
 - ตู้อยู่ได้หลายโซน → เวลาตรวจที่ส่งให้ตู้ = **รวมช่วงของทุกโซน** (merge ที่ทับกัน) — ดู design §5
 - ✅ ข้อมูลที่หัวหน้าเห็นของบ้าน = บ้านเลขที่ + ชื่อตู้ (ไม่เห็นชื่อ/เบอร์เจ้าของบ้าน)
 
@@ -593,7 +611,7 @@ interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus }
 | GET | `/admin/agencies/:id` | — | หน่วยงาน + หัวหน้า (`heads_contact` มีชื่อ/เบอร์ → **บันทึก data access log**) + `counts: { members_active, members_pending, zones, houses }` + `group_code` |
 | POST | `/admin/agencies/:id/approve` | — | 200 `{ group_code }` (8 ตัว ไม่มีตัวที่สับสน) · หัวหน้าได้บทบาท officer → แจ้ง `agency_approved` (`L03`) · 409 `AGENCY_NOT_PENDING` |
 | POST | `/admin/agencies/:id/reject` | `{ reason? }` | 200 (`L02-b` แสดง `reject_reason`) → แจ้ง `agency_rejected` · 409 `AGENCY_NOT_PENDING` |
-| POST | `/admin/agencies` | `{ name, type, head: { name, phone } }` | 201 `{ agency, head: { id, existing_account }, head_temp_password, group_code }` — ✅ ทางเลือก "แอดมินสร้างให้แล้วแจกรหัสกลุ่ม" · เบอร์ใหม่ → บัญชีใหม่ + รหัสชั่วคราว (ต้องเปลี่ยนรหัส + ยอมรับข้อตกลงตอนเข้าครั้งแรก) · เบอร์ที่มีบัญชีแล้ว → ใช้บัญชีเดิม `head_temp_password: null` · 409 `ROLE_EXISTS` ถ้าอยู่หน่วยงานอื่นแล้ว · 403 `ADMIN_ROLE_EXCLUSIVE` · หน้าเว็บ: ปุ่ม "สร้างหน่วยงานให้" ใน `D13` |
+| POST | `/admin/agencies` | `{ name, type, contact, head: { name, phone } }` | 201 `{ agency, head: { id, existing_account }, head_temp_password, group_code }` — ✅ ทางเลือก "แอดมินสร้างให้แล้วแจกรหัสกลุ่ม" · เบอร์ใหม่ → บัญชีใหม่ + รหัสชั่วคราว (ต้องเปลี่ยนรหัส + ยอมรับข้อตกลงตอนเข้าครั้งแรก) · เบอร์ที่มีบัญชีแล้ว → ใช้บัญชีเดิม `head_temp_password: null` · 409 `ROLE_EXISTS` ถ้าอยู่หน่วยงานอื่นแล้ว · 403 `ADMIN_ROLE_EXCLUSIVE` · หน้าเว็บ: ปุ่ม "สร้างหน่วยงานให้" ใน `D13` |
 
 - หน่วยงานสมัครใหม่ → แจ้ง `agency_pending` ถึงแอดมินทุกคน · เจ้าหน้าที่สมัคร/ขอเข้า → แจ้ง `member_pending` ถึงหัวหน้าทุกคนของหน่วยงาน
 
@@ -878,6 +896,9 @@ payload ที่ส่งให้ service worker (✅ 2026-10-27 — รูป
 | `SOS_ALREADY_TAKEN` | 409 | accept | `O09-b` |
 | `SOS_CANCELLED` | 410 | accept | `O09-c` |
 | `LAST_HEAD` | 409 | ถอดหัวหน้า | — |
+| `WINDOWS_INVALID` | 400 | สร้าง/แก้โซน | `L07` แสดงข้อความใต้ช่องเวลา |
+| `ZONE_NAME_TAKEN` | 409 | สร้าง/แก้โซน | `L07` |
+| `OFFICER_NOT_MEMBER` | 400 | `PUT /agency/zones/:id/officers` | รีเฟรชรายชื่อ (`L07-c`) |
 | `NO_SWAP_REQUESTED` | 409 | backup-placed | — |
 | `PLAN_FEATURE_REQUIRED` | 403 | route ที่ขึ้นกับแพ็กเกจ | ข้อความ "แพ็กเกจของคุณยังไม่มีฟีเจอร์นี้" |
 | `PLAN_OVERLAP` / `PLAN_INACTIVE` | 409 / 400 | `PUT /admin/users/:id/plan` | — |

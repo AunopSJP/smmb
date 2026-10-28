@@ -72,6 +72,8 @@ export interface DemoAgency {
   sent: Tr;
   group_code: string | null;
   members: number;
+  /** ช่องทางติดต่อที่หน่วยงานกรอกตอนสมัคร */
+  contact: string;
   reject_reason?: string;
 }
 
@@ -174,9 +176,9 @@ export class AdminDemo {
   ]);
 
   readonly agencies = signal<DemoAgency[]>([
-    { id: 'a3', name: tr('สภ.บางพลี', 'Bang Phli police'), type: 'police', head: tr('พ.ต.ท. ชาตรี มั่นคง', 'Pol. Lt. Col. Chatree'), head_phone: '081-000-2222', status: 'pending', sent: tr('25 ต.ค.', '25 Oct'), group_code: null, members: 1 },
-    { id: 'a1', name: tr('สภ.เมือง', 'Mueang police'), type: 'police', head: tr('พ.ต.ท. วีระ กล้าหาญ', 'Pol. Lt. Col. Weera'), head_phone: '081-000-1111', status: 'approved', sent: tr('1 ต.ค.', '1 Oct'), group_code: 'PX7K-2MQ9', members: 9 },
-    { id: 'a2', name: tr('รปภ. หมู่บ้านสุขใจ', 'Sukjai village guards'), type: 'guard', head: tr('คุณวิชัย ใจดี', 'Mr. Wichai'), head_phone: '089-333-4444', status: 'approved', sent: tr('3 ต.ค.', '3 Oct'), group_code: 'RJ4W-9QTC', members: 4 },
+    { id: 'a3', name: tr('สภ.บางพลี', 'Bang Phli police'), type: 'police', head: tr('พ.ต.ท. ชาตรี มั่นคง', 'Pol. Lt. Col. Chatree'), head_phone: '081-000-2222', status: 'pending', sent: tr('25 ต.ค.', '25 Oct'), group_code: null, members: 1, contact: 'สภ.บางพลี 02-312-0000' },
+    { id: 'a1', name: tr('สภ.เมือง', 'Mueang police'), type: 'police', head: tr('พ.ต.ท. วีระ กล้าหาญ', 'Pol. Lt. Col. Weera'), head_phone: '081-000-1111', status: 'approved', sent: tr('1 ต.ค.', '1 Oct'), group_code: 'PX7K-2MQ9', members: 9, contact: 'สถานี 02-111-2222' },
+    { id: 'a2', name: tr('รปภ. หมู่บ้านสุขใจ', 'Sukjai village guards'), type: 'guard', head: tr('คุณวิชัย ใจดี', 'Mr. Wichai'), head_phone: '089-333-4444', status: 'approved', sent: tr('3 ต.ค.', '3 Oct'), group_code: 'RJ4W-9QTC', members: 4, contact: 'ป้อมหน้าหมู่บ้าน 089-333-4444' },
   ]);
 
   readonly users = signal<AdminUser[]>([
@@ -207,6 +209,9 @@ export class AdminDemo {
   /** เช็กลิสต์ช่าง T01 — ขั้นที่กำลังทำ (0–4) · 5 = เสร็จ */
   readonly installStep = signal(0);
   readonly qrTested = signal({ front: false, backup: false });
+
+  /** ช่องทางติดต่อผู้ดูแลระบบ (GET /support · แอดมินตั้งด้วย PUT /admin/settings/support-contact) */
+  readonly supportContact = signal<string | null>('ทีมดูแล Smart Mailbox 02-000-1234');
 
   readonly pendingAgencies = computed(() => this.agencies().filter((a) => a.status === 'pending'));
   readonly openQr = computed(() => this.qrCases().filter((c) => !c.resolved));
@@ -311,11 +316,13 @@ export class AdminDemo {
   createAgency(
     name: string,
     type: DemoAgency['type'],
+    contact: string,
     headName: string,
     rawPhone: string,
   ): { ok: true; group_code: string; temp_password: string | null } | { ok: false; code: 'ROLE_EXISTS' | 'ADMIN_ROLE_EXCLUSIVE' | 'INVALID' } {
     const digits = rawPhone.replace(/\D/g, '').replace(/^66/, '0');
-    if (!name.trim() || !headName.trim() || !/^0\d{9}$/.test(digits)) return { ok: false, code: 'INVALID' };
+    const c = contact.trim();
+    if (!name.trim() || !headName.trim() || !/^0\d{9}$/.test(digits) || c.length < 3 || c.length > 200) return { ok: false, code: 'INVALID' };
     const existing = this.users().find((u) => u.phone.replace(/\D/g, '') === digits);
     if (existing?.roles.includes('admin')) return { ok: false, code: 'ADMIN_ROLE_EXCLUSIVE' };
     if (existing?.roles.includes('officer')) return { ok: false, code: 'ROLE_EXISTS' };
@@ -323,7 +330,7 @@ export class AdminDemo {
     const group_code = newGroupCode();
     const phone = `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
     this.agencies.update((list) => [
-      { id: `a${Date.now()}`, name: agencyName, type, head: tr(headName.trim(), headName.trim()), head_phone: phone, status: 'approved', sent: tr('วันนี้', 'Today'), group_code, members: 1 },
+      { id: `a${Date.now()}`, name: agencyName, type, head: tr(headName.trim(), headName.trim()), head_phone: phone, status: 'approved', sent: tr('วันนี้', 'Today'), group_code, members: 1, contact: c },
       ...list,
     ]);
     if (existing) {

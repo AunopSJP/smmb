@@ -32,7 +32,8 @@ export interface Me {
   name: string;
   display_name: string;
   phone: string;
-  agency: { id: string; name: string; type: string; is_head: boolean } | null;
+  /** contact = ช่องทางที่หน่วยงานกรอกตอนสมัคร (ตั้งใจเปิดเผย) */
+  agency: { id: string; name: string; type: string; is_head: boolean; contact: string | null } | null;
   prefs: Prefs;
   push: { subscribed: boolean };
   must_change_password: boolean;
@@ -95,7 +96,7 @@ export class MeService {
       display_name: u.display_name,
       phone: u.phone,
       agency: access.agency
-        ? { id: access.agency.id, name: access.agency.name, type: access.agency.type, is_head: access.agency.isHead }
+        ? { id: access.agency.id, name: access.agency.name, type: access.agency.type, is_head: access.agency.isHead, contact: access.agency.contact }
         : null,
       prefs: { ...DEFAULT_PREFS, ...u.prefs },
       push: { subscribed },

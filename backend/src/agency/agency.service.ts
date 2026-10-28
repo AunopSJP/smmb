@@ -30,6 +30,7 @@ export interface AgencyDto {
   status: 'pending' | 'approved' | 'rejected';
   group_code: string | null;
   reject_reason: string | null;
+  contact: string | null;
   heads: { id: string; display_name: string }[];
 }
 
@@ -80,8 +81,9 @@ export class AgencyService {
       status: AgencyDto['status'];
       group_code: string | null;
       reject_reason: string | null;
+      contact: string | null;
     }>(
-      `SELECT a.agency_id, a.name, a.type, a.status, a.group_code, a.reject_reason
+      `SELECT a.agency_id, a.name, a.type, a.status, a.group_code, a.reject_reason, a.contact
        FROM app.agency_member_tb m JOIN app.agency_tb a ON a.agency_id = m.agency_id
        WHERE m.user_id = $1 AND m.is_head AND m.status IN ('active', 'pending', 'rejected')`,
       [userId],
@@ -101,8 +103,15 @@ export class AgencyService {
       // รหัสกลุ่มใช้ได้เฉพาะหน่วยงานที่อนุมัติแล้ว
       group_code: a.status === 'approved' ? a.group_code : null,
       reject_reason: a.status === 'rejected' ? a.reject_reason : null,
+      contact: a.contact,
       heads: heads.rows.map((h) => ({ id: h.user_id, display_name: h.display_name })),
     };
+  }
+
+  /** แก้ช่องทางติดต่อของหน่วยงาน (แสดงให้คนที่ขอเข้า) */
+  async setContact(agencyId: string, contact: string): Promise<{ contact: string }> {
+    await this.pool.query(`UPDATE app.agency_tb SET contact = $2 WHERE agency_id = $1`, [agencyId, contact]);
+    return { contact };
   }
 
   /** รหัสใหม่ — รหัสเก่าใช้สมัครไม่ได้ (คนที่สมัครไปแล้วไม่กระทบ) */

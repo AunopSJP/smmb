@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, input, signal, type OnInit 
 import { Router, RouterLink } from '@angular/router';
 import { I18n, type Tr } from '../../core/i18n';
 import { AuthDemo, DEMO_PASSWORD, normalizePhone, ROLE_HOME, type DemoAccountRole } from '../../core/mock/auth-demo';
+import { AdminDemo } from '../../core/mock/admin-demo';
 import { DemoSession } from '../../core/mock/demo-session';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
@@ -196,7 +197,10 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
           <input type="tel" inputmode="tel" autocomplete="tel" [value]="phone()" (input)="phone.set($any($event.target).value)" />
         </label>
         <app-password-field [(value)]="password" [invalid]="!!error()" />
-        <p class="small danger-text">{{ i18n.t({ th: 'ลืมรหัสผ่าน? ติดต่อหัวหน้าหรือผู้ดูแล', en: 'Forgot it? Ask your agency head or the admin' }) }}</p>
+        <p class="small">
+          <span class="danger-text">{{ i18n.t({ th: 'ลืมรหัสผ่าน? ', en: 'Forgot it? ' }) }}</span>
+          {{ i18n.t({ th: 'เจ้าหน้าที่ขอให้หัวหน้ารีเซ็ต · คนอื่นติดต่อผู้ดูแล: ', en: 'Officers ask their head · everyone else contacts the admin: ' }) }}<strong>{{ support() ?? '—' }}</strong>
+        </p>
 
         <div class="stack push-end">
           <button type="submit" class="btn" [disabled]="!ready()">{{ error() ? i18n.t({ th: 'ลองอีกครั้ง', en: 'Try again' }) : i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</button>
@@ -252,6 +256,8 @@ export class AuthSignin implements OnInit {
   protected readonly url = screenUrl;
   protected readonly roleChoice = ROLE_CHOICE;
   protected readonly demoPassword = DEMO_PASSWORD;
+  /** ของจริง: GET /api/v1/support (public — ยังไม่ล็อกอินก็เห็น) */
+  protected readonly support = inject(AdminDemo).supportContact;
   protected readonly demoAccounts: { phone: string; label: Tr }[] = [
     { phone: '089-111-2222', label: { th: 'เจ้าของบ้าน', en: 'owner' } },
     { phone: '081-234-5678', label: { th: 'เจ้าหน้าที่', en: 'officer' } },

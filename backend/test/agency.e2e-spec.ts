@@ -62,7 +62,7 @@ describe('Agency + admin (e2e)', () => {
     const p = phone();
     const res = await http()
       .post('/api/v1/auth/signup/agency')
-      .send({ agency: { name, type: 'police' }, head: { name: 'หัวหน้า', phone: p, password: PW }, terms_version: terms })
+      .send({ agency: { name, type: 'police', contact: 'สถานี 02-111-2222' }, head: { name: 'หัวหน้า', phone: p, password: PW }, terms_version: terms })
       .expect(201);
     return { headId: res.body.id as string, agencyId: res.body.agency.id as string, phone: p, cookie: sid(res), name };
   };
@@ -160,7 +160,7 @@ describe('Agency + admin (e2e)', () => {
     it('admin creates an agency for a new phone → temp password that must be changed, then terms, then usable', async () => {
       const p = phone();
       const res = await as(admin.cookie)
-        .post('/api/v1/admin/agencies', { name: 'รปภ. หมู่บ้าน', type: 'guard', head: { name: 'หัวหน้า รปภ.', phone: p } })
+        .post('/api/v1/admin/agencies', { name: 'รปภ. หมู่บ้าน', type: 'guard', contact: '089-000-1111', head: { name: 'หัวหน้า รปภ.', phone: p } })
         .expect(201);
       expect(res.body).toMatchObject({ agency: { status: 'approved' }, head: { existing_account: false } });
       expect(res.body.head_temp_password).toMatch(/^[A-HJ-NP-Z2-9]{10}$/);
@@ -183,7 +183,7 @@ describe('Agency + admin (e2e)', () => {
     it('admin creates an agency for an existing owner → same account, no temp password, roles stack', async () => {
       const o = await owner();
       const res = await as(admin.cookie)
-        .post('/api/v1/admin/agencies', { name: 'สภ. ทดสอบ', type: 'police', head: { name: 'x', phone: o.phone } })
+        .post('/api/v1/admin/agencies', { name: 'สภ. ทดสอบ', type: 'police', contact: 'สถานี 02-333-4444', head: { name: 'x', phone: o.phone } })
         .expect(201);
       expect(res.body).toMatchObject({ head: { id: o.id, existing_account: true }, head_temp_password: null });
       expect((await as(o.cookie).get('/api/v1/me').expect(200)).body.roles).toEqual(['owner', 'officer', 'head']);

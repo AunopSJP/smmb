@@ -7,8 +7,10 @@ import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
-import { contactNotSet, MockNote, nowHHmm, PasswordField, TermsCheck } from './auth-parts';
+import { ContactCard } from '../../shared/contact-card';
+import { MockNote, nowHHmm, PasswordField, TermsCheck } from './auth-parts';
 import { SIGNUP_ERROR } from './auth-owner';
+import { TERMS, TERMS_VERSION } from '../../core/terms';
 
 // เจ้าหน้าที่: A10 สมัครด้วยรหัสกลุ่ม → A11 รอหัวหน้ายืนยัน (A11-b ถูกปฏิเสธ) → A12 ต้องเปิดแจ้งเตือนก่อน
 // จำลองบนหน้าจอเท่านั้น — ไม่สร้างบัญชีจริง
@@ -102,6 +104,7 @@ export class AuthSignupOfficer {
 
 @Component({
   selector: 'app-auth-waiting-head',
+  imports: [ContactCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack grow">
@@ -114,8 +117,8 @@ export class AuthSignupOfficer {
             {{ i18n.t({ th: 'ตรวจรหัสกลุ่มกับหัวหน้าอีกครั้ง', en: 'Check the group code with them' }) }}
           </p>
         </div>
+        <app-contact-card [label]="{ th: 'ติดต่อหน่วยงาน · ' + req().agency.th, en: 'Contact the agency · ' + req().agency.en }" [contact]="req().contact" />
         <div class="stack push-end">
-          <button type="button" class="btn" (click)="contact()">{{ i18n.t({ th: 'ติดต่อหัวหน้า', en: 'Contact your head' }) }}</button>
           @if (otherHome(); as h) {
             <button type="button" class="btn secondary" (click)="leave(h)">{{ i18n.t({ th: 'กลับหน้าหลัก', en: 'Back to home' }) }}</button>
           } @else {
@@ -137,6 +140,7 @@ export class AuthSignupOfficer {
             <dt>{{ i18n.t({ th: 'ส่งเมื่อ', en: 'Sent' }) }}</dt><dd>{{ req().at }}</dd>
           </dl>
         </section>
+        <app-contact-card [label]="{ th: 'รอนานเกินไป? ติดต่อหน่วยงาน', en: 'Waiting too long? Contact the agency' }" [contact]="req().contact" />
         <div class="stack push-end">
           <button type="button" class="btn" (click)="check()">{{ i18n.t({ th: 'ตรวจสถานะอีกครั้ง', en: 'Check again' }) }}</button>
           @if (otherHome(); as h) {
@@ -175,7 +179,8 @@ export class AuthWaitingHead {
   protected readonly otherHome = computed(() => this.session.roles().find((r) => r !== 'officer' && r !== 'head') ?? null);
   /** ?state=rejected = A11-b */
   readonly state = input<string>();
-  protected readonly req = computed(() => this.demo.officerRequest() ?? { agency: { th: 'สภ.เมือง', en: 'Mueang police' }, at: '10:42' });
+  /** ของจริง: Me.agency (ชื่อ + contact ที่หน่วยงานกรอกตอนสมัคร) */
+  protected readonly req = computed(() => this.demo.officerRequest() ?? { agency: { th: 'สภ.เมือง', en: 'Mueang police' }, contact: 'สถานี 02-111-2222', at: '10:42' });
 
   /** ของจริง: GET /auth/verify → Me.agency_status */
   protected check(): void {
@@ -188,10 +193,6 @@ export class AuthWaitingHead {
 
   protected reject(): void {
     void this.router.navigate([screenUrl('A11')], { queryParams: { state: 'rejected' } });
-  }
-
-  protected contact(): void {
-    contactNotSet(this.toast);
   }
 
   protected leave(role: DemoRole): void {
@@ -273,17 +274,20 @@ export class AuthPushRequired {
   imports: [PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header caption="Smart Mailbox" [title]="i18n.t({ th: 'ข้อตกลงการใช้งาน', en: 'Terms of use' })" [back]="backUrl()" />
+    <app-page-header caption="Smart Mailbox" [title]="t().title" [back]="backUrl()" />
     <div class="stack grow">
-      <ul class="card terms">
-        @for (t of items; track $index) {
-          <li>
-            <strong>{{ i18n.t(t.title) }}</strong>
-            <span class="muted small">{{ i18n.t(t.body) }}</span>
-          </li>
-        }
-      </ul>
-      <p class="demo-tools">{{ i18n.t({ th: 'สรุปสำหรับต้นแบบ — ข้อตกลงฉบับเต็มยังไม่มี (ของจริงมาจาก GET /terms/current)', en: 'Prototype summary — the full terms are not written yet' }) }}</p>
+      <p class="muted small">{{ t().intro }}</p>
+      @for (sec of t().sections; track sec.title; let first = $first) {
+        <section class="card sec" [class.first]="first">
+          <h2>{{ sec.title }}</h2>
+          <ul>
+            @for (item of sec.items; track $index) {
+              <li>{{ item }}</li>
+            }
+          </ul>
+        </section>
+      }
+      <p class="muted small">{{ i18n.t({ th: 'ฉบับ ', en: 'Version ' }) }}{{ version }}</p>
       <button type="button" class="btn push-end" (click)="accept()">{{ i18n.t({ th: 'ยอมรับ', en: 'Accept' }) }}</button>
     </div>
   `,
@@ -291,17 +295,23 @@ export class AuthPushRequired {
     .grow {
       flex: 1;
     }
-    .terms {
-      list-style: none;
+    .sec h2 {
+      font-size: 1rem;
+      margin-bottom: 6px;
+    }
+    .sec.first {
+      box-shadow: inset 0 0 0 2px var(--sos);
+      h2 {
+        color: var(--sos);
+      }
+    }
+    ul {
       margin: 0;
+      padding-left: 20px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      background: var(--surface);
-      li {
-        display: flex;
-        flex-direction: column;
-      }
+      gap: 4px;
+      font-size: 0.9375rem;
     }
   `,
 })
@@ -309,17 +319,12 @@ export class AuthTerms {
   protected readonly i18n = inject(I18n);
   private readonly demo = inject(AuthDemo);
   private readonly router = inject(Router);
-  /** ?from=A06|A10|L01 — กลับไปฟอร์มเดิมพร้อมติ๊กยอมรับให้ */
+  /** ?from=A06|A10|L01|A15|A16 — กลับไปฟอร์มเดิมพร้อมติ๊กยอมรับให้ */
   readonly from = input<string>();
   protected readonly backUrl = computed(() => screenUrl(this.formOf(this.from()) ? this.from()! : 'A04'));
-
-  protected readonly items = [
-    { title: { th: 'SOS ไม่ได้แทน 191 / 1669', en: 'SOS does not replace 191 / 1669' }, body: { th: 'เหตุฉุกเฉินร้ายแรง ให้โทรแจ้งโดยตรงเสมอ', en: 'In a serious emergency, always call directly' } },
-    { title: { th: 'ระบบบันทึกทุกการสแกน', en: 'Every scan is logged' }, body: { th: 'ใคร · ตู้ · QR ใบไหน · สแกนหรือพิมพ์ · ผล · เวลา — แม้ไม่ผ่าน', en: 'Who · box · which QR · scanned or typed · result · time — even failures' } },
-    { title: { th: 'ข้อมูลที่แต่ละฝ่ายเห็น', en: 'Who sees what' }, body: { th: 'เจ้าหน้าที่เห็นเบอร์เจ้าของบ้านเฉพาะตอน SOS เปิดอยู่', en: 'Officers see the owner’s phone only while an SOS is open' } },
-    { title: { th: 'ตู้ไม่ถ่ายรูป ไม่มีไซเรน', en: 'The box takes no photos and has no siren' }, body: { th: 'ตู้อ่าน QR อย่างเดียว', en: 'It only reads QR codes' } },
-    { title: { th: 'ใช้ฟรีช่วงทดลอง', en: 'Free during the trial' }, body: { th: 'ได้แพ็กฟรีอัตโนมัติ ไม่มีการชำระเงิน', en: 'You get the free plan automatically; there are no payments' } },
-  ];
+  /** ของจริง: GET /api/v1/terms/current (body_md มีทั้งไทยและอังกฤษ คั่นด้วย <!-- en -->) */
+  protected readonly t = computed(() => TERMS[this.i18n.lang()]);
+  protected readonly version = TERMS_VERSION;
 
   private formOf(code: string | undefined): FormKey | null {
     const map: Record<string, FormKey> = { A06: 'owner', A10: 'officer', L01: 'agency', A15: 'addOwner', A16: 'join' };

@@ -6,7 +6,13 @@ import type { Request, Response } from 'express';
  * client ตัดสินจาก `code` เท่านั้น ห้ามดู `message`
  */
 export class AppError extends HttpException {
-  constructor(status: HttpStatus, readonly code: string, message: string) {
+  /** extra = ฟิลด์เพิ่มในคำตอบ (เช่น `server_time` ให้ตู้ตั้งนาฬิกา) — ห้ามใส่ข้อมูลส่วนบุคคล */
+  constructor(
+    status: HttpStatus,
+    readonly code: string,
+    message: string,
+    readonly extra: Record<string, unknown> = {},
+  ) {
     super({ code, message }, status);
   }
 }
@@ -51,6 +57,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         : 'Error',
       ...(code ? { code } : {}),
       message,
+      ...(exception instanceof AppError ? exception.extra : {}),
       path: req.originalUrl ?? req.url,
       timestamp: new Date().toISOString(),
     });

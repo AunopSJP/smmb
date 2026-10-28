@@ -178,13 +178,13 @@ export class AdminAgencyService {
    */
   async create(
     adminId: string,
-    dto: { name: string; type: string; head: { name: string; phone: string } },
+    dto: { name: string; type: string; contact: string; head: { name: string; phone: string } },
   ) {
     return withTx(this.pool, async (db) => {
       const { rows } = await db.query<{ agency_id: string }>(
-        `INSERT INTO app.agency_tb (name, type, status, approved_by, approved_date)
-         VALUES ($1, $2, 'approved', $3, now()) RETURNING agency_id`,
-        [dto.name, dto.type, adminId],
+        `INSERT INTO app.agency_tb (name, type, contact, status, approved_by, approved_date)
+         VALUES ($1, $2, $4, 'approved', $3, now()) RETURNING agency_id`,
+        [dto.name, dto.type, adminId, dto.contact],
       );
       const agencyId = rows[0].agency_id;
       const code = await assignGroupCode(db, agencyId);

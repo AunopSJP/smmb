@@ -9,7 +9,9 @@ import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
 import { Steps, type Step } from '../../shared/steps';
 import { SIGNUP_ERROR } from '../auth/auth-owner';
-import { contactNotSet, MockNote, nowHHmm, PasswordField, TermsCheck } from '../auth/auth-parts';
+import { AdminDemo } from '../../core/mock/admin-demo';
+import { ContactCard } from '../../shared/contact-card';
+import { MockNote, nowHHmm, PasswordField, TermsCheck } from '../auth/auth-parts';
 
 // หัวหน้า: L01 สมัครหน่วยงาน → L02 รอแอดมิน (L02-b ไม่อนุมัติ) → L03 อนุมัติแล้ว แชร์รหัสกลุ่ม
 // จำลองบนหน้าจอเท่านั้น — ไม่สร้างบัญชีจริง (api.md §2 signup/agency, §9.2)
@@ -51,6 +53,11 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
         <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
         <input type="tel" inputmode="tel" autocomplete="tel" [value]="f().phone" (input)="set('phone', $any($event.target).value)" />
         <small>{{ i18n.t({ th: 'ใช้ล็อกอิน · แอดมินใช้ติดต่อตอนตรวจคำขอ', en: 'Used to sign in · the admin may call while reviewing' }) }}</small>
+      </label>
+      <label class="field" [class.invalid]="tried() && !contactOk()">
+        <span>{{ i18n.t({ th: 'ช่องทางติดต่อหน่วยงาน', en: 'Agency contact' }) }}</span>
+        <input maxlength="200" [placeholder]="i18n.t({ th: 'เช่น สถานี 02-111-2222', en: 'e.g. Station 02-111-2222' })" [value]="f().contact" (input)="set('contact', $any($event.target).value)" />
+        <small>{{ i18n.t({ th: 'แสดงให้คนที่ขอเข้าหน่วยงานเห็น — ใส่เฉพาะที่ยินดีเปิดเผย', en: 'Shown to people asking to join — only what you are happy to share' }) }}</small>
       </label>
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
       <app-terms-check from="L01" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="filled() && !f().terms" />
@@ -99,9 +106,10 @@ export class HeadSignup {
   protected readonly tried = signal(false);
   protected readonly errorCode = signal<string | null>(null);
   protected readonly phoneOk = computed(() => !!normalizePhone(this.f().phone));
+  protected readonly contactOk = computed(() => this.f().contact.trim().length >= 3);
   protected readonly filled = computed(() => {
     const f = this.f();
-    return !!(f.agency_name.trim() && f.name.trim() && f.phone && f.password);
+    return !!(f.agency_name.trim() && f.name.trim() && f.phone && f.password && f.contact.trim());
   });
 
   protected set<K extends keyof SignupForm>(key: K, value: SignupForm[K]): void {
@@ -128,6 +136,7 @@ export class HeadSignup {
 
 @Component({
   selector: 'app-head-pending',
+  imports: [ContactCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack grow">
@@ -143,8 +152,8 @@ export class HeadSignup {
             <dd>{{ i18n.t({ th: 'ข้อมูลไม่ครบ', en: 'Incomplete details' }) }}</dd>
           </dl>
         </section>
+        <app-contact-card [label]="{ th: 'ติดต่อผู้ดูแลระบบ', en: 'Contact the admin' }" [contact]="support()" />
         <div class="stack push-end">
-          <button type="button" class="btn" (click)="contact()">{{ i18n.t({ th: 'ติดต่อผู้ดูแล', en: 'Contact the admin' }) }}</button>
           <button type="button" class="btn secondary" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
         </div>
       } @else {
@@ -206,9 +215,8 @@ export class HeadPending {
     void this.router.navigate([screenUrl('L02')], { queryParams: { state: 'rejected' } });
   }
 
-  protected contact(): void {
-    contactNotSet(this.toast);
-  }
+  /** ของจริง: GET /api/v1/support */
+  protected readonly support = inject(AdminDemo).supportContact;
 
   protected signout(): void {
     void this.router.navigateByUrl(screenUrl('A04'));
@@ -239,6 +247,22 @@ const NEXT_STEPS: Step[] = [
         <button type="button" class="btn secondary" (click)="copy()">{{ i18n.t({ th: 'คัดลอกรหัสกลุ่ม', en: 'Copy code' }) }}</button>
         <button type="button" class="btn" (click)="share()">{{ i18n.t({ th: 'แชร์ให้ลูกทีม', en: 'Share with team' }) }}</button>
       </div>
+      <section class="card contact">
+        <span class="muted small">{{ i18n.t({ th: 'ช่องทางติดต่อหน่วยงาน (แสดงให้คนที่ขอเข้าเห็น)', en: 'Agency contact (shown to people asking to join)' }) }}</span>
+        @if (editingContact()) {
+          <input class="contact-input" maxlength="200" [value]="draft()" (input)="draft.set($any($event.target).value)" />
+          @if (draft().trim().length < 3) {
+            <span class="danger-text small">{{ i18n.t({ th: 'อย่างน้อย 3 ตัวอักษร', en: 'At least 3 characters' }) }}</span>
+          }
+          <div class="two">
+            <button type="button" class="btn secondary" (click)="editingContact.set(false)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
+            <button type="button" class="btn" [disabled]="draft().trim().length < 3" (click)="saveContact()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
+          </div>
+        } @else {
+          <strong>{{ head.contact() }}</strong>
+          <button type="button" class="btn secondary" (click)="editContact()">{{ i18n.t({ th: 'แก้ไข', en: 'Edit' }) }}</button>
+        }
+      </section>
       <h2 class="section-title">{{ i18n.t({ th: 'ต่อไปต้องทำ', en: 'Next steps' }) }}</h2>
       <app-steps [steps]="steps" [current]="0" />
     </div>
@@ -265,11 +289,40 @@ const NEXT_STEPS: Step[] = [
       grid-template-columns: 1fr 1fr;
       gap: 10px;
     }
+    .contact {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .contact-input {
+      min-height: 48px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--line);
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+    }
   `,
 })
 export class HeadApproved {
   protected readonly i18n = inject(I18n);
-  private readonly head = inject(HeadDemo);
+  protected readonly head = inject(HeadDemo);
+  protected readonly editingContact = signal(false);
+  protected readonly draft = signal('');
+
+  protected editContact(): void {
+    this.draft.set(this.head.contact());
+    this.editingContact.set(true);
+  }
+
+  /** ของจริง: PATCH /agency { contact } */
+  protected saveContact(): void {
+    if (this.draft().trim().length < 3) return;
+    this.head.contact.set(this.draft().trim());
+    this.editingContact.set(false);
+    this.toast.show({ th: 'บันทึกช่องทางติดต่อแล้ว', en: 'Contact saved' });
+  }
   private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
   protected readonly steps = NEXT_STEPS;

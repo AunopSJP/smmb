@@ -113,10 +113,5 @@ export class MockNote {
   protected readonly i18n = inject(I18n);
 }
 
-/** ปุ่ม "ติดต่อผู้ดูแล/หัวหน้า" — ยังไม่ได้กำหนดช่องทาง */
-export function contactNotSet(toast: Toast): void {
-  toast.show({ th: 'ยังไม่ได้กำหนดช่องทางติดต่อ (ต้นแบบ)', en: 'Contact channel not decided yet (prototype)' });
-}
-
 /** เวลาตอนนี้ HH:mm (เวลาไทย) */
 export const nowHHmm = () => new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });

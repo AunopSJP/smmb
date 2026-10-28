@@ -15,6 +15,7 @@ export interface Access {
     name: string;
     type: string;
     agencyStatus: 'pending' | 'approved' | 'rejected';
+    contact: string | null;
     membershipStatus: MembershipStatus;
     isHead: boolean;
   } | null;
@@ -50,10 +51,11 @@ export class AccessService {
         name: string;
         type: string;
         agency_status: 'pending' | 'approved' | 'rejected';
+        contact: string | null;
         member_status: MembershipStatus;
         is_head: boolean;
       }>(
-        `SELECT a.agency_id, a.name, a.type, a.status AS agency_status, m.status AS member_status, m.is_head
+        `SELECT a.agency_id, a.name, a.type, a.status AS agency_status, a.contact, m.status AS member_status, m.is_head
          FROM app.agency_member_tb m JOIN app.agency_tb a ON a.agency_id = m.agency_id
          WHERE m.user_id = $1`,
         [userId],
@@ -85,6 +87,7 @@ export class AccessService {
             name: a.name,
             type: a.type,
             agencyStatus: a.agency_status,
+            contact: a.contact,
             membershipStatus: a.member_status,
             isHead: a.is_head,
           }

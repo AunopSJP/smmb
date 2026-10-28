@@ -22,11 +22,11 @@ export interface DeliveryTicket {
   issued_at: number;
 }
 
-/** เพดานแจ้งส่งของต่อตู้ (❓ เสนอ 5 ครั้ง/ชั่วโมง — api.md §5) */
+/** เพดานแจ้งส่งของต่อตู้ 5 ครั้ง/ชั่วโมง (✅ 2026-10-27 — api.md §0, §5) */
 export const DELIVERY_LIMIT_PER_HOUR = 5;
-/** อายุ delivery ticket (💡 ~10 นาที) */
+/** อายุ delivery ticket 10 นาที (✅ 2026-10-27) */
 export const TICKET_TTL_MS = 10 * 60 * 1000;
-/** พิมพ์รหัสผิดติดกันกี่ครั้งถึงต้องรอ (💡 ตัวเลขยังไม่ได้ตกลง) */
+/** พิมพ์รหัสผิด 3 ครั้งติดกัน → รอ 30 วิ (✅ 2026-10-27 · ของจริง: ผิดอีกรอบรอเพิ่มเป็น 2 เท่า สูงสุด 15 นาที) */
 export const CODE_MAX_WRONG = 3;
 export const CODE_LOCK_MS = 30 * 1000;
 

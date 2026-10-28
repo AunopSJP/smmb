@@ -59,16 +59,17 @@ describe('AdminDemo', () => {
   });
 
   it('creating an agency: new phone gets a one-time password, existing owner keeps their account', () => {
-    const fresh = d.createAgency('สภ.ใหม่', 'police', 'ผู้กำกับ', '0855550000');
+    const fresh = d.createAgency('สภ.ใหม่', 'police', 'สถานี 02-1', 'ผู้กำกับ', '0855550000');
     expect(fresh).toMatchObject({ ok: true, temp_password: expect.stringMatching(/^[A-HJKMNP-Z2-9]{10}$/) });
     expect(d.searchUsers('0855550000')[0]).toMatchObject({ is_head: true, must_change_password: true });
 
-    const owner = d.createAgency('รปภ.ใหม่', 'guard', 'สมศรี', '089-111-2222');
+    const owner = d.createAgency('รปภ.ใหม่', 'guard', 'ป้อม 1', 'สมศรี', '089-111-2222');
     expect(owner).toMatchObject({ ok: true, temp_password: null });
     expect(d.user('U-0001')?.roles).toEqual(['owner', 'officer']);
 
-    expect(d.createAgency('x', 'other', 'y', '081-234-5678')).toEqual({ ok: false, code: 'ROLE_EXISTS' });
-    expect(d.createAgency('x', 'other', 'y', '080-000-0000')).toEqual({ ok: false, code: 'ADMIN_ROLE_EXCLUSIVE' });
+    expect(d.createAgency('x', 'other', 'ติดต่อ', 'y', '081-234-5678')).toEqual({ ok: false, code: 'ROLE_EXISTS' });
+    expect(d.createAgency('x', 'other', 'ติดต่อ', 'y', '080-000-0000')).toEqual({ ok: false, code: 'ADMIN_ROLE_EXCLUSIVE' });
+    expect(d.createAgency('x', 'other', '', 'y', '0855550001')).toEqual({ ok: false, code: 'INVALID' });
   });
 
   it('user search finds a phone number typed with or without dashes', () => {

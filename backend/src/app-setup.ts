@@ -2,6 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
+import express from 'express';
 import type { Env } from './config/env.js';
 
 /** ตั้งค่าที่ใช้ทั้งตอนรันจริงและตอนเทสต์ — แก้ที่เดียว */
@@ -14,6 +15,9 @@ export function configureApp(app: NestExpressApplication): void {
   app.disable('x-powered-by');
 
   app.use(cookieParser());
+  // API ของตู้: อ่าน body เป็นไบต์ดิบ (ต้องเซ็นจากไบต์ที่ตู้ส่งจริง) — BoxAuthGuard ตรวจลายเซ็นแล้วค่อยแปลงเป็น JSON
+  // ลงทะเบียนก่อน app.init() → อยู่ก่อนตัวอ่าน JSON ของ Nest (ตัวนั้นข้ามคำขอที่อ่าน body แล้ว)
+  app.use('/v1/box', express.raw({ type: () => true, limit: '16kb' }));
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // ตัดฟิลด์ที่ไม่ได้ประกาศทิ้ง

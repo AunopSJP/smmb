@@ -8,7 +8,7 @@ const access = (roles: RequiredRole[], agency?: Partial<NonNullable<Access['agen
   roles: new Set(roles),
   levels: {},
   agency: agency
-    ? { id: 'a', name: 'A', type: 'police', agencyStatus: 'approved', membershipStatus: 'active', isHead: false, ...agency }
+    ? { id: 'a', name: 'A', type: 'police', agencyStatus: 'approved', contact: null, membershipStatus: 'active', isHead: false, ...agency }
     : null,
 });
 

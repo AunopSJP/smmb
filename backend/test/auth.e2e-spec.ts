@@ -250,7 +250,7 @@ describe('Auth (e2e)', () => {
       const res = await http()
         .post('/api/v1/auth/signup/agency')
         .send({
-          agency: { name: 'รปภ.หมู่บ้าน', type: 'guard' },
+          agency: { name: 'รปภ.หมู่บ้าน', type: 'guard', contact: 'ป้อม 02-555-6666' },
           head: { name: 'หัวหน้า', phone: phone(), password: 'password123' },
           terms_version: terms,
         })

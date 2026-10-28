@@ -3,12 +3,13 @@ import { Router, RouterLink } from '@angular/router';
 import { I18n, type Tr } from '../../core/i18n';
 import { AuthDemo, normalizePhone, PASSWORD_MIN, type SignupForm } from '../../core/mock/auth-demo';
 import { DemoSession } from '../../core/mock/demo-session';
-import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { Steps, type Step } from '../../shared/steps';
-import { contactNotSet, MockNote, PasswordField, TermsCheck } from './auth-parts';
+import { AdminDemo } from '../../core/mock/admin-demo';
+import { ContactCard } from '../../shared/contact-card';
+import { MockNote, PasswordField, TermsCheck } from './auth-parts';
 
 // เจ้าของบ้าน: A06 สมัคร → A07 สแกน QR เปิดใช้ตู้ → A08 ตั้งชื่อตู้ → A09 เสร็จ (api.md §2, §4.1)
 // จำลองบนหน้าจอเท่านั้น — ไม่สร้างบัญชีจริง
@@ -121,7 +122,7 @@ const ACTIVATE_STEPS: Step[] = [
 
 @Component({
   selector: 'app-auth-activate',
-  imports: [PageHeader, Steps, Icon],
+  imports: [PageHeader, Steps, Icon, ContactCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @switch (view()) {
@@ -149,8 +150,8 @@ const ACTIVATE_STEPS: Step[] = [
               {{ i18n.t({ th: 'กรุณาติดต่อผู้ดูแลระบบ พร้อมรหัสใต้ QR', en: 'Contact the admin with the code under the QR' }) }}
             </p>
           </div>
+          <app-contact-card [label]="{ th: 'ติดต่อผู้ดูแลระบบ', en: 'Contact the admin' }" [contact]="support()" />
           <div class="stack push-end">
-            <button type="button" class="btn" (click)="contact()">{{ i18n.t({ th: 'ติดต่อผู้ดูแล', en: 'Contact the admin' }) }}</button>
             <button type="button" class="btn secondary" (click)="retry()">{{ i18n.t({ th: 'สแกนใหม่', en: 'Scan again' }) }}</button>
           </div>
         </div>
@@ -211,7 +212,6 @@ export class AuthActivate {
   protected readonly i18n = inject(I18n);
   private readonly demo = inject(AuthDemo);
   private readonly router = inject(Router);
-  private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
   protected readonly steps = ACTIVATE_STEPS;
   /** ?state=invalid|taken = A07-b / A07-c · ?qr= มาจากลิงก์ /a/<token> */
@@ -246,9 +246,8 @@ export class AuthActivate {
     void this.router.navigateByUrl(screenUrl('A07'));
   }
 
-  protected contact(): void {
-    contactNotSet(this.toast);
-  }
+  /** ของจริง: GET /api/v1/support */
+  protected readonly support = inject(AdminDemo).supportContact;
 }
 
 // ── A08 · ตั้งชื่อตู้ ───────────────────────────────────────

@@ -58,12 +58,14 @@ export interface SignupForm {
   group_code: string;
   agency_name: string;
   agency_type: 'police' | 'guard' | 'other';
+  /** ช่องทางติดต่อหน่วยงาน (สมัครหน่วยงาน) — แสดงให้คนที่ขอเข้า */
+  contact: string;
   terms: boolean;
 }
 
 export type FormKey = 'owner' | 'officer' | 'agency' | 'addOwner' | 'join';
 
-const emptyForm = (): SignupForm => ({ name: '', phone: '', password: '', house_no: '', group_code: '', agency_name: '', agency_type: 'police', terms: false });
+const emptyForm = (): SignupForm => ({ name: '', phone: '', password: '', house_no: '', group_code: '', agency_name: '', agency_type: 'police', contact: '', terms: false });
 
 export type SigninResult =
   | { ok: true; phone: string; roles: DemoAccountRole[]; name: Tr; must_change_password: boolean; pending: DemoAccount['pending'] | null }
@@ -83,9 +85,9 @@ export class AuthDemo {
     { phone: '0800000000', name: { th: 'แอดมิน', en: 'Admin' }, roles: ['admin'], password: DEMO_PASSWORD },
   ];
   /** รหัสกลุ่มของหน่วยงานที่อนุมัติแล้ว → ชื่อหน่วยงาน */
-  readonly groupCodes: Record<string, Tr> = {
-    PX7K2MQ9: { th: 'สภ.เมือง', en: 'Mueang police' },
-    RJ4W9QTC: { th: 'รปภ. หมู่บ้านสุขใจ', en: 'Sukjai village guards' },
+  readonly groupCodes: Record<string, { name: Tr; contact: string }> = {
+    PX7K2MQ9: { name: { th: 'สภ.เมือง', en: 'Mueang police' }, contact: 'สถานี 02-111-2222' },
+    RJ4W9QTC: { name: { th: 'รปภ. หมู่บ้านสุขใจ', en: 'Sukjai village guards' }, contact: 'ป้อมหน้าหมู่บ้าน 089-333-4444' },
   };
 
   private readonly fails = new Map<string, { count: number; first: number; lockedUntil: number }>();
@@ -100,8 +102,8 @@ export class AuthDemo {
   };
 
   /** ผลการสมัครล่าสุด (หน้ารอ / หน้าเสร็จใช้) */
-  readonly officerRequest = signal<{ agency: Tr; at: string } | null>(null);
-  readonly agencyRequest = signal<{ name: string; type: SignupForm['agency_type']; at: string } | null>(null);
+  readonly officerRequest = signal<{ agency: Tr; contact: string; at: string } | null>(null);
+  readonly agencyRequest = signal<{ name: string; type: SignupForm['agency_type']; contact: string; at: string } | null>(null);
   readonly ownerHouse = signal<string | null>(null);
   readonly boxName = signal('ตู้หน้าบ้าน');
 
@@ -187,16 +189,17 @@ export class AuthDemo {
     const agency = this.groupCodes[normalizeGroupCode(f.group_code)];
     if (!agency) return 'GROUP_CODE_INVALID';
     this.create(f, [], 'officer');
-    this.officerRequest.set({ agency, at });
+    this.officerRequest.set({ agency: agency.name, contact: agency.contact, at });
     return null;
   }
 
   /** POST /auth/signup/agency → รอแอดมิน (L02) */
   signupAgency(f: SignupForm, at: string): SignupError | 'INVALID' | null {
-    const e = this.common(f) ?? (f.agency_name.trim() ? null : 'INVALID');
+    const contact = f.contact.trim();
+    const e = this.common(f) ?? (f.agency_name.trim() && contact.length >= 3 && contact.length <= 200 ? null : 'INVALID');
     if (e) return e;
     this.create(f, [], 'agency');
-    this.agencyRequest.set({ name: f.agency_name.trim(), type: f.agency_type, at });
+    this.agencyRequest.set({ name: f.agency_name.trim(), type: f.agency_type, contact, at });
     return null;
   }
 
@@ -219,7 +222,7 @@ export class AuthDemo {
     if (!f.terms) return 'TERMS_NOT_ACCEPTED';
     const agency = this.groupCodes[normalizeGroupCode(f.group_code)];
     if (!agency) return 'GROUP_CODE_INVALID';
-    this.officerRequest.set({ agency, at });
+    this.officerRequest.set({ agency: agency.name, contact: agency.contact, at });
     return null;
   }
 

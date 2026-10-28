@@ -86,8 +86,8 @@ export class AuthService {
       await this.terms.assertCurrent(db, dto.terms_version);
       const userId = await this.insertUser(db, { name: dto.head.name, phone: dto.head.phone, hash });
       const { rows } = await db.query<{ agency_id: string }>(
-        `INSERT INTO app.agency_tb (name, type) VALUES ($1, $2) RETURNING agency_id`,
-        [dto.agency.name, dto.agency.type],
+        `INSERT INTO app.agency_tb (name, type, contact) VALUES ($1, $2, $3) RETURNING agency_id`,
+        [dto.agency.name, dto.agency.type, dto.agency.contact],
       );
       await db.query(`INSERT INTO app.agency_member_tb (agency_id, user_id, is_head) VALUES ($1, $2, true)`, [
         rows[0].agency_id,

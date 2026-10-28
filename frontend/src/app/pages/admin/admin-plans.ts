@@ -226,7 +226,7 @@ export class UserPlan {
             <span>{{ i18n.t({ th: 'ข้อความราคา (แสดงเฉย ๆ ไม่มีการชำระเงิน)', en: 'Price note (display only — no payments)' }) }}</span>
             <input [value]="price()" (input)="price.set($any($event.target).value)" />
           </label>
-          <p class="muted small">{{ i18n.t({ th: 'ฟีเจอร์ของแต่ละแพ็กยังไม่ได้กำหนด (design §17) — แพ็กใหม่จึงยังเหมือนแพ็กฟรี', en: 'Plan features are not decided yet (design §17) — a new plan behaves like Free for now' }) }}</p>
+          <p class="muted small">{{ i18n.t({ th: 'ช่วงเดโมมีแค่แพ็กฟรี และเปิดทุกฟีเจอร์ — ฟีเจอร์ของแพ็กอื่นค่อยกำหนดตอนเพิ่มจริง', en: 'During the demo there is only Free, with every feature — other plans get their features when they are added' }) }}</p>
           @if (error(); as e) {
             <p class="danger-text small" role="alert">{{ i18n.t(e) }}</p>
           }

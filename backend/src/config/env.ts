@@ -17,6 +17,10 @@ export interface Env {
   DB_POOL_MAX: number;
   /** อายุ session (วัน) — ต่ออายุเองเมื่อใช้งาน */
   SESSION_TTL_DAYS: number;
+  /** master key ของตู้ — รหัสลับประจำตู้ = HMAC(คีย์นี้, box_id) · แยกต่อ environment · เปลี่ยน = ทุกตู้ต้องเขียนรหัสลับใหม่ */
+  BOX_MASTER_KEY: string;
+  /** คีย์ลายเซ็น QR หน้าตู้ (และ QR ประจำตัวเจ้าหน้าที่ในเฟส 3) · แยกต่อ environment */
+  QR_SIGNING_KEY: string;
 }
 
 const NODE_ENVS = ['development', 'test', 'production'] as const;
@@ -50,6 +54,12 @@ export function validateEnv(raw: Record<string, unknown>): Env {
   const trustRaw = str('TRUST_PROXY', '');
   const trustProxy = trustRaw === '' || trustRaw === 'false' ? false : /^\d+$/.test(trustRaw) ? Number(trustRaw) : trustRaw;
 
+  const secret = (key: string): string => {
+    const v = str(key);
+    if (v && v.length < 32) errors.push(`${key} must be at least 32 characters (openssl rand -hex 32)`);
+    return v;
+  };
+
   const env: Env = {
     NODE_ENV: nodeEnv as Env['NODE_ENV'],
     PORT: port,
@@ -66,7 +76,10 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     VAPID_SUBJECT: str('VAPID_SUBJECT', ''),
     DB_POOL_MAX: posInt('DB_POOL_MAX', 10),
     SESSION_TTL_DAYS: posInt('SESSION_TTL_DAYS', 30),
+    BOX_MASTER_KEY: secret('BOX_MASTER_KEY'),
+    QR_SIGNING_KEY: secret('QR_SIGNING_KEY'),
   };
+  if (env.BOX_MASTER_KEY && env.BOX_MASTER_KEY === env.QR_SIGNING_KEY) errors.push('BOX_MASTER_KEY and QR_SIGNING_KEY must differ');
 
   if (errors.length) throw new Error(`Invalid environment:\n- ${errors.join('\n- ')}`);
   return env;

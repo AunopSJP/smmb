@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
-import { IsBoolean, IsIn, IsOptional, Matches } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsBoolean, IsIn, IsOptional, IsString, Length, Matches } from 'class-validator';
 import { AccessService } from '../auth/access.service.js';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
@@ -8,6 +9,10 @@ import { AgencyService, type AgencyDto, type MemberDto, type MemberStatus } from
 
 class ListMembersQuery {
   @IsOptional() @IsIn(['pending', 'active', 'disabled']) status?: MemberStatus;
+}
+
+class AgencyContactDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value)) @IsString() @Length(3, 200) contact!: string;
 }
 
 class SetActiveDto {
@@ -36,6 +41,12 @@ export class AgencyController {
   @Get()
   get(@Auth() auth: AuthContext): Promise<AgencyDto> {
     return this.agency.get(auth.userId);
+  }
+
+  @RequireRole('head')
+  @Patch()
+  async setContact(@Auth() auth: AuthContext, @Body() dto: AgencyContactDto) {
+    return this.agency.setContact(await this.agencyId(auth), dto.contact);
   }
 
   @RequireRole('head')

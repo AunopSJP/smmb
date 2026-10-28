@@ -16,7 +16,7 @@
 | Backend | NestJS (TypeScript) | ✅ ตัดสินแล้ว |
 | Web app | Angular (PWA, service worker, Web Push/VAPID) | ✅ |
 | เซิร์ฟเวอร์ | Ubuntu ของเราเอง (self-host) + reverse proxy | ✅ |
-| DB / cache | PostgreSQL + Redis (backend ที่เขียนแล้วใช้ตัวนี้) | ❓ **ผู้ใช้ยังไม่ตัดสินใจเรื่องฐานข้อมูล** (2026-10-27 — เปลี่ยนจากที่เคยยืนยัน) · backend พักไว้ |
+| DB / cache | **PostgreSQL** · Redis ใช้นับ rate limit / ล็อกบัญชีเท่านั้น (ล่มแล้วระบบยังทำงาน) | ✅ ผู้ใช้ยืนยัน PostgreSQL (2026-10-27) — backend ทำต่อ |
 | ตู้ ↔ เซิร์ฟเวอร์ | HTTPS REST + HMAC ทุกคำขอ + long-poll ในเวลาตรวจ · **ไม่ใช้ MQTT** | ✅ |
 | เฟิร์มแวร์ตู้ | ESP32-CAM — ทีมฮาร์ดแวร์ (พี่ตั๋ง) ทำ **ไม่อยู่ในงานนี้** | — |
 
@@ -69,9 +69,10 @@
 
 state machine เต็มอยู่ `smmb-design.md` §6 · SOS อยู่ §7 · งานเบื้องหลังอยู่ §8
 
-## ⏸ ตอนนี้: ทำหน้าเว็บ (UX/UI) ก่อน — ข้อมูลจำลอง (2026-10-27 ผู้ใช้สั่ง)
+## หน้าเว็บ (UX/UI) — ข้อมูลจำลอง · ยังไม่ต่อ API
 
-- **ห้ามแตะ backend และการสร้างบัญชี/ล็อกอิน** จนกว่าผู้ใช้ตัดสินใจเรื่องฐานข้อมูล — หน้า `A*` `L01` `D09` ทำเป็นหน้าจอแล้ว (จำลองใน `core/mock/auth-demo.ts` · ไม่ต่อของจริง)
+- หน้าเว็บทุกหน้ายังใช้ข้อมูลจำลอง (รวมล็อกอิน/สมัคร `A*` `L01` — `core/mock/auth-demo.ts` ไม่สร้างบัญชีจริง) · ต่อ API ทีละ flow เมื่อ backend ของ flow นั้นพร้อม
+- รหัสหน้าที่ไม่มีใน wireframe (เพิ่ม 2026-10-27): `A14` เปลี่ยนรหัสผ่าน · `A15` เพิ่มบทบาทเจ้าของบ้าน · `A16` ขอเข้าหน่วยงาน · `D14` แพ็กเกจ
 - ทุกหน้าใน wireframe มีหน้าจริงแล้ว ยกเว้น `H15*` (ข้อเสนอ) · ลิงก์ใน QR: `/b/<token>` → ไรเดอร์ `R02` · `/a/<token>` → ผูกตู้ `A07`
 - หน้าเว็บใช้ข้อมูลจำลองเท่านั้น (`frontend/src/app/core/mock/`) — รูปร่างตามสัญญาใน `api.md` เพื่อสลับเป็น API จริงทีหลัง
 - โครง frontend:
@@ -82,14 +83,14 @@ state machine เต็มอยู่ `smmb-design.md` §6 · SOS อยู่ 
   - ดู wireframe ได้ด้วย FigCraft MCP (`screenshot` ตาม id ของ frame)
 - เปิดดู: `npm --prefix frontend start` → http://localhost:4200 (หรือ `.claude/launch.json` ชื่อ `frontend`)
 
-## เริ่มจากตรงไหน — เฟส 1 backend (⏸ พักอยู่)
+## เริ่มจากตรงไหน — เฟส 1 backend (ทำต่อแล้ว 2026-10-27)
 
 1. ✅ โครง repo: `backend/` (NestJS 12, ESM) · `frontend/` (Angular 22 + PWA) · `docs/` · `docker-compose.yml` (Postgres 17 + Redis 7 สำหรับ dev) · migration runner (`backend/sql/migrations/*.sql`, เก็บ checksum — แก้ไฟล์ที่ apply แล้วจะรันไม่ผ่าน) · `/api/health` + `/api/health/live` · รูปแบบ error ตาม `api.md` §0 · ตรวจ env ตอนเริ่ม (`backend/src/config/env.ts`) — วิธีรันดู `README.md`
 2. ✅ migration แรก `backend/sql/migrations/0001_init.sql` — `user_tb`, `user_role_tb`, `session_tb`, `agency_tb`, `agency_member_tb`, `zone_tb`, `zone_window_tb`, `zone_officer_tb`, `box_tb` (พื้นฐาน), `zone_box_tb`, `plan_tb` (+ seed `free`), `user_plan_tb`, `terms_tb`, `terms_acceptance_tb`, `push_subscription_tb`, `notification_tb` · ไฟล์นี้คือต้นฉบับของตารางเฟส 1 (design §4 ไม่คัดลอกซ้ำ)
 3. ✅ Auth (`backend/src/auth/`): signup 3 แบบ · signin · signout · verify · change-password · `GET /me` · เพิ่มบทบาท (`/me/roles/owner`, `/me/agency/join`) · `GET /terms/current` · cookie `sid` (DB เก็บ hash) · ล็อกบัญชี · rate limit (`backend/src/rate-limit/`) · `TRUST_PROXY`
    - **ทุก route ต้องล็อกอินเป็นค่าเริ่มต้น** — route สาธารณะต้องติด `@Public()` · บังคับบทบาทด้วย `@RequireRole('owner' | 'officer' | 'head' | 'admin')` (ไม่มี → 404, เจ้าหน้าที่รออนุมัติ → 403 `ACCOUNT_PENDING`)
    - เทสต์: `src/**/*.spec.ts` (unit) · `test/auth.e2e-spec.ts` (ต้องมี DB ที่ migrate + `npm run seed:dev` แล้ว · ไม่ต้องมี Redis)
-4. ✅ ข้อตกลง + บันทึกการยอมรับ · แพ็ก `free` ตอนสมัครเจ้าของบ้าน · `POST /me/terms` · `TermsGuard` ตอบ 403 `TERMS_UPDATE_REQUIRED` (route ที่ต้องใช้ก่อนยอมรับติด `@AllowWithoutTerms()`) · ข้อตกลงฉบับจริงยังไม่มี (dev ใช้ `sql/dev-seed.sql`)
+4. ✅ ข้อตกลง + บันทึกการยอมรับ · แพ็ก `free` ตอนสมัครเจ้าของบ้าน · `POST /me/terms` · `TermsGuard` ตอบ 403 `TERMS_UPDATE_REQUIRED` (route ที่ต้องใช้ก่อนยอมรับติด `@AllowWithoutTerms()`) · ✅ ข้อตกลงฉบับจริง 2026-10-27 — ต้นฉบับ `docs/terms-2026-10-27.md` · ฉบับใหม่: แก้/สร้าง .md แล้ว `node docs/scripts/gen-terms.mjs <ฉบับ> <เลข migration>` (ได้ migration + หน้า `A13`)
 5. ✅ Web Push (`backend/src/push/`): VAPID · subscribe/unsubscribe (**ผูกกับ session** — migration `0002`) · ส่งทดสอบ · `GET /me/notifications` + อ่านแล้ว · `PUSH_REQUIRED` · endpoint รับเฉพาะ push service ที่รู้จัก (กัน SSRF)
    - **ส่วนอื่นส่งแจ้งเตือนผ่าน `NotificationService.notify(userIds, { type, data, link, tag? })` เท่านั้น** — เก็บลงหน้าแจ้งเตือน + ส่ง push · เพิ่ม type ใหม่ต้องเพิ่มข้อความไทย/อังกฤษใน `push/messages.ts`
    - ฝั่งเว็บ: `frontend/src/app/core/push-notifications.ts` (เปิด/ปิด/ทดสอบ + ตรวจว่าเปิดใน LINE / iPhone ยังไม่ติดตั้ง) · service worker ของ Angular แสดงแจ้งเตือนเอง (ทำงานเฉพาะ build production)
@@ -99,7 +100,9 @@ state machine เต็มอยู่ `smmb-design.md` §6 · SOS อยู่ 
    - ปิดสิทธิ์สมาชิก**ไม่เตะ session** (บทบาทเจ้าของบ้านต้องใช้ต่อได้) · แอดมินปิดทั้งบัญชี = เตะ
    - งานกับบัญชีที่ใช้ร่วมกัน (ให้บทบาท / รีเซ็ตรหัส / แพ็กเริ่มต้น) อยู่ `auth/account.service.ts`
    - `data_access_log_tb` และ `terms_acceptance_tb` ห้ามแก้/ลบ — trigger ในฐานข้อมูลบังคับ
-7. โซน: CRUD + windows + บ้าน + เจ้าหน้าที่ · ตัวกรอง `?zone=mine|all|<id>`
+7. ✅ โซน (`backend/src/agency/zone.*` · migration `0006`): CRUD + เวลาตรวจ (ไม่เกิน 4 ช่วง ไม่ทับ ไม่ข้ามเที่ยงคืน) + เจ้าหน้าที่ + `?zone=mine|all` · **ยังไม่ทำ** ใส่บ้านเข้าโซน + ค้นบ้าน (รอคำตอบข้อ 3 ด้านล่าง)
+   - ช่องทางติดต่อ (✅ ผู้ใช้กำหนด 2026-10-27, migration `0005`): หน่วยงานกรอกตอนสมัคร → `Me.agency.contact` · ช่องทางติดต่อผู้ดูแล `GET /api/v1/support` (public) แอดมินตั้งที่ `PUT /admin/settings/support-contact` — api.md §3.1
+   - แพ็กเกจช่วงเดโม: มีแค่ "ฟรี" และเปิดทุกฟีเจอร์ (✅ 2026-10-27) · ตัวเลขทั้งหมดที่เลือกแล้วอยู่ api.md §0
 8. เทสต์: unit ของกฎขอบเขต/สิทธิ์ทุกข้อ + e2e ของ auth
 
 สัญญาของทุก endpoint อยู่ใน `api.md` (§2, §3, §8, §9.2–9.3, §9.7) · เฟสถัดไปดู `smmb-design.md` §13
@@ -118,10 +121,10 @@ state machine เต็มอยู่ `smmb-design.md` §6 · SOS อยู่ 
 ## ต้องถามผู้ใช้ก่อนแตะส่วนที่เกี่ยวข้อง
 
 1. ~~เบอร์เดียวหลายบทบาทได้ไหม~~ ✅ ได้ (2026-10-27) — ดู "บทบาทและขอบเขต"
-2. **ฐานข้อมูลใช้อะไร** — เคยตอบ PostgreSQL + Redis แล้วผู้ใช้กลับมาบอกว่ายังไม่ตัดสินใจ (2026-10-27) · ถามก่อนแตะ backend
+2. ~~ฐานข้อมูลใช้อะไร~~ ✅ PostgreSQL (2026-10-27)
 3. **บ้านหลังเดียวอยู่ในโซนของหลายหน่วยงานได้ไหม** — ถามก่อนเขียน `PUT /agency/zones/:id/houses` และขั้น SOS
 4. **โดเมน dev / prod** — ใช้ค่า env ไปก่อน
-5. SSE หรือ poll ทุก 1 วิ สำหรับหน้ารอตู้/รอ SOS — เริ่มด้วย poll ได้
+5. ~~SSE หรือ poll~~ ✅ poll ทุก 1 วิ (2026-10-27)
 
 ## หน้าจอ
 

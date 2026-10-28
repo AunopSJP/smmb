@@ -8,6 +8,7 @@ const form = (patch: Partial<SignupForm>): SignupForm => ({
   group_code: '',
   agency_name: '',
   agency_type: 'police',
+  contact: '',
   terms: true,
   ...patch,
 });
@@ -87,6 +88,14 @@ describe('AuthDemo', () => {
   it('a new sign-up can sign in afterwards (pending officers are marked pending)', () => {
     d.signupOfficer(form({ phone: '0811110000', group_code: 'PX7K-2MQ9' }), '10:00');
     expect(d.signin('081-111-0000', 'longenough')).toMatchObject({ ok: true, roles: [], pending: 'officer' });
+  });
+
+  it('agency sign-up needs a contact, which people asking to join will see', () => {
+    expect(d.signupAgency(form({ phone: '0822220000', agency_name: 'สภ.ทดสอบ', contact: ' ' }), '10:00')).toBe('INVALID');
+    expect(d.signupAgency(form({ phone: '0822220000', agency_name: 'สภ.ทดสอบ', contact: 'สถานี 02-1' }), '10:00')).toBeNull();
+    expect(d.agencyRequest()?.contact).toBe('สถานี 02-1');
+    d.signupOfficer(form({ phone: '0822220001', group_code: 'PX7K-2MQ9' }), '10:00');
+    expect(d.officerRequest()?.contact).toBe('สถานี 02-111-2222');
   });
 
   it('a short password is rejected', () => {

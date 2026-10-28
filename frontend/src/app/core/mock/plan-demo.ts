@@ -9,7 +9,7 @@ export interface DemoPlan {
   code: string;
   name: Tr;
   price_note: Tr | null;
-  /** ❓ ยังไม่ได้กำหนดว่าแต่ละแพ็กต่างกันตรงไหน (design §17 ข้อ 7) */
+  /** ช่วงเดโม (✅ 2026-10-27): มีแค่แพ็กฟรี และเปิดทุกฟีเจอร์ — {} = ไม่จำกัดอะไร · แพ็กอื่นกำหนดฟีเจอร์ตอนเพิ่มจริง */
   features: Record<string, number | boolean>;
   is_default: boolean;
   is_active: boolean;

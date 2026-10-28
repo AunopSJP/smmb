@@ -36,6 +36,8 @@ export class SignupOfficerDto extends PasswordField {
 class AgencyInfo {
   @Transform(trim) @IsString() @Length(1, 200) name!: string;
   @IsIn(['police', 'guard', 'other']) type!: 'police' | 'guard' | 'other';
+  /** ช่องทางติดต่อที่ตั้งใจเปิดเผย — แสดงให้คนที่ขอเข้าหน่วยงาน (A11 / A11-b) */
+  @Transform(trim) @IsString() @Length(3, 200) contact!: string;
 }
 
 class HeadInfo extends PasswordField {

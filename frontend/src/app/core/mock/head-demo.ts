@@ -49,6 +49,8 @@ export type ZoneFilter = 'mine' | 'all';
 @Injectable({ providedIn: 'root' })
 export class HeadDemo {
   readonly agency = { name: 'สภ.เมือง', name_en: 'Mueang police' };
+  /** ช่องทางติดต่อหน่วยงาน (กรอกตอนสมัคร · แก้ได้ที่ L03) — PATCH /agency { contact } */
+  readonly contact = signal('สถานี 02-111-2222');
 
   readonly members = signal<DemoMember[]>([
     { id: 'U-0101', name: 'ส.ต.ต. สมชาย ใจกล้า', name_en: 'Pol. L/Cpl. Somchai', phone: '081-234-5678', status: 'pending', is_head: false, requested_at: '10:42', checks_this_month: 0 },

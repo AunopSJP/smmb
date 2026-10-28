@@ -224,6 +224,11 @@ export class AdminAgencyRequests {
             <input type="tel" inputmode="tel" [value]="form().phone" (input)="set('phone', $any($event.target).value)" />
             <small>{{ i18n.t({ th: 'เบอร์ใหม่ = สร้างบัญชีให้พร้อมรหัสชั่วคราว · เบอร์ที่มีบัญชีแล้ว = ใช้บัญชีเดิม', en: 'New number = account with a temporary password · existing number = keeps its account' }) }}</small>
           </label>
+          <label class="field">
+            <span>{{ i18n.t({ th: 'ช่องทางติดต่อหน่วยงาน', en: 'Agency contact' }) }}</span>
+            <input maxlength="200" [value]="form().contact" (input)="set('contact', $any($event.target).value)" />
+            <small>{{ i18n.t({ th: 'แสดงให้คนที่ขอเข้าหน่วยงานเห็น', en: 'Shown to people asking to join' }) }}</small>
+          </label>
           @if (createError(); as e) {
             <p class="danger-text small" role="alert">{{ i18n.t(e) }}</p>
           }
@@ -278,17 +283,17 @@ export class AdminAgencies {
   protected readonly type = AGENCY_TYPE;
   protected readonly typeKeys = Object.keys(AGENCY_TYPE) as DemoAgency['type'][];
   protected readonly creating = signal(false);
-  protected readonly form = signal({ name: '', type: 'police' as DemoAgency['type'], head: '', phone: '' });
+  protected readonly form = signal({ name: '', type: 'police' as DemoAgency['type'], head: '', phone: '', contact: '' });
   protected readonly createError = signal<Tr | null>(null);
   protected readonly created = signal<{ name: string; code: string; temp: string | null } | null>(null);
 
-  protected set<K extends 'name' | 'type' | 'head' | 'phone'>(key: K, value: K extends 'type' ? DemoAgency['type'] : string): void {
+  protected set<K extends 'name' | 'type' | 'head' | 'phone' | 'contact'>(key: K, value: K extends 'type' ? DemoAgency['type'] : string): void {
     this.form.update((f) => ({ ...f, [key]: value }));
     this.createError.set(null);
   }
 
   protected startCreate(): void {
-    this.form.set({ name: '', type: 'police', head: '', phone: '' });
+    this.form.set({ name: '', type: 'police', head: '', phone: '', contact: '' });
     this.created.set(null);
     this.creating.set(true);
   }
@@ -296,14 +301,14 @@ export class AdminAgencies {
   /** ของจริง: POST /admin/agencies { name, type, head: { name, phone } } — ตัดสินจาก code ของ error */
   protected create(): void {
     const f = this.form();
-    const r = this.demo.createAgency(f.name, f.type, f.head, f.phone);
+    const r = this.demo.createAgency(f.name, f.type, f.contact, f.head, f.phone);
     if (!r.ok) {
       this.createError.set(
         r.code === 'ROLE_EXISTS'
           ? { th: 'เบอร์นี้อยู่หน่วยงานอื่นแล้ว', en: 'This number already belongs to an agency' }
           : r.code === 'ADMIN_ROLE_EXCLUSIVE'
             ? { th: 'บัญชีแอดมินเป็นหัวหน้าหน่วยงานไม่ได้', en: 'An admin account cannot be an agency head' }
-            : { th: 'กรอกชื่อหน่วยงาน ชื่อหัวหน้า และเบอร์ 10 หลักให้ครบ', en: 'Fill in the agency name, head’s name and a 10-digit phone' },
+            : { th: 'กรอกชื่อหน่วยงาน ชื่อหัวหน้า เบอร์ 10 หลัก และช่องทางติดต่อ (3 ตัวขึ้นไป) ให้ครบ', en: 'Fill in the agency name, head’s name, a 10-digit phone and a contact (3+ characters)' },
       );
       return;
     }
