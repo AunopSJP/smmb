@@ -9,6 +9,7 @@ import { BoxAuthGuard } from './box-auth.guard.js';
 import { BoxConfigService } from './box-config.service.js';
 import { BoxJobService } from './box-job.service.js';
 import { BoxProtocolController } from './box-protocol.controller.js';
+import { BoxPreviewService } from './box-preview.service.js';
 import { BoxProtocolService } from './box-protocol.service.js';
 import { JobHub } from './job-hub.js';
 import { OwnerBoxController } from './owner-box.controller.js';
@@ -21,7 +22,7 @@ import { CodeAttempts } from '../rate-limit/code-attempts.js';
 @Module({
   imports: [AuthModule, PushModule, SosModule],
   controllers: [BoxProtocolController, AdminBoxController, AdminQrController, OwnerBoxController],
-  providers: [AdminBoxService, BoxAuthGuard, BoxConfigService, BoxJobService, BoxProtocolService, CodeAttempts, JobHub, OwnerBoxService, QrIssueService, TechnicianRequestService],
+  providers: [AdminBoxService, BoxAuthGuard, BoxConfigService, BoxJobService, BoxPreviewService, BoxProtocolService, CodeAttempts, JobHub, OwnerBoxService, QrIssueService, TechnicianRequestService],
   exports: [BoxConfigService, BoxJobService, QrIssueService],
 })
 export class BoxModule {}

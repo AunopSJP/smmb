@@ -70,6 +70,8 @@ ApiResult apiCall(const char* method, const String& suffix, const String& body, 
   http.addHeader("X-Signature", sig);
 
   const unsigned long startedAt = millis();
+  const bool trace = strcmp(method, "GET") == 0;  // long-poll: พิมพ์ขั้นตอนไว้หาจุดที่ค้าง
+  if (trace) Serial.printf("[trace] GET start · wifi %d · rssi %d\n", (int)WiFi.status(), WiFi.RSSI());
   int code;
   if (strcmp(method, "GET") == 0) {
     code = http.GET();
@@ -77,6 +79,7 @@ ApiResult apiCall(const char* method, const String& suffix, const String& body, 
     http.addHeader("Content-Type", "application/json");
     code = http.POST(body);
   }
+  if (trace) Serial.printf("[trace] GET returned %d after %lu ms\n", code, millis() - startedAt);
   if (code > 0) {
     r.status = code;
     r.body = http.getString();
@@ -89,6 +92,7 @@ ApiResult apiCall(const char* method, const String& suffix, const String& body, 
     Serial.printf("[api] %s %s → %s\n", method, signedPath.c_str(), http.errorToString(code).c_str());
   }
   http.end();
+  if (trace) Serial.printf("[trace] GET done after %lu ms\n", millis() - startedAt);
   if (code > 0) {
     // ไม่พิมพ์ลายเซ็น/รหัสลับลง log
     Serial.printf("[api] %s %s → %d %s\n", method, signedPath.c_str(), code, r.body.substring(0, 160).c_str());

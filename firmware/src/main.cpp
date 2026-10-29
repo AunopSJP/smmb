@@ -21,6 +21,8 @@
 #include "portal.h"
 #include "settings.h"
 #include "signer.h"
+#include <esp_task_wdt.h>
+#include <mbedtls/base64.h>
 
 // stack ของ loop: TLS + JSON + ถอด QR ต้องการมากกว่าค่าเริ่มต้น 8 KB
 SET_LOOP_TASK_STACK_SIZE(16 * 1024);
@@ -73,7 +75,8 @@ static bool wifiConnect() {
   if (WiFi.status() == WL_CONNECTED) return true;
   if (!settingsHasWifi()) return false;
   WiFi.mode(WIFI_STA);
-  WiFi.setSleep(true);  // modem sleep ระหว่างรอ long-poll
+  // ปิด modem sleep: ตู้ถือ long-poll ตลอดอยู่แล้ว และบน Wi-Fi อ่อนโหมดประหยัดไฟทำให้แพ็กเก็ตหายจน TLS ค้าง (ตู้หลุดออนไลน์)
+  WiFi.setSleep(false);
   if (wifiJoin(nullptr)) {
     Serial.printf("[wifi] connected \"%s\" IP %s RSSI %d ch %d\n", settings.wifiSsid.c_str(), WiFi.localIP().toString().c_str(),
                   WiFi.RSSI(), WiFi.channel());
@@ -250,6 +253,24 @@ static void sendCameraScanEvent(const String& jobId, uint8_t attempt, const QrRe
 }
 
 // ── งานปลุกตู้ (ตรวจ / ทดสอบ) §8 ─────────────────────────────────────────
+// ภาพสดระหว่างงานทดสอบ → POST /v1/box/preview (base64 ใน JSON) · เซิร์ฟเวอร์รับเฉพาะงาน test
+static String previewJobId;
+static void previewSink(const uint8_t* jpeg, size_t len) {
+  const size_t outCap = ((len + 2) / 3) * 4 + 4;
+  char* b64 = (char*)malloc(outCap);
+  if (!b64) return;
+  size_t outLen = 0;
+  if (mbedtls_base64_encode((unsigned char*)b64, outCap, &outLen, jpeg, len) == 0) {
+    String body;
+    body.reserve(outLen + 64);
+    body = "{\"job_id\":\"" + previewJobId + "\",\"jpeg_b64\":\"";
+    body.concat(b64, outLen);
+    body += "\"}";
+    apiCall("POST", "/v1/box/preview", body, 4000);
+  }
+  free(b64);
+}
+
 static void runJob(JsonObject job) {
   String jobId = job["job_id"] | "";
   String type = job["type"] | "";
@@ -260,6 +281,8 @@ static void runJob(JsonObject job) {
   Serial.printf("[job] %s %s · %u tries × %us\n", type.c_str(), jobId.c_str(), attemptMax, scanTimeoutS);
   const unsigned long t0 = millis();
 
+  previewJobId = jobId;
+  cameraSetPreviewSink(cameraTest ? previewSink : nullptr, 2500);
   if (cameraTest) sendEvent("camera_test_started", jobId.c_str());
   if (!cameraStart()) {
     sendEvent("camera_error", cameraTest ? jobId.c_str() : nullptr);
@@ -329,9 +352,12 @@ static void runJob(JsonObject job) {
 /** ถือ long-poll 1 รอบ */
 static void pollOnce() {
   uint8_t wait = boxConfig.longpollWaitS ? boxConfig.longpollWaitS : 50;
+  if (wait > 25) wait = 25;  // รอสั้นลง: คำขอที่ค้างนานบน Wi-Fi อ่อนมีโอกาสค้างสูง · เซิร์ฟเวอร์ถือว่าออนไลน์ถ้าถามภายใน 2×wait
   // เปิดหน้าดูกล้องอยู่ → ถือ long-poll สั้น ๆ เพื่อให้เว็บเซิร์ฟเวอร์ของตู้ตอบทัน (ปกติถือ 50 วิ)
   if (settings.debugCam) wait = min<uint8_t>(wait, 3);
   ApiResult r = apiCall("GET", "/v1/box/jobs?wait=" + String(wait) + "&config_ver=" + String(boxConfig.ver), "", (uint32_t)wait * 1000 + 10000);
+  // จังหวะการทำงาน (ไว้ดูว่าตู้ยังถือ long-poll อยู่ไหม ไม่งั้น log เงียบทั้งที่ปกติ)
+  Serial.printf("[poll] %d · heap %u · rssi %d · up %lus\n", r.status, (unsigned)ESP.getFreeHeap(), WiFi.RSSI(), millis() / 1000);
   if (r.status == 204) return;
   if (r.status == 200) {
     JsonDocument doc;
@@ -419,7 +445,7 @@ static void runCommand(String line) {
         "  url <https://...>      server base URL, e.g. https://hub.sjp-dev.net/smmb-api\n"
         "  box <BX-00003>         box id\n"
         "  secret <64 hex>        device secret (not echoed)\n"
-        "  sleep on|off           on = scheduled deep sleep; off = force long-poll for bench/demo\n"
+        "  sleep on|off           off (default) = always long-poll so a scan wakes the box at once; on = scheduled deep sleep (saves power, cannot be woken)\n"
         "  selftest               check request signing against the guide's test vectors\n"
         "  boot                   send POST /v1/box/boot now\n"
         "  report                 send POST /v1/box/report now\n"
@@ -508,12 +534,26 @@ static void runCommand(String line) {
       if (!wasRunning && !settings.debugCam) debugViewStop();
       Serial.println("camweb: ปิดแล้ว");
     }
+  } else if (cmd == "snap") {
+    cameraDumpFrame();  // ดูภาพที่กล้องเห็น (python แปลง hex เป็นรูป)
   } else if (cmd == "portal") {
     debugViewStop();
     if (runSetupPortal(PORTAL_TIMEOUT_MS)) ESP.restart();
   } else if (cmd == "forget") {
     settingsForgetWifi();
     ESP.restart();
+  } else if (cmd == "cam") {
+    // cam size qvga|vga|svga|xga · cam xclk 10|20 · cam ae -2..2 — ปรับกล้องโดยไม่ต้องแฟลชใหม่ (มีผลหลังรีบูต)
+    int sp2 = arg.indexOf(' ');
+    String what = sp2 < 0 ? arg : arg.substring(0, sp2);
+    String val = sp2 < 0 ? "" : arg.substring(sp2 + 1);
+    val.trim();
+    if (what == "size" && (val == "qvga" || val == "vga" || val == "svga" || val == "xga")) settings.camSize = val;
+    else if (what == "xclk" && (val == "10" || val == "20")) settings.camXclk = val.toInt();
+    else if (what == "ae" && val.toInt() >= -2 && val.toInt() <= 2) settings.camAe = val.toInt();
+    else Serial.println("usage: cam size qvga|vga|svga|xga · cam xclk 10|20 · cam ae -2..2");
+    settingsSave();
+    Serial.printf("cam size=%s xclk=%uMHz ae=%d — reboot to apply\n", settings.camSize.c_str(), settings.camXclk, settings.camAe);
   } else if (cmd == "reboot") {
     ESP.restart();
   } else {
@@ -539,6 +579,7 @@ void cliPoll() {
 static void waitWithCli(unsigned long ms) {
   unsigned long t = millis();
   while (millis() - t < ms) {
+    esp_task_wdt_reset();
     cliPoll();
     debugViewPoll();
     delay(20);
@@ -591,9 +632,15 @@ void setup() {
   }
 
   if (!fromSleep || !clockSet()) sendBoot();
+
+  // กันค้างเงียบ: ถ้าลูปหลักไม่ขยับเกิน 180 วิ (เช่น TLS/Wi-Fi ค้าง) ให้รีเซ็ตตัวเอง แทนที่จะรอคนถอดไฟ
+  // (รอบเดียวของลูปที่นานที่สุด = long-poll 55 วิ หรือสแกน 3 × 20 วิ จึงเผื่อไว้)
+  esp_task_wdt_init(180, true);
+  esp_task_wdt_add(nullptr);
 }
 
 void loop() {
+  esp_task_wdt_reset();
   cliPoll();
   if (settings.debugCam && WiFi.status() == WL_CONNECTED) {
     debugViewStart();

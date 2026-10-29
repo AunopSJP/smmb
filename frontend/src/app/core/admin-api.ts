@@ -240,6 +240,10 @@ export class AdminApi {
   startTest(id: string): Promise<Job> {
     return this.post(`/api/v1/admin/boxes/${encodeURIComponent(id)}/test-jobs`);
   }
+  /** ภาพล่าสุดจากกล้องตู้ระหว่างงานทดสอบ (204 = ยังไม่มีภาพ) */
+  preview(id: string): Promise<{ job_id: string; at: string; jpeg_b64: string } | null> {
+    return this.get(`/api/v1/admin/boxes/${encodeURIComponent(id)}/preview`);
+  }
   testJob(id: string, jobId: string): Promise<Job> {
     return this.get(`/api/v1/admin/boxes/${encodeURIComponent(id)}/test-jobs/${encodeURIComponent(jobId)}`);
   }

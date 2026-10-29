@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { Type } from 'class-transformer';
 import { ArrayNotEmpty, ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min } from 'class-validator';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
@@ -6,6 +7,7 @@ import type { AuthContext } from '../auth/session.service.js';
 import { CONFIG_LIMITS } from './box-config.js';
 import { BoxConfigService } from './box-config.service.js';
 import { AdminBoxService } from './admin-box.service.js';
+import { BoxPreviewService } from './box-preview.service.js';
 
 class BoxIdParam {
   @Matches(/^BX-\d{5,10}$/) box_id!: string;
@@ -46,6 +48,7 @@ export class AdminBoxController {
   constructor(
     private readonly boxes: AdminBoxService,
     private readonly configs: BoxConfigService,
+    private readonly preview: BoxPreviewService,
   ) {}
 
   /** ลงทะเบียนตู้ตอนผลิต → รหัสลับประจำตู้ (ได้ครั้งเดียว) + QR ชุดแรก */
@@ -95,6 +98,18 @@ export class AdminBoxController {
   @Get('boxes/:box_id/test-jobs/:job_id')
   viewTestJob(@Param() p: TestJobParam) {
     return this.boxes.testJob(p.box_id, p.job_id);
+  }
+
+  /** ภาพล่าสุดจากกล้องตอนทดสอบ (หน้า D04) — ไม่มีภาพ/เก่าเกิน 30 วิ → 204 */
+  @Get('boxes/:box_id/preview')
+  previewFrame(@Param() p: BoxIdParam, @Res({ passthrough: true }) res: Response) {
+    const frame = this.preview.latest(p.box_id);
+    res.setHeader('Cache-Control', 'no-store');
+    if (!frame) {
+      res.status(HttpStatus.NO_CONTENT);
+      return;
+    }
+    return { job_id: frame.jobId, at: frame.at.toISOString(), jpeg_b64: frame.jpeg.toString('base64') };
   }
 
   @Get('box-config')

@@ -655,6 +655,7 @@ interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus }
 | POST | `/admin/boxes/:box_id/test-jobs` | — | 201 `Job` — งานทดสอบ: ปลุกตู้ที่ถือ long-poll อยู่ → ไฟ + กล้อง → อ่าน QR อะไรก็ได้ = ผ่าน (ช่างทดสอบหลังติดตั้ง · วัดเวลาปลุก) |
 | POST | `/admin/boxes/:box_id/device-secret` | — | 200 `{ box_id, device_secret }` — เปิดดูรหัสลับประจำตู้อีกครั้ง (เขียนลงบอร์ดใหม่ / เปลี่ยนบอร์ด) · ✅ 2026-10-28 · บันทึกทุกครั้งใน `data_access_log_tb` (`subject_kind: "box"`, `fields: ["device_secret"]`) · ไม่มีตู้ → 404 |
 | GET | `/admin/boxes/:box_id/test-jobs/:job_id` | — | `Job`: `status` (`waiting`/`delivered`/`ready`/`passed`/`failed`/`expired`) · `delivered_at` · `ready_at` · `wake_ms` · `attempts[]` (รวม `qr_text` ที่กล้องอ่านได้) |
+| GET | `/admin/boxes/:box_id/preview` | — | `{ job_id, at, jpeg_b64 }` ภาพล่าสุดจากกล้องตอนทดสอบ (ตู้ส่งผ่านโปรโตคอล §2.7 เฉพาะงาน test) · 204 = ยังไม่มี/เก่าเกิน 30 วิ · ไม่เก็บลงฐานข้อมูล |
 | PATCH | `/admin/boxes/:box_id/service` | `{ active: boolean, reason? }` | ✅ เปิดปิดบริการ — ปิดแล้วไรเดอร์เห็น `R03-b`, ตรวจไม่ได้ |
 | POST | `/admin/boxes/:box_id/unbind` | `{ reason }` | ✅ ยกเลิกการผูก (เช่น ขายบ้าน) → ออก Activate QR ใหม่ให้ |
 | GET | `/admin/boxes/:box_id/qr` | — | `QrCode[]` ทุกใบทุกรุ่น (รวมใบที่ยกเลิกแล้ว) |

@@ -464,6 +464,37 @@ describe('Boxes (e2e)', () => {
   });
 
   // เจ้าของกด "เปลี่ยน Wi-Fi" ในเว็บ → ตู้รับคำสั่ง → ตอบรับ → ตัด Wi-Fi เก่า (โปรโตคอล §2.8 · api.md §4.4)
+  describe('live camera preview (test jobs only)', () => {
+    const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), randomBytes(200)]).toString('base64');
+
+    it('accepts frames during a live test job, serves the latest one to admins, and refuses anything else', async () => {
+      const [b] = await register();
+      const job = await as(admin.cookie).post(`/api/v1/admin/boxes/${b.box_id}/test-jobs`).expect(201);
+      const jobId = job.body.id as string;
+
+      await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}/preview`).expect(204);
+      await box(b, 'POST', '/v1/box/preview', { job_id: jobId, jpeg_b64: jpeg }).expect(200);
+      const frame = await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}/preview`).expect(200);
+      expect(frame.body).toMatchObject({ job_id: jobId, jpeg_b64: jpeg });
+
+      // ไม่ใช่ JPEG · งานของตู้อื่น · งานที่ไม่มี → ไม่รับ
+      const notJpeg = Buffer.from('hello world').toString('base64');
+      expect((await box(b, 'POST', '/v1/box/preview', { job_id: jobId, jpeg_b64: notJpeg }).expect(409)).body.code).toBe('PREVIEW_NOT_ALLOWED');
+      await box(b, 'POST', '/v1/box/preview', { job_id: 'J-000000', jpeg_b64: jpeg }).expect(409);
+      await box(b, 'POST', '/v1/box/preview', { job_id: 'oops' }).expect(400);
+
+      // ไม่ใช่แอดมิน = ดูไม่ได้
+      const owner = await signupOwner();
+      await as(owner.cookie).get(`/api/v1/admin/boxes/${b.box_id}/preview`).expect(404);
+
+      // งานจบแล้ว → ตู้ส่งภาพต่อไม่ได้
+      const poll = (await box(b, 'GET', '/v1/box/jobs?wait=0').expect(200)).body.job;
+      await box(b, 'POST', `/v1/box/jobs/${poll.job_id}/ready`, { flash: false }).expect(200);
+      await box(b, 'POST', `/v1/box/jobs/${poll.job_id}/result`, { attempt: 1, read_ok: true, qr_text: 'x', read_ms: 10, flash: false }).expect(200);
+      await box(b, 'POST', '/v1/box/preview', { job_id: jobId, jpeg_b64: jpeg }).expect(409);
+    });
+  });
+
   describe('owner wifi reset', () => {
     const wifi = (cookie: string, id: string) => as(cookie).get(`/api/v1/boxes/${id}`).then((r) => r.body.wifi_reset);
 

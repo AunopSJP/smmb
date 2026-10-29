@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { I18n, type Tr } from '../core/i18n';
 import { PushBlockedError, PushNotifications, type PushBlocker } from '../core/push-notifications';
@@ -23,13 +23,19 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
         <small>{{ i18n.t({ th: 'มือถือ/คอมเครื่องอื่นที่ล็อกอินบัญชีนี้ ต้องเปิดแยกเครื่องละครั้ง', en: 'Every other phone or computer you sign in on needs to turn it on separately' }) }}</small>
         <div class="row-btns">
           <button type="button" class="btn secondary" [disabled]="busy()" (click)="test()">{{ i18n.t({ th: 'ส่งทดสอบ', en: 'Send a test' }) }}</button>
-          <button type="button" class="btn secondary" [disabled]="busy()" (click)="turnOff()">{{ i18n.t({ th: 'ปิดบนเครื่องนี้', en: 'Turn off here' }) }}</button>
+          @if (!required()) {
+            <button type="button" class="btn secondary" [disabled]="busy()" (click)="turnOff()">{{ i18n.t({ th: 'ปิดบนเครื่องนี้', en: 'Turn off here' }) }}</button>
+          }
         </div>
       </div>
     } @else {
       <div class="card status warn">
         <strong>{{ i18n.t({ th: '🔕 เครื่องนี้ยังไม่ได้รับแจ้งเตือน', en: '🔕 This device is not getting notifications' }) }}</strong>
-        <small>{{ i18n.t({ th: 'จะไม่รู้เมื่อมีเจ้าหน้าที่มาตรวจ ของมาส่ง หรือ SOS จนกว่าจะเปิด', en: 'You will not know about patrol checks, deliveries or SOS until you turn it on' }) }}</small>
+        @if (required()) {
+          <small>{{ i18n.t({ th: 'เจ้าหน้าที่ต้องเปิดไว้ ไม่งั้นระบบจะไม่ให้ใช้งานและจะไม่ได้รับ SOS', en: 'Officers must keep this on — otherwise the app is locked and you will miss SOS alerts' }) }}</small>
+        } @else {
+          <small>{{ i18n.t({ th: 'จะไม่รู้เมื่อมีเจ้าหน้าที่มาตรวจ ของมาส่ง หรือ SOS จนกว่าจะเปิด', en: 'You will not know about patrol checks, deliveries or SOS until you turn it on' }) }}</small>
+        }
         @switch (blocker()) {
           @case ('line-browser') {
             <small>{{ i18n.t({ th: 'เปิดผ่าน LINE ไม่ได้ — คัดลอกลิงก์ไปเปิดใน Safari หรือ Chrome', en: 'Not possible inside LINE — copy the link and open it in Safari or Chrome' }) }}</small>
@@ -78,6 +84,10 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
 })
 export class PushStatus {
   protected readonly i18n = inject(I18n);
+  /** เจ้าหน้าที่/หัวหน้า: ต้องเปิดไว้เสมอ (ไม่มีปุ่มปิด) */
+  readonly required = input(false);
+  /** ชื่อเครื่องที่ส่งให้ server (device_label) */
+  readonly deviceLabel = input<string>();
   private readonly push = inject(PushNotifications);
   private readonly session = inject(Session);
   private readonly toast = inject(Toast);
@@ -102,7 +112,7 @@ export class PushStatus {
 
   protected async turnOn(): Promise<void> {
     await this.run(async () => {
-      await this.push.enable();
+      await this.push.enable(this.deviceLabel());
       this.toast.show({ th: 'เปิดแจ้งเตือนแล้ว', en: 'Notifications are on' });
     });
   }

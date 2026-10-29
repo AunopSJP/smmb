@@ -18,8 +18,17 @@ struct QrRead {
   uint16_t qrShapes = 0;
 };
 
+/**
+ * ส่งภาพสดออกไปดู (เฉพาะงานทดสอบ): ระหว่างสแกนจะเข้ารหัสเฟรมเป็น JPEG ทุก intervalMs แล้วเรียก sink · sink = nullptr ปิด
+ * งานตรวจจริงของเจ้าหน้าที่ห้ามเปิด — ตู้แค่อ่าน QR แล้วส่งข้อความ ไม่ส่งภาพ
+ */
+void cameraSetPreviewSink(void (*sink)(const uint8_t* jpeg, size_t len), uint32_t intervalMs);
+
 /** อ่าน QR ภายใน timeoutMs — ได้ข้อความแรกที่ถอดได้ */
 QrRead cameraScanQr(uint32_t timeoutMs);
+
+/** พิมพ์ 1 เฟรม (ย่อครึ่ง เทา) เป็น hex ทาง Serial ไว้ดูว่ากล้องเห็นอะไร/โฟกัสชัดไหม (คำสั่ง snap) */
+void cameraDumpFrame();
 
 /** ภาพ JPEG 1 เฟรม (ไว้ดูว่ากล้องเห็นอะไร · ผู้เรียกต้อง free(*out)) */
 bool cameraSnapshotJpeg(uint8_t** out, size_t* len);

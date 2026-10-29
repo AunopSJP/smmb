@@ -3,14 +3,16 @@
 #include <esp_camera.h>
 
 #include "board.h"
+#include "settings.h"
 #include "quirc/quirc.h"
 #include "img_converters.h"
 #include <ArduinoJson.h>
 
 #include "debugview.h"
 
-static constexpr int QR_CENTER_WIDTH = 480;
-static constexpr int QR_CENTER_HEIGHT = 400;
+// กรอบกลางภาพที่ใช้อ่านรอบปกติ (สัดส่วนของเฟรม · 480×400 บน VGA) — เฟรมเต็มสแกนทุก QR_FULL_FRAME_INTERVAL เฟรม
+static inline int centerWidth(int frameW) { return frameW * 3 / 4; }
+static inline int centerHeight(int frameH) { return frameH * 5 / 6; }
 static constexpr uint8_t QR_FULL_FRAME_INTERVAL = 4;
 
 static bool running = false;
@@ -88,8 +90,8 @@ String cameraPreviewJson() {
   d["text"] = prevText;
   d["scan_frames"] = scanFrames;
   d["scan_shapes"] = scanShapes;
-  d["crop_w"] = min<int>(prevW, QR_CENTER_WIDTH);
-  d["crop_h"] = min<int>(prevH, QR_CENTER_HEIGHT);
+  d["crop_w"] = centerWidth(prevW);
+  d["crop_h"] = centerHeight(prevH);
   String out;
   serializeJson(d, out);
   return out;
@@ -115,17 +117,30 @@ bool cameraStart() {
   c.pin_href = CAM_PIN_HREF;
   c.pin_pclk = CAM_PIN_PCLK;
   // 10 MHz: 20 MHz ทำให้ภาพมีเส้นขีด (DMA ไม่ทัน EV-EOF-OVF ตอน Wi-Fi ทำงาน) — ทดสอบบนบอร์ดจริง 2026-10-28
-  c.xclk_freq_hz = 10000000;
+  c.xclk_freq_hz = (uint32_t)settings.camXclk * 1000000u;
   c.ledc_timer = LEDC_TIMER_0;
   c.ledc_channel = LEDC_CHANNEL_0;
   // ขาวดำ VGA: QR ประจำตัว (~100 ตัวอักษร) จากจอมือถือระยะ 15–30 ซม. ต้องการความละเอียดพอสมควร
   c.pixel_format = PIXFORMAT_GRAYSCALE;
-  c.frame_size = FRAMESIZE_VGA;
+  c.frame_size = settings.camSize == "qvga" ? FRAMESIZE_QVGA
+                 : settings.camSize == "svga" ? FRAMESIZE_SVGA
+                 : settings.camSize == "xga"  ? FRAMESIZE_XGA
+                                              : FRAMESIZE_VGA;
   c.jpeg_quality = 12;
   c.fb_count = 2;
   c.fb_location = CAMERA_FB_IN_PSRAM;
   c.grab_mode = CAMERA_GRAB_LATEST;
   esp_err_t err = esp_camera_init(&c);
+  // กล้องหาไม่เจอชั่วคราว (ไฟตก/เซนเซอร์ค้าง) → ปิด-เปิดขา PWDN แล้วลองใหม่ 2 ครั้งก่อนยอมแพ้
+  for (int retry = 0; err != ESP_OK && retry < 2; retry++) {
+    Serial.printf("[cam] init failed 0x%x — power-cycling the sensor (retry %d)\n", err, retry + 1);
+    pinMode(CAM_PIN_PWDN, OUTPUT);
+    digitalWrite(CAM_PIN_PWDN, HIGH);
+    delay(100);
+    digitalWrite(CAM_PIN_PWDN, LOW);
+    delay(300);
+    err = esp_camera_init(&c);
+  }
   if (err != ESP_OK) {
     Serial.printf("[cam] init failed 0x%x\n", err);
     return false;
@@ -142,6 +157,7 @@ bool cameraStart() {
     sen->set_hmirror(sen, 1);
     sen->set_sharpness(sen, 2);
     sen->set_contrast(sen, 1);
+    sen->set_ae_level(sen, settings.camAe);
   }
   running = true;
   // ทิ้ง 2 เฟรมแรก (รับแสงยังไม่นิ่ง)
@@ -211,8 +227,8 @@ static bool decodeAll(String& out) {
 static bool scanFrame(camera_fb_t* fb, struct quirc* decoder, bool fullFrame, String& text, bool& foundShape) {
   const int frameWidth = static_cast<int>(fb->width);
   const int frameHeight = static_cast<int>(fb->height);
-  const int scanWidth = fullFrame ? frameWidth : min(frameWidth, QR_CENTER_WIDTH);
-  const int scanHeight = fullFrame ? frameHeight : min(frameHeight, QR_CENTER_HEIGHT);
+  const int scanWidth = fullFrame ? frameWidth : centerWidth(frameWidth);
+  const int scanHeight = fullFrame ? frameHeight : centerHeight(frameHeight);
   const int offsetX = (frameWidth - scanWidth) / 2;
   const int offsetY = (frameHeight - scanHeight) / 2;
   if (quirc_resize(decoder, scanWidth, scanHeight) < 0) return false;
@@ -264,12 +280,21 @@ bool cameraPreviewTick() {
   return true;
 }
 
+static void (*previewSink)(const uint8_t*, size_t) = nullptr;
+static uint32_t previewIntervalMs = 2500;
+
+void cameraSetPreviewSink(void (*sink)(const uint8_t*, size_t), uint32_t intervalMs) {
+  previewSink = sink;
+  previewIntervalMs = intervalMs;
+}
+
 QrRead cameraScanQr(uint32_t timeoutMs) {
   QrRead r;
   if (!running) return r;
   ScanGuard guard;
   const uint32_t start = millis();
   int frames = 0, framesWithShape = 0;
+  uint32_t lastPreviewAt = 0;
   quirc_decode_error_t lastErr = QUIRC_SUCCESS;
   while (millis() - start < timeoutMs) {
     camera_fb_t* fb = esp_camera_fb_get();
@@ -278,6 +303,15 @@ QrRead cameraScanQr(uint32_t timeoutMs) {
       continue;
     }
     frames++;
+    if (previewSink && millis() - lastPreviewAt >= previewIntervalMs) {
+      lastPreviewAt = millis();
+      uint8_t* jpg = nullptr;
+      size_t jpgLen = 0;
+      if (frame2jpg(fb, 40, &jpg, &jpgLen) && jpg) {
+        previewSink(jpg, jpgLen);
+        free(jpg);
+      }
+    }
     String text;
     bool found = false;
     const bool fullFrame = frames % QR_FULL_FRAME_INTERVAL == 0;
@@ -315,4 +349,32 @@ bool cameraSnapshotJpeg(uint8_t** out, size_t* len) {
   if (fb) esp_camera_fb_return(fb);
   if (started) cameraStop();
   return ok;
+}
+
+void cameraDumpFrame() {
+  const bool wasRunning = cameraRunning();
+  if (!wasRunning && !cameraStart()) {
+    Serial.println("snap: camera start failed");
+    return;
+  }
+  for (int i = 0; i < 4; i++) {  // ให้แสงนิ่งก่อน
+    camera_fb_t* skip = esp_camera_fb_get();
+    if (skip) esp_camera_fb_return(skip);
+  }
+  camera_fb_t* fb = esp_camera_fb_get();
+  if (!fb) {
+    Serial.println("snap: no frame");
+  } else {
+    const int step = (fb->width + 319) / 320;  // ย่อให้กว้างไม่เกิน 320
+    const int w = fb->width / step, h = fb->height / step;
+    Serial.printf("SNAP %d %d\n", w, h);
+    char line[2 * 320 + 2];
+    for (int y = 0; y < h; y++) {
+      for (int x = 0; x < w; x++) sprintf(line + 2 * x, "%02x", fb->buf[(y * step) * fb->width + x * step]);
+      Serial.println(line);
+    }
+    Serial.println("SNAPEND");
+    esp_camera_fb_return(fb);
+  }
+  if (!wasRunning) cameraStop();
 }

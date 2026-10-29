@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Controller,
   createParamDecorator,
   ExecutionContext,
@@ -17,6 +18,7 @@ import type { Response } from 'express';
 import { Public } from '../auth/auth.decorators.js';
 import { AllowClockSkew, BoxAuthGuard, type BoxRequest } from './box-auth.guard.js';
 import { BoxJobService } from './box-job.service.js';
+import { BoxPreviewService } from './box-preview.service.js';
 import { bool, BoxProtocolService, int, MAX_WAIT_S, nowS, text } from './box-protocol.service.js';
 
 /** box_id ที่ BoxAuthGuard ยืนยันแล้ว */
@@ -55,6 +57,7 @@ export class BoxProtocolController {
   constructor(
     private readonly box: BoxProtocolService,
     private readonly jobService: BoxJobService,
+    private readonly preview: BoxPreviewService,
   ) {}
 
   /** §2.1 เปิดเครื่อง — ยอมให้นาฬิกาเพี้ยน (ยังไม่เคยตั้งเวลา) */
@@ -136,6 +139,18 @@ export class BoxProtocolController {
       flash: bool(body.flash),
     });
     return { server_time: nowS(), ...verdict };
+  }
+
+  /** §2.7 ภาพสดจากกล้อง — เฉพาะงานทดสอบ · body `{ job_id, jpeg_b64 }` · งานไม่ใช่ทดสอบ/จบแล้ว → 409 */
+  @Post('preview')
+  @HttpCode(HttpStatus.OK)
+  async previewFrame(@BoxId() id: string, @BoxBody() body: Body) {
+    const jobIdValue = typeof body.job_id === 'string' ? body.job_id : '';
+    const b64 = typeof body.jpeg_b64 === 'string' ? body.jpeg_b64 : '';
+    if (!/^J-[0-9a-f]{6}$/.test(jobIdValue) || !b64) throw new BadRequestException('job_id and jpeg_b64 are required');
+    const stored = await this.preview.store(id, jobIdValue, Buffer.from(b64, 'base64'));
+    if (!stored) throw new ConflictException({ code: 'PREVIEW_NOT_ALLOWED', message: 'preview is only accepted during a live test job' });
+    return { server_time: nowS() };
   }
 
   /** §2.6 เหตุการณ์อื่น */

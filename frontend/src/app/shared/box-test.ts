@@ -36,6 +36,15 @@ const STATE: Record<Job['status'] | 'starting', { label: Tr; tone: '' | 'ok' | '
           {{ i18n.t(st.label) }}
         </p>
         @if (job(); as j) {
+          @if (frame(); as src) {
+            <figure class="live">
+              <img [src]="src" [alt]="i18n.t({ th: 'ภาพสดจากกล้องตู้', en: 'Live view from the box camera' })" />
+              <span class="guide" aria-hidden="true"></span>
+              <figcaption class="muted small">{{ i18n.t({ th: 'วาง QR ให้อยู่ในกรอบสีแดง ไม่ให้ถูกตัดขอบ · ภาพรีเฟรชทุก 1–3 วินาที', en: 'Keep the QR inside the red frame, uncropped · refreshes every 1–3 s' }) }}</figcaption>
+            </figure>
+          } @else if (j.status === 'delivered' || j.status === 'ready') {
+            <p class="muted small center">{{ i18n.t({ th: 'รอภาพจากกล้อง…', en: 'Waiting for the camera picture…' }) }}</p>
+          }
           @if (j.status === 'ready') {
             <div class="qr"><app-qr-image [text]="'SMMB-TEST ' + j.id" label="test QR" /></div>
             <p class="muted small center">{{ i18n.t({ th: 'ลองได้ ' + attemptsLeft() + ' ครั้ง', en: attemptsLeft() + ' tries left' }) }}</p>
@@ -89,6 +98,32 @@ const STATE: Record<Job['status'] | 'starting', { label: Tr; tone: '' | 'ok' | '
     .center {
       text-align: center;
     }
+    .live {
+      position: relative;
+      margin: 0;
+      img {
+        display: block;
+        width: 100%;
+        border-radius: var(--radius-sm);
+        background: #000;
+      }
+      /* กรอบกลางภาพที่ตู้ใช้อ่านรอบปกติ (75% × 83%) — นอกกรอบอ่านได้เฉพาะเฟรมเต็มที่สุ่มสแกนบางครั้ง */
+      .guide {
+        position: absolute;
+        left: 12.5%;
+        top: 8.5%;
+        width: 75%;
+        height: 83%;
+        border: 3px solid var(--brand);
+        border-radius: 8px;
+        pointer-events: none;
+        box-shadow: 0 0 0 1px #fff8;
+      }
+      figcaption {
+        margin-top: 6px;
+        text-align: center;
+      }
+    }
   `,
 })
 export class BoxTest {
@@ -103,6 +138,8 @@ export class BoxTest {
   protected readonly job = signal<Job | null>(null);
   protected readonly starting = signal(false);
   protected readonly error = signal<Tr | null>(null);
+  /** ภาพสดล่าสุดจากกล้องตู้ (data URL) */
+  protected readonly frame = signal<string | null>(null);
   protected readonly state = computed(() => STATE[this.job()?.status ?? 'starting']);
   protected readonly done = computed(() => ['passed', 'failed', 'expired'].includes(this.job()?.status ?? ''));
   protected readonly attemptsLeft = computed(() => 3 - (this.job()?.attempts.length ?? 0));
@@ -139,6 +176,10 @@ export class BoxTest {
     try {
       const next = await this.api.testJob(this.boxId(), j.id);
       this.job.set(next);
+      if (next.status === 'delivered' || next.status === 'ready') {
+        const f = await this.api.preview(this.boxId()).catch(() => null);
+        if (f && f.job_id === j.id) this.frame.set('data:image/jpeg;base64,' + f.jpeg_b64);
+      }
       if (['passed', 'failed', 'expired'].includes(next.status)) {
         this.stop();
         this.finished.emit(next);
@@ -151,6 +192,7 @@ export class BoxTest {
   protected reset(): void {
     this.stop();
     this.job.set(null);
+    this.frame.set(null);
   }
 
   private stop(): void {

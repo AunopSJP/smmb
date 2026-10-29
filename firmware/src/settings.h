@@ -8,7 +8,10 @@ struct Settings {
   String url;     // เช่น https://hub.sjp-dev.net/smmb-api (ไม่มี / ท้าย)
   String boxId;   // BX-00003
   String secret;  // device_secret hex 64 ตัว
-  bool sleep = true;  // false = ไม่หลับลึก (ไว้ทดสอบ/ดู log)
+  bool sleep = false;  // false (ค่าเริ่มต้น) = ถือ long-poll ตลอด → สแกน QR แล้วตู้ตอบทันที · true = หลับลึกตามเวลาตรวจ (ประหยัดไฟ แต่ปลุกไม่ได้)
+  String camSize = "vga";  // qvga | vga | svga | xga (ปรับด้วยคำสั่ง cam size)
+  uint8_t camXclk = 10;    // MHz — 20 ให้เฟรมเร็วขึ้นแต่เสี่ยงภาพมีเส้น (ทดสอบก่อนใช้)
+  int8_t camAe = 0;        // -2..2 ลดค่าลบ = ภาพมืดลง (กันจอมือถือสว่างจนแสงเกิน)
   bool debugCam = false;  // true = เปิดหน้าเว็บดูภาพกล้อง (ทดสอบเท่านั้น · debugview.h)
 };
 

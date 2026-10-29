@@ -47,8 +47,11 @@ void settingsLoad() {
   settings.url = prefs.getString("url", "");
   settings.boxId = prefs.getString("box", "");
   settings.secret = prefs.getString("secret", "");
-  settings.sleep = prefs.getBool("sleep", true);
+  settings.sleep = prefs.getBool("dsleep", false);  // ค่าเริ่มต้น = ไม่หลับลึก (คีย์ใหม่ — ค่า "sleep" เก่าที่เคยเป็น true ไม่ถูกใช้)
   settings.debugCam = prefs.getBool("dbgcam", false);
+  settings.camSize = prefs.getString("camsz", "vga");
+  settings.camXclk = prefs.getUChar("camxc", 10);
+  settings.camAe = (int8_t)prefs.getChar("camae", 0);
   String cfg = prefs.getString("cfg", "");
   uint32_t ver = prefs.getUInt("cfgver", 0);
   prefs.end();
@@ -63,8 +66,11 @@ void settingsSave() {
   prefs.putString("url", settings.url);
   prefs.putString("box", settings.boxId);
   prefs.putString("secret", settings.secret);
-  prefs.putBool("sleep", settings.sleep);
+  prefs.putBool("dsleep", settings.sleep);
   prefs.putBool("dbgcam", settings.debugCam);
+  prefs.putString("camsz", settings.camSize);
+  prefs.putUChar("camxc", settings.camXclk);
+  prefs.putChar("camae", settings.camAe);
   prefs.end();
 }
 

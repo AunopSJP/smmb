@@ -2,18 +2,17 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { Router, RouterLink } from '@angular/router';
 import { I18n } from '../../core/i18n';
 import { InspectionApi } from '../../core/inspection-api';
-import { PushBlockedError, PushNotifications } from '../../core/push-notifications';
 import { Session } from '../../core/session';
-import { Toast } from '../../core/toast';
 import { AccountActions } from '../auth/auth-account';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
+import { PushStatus } from '../../shared/push-status';
 
 /** O13 บัญชีเจ้าหน้าที่ — ใช้ session, ข้อมูลโซน และ Web Push จริง */
 @Component({
   selector: 'app-officer-account',
-  imports: [RouterLink, PageHeader, Icon, AccountActions],
+  imports: [RouterLink, PageHeader, Icon, AccountActions, PushStatus],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="me()?.agency?.name ?? i18n.t({ th: 'เจ้าหน้าที่', en: 'Officer' })" [title]="me()?.display_name ?? ''" />
@@ -32,20 +31,9 @@ import { PageHeader } from '../../shared/page-header';
         @if (error()) { <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดข้อมูลโซนไม่สำเร็จ', en: 'Could not load patrol assignment' }) }}</p> }
       </section>
 
+      <app-push-status [required]="true" deviceLabel="officer" />
+
       <nav class="list">
-        <section class="row">
-          <span class="icon-bubble" [class.ok]="me()?.push?.subscribed"><app-icon name="bell" [size]="20" /></span>
-          <span class="grow">
-            <strong>{{ i18n.t({ th: 'การแจ้งเตือน SOS', en: 'SOS notifications' }) }}</strong>
-            <span class="muted small block">{{ me()?.push?.subscribed ? i18n.t({ th: 'เปิดรับบนอุปกรณ์นี้', en: 'Enabled on this device' }) : i18n.t({ th: 'ยังไม่ได้เปิดบนอุปกรณ์นี้', en: 'Not enabled on this device' }) }}</span>
-          </span>
-          <button type="button" class="btn secondary push-toggle" [disabled]="pushBusy()" (click)="togglePush()">
-            {{ me()?.push?.subscribed ? i18n.t({ th: 'ปิด', en: 'Turn off' }) : i18n.t({ th: 'เปิด', en: 'Turn on' }) }}
-          </button>
-        </section>
-        @if (pushError()) {
-          <p class="danger-text small" role="alert">{{ i18n.t({ th: 'เปิด/ปิดแจ้งเตือนไม่สำเร็จ ตรวจสิทธิ์แจ้งเตือนของเบราว์เซอร์แล้วลองใหม่', en: 'Could not update notifications. Check browser permission and try again.' }) }}</p>
-        }
         <a class="row" [routerLink]="url('O02')">
           <span class="icon-bubble"><app-icon name="scan" [size]="20" /></span>
           <span class="grow">
@@ -79,37 +67,16 @@ import { PageHeader } from '../../shared/page-header';
 export class OfficerAccount {
   protected readonly i18n = inject(I18n);
   private readonly api = inject(InspectionApi);
-  private readonly push = inject(PushNotifications);
   private readonly router = inject(Router);
-  private readonly toast = inject(Toast);
   protected readonly session = inject(Session);
   protected readonly me = this.session.me;
   protected readonly url = screenUrl;
   protected readonly summary = signal<Awaited<ReturnType<InspectionApi['summary']>> | null>(null);
   protected readonly loading = signal(true);
   protected readonly error = signal(false);
-  protected readonly pushBusy = signal(false);
-  protected readonly pushError = signal(false);
 
   constructor() {
     void this.api.summary().then((summary) => this.summary.set(summary)).catch(() => this.error.set(true)).finally(() => this.loading.set(false));
-  }
-
-  protected async togglePush(): Promise<void> {
-    if (this.pushBusy()) return;
-    this.pushBusy.set(true);
-    this.pushError.set(false);
-    try {
-      if (this.me()?.push.subscribed) await this.push.disable();
-      else await this.push.enable('officer');
-      await this.session.refresh();
-      this.toast.show({ th: 'อัปเดตการแจ้งเตือนแล้ว', en: 'Notification settings updated' });
-    } catch (error) {
-      this.pushError.set(true);
-      if (error instanceof PushBlockedError) this.toast.show({ th: 'เบราว์เซอร์นี้ยังเปิดแจ้งเตือนไม่ได้', en: 'Notifications are blocked in this browser' });
-    } finally {
-      this.pushBusy.set(false);
-    }
   }
 
   protected signout(): void {

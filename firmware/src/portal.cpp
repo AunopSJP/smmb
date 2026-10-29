@@ -3,6 +3,7 @@
 #include <DNSServer.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <esp_task_wdt.h>
 
 #include "board.h"
 #include "buzzer.h"
@@ -149,6 +150,7 @@ bool runSetupPortal(unsigned long timeoutMs) {
 
   unsigned long start = millis();
   while (!done && millis() - start < timeoutMs) {
+    esp_task_wdt_reset();  // โหมดตั้งค่าอาจนานถึง 10 นาที (ถ้าลูปหลักเปิด watchdog อยู่)
     dns.processNextRequest();
     server.handleClient();
     cliPoll();
