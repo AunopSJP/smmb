@@ -37,6 +37,13 @@ const REFRESH_MS = 20_000;
       />
 
       <div class="stack page">
+        @if (boxes().length > 1) {
+          <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'เลือกตู้', en: 'Choose a mailbox' })">
+            @for (x of boxes(); track x.id) {
+              <button type="button" [attr.aria-pressed]="b.id === x.id" (click)="select(x.id)">{{ x.house_no }} · {{ x.name || x.id }}</button>
+            }
+          </div>
+        }
         @if (b.open_sos; as s) {
           <a class="card sos-open" [routerLink]="url(s.status === 'accepted' ? 'H11' : 'H09')" [queryParams]="{ id: s.id }">
             <app-icon name="alert" [size]="22" />
@@ -224,6 +231,7 @@ export class OwnerHome implements OnDestroy {
   /** ?box=BX-00042 เมื่อมีหลายตู้ (ไม่ใส่ = ตู้แรก) */
   readonly box = input<string>();
   protected readonly b = signal<BoxDetail | null>(null);
+  protected readonly boxes = signal<{ id: string; name: string; house_no: string }[]>([]);
   protected readonly noBox = signal(false);
   protected readonly error = signal(false);
   protected readonly sending = signal(false);
@@ -245,19 +253,27 @@ export class OwnerHome implements OnDestroy {
   async load(): Promise<void> {
     try {
       let id = this.box() ?? this.b()?.id;
-      if (!id) {
+      if (!id || !this.boxes().length) {
         const boxes = await this.api.boxes();
         if (!boxes.length) {
           this.noBox.set(true);
           return;
         }
-        id = boxes[0].id;
+        this.boxes.set(boxes);
+        id ??= boxes[0].id;
       }
       this.b.set(await this.api.box(id));
       this.error.set(false);
     } catch {
       this.error.set(true);
     }
+  }
+
+  /** สลับตู้ (เจ้าของมีหลายตู้) — จำใน ?box= ให้รีเฟรชแล้วยังอยู่ตู้เดิม */
+  protected async select(id: string): Promise<void> {
+    if (id === this.b()?.id) return;
+    await this.router.navigate([], { queryParams: { box: id }, replaceUrl: true });
+    await this.load();
   }
 
   protected async confirmBackup(boxId: string): Promise<void> {

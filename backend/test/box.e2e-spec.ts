@@ -361,6 +361,17 @@ describe('Boxes (e2e)', () => {
   });
 
   describe('owner binds a box (Activate QR)', () => {
+    it('one owner can bind several boxes and GET /boxes returns all of them in binding order', async () => {
+      const [a, b] = await register(2);
+      const owner = await signupOwner('7/7');
+      for (const box of [a, b]) {
+        const url = box.qr.find((q) => q.slot === 'activate')!.url;
+        await as(owner.cookie).post('/api/v1/boxes/activate', { qr_text: url }).expect(200);
+      }
+      const list = (await as(owner.cookie).get('/api/v1/boxes').expect(200)).body as { id: string }[];
+      expect(list.map((x) => x.id)).toEqual([a.box_id, b.box_id]);
+    });
+
     it('scanning the activation QR binds the box once; the house number comes from the owner', async () => {
       const [b] = await register();
       const owner = await signupOwner('12/3');
