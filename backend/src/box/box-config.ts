@@ -70,11 +70,13 @@ export function mergeWindows(windows: [string, string][]): [string, string][] {
 
 /**
  * config_ver ที่ตู้เทียบ = เลขจาก hash ของค่าทั้งก้อน (design §5.2 💡)
- * ค่าเปลี่ยน (แอดมินแก้ค่ากลาง / ค่าทับเฉพาะตู้ / หัวหน้าแก้เวลาโซน / ย้ายบ้าน) → เลขเปลี่ยนเอง ไม่ต้องนับเวอร์ชัน
+ * ค่าเปลี่ยนหรือแอดมินสั่งซิงก์ใหม่ → เลขเปลี่ยนเอง ไม่ต้องนับเวอร์ชัน
+ * generation เป็น 0 สำหรับ config ปกติ จึงยังตรงกับ hash รุ่นเดิม; reset เพิ่ม generation เพื่อบังคับส่ง config แม้ค่าไม่เปลี่ยน
  * ตู้ใหม่ส่ง 0 มา → ไม่มีวันตรง (เลขนี้ไม่เป็น 0)
  */
-export function configVersion(config: BoxConfig): number {
+export function configVersion(config: BoxConfig, generation = 0): number {
   const canonical = JSON.stringify([
+    ...(generation > 0 ? [generation] : []),
     config.windows,
     config.tz,
     config.report_at,

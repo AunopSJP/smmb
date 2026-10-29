@@ -39,9 +39,9 @@
 - Modify: `frontend/src/app/pages/demo-start.ts` only if it must launch seeded backend accounts
 - Modify: `README.md`
 
-- [ ] Ensure the seed scenario supports an owner, agency head, officer, admin, a bound box, an unbound box, QR slots, and a complete representative delivery/inspection/SOS history without resetting existing mock data.
-- [ ] Make demo account/role entry points clearly use those seeded backend identities instead of diverging in-memory accounts for live flows.
-- [ ] Document the run command, demo accounts, board network requirements, and one complete presentation script.
+- [x] Ensure the seed scenario supports an owner, agency head, officer, admin, a bound box, an unbound box, QR slots, and a complete representative delivery/inspection/SOS history without resetting existing mock data. The mock startup adds only missing history types; it does not wipe or overwrite user activity.
+- [x] Make demo account/role entry points clearly use those seeded backend identities instead of diverging in-memory accounts for live flows. `/demo` signs in through the backend before entering each role.
+- [x] Document the run command, demo accounts, board network requirements, and one complete presentation script in `README.md` and `docs/SALES_DEMO_GUIDE.md`.
 
 ### Task 3: Close user-facing flow gaps that block the sales story
 
@@ -50,16 +50,16 @@
 - Modify backend service/controller only for missing endpoints required by documented primary flows.
 - Modify matching API contracts and user-flow docs.
 
-- [ ] Keep owner activation, home/status, history, SOS, officer inspection, QR badge, SOS response, agency zones/members, rider delivery, admin box registration, and technician test connected to the same seeded backend scenario.
-- [ ] Where a flow intentionally remains a local presentation mock, visibly label it and avoid presenting its data as live backend state.
-- [ ] Ensure QR registration output can be retrieved again for printing/recovery and document any remaining non-core prototype screens.
+- [x] Keep owner activation, home/status, history, SOS, officer inspection, QR badge, SOS response, agency zones/members, rider delivery, admin box registration, and technician test connected to the same seeded backend scenario; verify representative API flows in `docs/IMPLEMENTATION_STATUS.md`.
+- [x] Where a flow intentionally remains a local presentation mock, visibly label it and avoid presenting its data as live backend state. The `/demo` entry labels itself as a backend demo; H15 family members remain an explicitly out-of-scope proposal.
+- [x] Ensure QR registration output can be retrieved again for printing/recovery and document any remaining non-core prototype screens. D04 reads printable active QR records from the box detail API; use QR reissue when a lost code must be invalidated.
 
 ### Task 4: Verify the complete demo path
 
 **Files:**
 - Modify: `docs/CODEX_HANDOFF.md`
 
-- [ ] Confirm the owner, officer, agency-head, rider, and admin/technician paths use the documented seeded scenario.
-- [ ] Run the box simulator through boot, test, inspection and accepted result against the dev mock backend.
-- [ ] Build backend, frontend, and firmware; do not reset the persistent mock database.
-- [ ] Record that a physical ESP32-CAM still needs a live optical check if no board is connected.
+- [x] Confirm the owner, officer, agency-head, rider, and admin/technician paths use the documented seeded scenario; manual API flow evidence is recorded in `docs/IMPLEMENTATION_STATUS.md`.
+- [x] Run the box simulator through boot, test, inspection and accepted result against the dev mock backend.
+- [x] Build backend, frontend, and firmware; do not reset the persistent mock database.
+- [x] Record that a physical ESP32-CAM still needs a live optical check if no board is connected; COM17 could not enter its serial bootloader during the last attempt.

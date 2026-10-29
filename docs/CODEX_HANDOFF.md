@@ -36,30 +36,27 @@
 - Build หลังเพิ่ม telemetry ผ่าน: backend `npm run build` · frontend `npm run build -- --configuration development` · firmware `pio run`
 - **เตรียมทางเข้าเดโมตู้จริง** — `/demo` เลือกบัญชี seed แล้วล็อกอินผ่าน Backend แทนการเปลี่ยน role ในหน่วยความจำอย่างเดียว · `dev:mock` เลือก IP วงแลนสำหรับ URL QR ให้มือถือ (กำหนด `SMMB_DEMO_HOST` ได้) · frontend เพิ่ม `npm run start:demo` ให้มือถือในวงแลนเปิดเว็บได้ · คู่มือลำดับนำเสนออยู่ที่ `docs/SALES_DEMO_GUIDE.md`
 - **ข้อจำกัดก่อนวันนำเสนอ** — หน้าสแกน QR ใน browser มือถือต้อง HTTPS ที่เชื่อถือ; local HTTP ยังใช้ให้ ESP32 ติดต่อ Backend และให้กล้องบนบอร์ดสแกน QR ได้ · รอบนี้ยังไม่มีบอร์ดต่อ Serial เพื่อยืนยัน optical scan บน hardware จริง
+- **อัปเดต flow เดโม/QR 2026-10-28** — `dev:mock` เติมประวัติตรวจ/ส่งของ/SOS ให้ `BX-00001` เมื่อไม่มีรายการชนิดนั้นแล้ว; เปิดซ้ำไม่สร้างซ้ำและไม่ล้างข้อมูลทีม · ตรวจ PGlite ใหม่ได้ 1 รายการต่อชนิด และ restart แล้วยัง 1 รายการต่อชนิด
+- เพิ่ม E2E QR ข้าม role: เจ้าหน้าที่รายงาน QR ฉีก → แอดมินแจ้งเจ้าของ → เจ้าของยืนยันย้ายใบสำรอง → แอดมินออกใบใหม่และปิดเคส · เจอและแก้ version/token ชนหลังเลื่อน QR จาก slot 2 ไป slot 1 · E2E inspection 9/9, backend build และ lint ผ่าน
+- รีเซ็ตตู้ที่ D04 คือคืน `config_override` ไปค่า default เพิ่ม config generation และส่งให้บอร์ดเมื่อ long-poll/เชื่อมต่อรอบถัดไป; คง Wi-Fi, device secret, owner, QR และประวัติไว้ · QR registration ดู/พิมพ์ซ้ำได้ใน D04; QR ที่สูญหายต้อง reissue เพื่อ revoke ใบเดิม
 
 ### ✅ ซอฟต์แวร์และ backend mock (commit ฐาน `339afb0 Before Hareware Coding`)
 - Backend ครบทุกเฟส: auth · หน่วยงาน · โซน · ตู้ (`/v1/box/*` HMAC + long-poll) · ตรวจตู้ · ไรเดอร์ · SOS · แจ้งเตือน · `/agency/today` · `/agency/logs` · `POST /admin/boxes/:id/device-secret` · คำตอบ boot มี `awake_s: 900`
-- หน้าเว็บ**ทุกบทบาทใช้ API จริง** ยกเว้น (มีแถบ "ต้นแบบ"): QR เสีย/ปลอม `D05–D08` · ประวัติรวมแอดมิน `D11` · แพ็กเกจ `D14` · เพิ่มบทบาท `A15/A16` · แจ้งช่าง `H13-c`
+- หน้าเว็บ flow หลักของทุกบทบาทต่อ API จริง; H15/H15-b/H15-c เป็นข้อเสนอสมาชิกในบ้านที่ยังไม่ทำตาม `docs/api.md` §4.6 · หลักฐานและข้อจำกัดปัจจุบันอยู่ใน `docs/IMPLEMENTATION_STATUS.md`
 - โหมด mock `npm run dev:mock` (ไม่ต้องมี Postgres/Redis) + บัญชีทดสอบ 1 คน/บทบาท + ตู้จำลอง `npm run box:sim -- live`
-- เทสต์: backend unit 66 · e2e 94 (health ตอบ 503 เพราะไม่มี Redis ในเครื่องทดสอบ — ปกติ) · frontend 60
+- หลักฐานตรวจ: backend unit 66/66 · frontend 60/60 · E2E flow 94/94; readiness test ต้องมี Redis ซึ่งไม่มีในเครื่องทดสอบ · ดูข้อจำกัดเต็มใน `docs/IMPLEMENTATION_STATUS.md`
 - คู่มือเฟิร์มแวร์ `docs/HARDWARE_FIRMWARE_GUIDE.md`
 
-### 🟡 เฟิร์มแวร์ `firmware/` (commit `b71f7b1 firmware ESP32-CAM`)
-ลองบนบอร์ดจริงแล้ว (ESP32-D0WDQ6 · ต่อ COM17 ผ่าน FTDI · Buzzer GPIO13 · ไม่มีวงจรวัดแบต):
+### ⚪ เฟิร์มแวร์ `firmware/` — compile ผ่าน แต่ยังไม่ได้ยืนยันกับบอร์ดจริง
 
 | เรื่อง | ผล |
 |---|---|
-| ลายเซ็น HMAC (self-test กับค่าในคู่มือ) | ✅ บนชิปจริง |
-| หน้าตั้ง Wi-Fi (SoftAP `MAILBOX-xxxxxx` + 192.168.4.1) | ✅ ต่อ `.@SJP-Office` ได้ · บอกเหตุผลเมื่อต่อไม่ได้ |
-| boot → ตั้งนาฬิกา → รับ config → long-poll | ✅ |
-| ปลุกตู้ (งานทดสอบ) สั่งงาน → ready | ✅ 2.5–3.6 วิ |
-| กล้อง + ถอด QR (quirc) | 🟡 อ่าน QR บนมือถือได้ 1 ครั้ง (ใช้ 19 วิ) · **อ่าน QR บนจอคอมไม่ได้เลย** (ข้อ 3.1) |
-| ส่งผล → เซิร์ฟเวอร์ตัดสิน → เสียง pass/retry/fail | ✅ |
-| ตรวจจริงทั้งเส้น (เจ้าหน้าที่ → ตู้อ่าน QR ประจำตัว → pass) | ❌ ยังไม่ผ่าน เพราะข้อ 3.1 |
-| หลับลึก / ตื่นตามเวลาตรวจ / รายงานรายวัน | ⚪ เขียนแล้ว ยังไม่ได้ทดสอบ (ตอนทดสอบตั้ง `sleep off`) |
-| ต่อ hub ผ่าน HTTPS | ⚪ เขียนแล้ว (CA ISRG X1+X2 ตรวจกับ hub แล้ว) แต่ยังไม่ได้ลองจากบอร์ด |
+| PlatformIO build (`esp32cam`) | ✅ compile ผ่าน · ยังไม่ใช่หลักฐานว่า firmware ทำงานบนชิป |
+| Upload ผ่าน COM17 | ❌ `Failed to connect to ESP32: No serial data received` |
+| รุ่นบอร์ดและ boot → Wi-Fi → HMAC → long-poll → camera QR | ⚪ ยังไม่ยืนยันบนฮาร์ดแวร์ · Windows เห็น FTDI `0403:6001` แต่ยังระบุรุ่นบอร์ดไม่ได้ |
+| ปลุกจาก deep sleep ด้วย QR สติกเกอร์ | ❌ ทำไม่ได้โดยตรง · ต้องคง network long-poll ไว้หรือเพิ่ม wake input/วงจร |
 
-ตอนนี้บอร์ดตั้งค่าให้ต่อ **backend บนเครื่อง dev ของผู้ใช้** (`http://10.113.254.63:3000`, `BX-00001`) ไม่ใช่ hub — เพราะยังไม่มี `device_secret` ของ hub
+ก่อน upload ต้องต่อ IO0 ลง GND แล้ว reset เพื่อเข้า download mode ตาม `docs/HARDWARE_FIRMWARE_GUIDE.md`; เก็บผล simulator แยกจากผลทดสอบบอร์ดจริง
 
 ---
 
@@ -77,15 +74,17 @@
 - ตรวจว่า `set_hmirror(1)` กลับภาพถูกทางจริงด้วย `camweb` — ถ้ากลับผิด quirc อาจหา finder pattern ได้แต่ถอดไม่ได้
 - ทำ threshold / เพิ่ม contrast ก่อนส่ง quirc หากจอมือถือมีแสงจ้าหรือ moiré · ลอง `set_gainceiling`, `set_aec_value`
 - ปรับโฟกัสเลนส์ OV2640 ให้คมที่ 15–30 ซม.
-- วัดผลด้วย `scan 20` ทาง Serial และ `camweb 120` แล้วเปิด `http://<IP ตู้>/` ดูภาพสด
+- วัดผลด้วย `scan 20` ทาง Serial และ `debugcam on` (หน้าเว็บภาพสด + กรอบอ่าน QR + คำแนะนำ — เปิด URL ที่ตู้พิมพ์ใน Serial, ต้องมี `?k=`)
 เป้า: อ่าน QR ประจำตัวบนจอมือถือได้ภายใน 2–3 วิ ระยะ 15–30 ซม.
 
 ### 3.2 อัปเดต hub ให้ใช้โค้ดล่าสุด แล้วย้ายบอร์ดไปต่อ hub
-1. ผู้ใช้ commit + push
-2. บนเครื่อง server: ทำตาม `docs/CODEX_SERVER_SETUP.txt` ขั้น 9 (`git pull` → build → restart · ไฟล์ `config.json` ของเว็บ = `{ "apiBase": "/smmb-api", "devTools": true }`)
-3. ล้าง mock DB ครั้งเดียวเพื่อได้บัญชีทดสอบชุดใหม่: `npm run dev:mock -- --reset` (**ล้างข้อมูลทดสอบบน hub ทั้งหมด — ถามผู้ใช้ก่อน**)
-4. ล็อกอินแอดมินบน hub → ตู้ → BX-00001 → "ดูรหัสลับประจำตู้" → ผู้ใช้กรอกในหน้า 192.168.4.1 ของตู้ (URL `https://hub.sjp-dev.net/smmb-api`) — **ห้ามส่งรหัสลับในแชต**
-5. ทดสอบตามเช็กลิสต์ `docs/HARDWARE_FIRMWARE_GUIDE.md` §11
+1. ตรวจ diff และให้ผู้ใช้ออกคำสั่ง deploy ก่อนเปลี่ยน server/domain · push โค้ดเฉพาะหลังผู้ใช้สั่ง
+2. บนเครื่อง server หลังได้รับอนุมัติ: หยุด `smmb-mock`, pull โค้ด, รัน `npm ci` ใน `backend/` และ `frontend/`, แล้ว `npm --prefix frontend run build:hub` เพื่อ build production พร้อมตั้ง base/API และปิด dev tools ในขั้นตอนเดียว
+3. สำรองเว็บเดิมก่อนคัดลอกเนื้อหา `frontend/dist/smmb-web/browser/` ไปยัง `root`/`alias` ของ `/smmb/` ตาม nginx config จริง
+4. start `smmb-mock` ใหม่ · systemd เรียก `npm run dev:mock` ซึ่ง build backend และ apply migrations ที่ยังขาด (รวม 0011–0014) ผ่าน `runMigrations()` แบบ transaction; **ห้ามใส่ `--reset`** เพราะจะล้างข้อมูลเดโมบน hub
+5. ตรวจ `journalctl -u smmb-mock`, `https://hub.sjp-dev.net/smmb-api/api/health/live`, asset hash ของหน้าเว็บ และ login/flow ของทุกบทบาทก่อนนำบอร์ดไปต่อ hub
+6. ล็อกอินแอดมินบน hub → ตู้ → BX-00001 → "ดูรหัสลับประจำตู้" → ผู้ใช้กรอกในหน้า 192.168.4.1 ของตู้ (URL `https://hub.sjp-dev.net/smmb-api`) — **ห้ามส่งรหัสลับในแชต**
+7. ทดสอบตามเช็กลิสต์ `docs/HARDWARE_FIRMWARE_GUIDE.md` §11
 
 ### 3.3 ทดสอบส่วนเฟิร์มแวร์ที่ยังไม่ได้ลอง
 - หลับลึก: ตั้ง `sleep on` + ตู้ที่ `windows` สั้น ๆ → ตื่นก่อนต้นช่วง 60 วิ → long-poll → หมดช่วงแล้วหลับ · รายงานรายวัน (`report_at`)
@@ -93,7 +92,7 @@
 - ⚠️ **GPIO0 = ขา XCLK ของกล้อง** — ถ้ายังมีสายจาก IO0 (ใช้ตอนแฟลช) ห้อยแตะ GND กล้องจะ `Camera probe failed 0x105` (เจอแล้ว) · ปุ่ม "IO0 ค้าง 5 วิ" ใช้ได้เฉพาะตอนเปิดเครื่องก่อนเปิดกล้อง
 
 ### 3.4 งานค้างฝั่ง backend / เว็บ (ทำเมื่อผู้ใช้สั่ง)
-- หน้าที่ยังจำลอง (ข้อ 2) · งานเบื้องหลัง: แจ้งเจ้าของบ้านเมื่อตู้ไม่ออนไลน์ตอนเริ่มเวลาตรวจ / ตู้เงียบเกิน 26 ชม.
+- หน้าที่ยังเป็นข้อเสนอ: H15 สมาชิกในบ้าน · งานเบื้องหลัง: แจ้งเจ้าของบ้านเมื่อตู้ไม่ออนไลน์ตอนเริ่มเวลาตรวจ / ตู้เงียบเกิน 26 ชม.
 - ยังไม่เคยรันกับ **PostgreSQL + Redis จริง** (ทุกอย่างทดสอบบน PGlite)
 - ก่อนเปิดให้ใช้จริง: ปิด `devTools` · เลิกใช้บัญชี `demo1234` · เอา `SKIP_PUSH_REQUIRED` ออก (ใช้แค่โหมด mock) · backend รันได้ทีละตัว (`JobHub` อยู่ในหน่วยความจำ)
 - ❓ รอคำตอบผู้ใช้/ทีมฮาร์ดแวร์: ชื่อ SoftAP `MAILBOX-<6 หลักท้าย box_id>` ใช้ได้ไหม · รูปแบบเสียง Buzzer
@@ -130,7 +129,7 @@ pio run -t upload --upload-port COM17
 # หลังแฟลช: ถอดสาย IO0 ออก (สำคัญ — ข้อ 3.3) → กด RST
 pio device monitor -p COM17 -b 115200                # พิมพ์ help
 ```
-คำสั่ง Serial: `status` · `selftest` · `url` / `box` / `secret` / `wifi` · `sleep on|off` · `boot` · `report` · `scan [วิ]` · `camweb [วิ]` · `portal` · `forget` · `reboot` — ระหว่างถือ long-poll (สูงสุด ~50 วิ) คำสั่งจะรอจนรอบนั้นจบ
+คำสั่ง Serial: `status` · `selftest` · `url` / `box` / `secret` / `wifi` · `sleep on|off` · `boot` · `report` · `scan [วิ]` · `debugcam on|off` · `camweb [วิ]` · `portal` · `forget` · `reboot` — ระหว่างถือ long-poll (สูงสุด ~50 วิ) คำสั่งจะรอจนรอบนั้นจบ
 
 ---
 

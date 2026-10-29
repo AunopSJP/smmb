@@ -1,8 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal, type OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { AdminApi, type BoxConfig } from '../../core/admin-api';
+import { AdminApi, type AdminLog, type AdminLogType, type BoxConfig } from '../../core/admin-api';
 import { I18n, type Tr } from '../../core/i18n';
-import { AdminDemo, type LogType } from '../../core/mock/admin-demo';
 
 type BoxConfigDefaults = Omit<BoxConfig, 'windows'>;
 import { downloadText, toCsv } from '../../core/csv';
@@ -150,7 +149,7 @@ export class AdminConfig implements OnInit {
 
 // ── D11 · ประวัติทั้งหมด ─────────────────────────────────────
 
-const LOG_TYPE: Record<LogType, { label: Tr; icon: IconName; tone: '' | 'warn' | 'danger' }> = {
+const LOG_TYPE: Record<AdminLogType, { label: Tr; icon: IconName; tone: '' | 'warn' | 'danger' }> = {
   inspection: { label: { th: 'ตรวจ', en: 'Inspections' }, icon: 'shield', tone: '' },
   delivery: { label: { th: 'ส่งของ', en: 'Deliveries' }, icon: 'box', tone: 'warn' },
   sos: { label: { th: 'SOS', en: 'SOS' }, icon: 'alert', tone: 'danger' },
@@ -181,17 +180,21 @@ const LOG_TYPE: Record<LogType, { label: Tr; icon: IconName; tone: '' | 'warn' |
           <li class="row">
             <span class="icon-bubble" [class.warn]="m.tone === 'warn'" [class.danger]="m.tone === 'danger' || l.fail"><app-icon [name]="m.icon" [size]="20" /></span>
             <span class="grow">
-              <strong>{{ i18n.t(l.title) }}</strong>
-              <span class="muted small block">{{ i18n.t(l.sub) }}</span>
+              <strong>{{ i18n.t(title(l)) }}</strong>
+              <span class="muted small block">{{ i18n.t(sub(l)) }}</span>
             </span>
             @if (l.fail) {
               <span class="chip danger">{{ i18n.t({ th: 'ไม่ผ่าน', en: 'Failed' }) }}</span>
             }
           </li>
         } @empty {
-          <li class="row muted">{{ i18n.t({ th: 'ไม่มีรายการ', en: 'Nothing here' }) }}</li>
+          <li class="row muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ไม่มีรายการ', en: 'Nothing here' }) }}</li>
         }
       </ul>
+      @if (error()) {
+        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดประวัติไม่ได้ · ลองใหม่', en: 'Could not load logs · try again' }) }}</p>
+        <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองใหม่', en: 'Retry' }) }}</button>
+      }
       <button type="button" class="btn secondary" [disabled]="!rows().length" (click)="exportCsv()">{{ i18n.t({ th: 'ส่งออก CSV (ตามตัวกรอง)', en: 'Export CSV (filtered)' }) }}</button>
       <p class="muted small">{{ i18n.t({ th: 'บันทึกทุกการสแกน/พิมพ์รหัส แม้ไม่ผ่าน · ลบหรือแก้ไม่ได้', en: 'Every scan or typed code is logged, even failures · cannot be edited' }) }}</p>
     </div>
@@ -216,28 +219,67 @@ const LOG_TYPE: Record<LogType, { label: Tr; icon: IconName; tone: '' | 'warn' |
 })
 export class AdminLogs {
   protected readonly i18n = inject(I18n);
-  private readonly demo = inject(AdminDemo);
+  private readonly api = inject(AdminApi);
   protected readonly url = screenUrl;
   protected readonly meta = LOG_TYPE;
-  protected readonly types = Object.keys(LOG_TYPE) as LogType[];
+  protected readonly types = Object.keys(LOG_TYPE) as AdminLogType[];
 
   /** เลือกได้หลายประเภท · ไม่เลือกเลย = ทั้งหมด */
-  protected readonly picked = signal(new Set<LogType>());
+  protected readonly picked = signal(new Set<AdminLogType>());
+  protected readonly allRows = signal<AdminLog[]>([]);
+  protected readonly loading = signal(true);
+  protected readonly error = signal(false);
   protected readonly rows = computed(() => {
     const p = this.picked();
-    return this.demo.logs.filter((l) => !p.size || p.has(l.type));
+    return this.allRows().filter((l) => !p.size || p.has(l.type));
   });
 
-  /** ของจริง: GET /admin/logs/export.csv?type=… (ตัวกรองเดียวกับหน้าจอ) · ต้นแบบ: สร้างจากข้อมูลจำลอง */
+  constructor() {
+    void this.load();
+  }
+
+  protected async load(): Promise<void> {
+    this.loading.set(true);
+    this.error.set(false);
+    try {
+      this.allRows.set((await this.api.logs()).data);
+    } catch {
+      this.error.set(true);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  protected title(log: AdminLog): Tr {
+    const place = log.house_no ?? log.box_id ?? log.result ?? log.type;
+    const date = new Date(log.created_at).toLocaleTimeString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Bangkok',
+    });
+    return { th: `${LOG_TYPE[log.type].label.th} · ${place} · ${date}`, en: `${LOG_TYPE[log.type].label.en} · ${place} · ${date}` };
+  }
+
+  protected sub(log: AdminLog): Tr {
+    const actor = log.actor_name ?? '—';
+    const qr = log.qr_slot ? `QR ${log.qr_slot}` : '';
+    const method = log.method ?? '';
+    const result = log.result ?? '';
+    const extra = log.details ?? '';
+    const th = [actor, qr, method, result, extra].filter(Boolean).join(' · ');
+    return { th, en: th };
+  }
+
+  /** ส่งออกแถวที่โหลดจาก GET /admin/logs และผ่านตัวกรองบนหน้าจอ */
   protected exportCsv(): void {
     const t = (x: Tr) => this.i18n.t(x);
     const head = [t({ th: 'ประเภท', en: 'Type' }), t({ th: 'รายการ', en: 'Event' }), t({ th: 'รายละเอียด', en: 'Details' }), t({ th: 'ผล', en: 'Result' })];
-    const body = this.rows().map((l) => [t(this.meta[l.type].label), t(l.title), t(l.sub), l.fail ? t({ th: 'ไม่ผ่าน', en: 'Failed' }) : '']);
+    const body = this.rows().map((l) => [t(this.meta[l.type].label), t(this.title(l)), t(this.sub(l)), l.fail ? t({ th: 'ไม่ผ่าน', en: 'Failed' }) : '']);
     const day = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
     downloadText(`smmb-logs-${day}.csv`, toCsv([head, ...body]));
   }
 
-  protected toggle(t: LogType): void {
+  protected toggle(t: AdminLogType): void {
     this.picked.update((s) => {
       const next = new Set(s);
       if (next.has(t)) next.delete(t);

@@ -17,6 +17,7 @@
 #include "board.h"
 #include "buzzer.h"
 #include "camera_qr.h"
+#include "debugview.h"
 #include "portal.h"
 #include "settings.h"
 #include "signer.h"
@@ -43,6 +44,8 @@ static bool inWindow(uint32_t utc) {
 }
 
 static bool shouldListen() {
+  // Bench/demo override: a persistent sleep-off setting keeps the board online for QR-triggered jobs.
+  if (!settings.sleep || settings.debugCam) return true;
   uint32_t now = nowUtc();
   if (!now) return false;
   return now < awakeUntil || inWindow(now);
@@ -288,14 +291,17 @@ static void runJob(JsonObject job) {
 /** ถือ long-poll 1 รอบ */
 static void pollOnce() {
   uint8_t wait = boxConfig.longpollWaitS ? boxConfig.longpollWaitS : 50;
-  ApiResult r = apiCall("GET", "/v1/box/jobs?wait=" + String(wait), "", (uint32_t)wait * 1000 + 10000);
+  // เปิดหน้าดูกล้องอยู่ → ถือ long-poll สั้น ๆ เพื่อให้เว็บเซิร์ฟเวอร์ของตู้ตอบทัน (ปกติถือ 50 วิ)
+  if (settings.debugCam) wait = min<uint8_t>(wait, 3);
+  ApiResult r = apiCall("GET", "/v1/box/jobs?wait=" + String(wait) + "&config_ver=" + String(boxConfig.ver), "", (uint32_t)wait * 1000 + 10000);
   if (r.status == 204) return;
   if (r.status == 200) {
     JsonDocument doc;
     if (deserializeJson(doc, r.body)) return;
     uint32_t ver = doc["config_ver"] | 0u;
+    if (!doc["config"].isNull()) absorbConfig(r.body);
     if (!doc["job"].isNull()) runJob(doc["job"].as<JsonObject>());
-    // เวลาตรวจ/ค่าตั้งเปลี่ยน → ขอค่าใหม่ผ่าน report
+    // Backend รุ่นก่อนที่ยังไม่ส่ง config ทาง long-poll ให้ดึงผ่าน report ตามเดิม
     if (ver && ver != boxConfig.ver) sendReport();
     return;
   }
@@ -313,13 +319,17 @@ static void pollOnce() {
 static void sleepUntilNextEvent() {
   uint32_t now = nowUtc();
   uint32_t s = secondsToNextEvent(now);
-  if (!settings.sleep) {
+  if (!settings.sleep || settings.debugCam) {
     static unsigned long lastMsg = 0;
     if (millis() - lastMsg > 60000) {
       Serial.printf("[sleep] (sleep off) next event in %u s — staying awake\n", s);
       lastMsg = millis();
     }
-    delay(1000);
+    unsigned long t = millis();
+    while (millis() - t < 1000) {
+      debugViewPoll();
+      delay(10);
+    }
     return;
   }
   Serial.printf("[sleep] deep sleep %u s\n", s);
@@ -336,6 +346,7 @@ static void sleepUntilNextEvent() {
 }
 
 // ── คำสั่งทาง Serial ─────────────────────────────────────────────────────
+void cliPoll();  // ประกาศล่วงหน้า (นิยามด้านล่าง)
 static String cliLine;
 
 static void printStatus() {
@@ -369,12 +380,13 @@ static void runCommand(String line) {
         "  url <https://...>      server base URL, e.g. https://hub.sjp-dev.net/smmb-api\n"
         "  box <BX-00003>         box id\n"
         "  secret <64 hex>        device secret (not echoed)\n"
-        "  sleep on|off           deep sleep between events (off = stay awake for testing)\n"
+        "  sleep on|off           on = scheduled deep sleep; off = force long-poll for bench/demo\n"
         "  selftest               check request signing against the guide's test vectors\n"
         "  boot                   send POST /v1/box/boot now\n"
         "  report                 send POST /v1/box/report now\n"
         "  scan [sec]             open the camera and try to read a QR (no server)\n"
-        "  camweb [sec]           view the box camera at http://<box ip>/ (adjust distance / angle)\n"
+        "  debugcam on|off        live camera page http://<box ip>/?k=<key> (test only, off by default)\n"
+        "  camweb [sec]           the same page, temporarily (default 120 s)\n"
         "  portal                 start the Wi-Fi setup portal\n"
         "  forget                 forget Wi-Fi and restart\n"
         "  reboot");
@@ -423,37 +435,42 @@ static void runCommand(String line) {
       Serial.printf("scan: %s\n", q.ok ? q.text.c_str() : "(nothing)");
       cameraStop();
     }
-  } else if (cmd == "camweb") {
-    // ดูภาพจากกล้องตู้ผ่านเบราว์เซอร์ในวง LAN (ไว้ปรับระยะ/มุม) — เปิดค้าง N วินาที
-    uint32_t sec = arg.length() ? arg.toInt() : 120;
-    WebServer web(80);
-    web.on("/", [&web] {
-      web.send(200, "text/html",
-               "<html><body style='margin:0;background:#000'><img id=i style='width:100%'><script>"
-               "setInterval(()=>{document.getElementById('i').src='/snap.jpg?'+Date.now()},700)</script></body></html>");
-    });
-    web.on("/snap.jpg", [&web] {
-      uint8_t* jpg = nullptr;
-      size_t len = 0;
-      if (!cameraSnapshotJpeg(&jpg, &len)) {
-        web.send(500, "text/plain", "camera error");
-        return;
+  } else if (cmd == "debugcam") {
+    // หน้าเว็บดูภาพกล้องตอนทดสอบ — ปิดเป็นค่าเริ่มต้น (กล้องตู้มองถนน) · เก็บค่าถาวร
+    if (arg == "on" || arg == "off") {
+      settings.debugCam = arg == "on";
+      settingsSave();
+      if (settings.debugCam) {
+        if (WiFi.status() == WL_CONNECTED) debugViewStart();
+        else Serial.println("debugcam on — จะเปิดเมื่อต่อ Wi-Fi ได้");
+      } else {
+        debugViewStop();
+        Serial.println("debugcam off");
       }
-      web.send_P(200, "image/jpeg", (const char*)jpg, len);
-      free(jpg);
-    });
-    web.begin();
-    cameraStart();
-    Serial.printf("camweb: open http://%s/ for %u s\n", WiFi.localIP().toString().c_str(), sec);
-    unsigned long t = millis();
-    while (millis() - t < sec * 1000UL) {
-      web.handleClient();
-      delay(5);
+    } else {
+      Serial.printf("debugcam %s%s\n", settings.debugCam ? "on" : "off", debugViewRunning() ? (String(" · ") + debugViewUrl()).c_str() : "");
     }
-    web.stop();
-    cameraStop();
-    Serial.println("camweb: stopped");
+  } else if (cmd == "camweb") {
+    // ทางลัด: เปิดหน้าดูกล้องชั่วคราว N วินาที (ไม่เก็บค่า) — ปิดเองเมื่อครบเวลา
+    uint32_t sec = arg.length() ? arg.toInt() : 120;
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("camweb: ยังไม่ต่อ Wi-Fi");
+    } else {
+      const bool wasRunning = debugViewRunning();
+      debugViewStart();
+      Serial.printf("camweb: เปิด %s (%u วิ)\n", debugViewUrl().c_str(), sec);
+      unsigned long t = millis();
+      while (millis() - t < sec * 1000UL) {
+        debugViewPoll();
+        debugViewIdleCheck();
+        cliPoll();
+        delay(5);
+      }
+      if (!wasRunning && !settings.debugCam) debugViewStop();
+      Serial.println("camweb: ปิดแล้ว");
+    }
   } else if (cmd == "portal") {
+    debugViewStop();
     if (runSetupPortal(PORTAL_TIMEOUT_MS)) ESP.restart();
   } else if (cmd == "forget") {
     settingsForgetWifi();
@@ -484,6 +501,7 @@ static void waitWithCli(unsigned long ms) {
   unsigned long t = millis();
   while (millis() - t < ms) {
     cliPoll();
+    debugViewPoll();
     delay(20);
   }
 }
@@ -546,6 +564,11 @@ void setup() {
 
 void loop() {
   cliPoll();
+  if (settings.debugCam && WiFi.status() == WL_CONNECTED) {
+    debugViewStart();
+    debugViewPoll();
+    debugViewIdleCheck();
+  }
   if (WiFi.status() != WL_CONNECTED && !wifiConnect()) {
     beepError();
     waitWithCli(RETRY_IN_WINDOW_MS);

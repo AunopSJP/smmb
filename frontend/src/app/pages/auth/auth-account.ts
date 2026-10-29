@@ -11,10 +11,10 @@ import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
-import { MockNote, nowHHmm, PasswordField, TermsCheck } from './auth-parts';
+import { PasswordField, TermsCheck } from './auth-parts';
 
 // บัญชีที่มีอยู่แล้ว: A14 เปลี่ยนรหัสผ่าน · A15 เพิ่มบทบาทเจ้าของบ้าน · A16 ขอเข้าหน่วยงาน · ส่วน "บัญชี" + สลับบทบาท
-// ไม่มีใน wireframe — เพิ่มตาม api.md §2 (change-password, /me/roles/owner, /me/agency/join) · จำลองเท่านั้น
+// ไม่มีใน wireframe — เพิ่มตาม api.md §2; actions ใช้ API จริง ส่วน state ของร่างฟอร์มเก็บในเครื่อง
 
 const ROLE_LABEL: Record<DemoRole, { label: Tr; icon: IconName }> = {
   owner: { label: { th: 'เจ้าของบ้าน', en: 'Homeowner' }, icon: 'home' },
@@ -250,12 +250,11 @@ export class AuthChangePassword {
 
 @Component({
   selector: 'app-auth-add-owner',
-  imports: [PageHeader, TermsCheck, MockNote],
+  imports: [PageHeader, TermsCheck],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'บัญชีเดิม · ', en: 'Your account · ' }) + phone()" [title]="i18n.t({ th: 'เพิ่มบทบาทเจ้าของบ้าน', en: 'Add homeowner role' })" [back]="backUrl()" />
     <form class="stack grow" (submit)="$event.preventDefault(); submit()">
-      <app-mock-note />
       <p class="info-box muted small">{{ i18n.t({ th: 'ใช้บัญชีนี้ต่อ ไม่ต้องสมัครใหม่ · ได้แพ็กฟรีอัตโนมัติ · ขั้นต่อไปสแกน QR เปิดใช้ตู้', en: 'Keep this account, no new sign-up · free plan included · next you scan the activation QR' }) }}</p>
       <label class="field" [class.invalid]="errorCode() === 'INVALID'">
         <span>{{ i18n.t({ th: 'บ้านเลขที่', en: 'House number' }) }}</span>
@@ -265,7 +264,7 @@ export class AuthChangePassword {
       @if (errorCode(); as e) {
         <p class="danger-text small" role="alert">{{ i18n.t(errors[e]) }}</p>
       }
-      <button type="submit" class="btn push-end" [disabled]="!f().terms">{{ i18n.t({ th: 'เพิ่มบทบาทแล้วไปผูกตู้', en: 'Add role and bind my mailbox' }) }}</button>
+      <button type="submit" class="btn push-end" [disabled]="!f().terms || busy()">{{ i18n.t({ th: 'เพิ่มบทบาทแล้วไปผูกตู้', en: 'Add role and bind my mailbox' }) }}</button>
     </form>
   `,
   styles: `
@@ -276,15 +275,17 @@ export class AuthChangePassword {
 })
 export class AuthAddOwner {
   protected readonly i18n = inject(I18n);
-  protected readonly session = inject(DemoSession);
+  private readonly http = inject(HttpClient);
+  private readonly realSession = inject(Session);
   private readonly demo = inject(AuthDemo);
   private readonly router = inject(Router);
   protected readonly errors = ADD_ROLE_ERROR;
-  protected readonly phone = computed(() => formatPhone(this.session.phone()));
+  protected readonly phone = computed(() => formatPhone(this.realSession.me()?.phone ?? ''));
   readonly from = input<string>();
   protected readonly backUrl = computed(() => backTo(this.from(), 'O13'));
   protected readonly f = this.demo.forms.addOwner;
   protected readonly errorCode = signal<string | null>(null);
+  protected readonly busy = signal(false);
 
   protected set<K extends keyof SignupForm>(key: K, value: SignupForm[K]): void {
     this.f.update((f) => ({ ...f, [key]: value }));
@@ -292,15 +293,21 @@ export class AuthAddOwner {
   }
 
   /** ของจริง: POST /me/roles/owner { house_no, terms_version } → 201 Me (มี owner แล้ว) → A07 */
-  protected submit(): void {
-    const e = this.demo.addOwnerRole(this.session.roles(), this.f());
-    if (e === 'TERMS_NOT_ACCEPTED') return;
-    if (e) {
-      this.errorCode.set(e);
-      return;
+  protected async submit(): Promise<void> {
+    if (!this.f().terms || !this.f().house_no.trim() || this.busy()) return;
+    this.busy.set(true);
+    try {
+      const terms = await firstValueFrom(this.http.get<{ version: string }>('/api/v1/terms/current'));
+      await firstValueFrom(this.http.post('/api/v1/me/roles/owner', { house_no: this.f().house_no.trim(), terms_version: terms.version }));
+      await this.realSession.refresh();
+      this.realSession.use('owner');
+      void this.router.navigateByUrl(screenUrl('A07'));
+    } catch (err) {
+      const { code } = apiError(err);
+      this.errorCode.set(code && ADD_ROLE_ERROR[code] ? code : 'INVALID');
+    } finally {
+      this.busy.set(false);
     }
-    this.session.addRole('owner');
-    void this.router.navigateByUrl(screenUrl('A07'));
   }
 }
 
@@ -308,12 +315,11 @@ export class AuthAddOwner {
 
 @Component({
   selector: 'app-auth-join-agency',
-  imports: [PageHeader, TermsCheck, MockNote],
+  imports: [PageHeader, TermsCheck],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'บัญชีเดิม · ', en: 'Your account · ' }) + phone()" [title]="i18n.t({ th: 'ขอเข้าหน่วยงาน', en: 'Join an agency' })" [back]="backUrl()" />
     <form class="stack grow" (submit)="$event.preventDefault(); submit()">
-      <app-mock-note />
       <p class="info-box muted small">{{ i18n.t({ th: 'ใช้บัญชีนี้ต่อ · หัวหน้าต้องยืนยันก่อนจึงจะใช้หน้าเจ้าหน้าที่ได้ · ระหว่างรอใช้งานแบบเดิมได้ตามปกติ', en: 'Keep this account · your head must approve before you get officer screens · meanwhile everything else works as before' }) }}</p>
       <label class="field" [class.invalid]="errorCode() === 'GROUP_CODE_INVALID'">
         <span>{{ i18n.t({ th: 'รหัสกลุ่มจากหัวหน้า', en: 'Group code from your head' }) }}</span>
@@ -323,8 +329,7 @@ export class AuthAddOwner {
       @if (errorCode(); as e) {
         <p class="danger-text small" role="alert">{{ i18n.t(errors[e]) }}</p>
       }
-      <button type="submit" class="btn push-end" [disabled]="!f().terms || !f().group_code.trim()">{{ i18n.t({ th: 'ส่งคำขอ', en: 'Send request' }) }}</button>
-      <p class="demo-tools">{{ i18n.t({ th: 'จำลอง — รหัสกลุ่มที่ใช้ได้: PX7K-2MQ9 · RJ4W-9QTC', en: 'Demo group codes: PX7K-2MQ9 · RJ4W-9QTC' }) }}</p>
+      <button type="submit" class="btn push-end" [disabled]="!f().terms || !f().group_code.trim() || busy()">{{ i18n.t({ th: 'ส่งคำขอ', en: 'Send request' }) }}</button>
     </form>
   `,
   styles: `
@@ -335,15 +340,17 @@ export class AuthAddOwner {
 })
 export class AuthJoinAgency {
   protected readonly i18n = inject(I18n);
-  protected readonly session = inject(DemoSession);
+  private readonly http = inject(HttpClient);
+  private readonly realSession = inject(Session);
   private readonly demo = inject(AuthDemo);
   private readonly router = inject(Router);
   protected readonly errors = ADD_ROLE_ERROR;
-  protected readonly phone = computed(() => formatPhone(this.session.phone()));
+  protected readonly phone = computed(() => formatPhone(this.realSession.me()?.phone ?? ''));
   readonly from = input<string>();
   protected readonly backUrl = computed(() => backTo(this.from(), 'H13'));
   protected readonly f = this.demo.forms.join;
   protected readonly errorCode = signal<string | null>(null);
+  protected readonly busy = signal(false);
 
   protected set<K extends keyof SignupForm>(key: K, value: SignupForm[K]): void {
     this.f.update((f) => ({ ...f, [key]: value }));
@@ -351,14 +358,20 @@ export class AuthJoinAgency {
   }
 
   /** ของจริง: POST /me/agency/join { group_code, terms_version } → สถานะ pending (A11) */
-  protected submit(): void {
-    const e = this.demo.joinAgency(this.session.roles(), this.session.agencyPending(), this.f(), nowHHmm());
-    if (e === 'TERMS_NOT_ACCEPTED') return;
-    if (e) {
-      this.errorCode.set(e);
-      return;
+  protected async submit(): Promise<void> {
+    const groupCode = this.f().group_code.replace(/[\s-]/g, '').toUpperCase();
+    if (!this.f().terms || !groupCode || this.busy()) return;
+    this.busy.set(true);
+    try {
+      const terms = await firstValueFrom(this.http.get<{ version: string }>('/api/v1/terms/current'));
+      await firstValueFrom(this.http.post('/api/v1/me/agency/join', { group_code: groupCode, terms_version: terms.version }));
+      await this.realSession.refresh();
+      void this.router.navigateByUrl(screenUrl('A11'));
+    } catch (err) {
+      const { code } = apiError(err);
+      this.errorCode.set(code && ADD_ROLE_ERROR[code] ? code : 'INVALID');
+    } finally {
+      this.busy.set(false);
     }
-    this.session.agencyPending.set(true);
-    void this.router.navigateByUrl(screenUrl('A11'));
   }
 }

@@ -4,7 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { apiError } from '../../core/api';
 import { I18n } from '../../core/i18n';
-import { DELIVERY_LIMIT_PER_HOUR, normalizeCode } from '../../core/mock/rider-demo';
+import { DELIVERY_LIMIT_PER_HOUR, normalizeCode } from '../../core/rider-rules';
 import { screenUrl } from '../../screens/registry';
 import { Brand } from '../../shared/brand';
 import { Icon } from '../../shared/icon';

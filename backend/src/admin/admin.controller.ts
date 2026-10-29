@@ -2,6 +2,8 @@ import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post
 import { Transform, Type } from 'class-transformer';
 import {
   IsIn,
+  IsArray,
+  IsDateString,
   IsInt,
   IsOptional,
   IsString,
@@ -12,6 +14,7 @@ import {
   MaxLength,
   Min,
   ValidateNested,
+  ValidateIf,
 } from 'class-validator';
 import type { Role } from '../auth/account.service.js';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
@@ -21,6 +24,9 @@ import { RateLimit } from '../rate-limit/rate-limit.guard.js';
 import { AdminAgencyService } from './admin-agency.service.js';
 import { SupportService } from '../support/support.service.js';
 import { AdminUsersService } from './admin-users.service.js';
+import { ADMIN_LOG_TYPES, AdminLogsService, type AdminLogType } from './admin-logs.service.js';
+import { TechnicianRequestService, type TechnicianRequestStatus } from '../box/technician-request.service.js';
+import { AdminOverviewService } from './admin-overview.service.js';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
@@ -78,6 +84,26 @@ class PutRoleDto {
   @IsOptional() @IsIn(['active', 'disabled']) status?: 'active' | 'disabled';
 }
 
+class ListLogsQuery {
+  @IsOptional() @Transform(({ value }) => typeof value === 'string' ? value.split(',') : value) @IsArray() @IsIn(ADMIN_LOG_TYPES, { each: true }) type?: AdminLogType[];
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page = 1;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) per_page = 100;
+}
+
+class TechnicianRequestsQuery {
+  @IsOptional() @IsIn(['open', 'scheduled', 'done']) status?: TechnicianRequestStatus;
+}
+
+class UpdateTechnicianRequestDto {
+  @IsIn(['scheduled', 'done']) status!: 'scheduled' | 'done';
+  @ValidateIf((dto: UpdateTechnicianRequestDto) => dto.status === 'scheduled') @IsDateString() scheduled_at?: string;
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(500) note?: string;
+}
+
+class TechnicianRequestIdParam {
+  @IsUUID() id!: string;
+}
+
 // docs/api.md §9 — แอดมินเท่านั้น
 @RequireRole('admin')
 @Controller('api/v1/admin')
@@ -86,9 +112,17 @@ export class AdminController {
     private readonly agencies: AdminAgencyService,
     private readonly users: AdminUsersService,
     private readonly support: SupportService,
+    private readonly logs: AdminLogsService,
+    private readonly technicianRequests: TechnicianRequestService,
+    private readonly overview: AdminOverviewService,
   ) {}
 
   // ── §9.2 หน่วยงาน ──────────────────────────────────────────────────────
+
+  @Get('overview')
+  getOverview() {
+    return this.overview.get();
+  }
 
   @Get('agencies')
   listAgencies(@Query() q: ListAgenciesQuery) {
@@ -126,6 +160,21 @@ export class AdminController {
   }
 
   // ── §9.3 ผู้ใช้ ────────────────────────────────────────────────────────
+
+  @Get('logs')
+  listLogs(@Query() q: ListLogsQuery) {
+    return this.logs.list({ types: q.type, page: q.page, perPage: q.per_page });
+  }
+
+  @Get('technician-requests')
+  listTechnicianRequests(@Query() q: TechnicianRequestsQuery) {
+    return this.technicianRequests.adminList(q.status);
+  }
+
+  @Patch('technician-requests/:id')
+  updateTechnicianRequest(@Param() p: TechnicianRequestIdParam, @Body() body: UpdateTechnicianRequestDto) {
+    return this.technicianRequests.update(p.id, body);
+  }
 
   @Get('users')
   listUsers(@Query() q: ListUsersQuery) {

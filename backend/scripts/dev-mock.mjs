@@ -4,10 +4,12 @@
 //   npm run dev:mock -- --reset (ล้างข้อมูล mock แล้วเริ่มใหม่)
 //
 // - ฐานข้อมูล = PGlite (Postgres ตัวจริงที่ฝังในโปรแกรม) เก็บในโฟลเดอร์ backend/.mockdb/ → ปิดเปิดใหม่ข้อมูลยังอยู่
-// - ครั้งแรกใส่ข้อมูลจำลอง: แอดมิน · เจ้าของบ้าน · หน่วยงาน + หัวหน้า + เจ้าหน้าที่ · โซนตรวจทั้งวัน · ตู้ BX-00001 (ผูกแล้ว) + BX-00002 (ยังไม่ผูก)
+// - ใส่ข้อมูลจำลอง: แอดมิน · เจ้าของบ้าน · หน่วยงาน + หัวหน้า + เจ้าหน้าที่ · โซนตรวจทั้งวัน · ตู้ BX-00001 (ผูกแล้ว) + BX-00002 (ยังไม่ผูก)
+// - เติมประวัติตรวจ/ส่งของ/SOS ให้บัญชีเดโมเฉพาะเมื่อแต่ละรายการยังไม่มี · ไม่ล้างหรือเขียนทับข้อมูลที่ผู้ใช้สร้าง
 // - ไม่มี Redis ก็ทำงานได้ (rate limit ปล่อยผ่าน) · ทุกคำขอจากตู้พิมพ์ลง console
 // - สร้าง VAPID key ให้เอง (.mockdb.vapid.json) · เจ้าหน้าที่ไม่ถูกบังคับเปิดแจ้งเตือน (SKIP_PUSH_REQUIRED)
 // - ใช้ตอน dev / ทดสอบบอร์ดเท่านั้น — ห้ามใช้กับเซิร์ฟเวอร์จริง
+import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
@@ -80,13 +82,14 @@ await socket.start();
 // 2) migration + ข้อมูลจำลอง (ครั้งแรกเท่านั้น)
 const { runMigrations } = await import('../dist/db/migrate.js');
 await runMigrations(process.env.DATABASE_URL, resolve('sql/migrations'), () => undefined);
-const { deviceSecret, frontQrToken, newActivateToken, newPrintCode, showPrintCode } = await import('../dist/box/box-crypto.js');
+const { deviceSecret, frontQrToken, newActivateToken, newJobId, newPrintCode, showPrintCode } = await import('../dist/box/box-crypto.js');
 const { PasswordService } = await import('../dist/auth/password.service.js');
 
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await client.connect();
 const seeded = (await client.query(`SELECT 1 FROM app.user_tb WHERE phone = '0800000001'`)).rowCount > 0;
 if (!seeded) await seed(client);
+await ensureDemoHistory(client);
 const boxes = (
   await client.query(`
     SELECT b.box_id, b.owner_user_id IS NOT NULL AS bound, b.house_no,
@@ -106,6 +109,102 @@ console.log(`\n ตู้ (เขียน box_id + device_secret ลงบอ�
 for (const b of boxes) {
   console.log(`   ${b.box_id}  ${b.bound ? `ผูกแล้ว บ้าน ${b.house_no}` : `ยังไม่ผูก · รหัสผูกตู้ ${b.activate_code ? showPrintCode(b.activate_code) : '-'}`}`);
   console.log(`     device_secret = ${deviceSecret(process.env.BOX_MASTER_KEY, b.box_id)}`);
+}
+
+/** เติมเหตุการณ์ตัวอย่างให้หน้าประวัติ/หัวหน้าหน่วย/แอดมิน โดยไม่แตะข้อมูลที่ผู้ใช้สร้างแล้ว */
+async function ensureDemoHistory(c) {
+  const { rows } = await c.query(
+    `SELECT owner.user_id AS owner_user_id, box.box_id, box.bound_date,
+            officer.user_id AS officer_user_id, z.zone_id, z.agency_id,
+            qr.box_qr_code_id, qr.token
+     FROM app.user_tb owner
+     JOIN app.box_tb box ON box.owner_user_id = owner.user_id
+     JOIN app.user_role_tb officer_role ON officer_role.role = 'officer' AND officer_role.status = 'active'
+     JOIN app.user_tb officer ON officer.user_id = officer_role.user_id AND officer.deleted_date IS NULL
+     JOIN app.agency_member_tb member ON member.user_id = officer.user_id AND member.status = 'active' AND member.is_head = false
+     JOIN app.zone_officer_tb zone_officer ON zone_officer.user_id = officer.user_id
+     JOIN app.zone_tb z ON z.zone_id = zone_officer.zone_id AND z.deleted_date IS NULL
+     JOIN app.zone_box_tb zone_box ON zone_box.zone_id = z.zone_id AND zone_box.box_id = box.box_id
+     JOIN app.box_qr_code_tb qr ON qr.box_id = box.box_id AND qr.slot = '1' AND qr.status = 'active'
+     WHERE owner.phone = '0812345678' AND owner.deleted_date IS NULL
+     ORDER BY box.box_id, z.zone_id
+     LIMIT 1`,
+  );
+  const demo = rows[0];
+  if (!demo) return;
+
+  const existingInspection = await c.query(
+    `SELECT 1 FROM app.inspection_tb
+     WHERE box_id = $1 AND status = 'passed'
+       AND checked_date >= coalesce($2::timestamptz, '-infinity'::timestamptz)
+     LIMIT 1`,
+    [demo.box_id, demo.bound_date],
+  );
+  if (!existingInspection.rowCount) {
+    const jobId = newJobId();
+    const { rows: jobRows } = await c.query(
+      `INSERT INTO app.box_job_tb
+         (box_job_id, box_id, type, created_by, max_attempts, scan_timeout_s, expire_date,
+          delivered_date, ready_date, ready_flash, result, result_date, created_date)
+       VALUES ($1, $2, 'inspect', $3, 3, 20, now() + interval '1 minute',
+               now(), now(), false, 'pass', now(), now())
+       RETURNING box_job_id`,
+      [jobId, demo.box_id, demo.officer_user_id],
+    );
+    const { rows: inspectionRows } = await c.query(
+      `INSERT INTO app.inspection_tb
+         (box_job_id, box_id, officer_user_id, agency_id, zone_id, box_qr_code_id, method, scan_ms,
+          status, qr_condition, checked_date, created_date)
+       VALUES ($1, $2, $3, $4, $5, $6, 'scan', 1200, 'passed', 'ok', now(), now())
+       RETURNING inspection_id`,
+      [jobRows[0].box_job_id, demo.box_id, demo.officer_user_id, demo.agency_id, demo.zone_id, demo.box_qr_code_id],
+    );
+    await c.query(
+      `INSERT INTO app.scan_log_tb
+         (actor_kind, user_id, box_id, box_qr_code_id, qr_kind, method, raw, result, scan_ms,
+          attempt, box_job_id, inspection_id)
+       VALUES ('officer', $1, $2, $3, 'front', 'scan', $4, 'ok', 1200, 1, $5, $6)`,
+      [demo.officer_user_id, demo.box_id, demo.box_qr_code_id, demo.token, jobRows[0].box_job_id, inspectionRows[0].inspection_id],
+    );
+  }
+
+  const existingDelivery = await c.query(
+    `SELECT 1 FROM app.delivery_tb
+     WHERE box_id = $1 AND created_date >= coalesce($2::timestamptz, '-infinity'::timestamptz)
+     LIMIT 1`,
+    [demo.box_id, demo.bound_date],
+  );
+  if (!existingDelivery.rowCount) {
+    const { rows: frontQr } = await c.query(`SELECT box_qr_code_id FROM app.box_qr_code_tb WHERE box_id = $1 AND slot = '1' AND status = 'active'`, [demo.box_id]);
+    await c.query(
+      `INSERT INTO app.delivery_tb (box_id, box_qr_code_id, method, ticket_id, created_date)
+       VALUES ($1, $2, 'scan', $3, now())`,
+      [demo.box_id, frontQr[0].box_qr_code_id, `demo-${randomUUID()}`],
+    );
+  }
+
+  const existingSos = await c.query(
+    `SELECT 1 FROM app.sos_case_tb
+     WHERE box_id = $1 AND status = 'closed'
+       AND created_date >= coalesce($2::timestamptz, '-infinity'::timestamptz)
+     LIMIT 1`,
+    [demo.box_id, demo.bound_date],
+  );
+  if (!existingSos.rowCount) {
+    const { rows: sosRows } = await c.query(
+      `INSERT INTO app.sos_case_tb
+         (box_id, owner_user_id, status, stage, accepted_by, accepted_agency_id,
+          accepted_date, closed_date, close_note, created_date)
+       VALUES ($1, $2, 'closed', 'zone', $3, $4, now(), now(), 'ตัวอย่างเหตุการณ์ SOS ที่ปิดงานแล้ว', now())
+       RETURNING sos_case_id`,
+      [demo.box_id, demo.owner_user_id, demo.officer_user_id, demo.agency_id],
+    );
+    await c.query(
+      `INSERT INTO app.sos_recipient_tb (sos_case_id, user_id, agency_id, stage)
+       VALUES ($1, $2, $3, 'zone')`,
+      [sosRows[0].sos_case_id, demo.officer_user_id, demo.agency_id],
+    );
+  }
 }
 console.log(`\n บัญชีจำลอง (รหัสผ่าน ${PASSWORD}): แอดมิน 0800000001 · เจ้าของบ้าน 0812345678 · หัวหน้า 0823456789 · เจ้าหน้าที่ 0834567890`);
 console.log(` ทดสอบปลุกตู้: ล็อกอินแอดมิน → ตู้ → เลือกตู้ → "ทดสอบปลุกตู้ + กล้อง" · ติดตั้งตู้ใหม่: เมนู "งานช่าง (ติดตั้ง)"`);

@@ -101,6 +101,7 @@ const BUILT: Record<string, Loader> = {
   D12: () => admin.system().then((m) => m.AdminNotifications),
   D13: () => admin.people().then((m) => m.AdminAgencies),
   D14: () => admin.plans().then((m) => m.AdminPlans),
+  D15: () => import('./pages/admin/admin-technician-requests').then((m) => m.AdminTechnicianRequests),
   T01: () => admin.tech().then((m) => m.TechChecklist),
   T02: () => admin.tech().then((m) => m.TechWifi),
   'T02-b': () => admin.tech().then((m) => m.TechLights),
@@ -165,7 +166,7 @@ function areaRoute(area: Area): Route {
 export const routes: Routes = [
   // หน้าแรก: ล็อกอินอยู่ → หน้าของบทบาท · ไม่งั้น → เข้าสู่ระบบ
   { path: '', pathMatch: 'full', canActivate: [homeRedirect], children: [] },
-  // หน้าเลือกบทบาทจำลอง + ตั้งค่าการแสดงผล (ไว้ดูหน้าหัวหน้า/แอดมินที่ยังเป็นข้อมูลจำลอง)
+  // หน้าเลือกบัญชี seed จาก backend สำหรับเดโม พร้อมตั้งค่าการแสดงผล
   {
     path: 'demo',
     loadComponent: () => import('./pages/demo-start').then((m) => m.DemoStart),

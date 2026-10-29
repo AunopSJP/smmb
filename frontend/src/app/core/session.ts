@@ -3,6 +3,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { type CanActivateFn, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { apiError } from './api';
+import { PushNotifications } from './push-notifications';
 import { DemoSession, type DemoRole } from './mock/demo-session';
 import { screenUrl } from '../screens/registry';
 
@@ -31,6 +32,7 @@ export const ROLE_HOME: Record<DemoRole, string> = { owner: '/home', officer: '/
 export class Session {
   private readonly http = inject(HttpClient);
   private readonly demo = inject(DemoSession);
+  private readonly push = inject(PushNotifications);
   readonly me = signal<Me | null>(null);
   private loaded: Promise<Me | null> | null = null;
 
@@ -57,6 +59,7 @@ export class Session {
       const res = await firstValueFrom(this.http.post<{ ok: true; data: Me }>('/api/v1/auth/signin', { phone, password }));
       this.set(res.data);
       this.loaded = Promise.resolve(res.data);
+      await this.push.syncExisting().catch(() => undefined);
       return { ok: true, me: res.data };
     } catch (err) {
       const e = apiError(err);

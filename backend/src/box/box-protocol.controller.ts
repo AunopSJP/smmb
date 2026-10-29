@@ -72,13 +72,36 @@ export class BoxProtocolController {
     return this.box.checkIn(id, 'report', body);
   }
 
-  /** §2.3 long-poll — มีงาน 200 · ครบเวลาไม่มีงาน 204 (เวลาอยู่ใน header X-Server-Time) */
+  /** §2.3 long-poll — งานหรือ config ใหม่ 200 · ครบเวลาไม่มีงาน/การเปลี่ยนแปลง 204 */
   @Get('jobs')
-  async jobs(@BoxId() id: string, @Query('wait') wait: string | undefined, @Res({ passthrough: true }) res: Response) {
+  async jobs(
+    @BoxId() id: string,
+    @Query('wait') wait: string | undefined,
+    @Query('config_ver') configVersionRaw: string | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const waitS = wait === undefined ? MAX_WAIT_S : Number(wait);
     if (!Number.isInteger(waitS) || waitS < 0 || waitS > MAX_WAIT_S) throw new BadRequestException(`wait must be 0–${MAX_WAIT_S}`);
+    const configVersion = configVersionRaw === undefined ? null : Number(configVersionRaw);
+    if (configVersion !== null && (!Number.isSafeInteger(configVersion) || configVersion < 0 || configVersion > 2 ** 31 - 1)) {
+      throw new BadRequestException('config_ver must be a non-negative integer');
+    }
+    if (configVersion !== null) {
+      const current = await this.box.pollConfig(id, configVersion);
+      if (current.config) return current;
+    }
     const closed = new Promise<void>((resolve) => res.on('close', () => resolve()));
     const job = await this.box.poll(id, waitS, closed);
+    // guard ตั้ง X-Server-Time ตอนเริ่มรับคำขอ — long-poll รอได้ถึง 50 วิ ต้องตั้งใหม่ตอนตอบ (ไม่งั้นนาฬิกาตู้ถอยทีละ ~50 วิ → clock_skew)
+    res.setHeader('X-Server-Time', String(nowS()));
+    if (configVersion !== null) {
+      const current = await this.box.pollConfig(id, configVersion);
+      if (!job && !current.config) {
+        res.status(HttpStatus.NO_CONTENT);
+        return;
+      }
+      return { ...current, ...(job ? { job } : {}) };
+    }
     if (!job) {
       res.status(HttpStatus.NO_CONTENT);
       return;

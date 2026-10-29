@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { OwnerApi, type BoxDetail } from '../../core/owner-api';
+import { OwnerApi, type BoxDetail, type TechnicianRequest } from '../../core/owner-api';
 import { Session } from '../../core/session';
 import { Toast } from '../../core/toast';
 import { DisplaySettings, type TextSize, type Theme } from '../../core/display-settings';
@@ -296,20 +297,49 @@ export class OwnerWifi {
 
 @Component({
   selector: 'app-owner-technician',
-  imports: [RouterLink, Icon],
+  imports: [RouterLink, Icon, PageHeader, DatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
+    <app-page-header [caption]="i18n.t({ th: 'ตั้งค่าตู้', en: 'Mailbox settings' })" [title]="i18n.t({ th: 'แจ้งช่าง', en: 'Request a technician' })" [back]="url('H13')" />
     <div class="stack page">
-      <span class="check"><app-icon name="check" [size]="30" /></span>
-      <h1 class="center">{{ i18n.t({ th: 'แจ้งช่างแล้ว', en: 'Technician requested' }) }}</h1>
-      <p class="muted center">{{ i18n.t({ th: 'ช่างจะโทรนัดภายใน 1 วันทำการ', en: 'A technician will call within 1 business day' }) }}</p>
-      <section class="card">
+      @if (boxes().length > 1) {
+        <label class="card field">
+          <span>{{ i18n.t({ th: 'เลือกตู้', en: 'Mailbox' }) }}</span>
+          <select [value]="boxId()" (change)="selectBox($event)">
+            @for (box of boxes(); track box.id) { <option [value]="box.id">{{ box.house_no }} · {{ box.name }}</option> }
+          </select>
+        </label>
+      }
+      @if (activeRequest(); as request) {
+        <span class="check"><app-icon name="check" [size]="30" /></span>
+        <h1 class="center">{{ request.status === 'done' ? i18n.t({ th: 'ช่างดำเนินการแล้ว', en: 'Technician visit completed' }) : i18n.t({ th: 'ส่งคำขอแล้ว', en: 'Request sent' }) }}</h1>
+        <p class="muted center">{{ request.status === 'open' ? i18n.t({ th: 'ทีมงานจะติดต่อกลับเพื่อนัดหมาย', en: 'The team will contact you to schedule a visit' }) : request.status === 'scheduled' ? i18n.t({ th: 'มีนัดหมายช่างแล้ว', en: 'A technician visit is scheduled' }) : i18n.t({ th: 'ปิดงานเรียบร้อย', en: 'The request is complete' }) }}</p>
+        <section class="card">
         <dl class="kv">
-          <dt>{{ i18n.t({ th: 'เรื่อง', en: 'Subject' }) }}</dt><dd>{{ i18n.t({ th: 'เปลี่ยน Wi-Fi / ตู้ไม่ออนไลน์', en: 'Wi-Fi change / box offline' }) }}</dd>
-          <dt>{{ i18n.t({ th: 'ส่งเมื่อ', en: 'Sent' }) }}</dt><dd>{{ i18n.t({ th: '26 ต.ค. 14:20', en: '26 Oct 14:20' }) }}</dd>
+          <dt>{{ i18n.t({ th: 'เรื่อง', en: 'Subject' }) }}</dt><dd>{{ reasonLabel(request.reason) }}</dd>
+          @if (request.note) { <dt>{{ i18n.t({ th: 'รายละเอียด', en: 'Details' }) }}</dt><dd>{{ request.note }}</dd> }
+          <dt>{{ i18n.t({ th: 'ส่งเมื่อ', en: 'Sent' }) }}</dt><dd>{{ request.created_at | date:'d MMM yyyy HH:mm' }}</dd>
+          @if (request.scheduled_at) { <dt>{{ i18n.t({ th: 'นัดหมาย', en: 'Appointment' }) }}</dt><dd>{{ request.scheduled_at | date:'d MMM yyyy HH:mm' }}</dd> }
+          @if (request.admin_note) { <dt>{{ i18n.t({ th: 'ข้อความจากทีมงาน', en: 'Team note' }) }}</dt><dd>{{ request.admin_note }}</dd> }
           <dt>{{ i18n.t({ th: 'เบอร์ติดต่อกลับ', en: 'Call-back number' }) }}</dt><dd>{{ phone }}</dd>
         </dl>
       </section>
+      } @else {
+        <p class="muted">{{ i18n.t({ th: 'เลือกเรื่องที่ต้องการให้ช่างช่วย ระบบจะส่งคำขอให้ทีมงานและแจ้งสถานะกลับในหน้านี้', en: 'Choose what you need help with. The team will receive the request and update its status here.' }) }}</p>
+        <section class="card stack">
+          @for (option of reasons; track option.value) {
+            <label class="choice"><input type="radio" name="reason" [value]="option.value" [checked]="reason() === option.value" (change)="reason.set(option.value)" />{{ i18n.t(option.label) }}</label>
+          }
+          <label class="field">
+            <span>{{ i18n.t({ th: 'รายละเอียดเพิ่มเติม (ถ้ามี)', en: 'Details (optional)' }) }}</span>
+            <textarea maxlength="1000" rows="3" [value]="note()" (input)="setNote($event)"></textarea>
+          </label>
+        </section>
+        @if (error()) { <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดหรือส่งคำขอไม่สำเร็จ อาจมีคำขอที่ยังเปิดอยู่แล้ว ลองโหลดหน้าใหม่', en: 'Could not load or send the request. An open request may already exist; reload the page.' }) }}</p> }
+        <button type="button" class="btn end" [disabled]="sending() || !boxId()" (click)="submit()">
+          {{ sending() ? i18n.t({ th: 'กำลังส่ง…', en: 'Sending…' }) : i18n.t({ th: 'ส่งคำขอช่าง', en: 'Send request' }) }}
+        </button>
+      }
       <a class="btn end" [routerLink]="url('H03')">{{ i18n.t({ th: 'กลับหน้าหลัก', en: 'Back to home' }) }}</a>
     </div>
   `,
@@ -337,12 +367,73 @@ export class OwnerWifi {
     .end {
       margin-top: auto;
     }
+    .field { display: flex; flex-direction: column; gap: 8px; }
+    .field select, .field textarea { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text); background: var(--surface); font: inherit; }
+    .choice { display: flex; align-items: center; gap: 10px; }
+    button:disabled { opacity: 0.6; }
   `,
 })
 export class OwnerTechnician {
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
+  private readonly api = inject(OwnerApi);
   protected readonly phone = inject(Session).me()?.phone ?? '';
+  protected readonly boxes = signal<{ id: string; name: string; house_no: string }[]>([]);
+  protected readonly boxId = signal('');
+  protected readonly requests = signal<TechnicianRequest[]>([]);
+  protected readonly reason = signal<TechnicianRequest['reason']>('wifi_change');
+  protected readonly note = signal('');
+  protected readonly sending = signal(false);
+  protected readonly error = signal(false);
+  protected readonly activeRequest = computed(() => this.requests().find((request) => request.status !== 'done') ?? null);
+  protected readonly reasons = [
+    { value: 'wifi_change' as const, label: { th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' } },
+    { value: 'repair' as const, label: { th: 'ตู้ชำรุด / ไม่ออนไลน์', en: 'Repair / mailbox offline' } },
+    { value: 'other' as const, label: { th: 'เรื่องอื่น', en: 'Other' } },
+  ];
+
+  constructor() {
+    void this.api.boxes().then((boxes) => {
+      this.boxes.set(boxes);
+      const first = boxes[0];
+      if (first) { this.boxId.set(first.id); void this.loadRequests(first.id); }
+    }).catch(() => this.error.set(true));
+  }
+
+  protected reasonLabel(reason: TechnicianRequest['reason']): string {
+    const choice = this.reasons.find((option) => option.value === reason);
+    return choice ? this.i18n.t(choice.label) : reason;
+  }
+
+  protected selectBox(event: Event): void {
+    const id = (event.target as HTMLSelectElement).value;
+    this.boxId.set(id);
+    void this.loadRequests(id);
+  }
+
+  protected setNote(event: Event): void {
+    this.note.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  private async loadRequests(id: string): Promise<void> {
+    try { this.requests.set(await this.api.technicianRequests(id)); this.error.set(false); }
+    catch { this.error.set(true); }
+  }
+
+  protected async submit(): Promise<void> {
+    const id = this.boxId();
+    if (!id || this.sending()) return;
+    this.sending.set(true);
+    this.error.set(false);
+    try {
+      await this.api.requestTechnician(id, this.reason(), this.note().trim());
+      await this.loadRequests(id);
+    } catch {
+      this.error.set(true);
+    } finally {
+      this.sending.set(false);
+    }
+  }
 }
 
 // ── H13-d · การแสดงผล ─────────────────────────────────────────

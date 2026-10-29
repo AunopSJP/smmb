@@ -22,6 +22,20 @@ export interface BoxEvent {
   method?: 'scan' | 'code';
 }
 
+export interface TechnicianRequest {
+  id: string;
+  box_id: string;
+  house_no: string | null;
+  owner_name: string;
+  owner_phone: string;
+  reason: 'wifi_change' | 'repair' | 'other';
+  note: string | null;
+  status: 'open' | 'scheduled' | 'done';
+  created_at: string;
+  scheduled_at: string | null;
+  admin_note: string | null;
+}
+
 /** api.md §4.2 (ฉบับย่อ) */
 export interface BoxDetail extends BoxSummary {
   battery: { pct: number; charging: boolean | null; reported_at: string | null } | null;
@@ -30,6 +44,7 @@ export interface BoxDetail extends BoxSummary {
   patrol: { in_window: boolean; windows: [string, string][]; tz: string };
   latest_events: BoxEvent[];
   open_sos: { id: string; stage: SosStage; status: SosStatus } | null;
+  qr_task: { case_id: string; health: string; requested_at: string } | null;
 }
 
 /** api.md §7.1 */
@@ -69,6 +84,15 @@ export class OwnerApi {
   }
   rename(id: string, name: string): Promise<unknown> {
     return firstValueFrom(this.http.patch('/api/v1/boxes/' + encodeURIComponent(id), { name }));
+  }
+  technicianRequests(id: string): Promise<TechnicianRequest[]> {
+    return firstValueFrom(this.http.get<TechnicianRequest[]>(`/api/v1/boxes/${encodeURIComponent(id)}/technician-requests`));
+  }
+  confirmQrBackupPlaced(id: string): Promise<{ box_id: string; status: 'owner_confirmed' | 'qr_reissued' }> {
+    return firstValueFrom(this.http.post<{ box_id: string; status: 'owner_confirmed' | 'qr_reissued' }>(`/api/v1/boxes/${encodeURIComponent(id)}/qr-backup-placed`, {}));
+  }
+  requestTechnician(id: string, reason: TechnicianRequest['reason'], note: string): Promise<TechnicianRequest> {
+    return firstValueFrom(this.http.post<TechnicianRequest>(`/api/v1/boxes/${encodeURIComponent(id)}/technician-requests`, { reason, ...(note ? { note } : {}) }));
   }
   events(id: string, page = 1): Promise<{ data: BoxEvent[]; page: number; per_page: number }> {
     return firstValueFrom(this.http.get<{ data: BoxEvent[]; page: number; per_page: number }>(`/api/v1/boxes/${encodeURIComponent(id)}/events?page=${page}`));

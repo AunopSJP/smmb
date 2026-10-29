@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { SwPush } from '@angular/service-worker';
-import { of } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 import { PushBlockedError, PushNotifications } from './push-notifications';
 
 describe('PushNotifications', () => {
@@ -11,17 +11,23 @@ describe('PushNotifications', () => {
     toJSON: () => ({ endpoint: 'https://fcm.googleapis.com/fcm/send/abc', expirationTime: null, keys: { p256dh: 'p', auth: 'a' } }),
     unsubscribe: vi.fn().mockResolvedValue(true),
   };
+  let subscriptionState: BehaviorSubject<typeof sub | null>;
   const swPush = {
     isEnabled: true,
     requestSubscription: vi.fn().mockResolvedValue(sub),
-    subscription: of(sub),
+    get subscription() {
+      return subscriptionState.asObservable();
+    },
   };
 
   let push: PushNotifications;
   let http: HttpTestingController;
+  let notification: { permission: NotificationPermission; requestPermission: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
-    vi.stubGlobal('Notification', { permission: 'default' });
+    subscriptionState = new BehaviorSubject<typeof sub | null>(null);
+    notification = { permission: 'default', requestPermission: vi.fn().mockResolvedValue('granted') };
+    vi.stubGlobal('Notification', notification);
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), { provide: SwPush, useValue: swPush }],
     });
@@ -30,14 +36,20 @@ describe('PushNotifications', () => {
   });
 
   afterEach(() => {
-    http.verify();
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
+    try {
+      http.verify();
+    } finally {
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+      TestBed.resetTestingModule();
+    }
   });
 
   it('enable: gets the VAPID key, subscribes, and sends the subscription to the server', async () => {
     const done = push.enable('มือถือ');
-    http.expectOne('/api/v1/me/push/vapid-key').flush({ public_key: 'KEY' });
+    await vi.waitFor(() => expect(notification.requestPermission).toHaveBeenCalledOnce());
+    const keyRequest = await vi.waitFor(() => http.expectOne('/api/v1/me/push/vapid-key'));
+    keyRequest.flush({ public_key: 'KEY' });
     await vi.waitFor(() => expect(swPush.requestSubscription).toHaveBeenCalledWith({ serverPublicKey: 'KEY' }));
     const req = await vi.waitFor(() => http.expectOne('/api/v1/me/push/subscriptions'));
     expect(req.request.method).toBe('POST');
@@ -47,6 +59,7 @@ describe('PushNotifications', () => {
   });
 
   it('disable: tells the server, then unsubscribes the browser', async () => {
+    subscriptionState.next(sub);
     const done = push.disable();
     const req = await vi.waitFor(() => http.expectOne('/api/v1/me/push/subscriptions'));
     expect(req.request.method).toBe('DELETE');
@@ -63,7 +76,7 @@ describe('PushNotifications', () => {
   });
 
   it('permission denied is reported', () => {
-    vi.stubGlobal('Notification', { permission: 'denied' });
+    vi.stubGlobal('Notification', { permission: 'denied', requestPermission: vi.fn() });
     expect(push.blocker()).toBe('denied');
   });
 });

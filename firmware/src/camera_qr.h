@@ -23,3 +23,14 @@ QrRead cameraScanQr(uint32_t timeoutMs);
 
 /** ภาพ JPEG 1 เฟรม (ไว้ดูว่ากล้องเห็นอะไร · ผู้เรียกต้อง free(*out)) */
 bool cameraSnapshotJpeg(uint8_t** out, size_t* len);
+
+// ── ภาพตัวอย่างสำหรับหน้าดูกล้อง (debugview) ───────────────────────────────────
+/** ถือกล้องไว้ (cameraStop จะไม่ปิดกล้อง ปิดแค่ไฟแฟลช) — ใช้ตอนมีคนเปิดหน้าดูกล้องอยู่ */
+void cameraHold(bool hold);
+bool cameraScanning();
+/** จับ 1 เฟรมแล้วเก็บเป็นภาพตัวอย่าง (ตอนไม่ได้สแกน) — true = ได้ภาพ */
+bool cameraPreviewTick();
+/** JPEG ของภาพตัวอย่างล่าสุด (ผู้เรียกต้อง free(*out)) */
+bool cameraPreviewJpeg(uint8_t** out, size_t* len);
+/** สถานะล่าสุดเป็น JSON: ความสว่าง · fps · เห็นรูปร่าง QR · ถอดได้ · กรอบที่ใช้อ่าน */
+String cameraPreviewJson();

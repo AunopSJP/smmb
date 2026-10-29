@@ -44,11 +44,14 @@ import { Icon } from './icon';
       flex-direction: column;
       align-items: center;
       gap: 2px;
+      min-width: 0;
       padding: 10px 4px 12px;
       font-size: 0.8125rem;
       text-decoration: none;
       color: var(--text-muted);
       min-height: 64px;
+      text-align: center;
+      overflow-wrap: anywhere;
     }
     a.active {
       color: var(--brand);

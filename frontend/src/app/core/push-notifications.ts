@@ -37,10 +37,30 @@ export class PushNotifications {
   async enable(deviceLabel?: string): Promise<void> {
     const blocker = this.blocker();
     if (blocker) throw new PushBlockedError(blocker);
-    const { public_key } = await firstValueFrom(
-      this.http.get<{ public_key: string }>('/api/v1/me/push/vapid-key'),
+    if (Notification.permission !== 'granted') {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') throw new PushBlockedError('denied');
+    }
+    const sub = await this.subscription();
+    await firstValueFrom(
+      this.http.post('/api/v1/me/push/subscriptions', { ...sub.toJSON(), device_label: deviceLabel }),
     );
-    const sub = await this.swPush.requestSubscription({ serverPublicKey: public_key });
+  }
+
+  /** A03 ขอ permission ก่อนล็อกอิน · สร้าง subscription ไว้ แต่ยังไม่ส่งข้อมูลให้ server */
+  async requestPermission(): Promise<void> {
+    const blocker = this.blocker();
+    if (blocker) throw new PushBlockedError(blocker);
+    if (Notification.permission !== 'granted' && (await Notification.requestPermission()) !== 'granted') {
+      throw new PushBlockedError('denied');
+    }
+    await this.subscription();
+  }
+
+  /** เรียกหลังล็อกอินเพื่อผูก subscription เดิมกับ session ปัจจุบัน · ไม่มี subscription ก็ข้าม */
+  async syncExisting(deviceLabel?: string): Promise<void> {
+    const sub = await firstValueFrom(this.swPush.subscription);
+    if (!sub) return;
     await firstValueFrom(
       this.http.post('/api/v1/me/push/subscriptions', { ...sub.toJSON(), device_label: deviceLabel }),
     );
@@ -59,6 +79,13 @@ export class PushNotifications {
   async sendTest(): Promise<number> {
     const res = await firstValueFrom(this.http.post<{ sent: number }>('/api/v1/me/push/test', {}));
     return res.sent;
+  }
+
+  private async subscription(): Promise<PushSubscription> {
+    const existing = await firstValueFrom(this.swPush.subscription);
+    if (existing) return existing;
+    const { public_key } = await firstValueFrom(this.http.get<{ public_key: string }>('/api/v1/me/push/vapid-key'));
+    return this.swPush.requestSubscription({ serverPublicKey: public_key });
   }
 }
 

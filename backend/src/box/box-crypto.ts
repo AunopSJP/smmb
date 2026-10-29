@@ -13,7 +13,7 @@ export function deviceSecret(masterKey: string, boxId: string): string {
   return createHmac('sha256', masterKey).update(boxId).digest('hex');
 }
 
-/** ข้อความที่ตู้เซ็น: METHOD|PATH|TIMESTAMP|NONCE|hex(SHA256(BODY)) · PATH รวม query (`/v1/box/jobs?wait=50`) · ไม่มี body = SHA256 ของค่าว่าง */
+/** ข้อความที่ตู้เซ็น: METHOD|PATH|TIMESTAMP|NONCE|hex(SHA256(BODY)) · PATH รวม query (`/v1/box/jobs?wait=50&config_ver=7`) · ไม่มี body = SHA256 ของค่าว่าง */
 export function canonicalRequest(method: string, path: string, timestamp: string, nonce: string, body: Buffer | string): string {
   return `${method.toUpperCase()}|${path}|${timestamp}|${nonce}|${sha256Hex(body)}`;
 }

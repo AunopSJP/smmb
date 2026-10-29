@@ -123,6 +123,9 @@ export class PushService {
   }
 }
 
+/** '/officer/sos/1' → 'officer/sos/1' · '/' → '' (หน้าแรกของ scope) */
+export const scopeRelative = (link: string): string => link.replace(/^\/+/, '');
+
 /**
  * รูปแบบที่ service worker ของ Angular (ngsw) แสดงได้เลย — ข้อมูลของเราอยู่ใน notification.data
  * กดแจ้งเตือน → เปิด/โฟกัสเว็บแอปที่ `link`
@@ -144,7 +147,9 @@ export function buildPayload(msg: PushMessage, lang: Lang) {
         type: msg.type,
         link: msg.link,
         data: msg.data,
-        onActionClick: { default: { operation: 'navigateLastFocusedOrOpen', url: msg.link } },
+        // ต้องเป็นลิงก์สัมพันธ์กับ scope ของ service worker (ไม่ขึ้นต้นด้วย /) — ngsw ใช้ new URL(url, scope)
+        // เว็บบน hub อยู่ใต้ /smmb/ : '/officer/x' จะหลุดไป https://host/officer/x (ไม่ใช่หน้าของแอป) แต่ 'officer/x' ได้ /smmb/officer/x
+        onActionClick: { default: { operation: 'navigateLastFocusedOrOpen', url: scopeRelative(msg.link) } },
       },
     },
   };

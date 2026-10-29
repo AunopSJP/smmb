@@ -3,15 +3,19 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
+import { REDIS } from '../src/db/db.module.js';
 
-// ต้องเปิด Postgres + Redis ก่อน (npm run db:up)
+// ต้องเปิด Postgres ก่อน; Redis ใช้ double เพื่อให้ readiness test deterministic
 describe('Health (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(REDIS)
+      .useValue({ status: 'ready', ping: async () => 'PONG', quit: async () => 'OK' })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();

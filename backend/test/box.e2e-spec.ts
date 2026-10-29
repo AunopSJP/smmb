@@ -149,6 +149,36 @@ describe('Boxes (e2e)', () => {
       expect(res.body).toMatchObject({ id: b.box_id, bound: false, status: 'unbound' });
       expect(res.body.qr).toHaveLength(3);
     });
+
+    it('deletes only unused boxes; connected and owned boxes are retained', async () => {
+      const [unused] = await register();
+      const eligible = await as(admin.cookie).get(`/api/v1/admin/boxes/${unused.box_id}`).expect(200);
+      expect(eligible.body.can_delete).toBe(true);
+      expect((await http().delete(`/api/v1/admin/boxes/${unused.box_id}`).set('Cookie', admin.cookie).expect(200)).body).toEqual({
+        box_id: unused.box_id,
+        deleted: true,
+      });
+      const deletionAudit = await pool.query<{ fields: string[] }>(
+        `SELECT fields FROM app.data_access_log_tb WHERE actor_user_id = $1 AND subject_kind = 'box' AND subject_id = $2 AND fields @> ARRAY['box_deleted']`,
+        [admin.id, unused.box_id],
+      );
+      expect(deletionAudit.rowCount).toBe(1);
+      await as(admin.cookie).get(`/api/v1/admin/boxes/${unused.box_id}`).expect(404);
+
+      const [connected] = await register();
+      await box(connected, 'POST', '/v1/box/boot', { config_ver: 0 }).expect(200);
+      const connectedDetail = await as(admin.cookie).get(`/api/v1/admin/boxes/${connected.box_id}`).expect(200);
+      expect(connectedDetail.body.can_delete).toBe(false);
+      expect((await http().delete(`/api/v1/admin/boxes/${connected.box_id}`).set('Cookie', admin.cookie).expect(409)).body.code).toBe('BOX_NOT_DELETABLE');
+      await as(admin.cookie).get(`/api/v1/admin/boxes/${connected.box_id}`).expect(200);
+
+      const { b, owner } = await boundBox('77/4');
+      const ownedDetail = await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}`).expect(200);
+      expect(ownedDetail.body.can_delete).toBe(false);
+      await http().delete(`/api/v1/admin/boxes/${b.box_id}`).set('Cookie', owner.cookie).expect(404);
+      await http().delete(`/api/v1/admin/boxes/${b.box_id}`).set('Cookie', admin.cookie).expect(409);
+      expect((await as(owner.cookie).get('/api/v1/boxes').expect(200)).body.map((item: { id: string }) => item.id)).toContain(b.box_id);
+    });
   });
 
   describe('box authentication (HMAC)', () => {
@@ -225,6 +255,13 @@ describe('Boxes (e2e)', () => {
       await box(b, 'GET', '/v1/box/jobs?wait=99').expect(400);
     });
 
+    it('a long-poll that waited answers with the time when it ENDS (not when it started) — else the box clock drifts back every poll', async () => {
+      const [b] = await register();
+      const before = Math.floor(Date.now() / 1000);
+      const res = await box(b, 'GET', '/v1/box/jobs?wait=2').expect(204);
+      expect(Number(res.headers['x-server-time'])).toBeGreaterThanOrEqual(before + 2);
+    });
+
     it('a test job wakes a waiting box at once; ready → retry → pass, and repeats get the same answer', async () => {
       const [b] = await register();
       const started = Date.now();
@@ -289,6 +326,37 @@ describe('Boxes (e2e)', () => {
       } finally {
         await as(admin.cookie).put('/api/v1/admin/box-config', cur).expect(200);
       }
+    });
+
+    it('resets one box to defaults while keeping its owner, QR codes, and history', async () => {
+      const { b, owner } = await boundBox('12/7');
+      await pool.query(`UPDATE app.box_tb SET config_override = $2::jsonb WHERE box_id = $1`, [b.box_id, JSON.stringify({ scan_timeout_s: 45 })]);
+      const boot = await box(b, 'POST', '/v1/box/boot', { config_ver: 0 }).expect(200);
+      expect(boot.body.config.scan_timeout_s).toBe(45);
+      await box(b, 'POST', '/v1/box/report', { config_ver: boot.body.config_ver }).expect(200);
+
+      const before = await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}`).expect(200);
+      expect(before.body.config.in_sync).toBe(true);
+      const oldConfigVersion = before.body.config.config_ver as number;
+      const oldQrIds = (before.body.qr as { id: string }[]).map((qr) => qr.id).sort();
+      const oldReports = before.body.reports;
+
+      const reset = await http().delete(`/api/v1/admin/boxes/${b.box_id}/config`).set('Cookie', admin.cookie).expect(200);
+      expect(reset.body.config.scan_timeout_s).not.toBe(45);
+      expect(reset.body.config_ver).not.toBe(oldConfigVersion);
+
+      const after = await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}`).expect(200);
+      expect(after.body.bound).toBe(true);
+      expect(after.body.house_no).toBe('12/7');
+      expect((after.body.qr as { id: string }[]).map((qr) => qr.id).sort()).toEqual(oldQrIds);
+      expect(after.body.reports).toEqual(oldReports);
+      expect(after.body.config.in_sync).toBe(false);
+      expect((await as(owner.cookie).get('/api/v1/boxes').expect(200)).body.map((item: { id: string }) => item.id)).toContain(b.box_id);
+      const audit = await pool.query<{ fields: string[] }>(
+        `SELECT fields FROM app.data_access_log_tb WHERE actor_user_id = $1 AND subject_kind = 'box' AND subject_id = $2 AND fields @> ARRAY['config_reset']`,
+        [admin.id, b.box_id],
+      );
+      expect(audit.rowCount).toBe(1);
     });
   });
 

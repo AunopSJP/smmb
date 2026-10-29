@@ -6,6 +6,7 @@ import { AGENCY_TYPE_LABEL, showGroupCode } from '../../core/head-api';
 import { I18n, type Tr } from '../../core/i18n';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
+import { UserPlan } from './admin-plans';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 
@@ -222,7 +223,7 @@ const ROLE_LABEL: Record<string, Tr> = {
 
 @Component({
   selector: 'app-admin-users',
-  imports: [PageHeader, Icon],
+  imports: [PageHeader, Icon, UserPlan],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'ผู้ใช้', en: 'Users' })" [back]="url('D01')" />
@@ -266,6 +267,9 @@ const ROLE_LABEL: Record<string, Tr> = {
             }
           </div>
         </section>
+        @if (badges(u).includes('owner')) {
+          <app-user-plan [userId]="u.id" />
+        }
       }
 
       <nav class="list">

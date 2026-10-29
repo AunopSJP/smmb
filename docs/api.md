@@ -326,7 +326,7 @@ interface BoxEvent {
 | method | path | สิทธิ์ | body | ตอบ |
 |---|---|---|---|---|
 | POST | `/boxes/:box_id/qr/backup-placed` | `owner` | — | 200 — กด "ติดแล้ว" หลังเอา QR ใบ 2 ไปติดหน้าตู้ (แอดมินออกใบสำรองใหม่ต่อ §10.4) · 409 `NO_SWAP_REQUESTED` ถ้าไม่มีคำขอค้าง |
-| POST | `/boxes/:box_id/technician-requests` | `owner` | `{ reason: "wifi_change" \| "repair" \| "other", note? }` | 201 → `H13-c` "แจ้งช่างแล้ว รอช่างนัด" · 409 ถ้ามีคำขอที่ยังไม่ปิด |
+| POST | `/boxes/:box_id/technician-requests` | `owner` | `{ reason: "wifi_change" \| "repair" \| "other", note? }` | 201 → `H13-c` แสดงสถานะคำขอ · 409 ถ้ามีคำขอที่ยังไม่ปิด |
 | GET | `/boxes/:box_id/technician-requests` | `owner` | — | คำขอของตู้นี้ (สถานะ `open` / `scheduled` / `done`) |
 
 - ✅ เปลี่ยน Wi-Fi: แจ้งช่างผ่านแอป หรือทำเองด้วยปุ่ม Boot บนบอร์ดค้าง 5 วิ (`H13-b` เป็นหน้าแนะนำ ไม่มี API)
@@ -610,7 +610,7 @@ interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus }
 
 | method | path | ตอบ |
 |---|---|---|
-| GET | `/admin/overview` | `D01`: ตู้ทั้งหมด/ออนไลน์/ออฟไลน์/แบตต่ำ · หน่วยงานรออนุมัติ · QR ไม่ปกติ (ต่อสถานะ) · SOS เปิดอยู่ · คำขอช่างค้าง |
+| GET | `/admin/overview` | `D01`: `{ boxes: { total, online, offline, sleeping, service_closed, unbound, low_battery }, agencies_pending, qr_issues: { total, by_health: { damaged, suspicious, maybe_fake, expiring } }, sos_open, technician_requests_open, owners_by_plan: [{ plan_code, owners_count }] }` · `online` คือตู้ที่ถือ long-poll ภายใน `2 × longpoll_wait_s`, `sleeping` ติดต่อได้ใน 26 ชม. แต่ขณะนี้หลับตามตาราง, `low_battery` นับเฉพาะตู้ที่ผูกเจ้าของและแบตต่ำกว่า 20% · ยอดนับจากทั้งฐานข้อมูล ไม่ถูกจำกัดตามหน้า pagination |
 
 ### 9.2 หน่วยงาน
 
@@ -643,7 +643,9 @@ interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus }
 | method | path | body | ตอบ |
 |---|---|---|---|
 | GET | `/admin/boxes` | `?status&battery_lt&q&agency_id&page&per_page` | paginated (`D03`): id · บ้านเลขที่ · เจ้าของ · ออนไลน์ · แบต · ติดต่อล่าสุด · fw · โซน |
-| GET | `/admin/boxes/:box_id` | — | `D04`: ทุกอย่าง + รายงานรายวัน 14 วันล่าสุด + QR ทุกใบ + คำขอช่าง (**data access log**) |
+| GET | `/admin/boxes/:box_id` | — | `D04`: ทุกอย่าง + รายงานล่าสุด + QR ทุกใบ + `can_delete` บอกว่าตู้ยังไม่เปิดใช้และลบได้ + คำขอช่าง |
+| DELETE | `/admin/boxes/:box_id` | `admin` | ลบได้เฉพาะตู้ที่ยังไม่ผูกเจ้าของ, QR เปิดใช้ยังไม่ถูกใช้, ไม่เคยเชื่อมต่อ และไม่มีโซน/รายงาน/งานทดสอบ/การส่งของ/เหตุ SOS/คำขอช่าง/ประวัติ QR · ลบ QR และ nonce ที่เป็นของตู้พร้อมกัน · บันทึก `data_access_log_tb` (`fields: ["box_deleted"]`) · 409 `BOX_NOT_DELETABLE` หากไม่เข้าเงื่อนไข |
+| DELETE | `/admin/boxes/:box_id/config` | — | ล้างค่า override ของตู้ กลับไปใช้ค่ากลาง เพิ่ม `config_ver` และปลุก long-poll ที่กำลังรอให้รับ config ใหม่ทันที · ถ้าตู้หลับ/ออฟไลน์จะ sync เมื่อเชื่อมต่อครั้งถัดไป · คง Wi-Fi, device secret, เจ้าของ, QR และประวัติ · บันทึกผู้สั่งใน log |
 | POST | `/admin/boxes` | `{ count }` (1–50) | 201 ลงทะเบียนตู้ตอนผลิต → `{ box_id, device_secret, qr: PrintableQr[] }[]` (`device_secret` ได้**ครั้งเดียว** เขียนลงบอร์ด) |
 | POST | `/admin/boxes/:box_id/test-jobs` | — | 201 `Job` — งานทดสอบ: ปลุกตู้ที่ถือ long-poll อยู่ → ไฟ + กล้อง → อ่าน QR อะไรก็ได้ = ผ่าน (ช่างทดสอบหลังติดตั้ง · วัดเวลาปลุก) |
 | POST | `/admin/boxes/:box_id/device-secret` | — | 200 `{ box_id, device_secret }` — เปิดดูรหัสลับประจำตู้อีกครั้ง (เขียนลงบอร์ดใหม่ / เปลี่ยนบอร์ด) · ✅ 2026-10-28 · บันทึกทุกครั้งใน `data_access_log_tb` (`subject_kind: "box"`, `fields: ["device_secret"]`) · ไม่มีตู้ → 404 |
@@ -651,13 +653,17 @@ interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus }
 | PATCH | `/admin/boxes/:box_id/service` | `{ active: boolean, reason? }` | ✅ เปิดปิดบริการ — ปิดแล้วไรเดอร์เห็น `R03-b`, ตรวจไม่ได้ |
 | POST | `/admin/boxes/:box_id/unbind` | `{ reason }` | ✅ ยกเลิกการผูก (เช่น ขายบ้าน) → ออก Activate QR ใหม่ให้ |
 | GET | `/admin/boxes/:box_id/qr` | — | `QrCode[]` ทุกใบทุกรุ่น (รวมใบที่ยกเลิกแล้ว) |
-| GET | `/admin/qr` | `?health=suspicious\|damaged\|maybe_fake\|backup_in_use\|expiring&page` | `D05` สุขภาพ QR ทุกใบ |
-| POST | `/admin/qr/:qr_id/request-backup-swap` | — | `D06-b` "ใบ 2 ยังอยู่" → แจ้งเจ้าของบ้าน "กรุณาเอา QR ใบ 2 ในตู้ไปติดแทน" → `D07` รอเจ้าของบ้าน |
-| POST | `/admin/boxes/:box_id/qr/reissue` | `{ slots: (1 \| 2 \| "activate")[], reason }` | 201 `PrintableQr[]` — **เพิ่มรุ่น → ลายเซ็นเปลี่ยน → ใบเก่าใช้ไม่ได้ทันที** (`D07-b` ออกใหม่ 2 ใบ) |
-| POST | `/admin/qr/:qr_id/dispatch-technician` | `{ urgent: boolean, note? }` | `D06` QR ปลอม → ส่งช่างด่วน + แจ้งหัวหน้าโซน |
-| POST | `/admin/qr/:qr_id/resolve` | `{ note? }` | `D08` สถานะ → ปกติ + เก็บประวัติ |
-| GET | `/admin/technician-requests` | `?status` | คำขอช่างจากเจ้าของบ้าน |
-| PATCH | `/admin/technician-requests/:id` | `{ status: "scheduled" \| "done", scheduled_at?, note? }` | แจ้งเจ้าของบ้านเมื่อเปลี่ยนสถานะ |
+| GET | `/admin/qr` | `?health=damaged,suspicious,maybe_fake,expiring` | `D05` QR ผิดปกติและเคสที่ยังดำเนินการอยู่ · เคสยังแสดงแม้ QR ใบเดิมถูก revoke แล้ว |
+| GET | `/admin/qr/:qr_id` | — | สถานะและขั้นตอนของเคส QR (`D06`–`D08`) |
+| POST | `/admin/qr/:qr_id/fix` | `{ fix: "swap" \| "reissue" \| "fake" }` | `D06-b` เลือกวิธีแก้ · `fake` ใช้ flow ส่งช่าง |
+| POST | `/admin/qr/:qr_id/request-backup-swap` | — | `D06-b` แจ้งเจ้าของบ้านให้นำ QR สำรองมาติด → เคส `owner_notified` |
+| POST | `/boxes/:box_id/qr-backup-placed` | `owner` · `{}` | เจ้าของยืนยันหลังติด QR สำรอง · revoke QR หน้าตู้เดิมและเลื่อน QR สำรองเป็นใบหน้าตู้ |
+| POST | `/admin/boxes/:box_id/qr/reissue` | `{ slots: (1 \| 2)[], request_id: UUID }` | `{ box_id, qr: ReissuedQr[] }` — ออกใบใหม่และ revoke ใบเดิมของ slot ที่ระบุใน transaction; QR หน้าตู้/สำรองใช้ version ถัดไปจากประวัติทั้งสอง slot เพื่อไม่สร้าง token ซ้ำเมื่อเลื่อนใบสำรองขึ้นหน้า; คำขอซ้ำ key+slots คืนผลเดิม; key เดิมแต่ slots ต่างตอบ 409 (`D07-b`) |
+| POST | `/admin/qr/:qr_id/reissue` | `{ slots: (1 \| 2)[], delivery_method?: "post" \| "technician" }` | บันทึกขั้นออก QR หลัง API reissue สร้าง active QR ตาม slot และเวลาของเคสครบแล้ว · swap ต้องมีการยืนยันเจ้าของก่อน |
+| POST | `/admin/qr/:qr_id/dispatch-technician` | — | บันทึก `technician_dispatched` และส่ง notification ไปยังแอดมิน/ช่าง |
+| POST | `/admin/qr/:qr_id/resolve` | — | ปิดเคสหลังออก QR/ส่งช่างครบ · ไม่ล้าง health ของ QR อื่นในตู้เดียวกัน |
+| GET | `/admin/technician-requests` | `?status=open\|scheduled\|done` | คำขอช่างจากเจ้าของบ้าน · แสดงในหน้า `D15` |
+| PATCH | `/admin/technician-requests/:id` | `{ status: "scheduled" \| "done", scheduled_at?, note? }` (`scheduled_at` บังคับเมื่อ `status=scheduled`) | บันทึกนัด/ปิดงาน และแจ้งเจ้าของบ้าน · `404` หากไม่พบหรือปิดงานแล้ว |
 
 ```ts
 interface QrCode {
@@ -678,7 +684,7 @@ interface PrintableQr {           // สำหรับไฟล์พิมพ�
 - `GET /admin/boxes/:box_id/qr/print.pdf?slots=1,2` 💡 ไฟล์ PDF พร้อมพิมพ์ (QR + รหัสใต้ QR + รหัสตู้)
 - ✅ (2026-10-28 เขียนแล้ว) `POST /admin/boxes` (`{ count }` อย่างเดียว — ตัด `{ box_ids }` ออก) · `GET /admin/boxes?q&page&per_page` (ยังไม่มีตัวกรอง status/battery/agency) · `GET /admin/boxes/:box_id` (ฉบับย่อ: สถานะ · แบต · fw · `config` ที่ตู้ควรได้ + `in_sync` · QR ทุกใบ · 20 รายการล่าสุดที่ตู้ส่งมา · 10 ครั้งล่าสุดที่ลายเซ็นไม่ผ่าน — ยังไม่มีข้อมูลเจ้าของ จึงยังไม่ลง data access log) · งานทดสอบ
 - `PrintableQr` ยังไม่มี `svg` — หน้าเว็บสร้างรูป QR จาก `url` เอง · `device_secret` = HMAC(`BOX_MASTER_KEY`, box_id) คำนวณใหม่ได้จาก master key จึงไม่เก็บในฐานข้อมูลและไม่แสดงในหน้าตู้
-- ยังไม่ทำ: เปิดปิดบริการ · unbind · ออก QR ใหม่ · สุขภาพ QR · คำขอช่าง · ค่าทับเฉพาะตู้
+- ยังไม่ทำ: เปิดปิดบริการ · unbind · ค่าทับเฉพาะตู้
 
 ### 9.5 ค่าตั้งค่าตู้
 
@@ -687,6 +693,7 @@ interface PrintableQr {           // สำหรับไฟล์พิมพ�
 | GET | `/admin/box-config` | — | `{ config_ver, config: BoxConfigDefaults, updated_at, updated_by }` (`D10`) |
 | PUT | `/admin/box-config` | `BoxConfigDefaults` | เพิ่ม `config_ver` → ✅ ตู้ดึงค่าใหม่ภายใน 1 วัน (ตอนรายงานรายวัน) |
 | PUT | `/admin/boxes/:box_id/config` | `Partial<BoxConfigDefaults>` | ค่าทับเฉพาะตู้ (เช่น ตู้ที่สัญญาณแย่ให้ `longpoll_wait_s` สั้นลง) |
+| DELETE | `/admin/boxes/:box_id/config` | — | ล้างค่าทับเฉพาะตู้และเพิ่มรุ่นบังคับซิงก์ ให้กลับไปใช้ค่ากลาง · ปลุก long-poll ที่ถืออยู่ให้รับ config ใหม่ทันที; ถ้าหลับ/ออฟไลน์จะ sync เมื่อ boot/report/long-poll ครั้งถัดไป · ไม่ลบ Wi-Fi, device secret, owner, QR หรือประวัติ |
 
 ```ts
 interface BoxConfigDefaults {
@@ -699,27 +706,26 @@ interface BoxConfigDefaults {
 // ช่วงเวลาตรวจ (windows) ไม่อยู่ที่นี่ — มาจากโซน (§8.3) แล้ว server รวมให้แต่ละตู้
 ```
 
-- ✅ (2026-10-28 เขียนแล้ว) `GET`/`PUT /admin/box-config` · ช่วงค่า §0 · `config_ver` ไม่ได้นับเพิ่ม แต่คิดจาก hash ของค่าทั้งก้อน (ค่าเปลี่ยน = เลขเปลี่ยนเอง) · **ยังไม่ทำ** `PUT /admin/boxes/:box_id/config`
+- ✅ `GET`/`PUT /admin/box-config` · `DELETE /admin/boxes/:box_id/config` ล้างค่าทับเฉพาะตู้และเพิ่ม generation เพื่อบังคับซิงก์ config · generation ปกติเป็น 0 จึงยังใช้ hash เดิมได้
 
 ### 9.6 Log ทั้งหมด
 
 | method | path | query | ตอบ |
 |---|---|---|---|
-| GET | `/admin/logs` | `?type&box_id&user_id&from&to&result&page&per_page` — `type`: `scan`, `delivery`, `inspection`, `box_problem`, `sos`, `terms`, `box_auth_fail`, `data_access` | paginated (`D11`) |
-| GET | `/admin/logs/export.csv` | เหมือนข้างบน | CSV |
+| GET | `/admin/logs` | `?type=scan,delivery,inspection,box_problem,sos,data_access&page&per_page` | paginated (`D11`) จาก scan, inspection, delivery, SOS และ data access logs |
 
 ### 9.7 แพ็กเกจ (เพิ่ม 2026-10-27 — design §17)
 
 | method | path | body | ตอบ |
 |---|---|---|---|
 | GET | `/admin/plans` | — | `Plan[]` ทุกแพ็กเกจ + จำนวนเจ้าของบ้านที่ใช้อยู่ |
-| POST | `/admin/plans` | `{ code, name_th, name_en, features, price_note?, is_default?, sort_order? }` | 201 · `code` แก้ทีหลังไม่ได้ |
-| PATCH | `/admin/plans/:code` | `{ name_th?, name_en?, features?, price_note?, is_default?, is_active? }` | `Plan` — ตั้ง `is_default` อันใหม่ = อันเก่าถูกปลดเอง (ผู้สมัครใหม่ได้อันใหม่ คนเดิมไม่เปลี่ยน) · `is_active=false` = เลือกให้คนใหม่ไม่ได้ คนเดิมใช้ต่อ |
-| GET | `/admin/users/:id/plans` | — | ประวัติแพ็กเกจของเจ้าของบ้าน (ใหม่ → เก่า) — หน้าผู้ใช้ `D09` · หน้าตู้ `D04` แสดงแพ็กของเจ้าของตู้ (อ่านอย่างเดียว ลิงก์ไปหน้าผู้ใช้) |
-| PUT | `/admin/users/:id/plan` | `{ plan_code, starts_at?, ends_at?, note? }` — `:id` ต้องเป็น owner (ไม่งั้น 400) | 200 `PlanInfo` — ปิดแถวเดิม + เพิ่มแถวใหม่ใน transaction เดียว · 409 `PLAN_OVERLAP` ถ้าช่วงทับแถวที่ตั้งล่วงหน้าไว้ · 400 `PLAN_INACTIVE` |
+| POST | `/admin/plans` | `{ code, name_th, name_en, price_note? }` | 201 · บันทึกใน `plan_tb` · `code` แก้ทีหลังไม่ได้ · features ยังเป็นข้อมูลกำกับ ไม่เปลี่ยนสิทธิ์ฟีเจอร์ |
+| PATCH | `/admin/plans/:code` | `{ is_default?: boolean, is_active?: boolean }` | `Plan` · เปลี่ยน default ใน transaction (ผู้สมัครใหม่ได้อันใหม่ คนเดิมไม่เปลี่ยน) · ห้ามปิดแพ็ก default |
+| GET | `/admin/users/:id/plans` | — | ประวัติแพ็กเกจของเจ้าของบ้าน (`D09`) · `:id` ต้องเป็นบัญชี owner |
+| PUT | `/admin/users/:id/plan` | `{ plan_code, ends_at?, note? }` — `:id` ต้องเป็น owner | เปลี่ยนแพ็ก เริ่มวันนี้ ปิดแพ็กเดิม และเก็บประวัติ/ผู้ตั้ง/หมายเหตุใน transaction · วันที่สิ้นสุดเป็นวันตามเวลาไทย |
 
 - `GET /admin/users` และ `GET /admin/boxes` รับ `?plan=<code>&plan_status=expiring|expired` เพิ่ม (`D09`, `D03` — ตู้กรองตามแพ็กของเจ้าของ) · `GET /admin/overview` มีจำนวนเจ้าของบ้านต่อแพ็กเกจ (`D01`)
-- ✅ ตอนนี้มีแพ็กเดียว `free` — route จัดการรายการแพ็กเกจมีไว้รองรับแพ็กในอนาคต
+- ✅ D14 list/add/default/active และ D09 เปลี่ยนแพ็กเจ้าของบ้าน/ดูประวัติ ต่อ `plan_tb` กับ `user_plan_tb` แล้ว; ไม่มีการคิดเงิน และ `features` ยังเป็นข้อมูลกำกับไม่เปลี่ยนสิทธิ์ในระบบ
 - หน้าเว็บ (2026-10-27): รายการแพ็กเกจ = `D14` (ไม่มีใน wireframe) · เปลี่ยนแพ็กของเจ้าของบ้านอยู่ในหน้าผู้ใช้ `D09` · ตัวกรองแพ็กใน `D09`/`D03` แสดงเมื่อมีมากกว่า 1 แพ็ก · หน้าจอกันปิดแพ็กเริ่มต้น (ไม่งั้นคนสมัครใหม่ไม่มีแพ็ก) — server ควรกันด้วย
 - 💡 แจ้งเตือน `plan_expiring` ถึงเจ้าของบ้าน + แอดมินล่วงหน้า 7 วัน
 
@@ -818,7 +824,7 @@ X-Signature:  hex(HMAC-SHA256(device_secret, METHOD|PATH|TIMESTAMP|NONCE|SHA256(
 |---|---|---|---|
 | 13.1 | เปิดเครื่อง / ต่อ Wi-Fi ได้ครั้งแรก | `POST /v1/box/boot` `{ fw, config_ver, reset_reason, battery_pct, battery_mv, charging, rssi, wifi_ch }` | `{ server_time, config_ver, config? }` — `config` มาเมื่อเวอร์ชันไม่ตรง |
 | 13.2 | วันละครั้ง (`report_at`) | `POST /v1/box/report` `{ fw, config_ver, battery_pct, battery_mv, charging, solar_mv, temp_c, rssi, wake_count, jobs_done, scan_fail, wifi_fail, uptime_s }` | `{ server_time, config_ver, config? }` · แบต < 20% → แจ้งแอดมิน + เจ้าของบ้าน |
-| 13.3 | ในเวลาตรวจ (long-poll) | `GET /v1/box/jobs?wait=50` | มีงาน → `{ server_time, job: { job_id, type: "inspect", expires_at, scan_timeout_s, attempt_max } }` ทันที · ครบ 50 วิไม่มีงาน → **204** |
+| 13.3 | ในเวลาตรวจ (long-poll) | `GET /v1/box/jobs?wait=50&config_ver=...` | มีงาน → `{ server_time, config_ver, job }` · `config_ver` ไม่ตรง → `{ server_time, config_ver, config }` ทันที (หรือหลัง long-poll ถูกปลุก) · ครบเวลาไม่มีงาน/ค่าเปลี่ยน → **204** |
 | 13.4 | เปิดไฟ + กล้องแล้ว | `POST /v1/box/jobs/{job_id}/ready` `{ light, flash }` | 200 → `Inspection.status = ready` · 410 job หมดอายุ |
 | 13.5 | อ่าน QR ประจำตัวได้/ไม่ได้ (ทุกครั้งที่ลอง) | `POST /v1/box/jobs/{job_id}/result` `{ attempt, read_ok, qr_text, read_ms, flash }` | `{ status: "pass" }` · `{ status: "retry", attempts_left }` · `{ status: "fail" }` → ไฟ เขียว/กะพริบ/แดง |
 | 13.6 | เหตุการณ์อื่น | `POST /v1/box/events` `{ type: "wifi_reset_button" \| "battery_critical" \| "camera_error" }` | 200 (ส่งครั้งเดียว ไม่ได้ก็ไม่เป็นไร) |
@@ -873,6 +879,8 @@ payload ที่ส่งให้ service worker (✅ 2026-10-27 — รูป
 | `qr_health` | แอดมิน (หลังงาน 23:00) | QR ไม่ปกติ 3 ใบ | `/admin/qr` |
 | `box_silent_26h` | แอดมิน | ตู้ไม่รายงานเกิน 26 ชม. | `/admin/boxes/:id` |
 | `technician_request` | แอดมิน | เจ้าของบ้านขอช่าง (เปลี่ยน Wi-Fi) | `/admin/technician-requests` |
+| `technician_scheduled` / `technician_done` | เจ้าของบ้าน | นัดช่างแล้ว / ช่างดำเนินการแล้ว | `/home/settings/technician` |
+| `qr_technician_dispatch` | แอดมิน/ช่าง | เคส QR ต้องตรวจหรือเปลี่ยนใบ | `/admin/qr` |
 | `plan_expiring` 💡 | เจ้าของบ้าน + แอดมิน | แพ็กเกจของตู้จะหมดอายุใน 7 วัน | `/settings` |
 
 - SOS ใช้ `requireInteraction: true` + `renotify: true` (เด้งค้างจนกด) 💡 · iOS ไม่รองรับบางตัวเลือก ต้องทดสอบ

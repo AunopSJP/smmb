@@ -5,6 +5,9 @@
 #include "board.h"
 #include "quirc/quirc.h"
 #include "img_converters.h"
+#include <ArduinoJson.h>
+
+#include "debugview.h"
 
 static constexpr int QR_CENTER_WIDTH = 480;
 static constexpr int QR_CENTER_HEIGHT = 400;
@@ -16,6 +19,81 @@ static struct quirc* qrFull = nullptr;
 static bool flashOn = false;
 
 bool cameraRunning() { return running; }
+
+// ── ภาพตัวอย่าง ─────────────────────────────────────────────────────────
+static bool held = false;
+static bool scanning = false;
+static uint8_t* prevBuf = nullptr;
+static size_t prevCap = 0;
+static uint16_t prevW = 0, prevH = 0;
+static uint8_t prevBrightness = 0;
+static float prevFps = 0;
+static uint32_t prevAt = 0, shapeAt = 0, decodeAt = 0;
+static bool prevShape = false;
+static char prevText[48] = "";
+static uint16_t scanFrames = 0, scanShapes = 0;
+
+void cameraHold(bool hold) { held = hold; }
+bool cameraScanning() { return scanning; }
+
+static void previewStore(camera_fb_t* fb, bool shape, const String& text) {
+  const size_t need = (size_t)fb->width * fb->height;
+  if (!prevBuf || prevCap < need) {
+    free(prevBuf);
+    prevBuf = (uint8_t*)ps_malloc(need);
+    prevCap = prevBuf ? need : 0;
+  }
+  if (!prevBuf) return;
+  memcpy(prevBuf, fb->buf, need);
+  prevW = fb->width;
+  prevH = fb->height;
+  uint32_t sum = 0, n = 0;
+  for (size_t y = fb->height / 4; y < fb->height * 3 / 4; y += 8)
+    for (size_t x = fb->width / 4; x < fb->width * 3 / 4; x += 8) {
+      sum += fb->buf[y * fb->width + x];
+      n++;
+    }
+  prevBrightness = n ? sum / n : 0;
+  const uint32_t now = millis();
+  if (prevAt) {
+    const float inst = 1000.0f / max<uint32_t>(1, now - prevAt);
+    prevFps = prevFps ? prevFps * 0.7f + inst * 0.3f : inst;
+  }
+  prevAt = now;
+  prevShape = shape;
+  if (shape) shapeAt = now;
+  if (text.length()) {
+    decodeAt = now;
+    strlcpy(prevText, text.c_str(), sizeof(prevText));
+  }
+}
+
+bool cameraPreviewJpeg(uint8_t** out, size_t* len) {
+  if (!prevBuf || !prevW) return false;
+  return fmt2jpg(prevBuf, (size_t)prevW * prevH, prevW, prevH, PIXFORMAT_GRAYSCALE, 70, out, len);
+}
+
+String cameraPreviewJson() {
+  JsonDocument d;
+  const uint32_t now = millis();
+  d["w"] = prevW;
+  d["h"] = prevH;
+  d["brightness"] = prevBrightness;
+  d["fps"] = (int)(prevFps * 10) / 10.0;
+  d["scanning"] = scanning;
+  d["flash"] = flashOn;
+  d["frame_age_ms"] = prevAt ? now - prevAt : -1;
+  d["shape_ago_ms"] = shapeAt ? (int32_t)(now - shapeAt) : -1;
+  d["decode_ago_ms"] = decodeAt ? (int32_t)(now - decodeAt) : -1;
+  d["text"] = prevText;
+  d["scan_frames"] = scanFrames;
+  d["scan_shapes"] = scanShapes;
+  d["crop_w"] = min<int>(prevW, QR_CENTER_WIDTH);
+  d["crop_h"] = min<int>(prevH, QR_CENTER_HEIGHT);
+  String out;
+  serializeJson(d, out);
+  return out;
+}
 
 bool cameraStart() {
   if (running) return true;
@@ -81,7 +159,7 @@ void flashOff() {
 
 void cameraStop() {
   flashOff();
-  if (!running) return;
+  if (!running || held) return;
   esp_camera_deinit();
   running = false;
 }
@@ -168,9 +246,28 @@ static bool scanFrame(camera_fb_t* fb, struct quirc* decoder, bool fullFrame, St
   return text.length() > 0;
 }
 
+// ธง scanning ต้องลงให้ทุกทางออกของ cameraScanQr
+struct ScanGuard {
+  ScanGuard() { scanning = true; scanFrames = scanShapes = 0; }
+  ~ScanGuard() { scanning = false; }
+};
+
+bool cameraPreviewTick() {
+  if (!running) return false;
+  camera_fb_t* fb = esp_camera_fb_get();
+  if (!fb) return false;
+  String text;
+  bool found = false;
+  scanFrame(fb, qr, false, text, found);
+  previewStore(fb, found, text);
+  esp_camera_fb_return(fb);
+  return true;
+}
+
 QrRead cameraScanQr(uint32_t timeoutMs) {
   QrRead r;
   if (!running) return r;
+  ScanGuard guard;
   const uint32_t start = millis();
   int frames = 0, framesWithShape = 0;
   quirc_decode_error_t lastErr = QUIRC_SUCCESS;
@@ -185,8 +282,12 @@ QrRead cameraScanQr(uint32_t timeoutMs) {
     bool found = false;
     const bool fullFrame = frames % QR_FULL_FRAME_INTERVAL == 0;
     const bool decoded = scanFrame(fb, fullFrame ? qrFull : qr, fullFrame, text, found);
+    previewStore(fb, found, text);
     esp_camera_fb_return(fb);
+    scanFrames = frames;
+    debugViewPoll();  // ให้หน้าดูกล้องยังตอบได้ระหว่างอ่าน QR
     if (found) framesWithShape++;
+    scanShapes = framesWithShape;
     if (found && !decoded) lastErr = lastDecodeErr;
     if (text.length()) {
       r.ok = true;

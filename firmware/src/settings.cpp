@@ -48,6 +48,7 @@ void settingsLoad() {
   settings.boxId = prefs.getString("box", "");
   settings.secret = prefs.getString("secret", "");
   settings.sleep = prefs.getBool("sleep", true);
+  settings.debugCam = prefs.getBool("dbgcam", false);
   String cfg = prefs.getString("cfg", "");
   uint32_t ver = prefs.getUInt("cfgver", 0);
   prefs.end();
@@ -63,6 +64,7 @@ void settingsSave() {
   prefs.putString("box", settings.boxId);
   prefs.putString("secret", settings.secret);
   prefs.putBool("sleep", settings.sleep);
+  prefs.putBool("dbgcam", settings.debugCam);
   prefs.end();
 }
 

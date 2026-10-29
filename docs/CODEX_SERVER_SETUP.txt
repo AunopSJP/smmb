@@ -172,9 +172,18 @@ SMMB — คำสั่งสำหรับ Codex บนเครื่อง 
 ตรวจจากภายนอกแล้ว: API https://hub.sjp-dev.net/smmb-api/ ใช้ได้ · เว็บ https://hub.sjp-dev.net/smmb/ base href ถูก
 deep link ทุกหน้าเปิดได้ · บัญชีจำลองถูกเปลี่ยนรหัสแล้ว (ดี) · ที่ต้องทำ:
 
-9.1 ดึงโค้ดล่าสุด แล้ว restart (มีแก้ 4 จุดในโค้ด):
+9.1 ขั้นตอน rollout (ทำหลังผู้ใช้อนุมัติ deploy เท่านั้น):
+      sudo systemctl stop smmb-mock
       cd /opt/smmb && git pull
-      cd backend && npm ci && sudo systemctl restart smmb-mock
+      cd /opt/smmb/backend && npm ci
+      cd /opt/smmb/frontend && npm ci && npm run build:hub
+      สำรองเว็บเดิม แล้วคัดลอกเนื้อหา dist/smmb-web/browser/ ไปยัง root/alias ของ /smmb/ ตาม nginx config ที่ใช้งานจริง
+      sudo systemctl start smmb-mock
+      journalctl -u smmb-mock -n 80 --no-pager
+      curl -fsS https://hub.sjp-dev.net/smmb-api/api/health/live
+    - service smmb-mock ใช้ npm run dev:mock: ตอนเริ่มจะ build backend และ apply migrations ที่ยังขาด 0011–0014 ผ่าน runMigrations()
+    - ห้ามใช้ --reset ใน rollout นี้; ต้องรักษาข้อมูลเดโมและผู้ใช้บน hub
+    - ตรวจ hash ของ asset ใหม่และ login/flow ทุกบทบาทหลัง rollout ก่อนบอร์ดเปลี่ยน URL
     - ผูกตู้ด้วยลิงก์ที่มี path นำหน้า (https://hub.sjp-dev.net/smmb/a/<token>) — เดิมใช้ไม่ได้
     - body ใหญ่เกิน / JSON พัง ตอบ 413 / 400 (เดิมตอบ 500)
     - log คำขอตู้มี IP ต่อท้าย: "... → 200 (12 ms) from <ip>"
@@ -208,16 +217,20 @@ deep link ทุกหน้าเปิดได้ · บัญชีจำล
 
 9.6 หน้าเว็บต่อ API จริงแล้ว "ทุกบทบาท" (2026-10-28 บ่าย — แอดมิน · ช่างติดตั้ง · หัวหน้า · เจ้าหน้าที่ · เจ้าของบ้าน · ไรเดอร์)
     หน้าเว็บเรียก /api/... → บนโดเมนนี้ API อยู่ /smmb-api/... → ต้องตั้งไฟล์ config.json ข้าง index.html ของเว็บ:
-      หลัง build (npm --prefix frontend run build -- --base-href /smmb/) แก้ไฟล์ dist/smmb-web/browser/config.json
-      (หรือไฟล์ config.json ในโฟลเดอร์ที่ nginx เสิร์ฟ /smmb/) ให้เป็น:
-        { "apiBase": "/smmb-api", "devTools": true }
-      devTools: true = มีปุ่ม "คัดลอกข้อความ QR (ตู้จำลอง)" ในหน้า O06 ไว้ทดสอบงานตรวจกับ npm run box:sim live
-      (ตอนยังไม่มีบอร์ด) · ใช้จริงให้เอาออก / ตั้ง false
+      ใช้ npm --prefix frontend run build:hub ซึ่งตั้ง base href `/smmb/` และสร้าง config.json เป็น
+        { "apiBase": "/smmb-api", "devTools": false }
+      บนเว็บลูกค้า · อย่าเปลี่ยน devTools เป็น true ยกเว้นเดโมที่ได้รับอนุมัติ
+      "คัดลอกข้อความ QR (ตู้จำลอง)" ใน O06 กับ `npm run box:sim live` โดยไม่มีบอร์ด
     - ไม่ต้อง build ใหม่เมื่อแก้ไฟล์นี้ · service worker ไม่ cache ไฟล์นี้
     - ตรวจ: เปิด https://hub.sjp-dev.net/smmb/ → ต้องพาไปหน้า "เข้าสู่ระบบ" · ล็อกอินด้วยบัญชีจำลองได้
       (cookie sid ใช้ร่วมกันได้เพราะ /smmb กับ /smmb-api อยู่โดเมนเดียวกัน)
-    - ยังเป็นข้อมูลจำลอง (มีแถบ "ต้นแบบ" ด้านบน): QR เสีย/ปลอม D05–D08 · ประวัติรวมแอดมิน D11 · แพ็กเกจ D14 ·
-      เพิ่มบทบาท A15/A16 · แจ้งช่าง H13-c
+    - บันทึกจาก deployment snapshot ช่วงนั้น: QR เสีย/ปลอม D05–D08 · ประวัติรวมแอดมิน D11 · แพ็กเกจ D14 ·
+      เพิ่มบทบาท A15/A16 · แจ้งช่าง H13-c ยังเป็นข้อมูลจำลอง
+    - ตรวจซ้ำ 2026-10-28 18:29 (ไทย): domain ยังตอบ 200 แต่ asset ที่ domain โหลด (`main-ZBA2DRBI.js`) ไม่ตรงกับ
+      production build ล่าสุดใน worktree (`main-UTE62ROK.js`) · เตรียม artifact ไว้ที่ `frontend/dist/smmb-web/browser/`
+      โดยใช้ base href `/smmb/` และ `config.json` มี `apiBase=/smmb-api`; worktree ล่าสุดต่อ D01, D05–D08, D11,
+      D14, A15/A16 และ H13-c กับ API แล้ว · ยังไม่ได้ deploy
+      อย่าอ้างว่าการเปลี่ยนแปลงเหล่านี้ขึ้น production จนกว่าจะ deploy และตรวจ flow บน domain อีกครั้ง
     - ข้อมูลทดสอบใหม่ (บัญชี 1 คนต่อ 1 บทบาท) ต้องล้าง mock DB ครั้งเดียว: หยุด service → npm run dev:mock -- --reset
       (ล้างทุกอย่างที่ทดสอบไว้ใน .mockdb) → ดูบัญชีที่พิมพ์ออกมาตอนเริ่ม
 

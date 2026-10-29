@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, input, signal, type OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { PushBlockedError, PushNotifications } from '../../core/push-notifications';
 import { I18n, type Tr } from '../../core/i18n';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
@@ -121,7 +122,7 @@ export class AuthInstall {
         </p>
       </div>
       <p class="info-box">
-        <span class="muted small">{{ i18n.t({ th: 'จะมีแจ้งเตือนทดสอบ 1 ครั้ง', en: 'You will get one test notification' }) }}</span><br />
+        <span class="muted small">{{ i18n.t({ th: 'อนุญาตบนเครื่องนี้ก่อน · ระบบจะผูกกับบัญชีหลังเข้าสู่ระบบ', en: 'Allow on this device · the subscription is linked to your account after sign-in' }) }}</span><br />
         <strong class="danger-text small">{{ i18n.t({ th: 'เจ้าหน้าที่ต้องเปิด ไม่งั้นจะไม่ได้รับ SOS', en: 'Officers must turn this on or they will miss SOS alerts' }) }}</strong>
       </p>
       <div class="stack push-end">
@@ -143,15 +144,24 @@ export class AuthNotifications {
   protected readonly i18n = inject(I18n);
   private readonly toast = inject(Toast);
   private readonly router = inject(Router);
+  private readonly push = inject(PushNotifications);
   protected readonly url = screenUrl;
 
   /**
    * ต้นแบบ: แค่แสดงผล · ของจริง: ขอสิทธิ์เบราว์เซอร์ตอนนี้ แล้วส่ง subscription ให้ server หลังล็อกอิน
    * (push ผูกกับ session — api.md §3) ผ่าน core/push-notifications.ts
    */
-  protected allow(): void {
-    this.toast.show({ th: 'เปิดแจ้งเตือนแล้ว (จำลอง)', en: 'Notifications on (demo)' });
-    void this.router.navigateByUrl(screenUrl('A04'));
+  protected async allow(): Promise<void> {
+    try {
+      await this.push.requestPermission();
+      this.toast.show({ th: 'อนุญาตแจ้งเตือนแล้ว · เข้าสู่ระบบเพื่อผูกกับบัญชี', en: 'Permission granted · sign in to link notifications to your account' });
+      await this.router.navigateByUrl(screenUrl('A04'));
+    } catch (error) {
+      const message = error instanceof PushBlockedError
+        ? { th: 'เบราว์เซอร์นี้เปิดแจ้งเตือนไม่ได้ · เปิดจากเบราว์เซอร์ปกติและตรวจสิทธิ์การแจ้งเตือน', en: 'Notifications are blocked here · use a supported browser and check its notification permission' }
+        : { th: 'เปิดแจ้งเตือนไม่สำเร็จ ลองอีกครั้ง', en: 'Could not enable notifications. Try again.' };
+      this.toast.show(message);
+    }
   }
 }
 

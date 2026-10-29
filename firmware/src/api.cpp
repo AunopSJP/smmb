@@ -69,6 +69,7 @@ ApiResult apiCall(const char* method, const String& suffix, const String& body, 
   http.addHeader("X-Nonce", nonce);
   http.addHeader("X-Signature", sig);
 
+  const unsigned long startedAt = millis();
   int code;
   if (strcmp(method, "GET") == 0) {
     code = http.GET();
@@ -80,7 +81,10 @@ ApiResult apiCall(const char* method, const String& suffix, const String& body, 
     r.status = code;
     r.body = http.getString();
     r.serverTime = (uint32_t)strtoul(http.header("X-Server-Time").c_str(), nullptr, 10);
-    if (r.serverTime) clockSetFrom(r.serverTime);
+    // ตั้งนาฬิกาเฉพาะคำขอสั้น ๆ: server ตั้ง X-Server-Time ตอนเริ่มรับคำขอ ถ้า long-poll รอ 50 วิ ค่านี้เก่า 50 วิ → นาฬิกาถอยทุกรอบจน clock_skew
+    // (นาฬิกาตู้เดินจากคริสตัลอยู่แล้ว เพี้ยนไม่ถึงวินาทีต่อชั่วโมง · boot / report / ready / result ตั้งใหม่ให้ตลอด)
+    // (ถ้ายังไม่เคยตั้งนาฬิกา ตั้งเสมอ แม้คำขอแรกจะช้า เช่น จับมือ TLS บน Wi-Fi อ่อน — ไม่งั้นคำขอถัดไปเซ็นด้วยเวลาผิดแล้วโดน clock_skew)
+    if (r.serverTime && (!clockSet() || millis() - startedAt < 5000)) clockSetFrom(r.serverTime);
   } else {
     Serial.printf("[api] %s %s → %s\n", method, signedPath.c_str(), http.errorToString(code).c_str());
   }

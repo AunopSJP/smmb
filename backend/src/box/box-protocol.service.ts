@@ -89,6 +89,16 @@ export class BoxProtocolService {
     return (await this.configs.forBox(boxId)).ver;
   }
 
+  /** Long-poll config handshake: send current config on mismatch and mark matching boards in sync. */
+  async pollConfig(boxId: string, reportedVersion: number): Promise<{ server_time: number; config_ver: number; config?: BoxConfig }> {
+    const { config, ver } = await this.configs.forBox(boxId);
+    if (reportedVersion === ver) {
+      await this.pool.query(`UPDATE app.box_tb SET config_ver_seen = $2 WHERE box_id = $1`, [boxId, ver]);
+      return { server_time: nowS(), config_ver: ver };
+    }
+    return { server_time: nowS(), config_ver: ver, config };
+  }
+
   /**
    * long-poll (โปรโตคอล §2.3): มีงานอยู่แล้ว → ตอบทันที · ไม่มี → รอสูงสุด waitS วิ ระหว่างนั้นมีงาน → ตอบทันที
    * คืน null = ครบเวลาไม่มีงาน (204) หรือตู้ตัดการเชื่อมต่อไปก่อน
@@ -116,6 +126,7 @@ export class BoxProtocolService {
       clearTimeout(timer);
       waiter.cancel();
       if (outcome === 'closed') return null;
+      if (outcome === 'woken') return this.jobs.takePending(boxId);
       if (outcome === 'timeout') return this.jobs.takePending(boxId); // เผื่องานเข้ามาพอดีตอนหมดเวลา
     }
   }

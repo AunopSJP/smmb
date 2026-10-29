@@ -179,6 +179,7 @@ export const SCREENS: ScreenDef[] = [
   s('D12', 'admin', 'notifications', 'แจ้งเตือน', 'Notifications', { noTabs: true }),
   // ไม่มีใน wireframe — api.md §9.7 (2026-10-27)
   s('D14', 'admin', 'plans', 'แพ็กเกจ', 'Plans', { noTabs: true, note: n('จัดการรายการแพ็กเกจ · ไม่มีใน wireframe', 'Manage plans · not in the wireframe') }),
+  s('D15', 'admin', 'technician-requests', 'คำขอช่าง', 'Technician requests', { noTabs: true }),
   s('T01', 'admin', 'tech', 'เช็กลิสต์ติดตั้ง', 'Install checklist', { noTabs: true, next: ['T02', 'T02-b'] }),
   s('T02', 'admin', 'tech/wifi', 'หน้าตั้ง Wi-Fi ของตู้', 'Mailbox Wi-Fi setup', {
     noTabs: true,

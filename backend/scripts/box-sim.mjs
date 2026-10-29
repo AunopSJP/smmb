@@ -100,7 +100,7 @@ if (cmd === 'boot') {
   const fail = opt('fail', false) === true;
   console.log(`holding long-poll every ${wait}s — create a test job from the admin API to wake this box (Ctrl+C to stop)`);
   for (;;) {
-    const { status, json } = await call('GET', `/v1/box/jobs?wait=${wait}`).catch((err) => {
+    const { status, json } = await call('GET', `/v1/box/jobs?wait=${wait}&config_ver=${configVer}`).catch((err) => {
       console.error(`network error: ${err.message} — retry in 30 s`);
       return { status: 0 };
     });
@@ -141,7 +141,7 @@ if (cmd === 'live') {
   }
   console.log(`\n🔔 ปี๊บ — ออนไลน์แล้ว · ถือ long-poll ทุก ${wait} วิ (Ctrl+C หยุด)\n`);
   for (;;) {
-    const { status, json } = await call('GET', `/v1/box/jobs?wait=${wait}`).catch((err) => {
+    const { status, json } = await call('GET', `/v1/box/jobs?wait=${wait}&config_ver=${configVer}`).catch((err) => {
       console.error(`network error: ${err.message} — retry in 10 s`);
       return { status: 0 };
     });

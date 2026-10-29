@@ -1,5 +1,7 @@
 # HANDOFF — สถานะงาน SMMB (Smart Mailbox) ณ 2026-10-28
 
+> **สถานะปัจจุบัน:** ใช้ [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) เป็นแหล่งสถานะ code/ข้อจำกัดล่าสุด เนื้อหาด้านล่างเป็นบันทึกการออกแบบและประวัติการทำงานจากหลายช่วง ซึ่งบางบรรทัดกล่าวว่า frontend ยังเป็น mock หรือ flow ที่ภายหลังต่อ API แล้ว จึงไม่ใช่สถานะปัจจุบัน
+
 **ช่วงออกแบบเสร็จแล้ว ยังไม่มีโค้ด** (ยังไม่มี repo backend/client/เฟิร์มแวร์ในมือ session นี้) · งานล่าสุด = wireframe + prototype ใน FigCraft (ปรับ UX/UI, แบรนด์, ธีมมืด, ภาษา, โหมดตัวใหญ่, สมาชิกในบ้าน)
 
 อ่านไฟล์นี้ก่อนเริ่ม session ใหม่ · ออกแบบ: [`smmb-design.md`](smmb-design.md) (§1–§19) · API: [`api.md`](api.md) (§0–§15)

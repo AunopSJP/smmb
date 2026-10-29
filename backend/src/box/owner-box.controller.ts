@@ -1,9 +1,11 @@
 import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Ip, Param, Patch, Post, Query } from '@nestjs/common';
 import { Transform, Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Length, Matches, Max, MaxLength, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, MaxLength, Min } from 'class-validator';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
 import { OwnerBoxService } from './owner-box.service.js';
+import { QrIssueService } from './qr-issue.service.js';
+import { TechnicianRequestService, type TechnicianRequestReason } from './technician-request.service.js';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
@@ -26,11 +28,20 @@ class RenameBoxDto {
   @Transform(trim) @IsString() @Length(1, 40) name!: string;
 }
 
+class TechnicianRequestDto {
+  @IsIn(['wifi_change', 'repair', 'other']) reason!: TechnicianRequestReason;
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(1000) note?: string;
+}
+
 /** ตู้ของเจ้าของบ้าน (api.md §4.1–4.2) — ตู้ของคนอื่น → 404 */
 @RequireRole('owner')
 @Controller('api/v1/boxes')
 export class OwnerBoxController {
-  constructor(private readonly boxes: OwnerBoxService) {}
+  constructor(
+    private readonly boxes: OwnerBoxService,
+    private readonly technicianRequests: TechnicianRequestService,
+    private readonly qrIssues: QrIssueService,
+  ) {}
 
   @Post('activate')
   @HttpCode(HttpStatus.OK)
@@ -59,5 +70,20 @@ export class OwnerBoxController {
   @Patch(':box_id')
   rename(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Body() body: RenameBoxDto) {
     return this.boxes.rename(auth.userId, p.box_id, body.name);
+  }
+
+  @Post(':box_id/technician-requests')
+  requestTechnician(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Body() body: TechnicianRequestDto) {
+    return this.technicianRequests.create(auth.userId, p.box_id, body);
+  }
+
+  @Get(':box_id/technician-requests')
+  technicianRequestsForOwner(@Auth() auth: AuthContext, @Param() p: BoxIdParam) {
+    return this.technicianRequests.ownerList(auth.userId, p.box_id);
+  }
+
+  @Post(':box_id/qr-backup-placed')
+  confirmQrBackupPlaced(@Auth() auth: AuthContext, @Param() p: BoxIdParam) {
+    return this.qrIssues.ownerPlacedBackup(auth.userId, p.box_id);
   }
 }

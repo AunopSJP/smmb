@@ -1,6 +1,6 @@
 import { NOTIFICATION_TYPES, renderMessage } from './messages.js';
 import { isAllowedPushEndpoint } from './push.sender.js';
-import { buildPayload } from './push.service.js';
+import { buildPayload, scopeRelative } from './push.service.js';
 
 describe('isAllowedPushEndpoint (SSRF guard)', () => {
   it.each([
@@ -48,8 +48,17 @@ describe('buildPayload', () => {
       tag: 'sos-1',
       renotify: true,
       requireInteraction: true,
-      data: { type: 'sos_new', link: '/officer/sos/1', onActionClick: { default: { operation: 'navigateLastFocusedOrOpen', url: '/officer/sos/1' } } },
+      data: { type: 'sos_new', link: '/officer/sos/1', onActionClick: { default: { operation: 'navigateLastFocusedOrOpen', url: 'officer/sos/1' } } },
     });
+  });
+
+  it('click URL is relative to the service worker scope — the web app lives under /smmb/ on the hub, a leading "/" would leave it', () => {
+    // ngsw ทำ new URL(url, scope): scope https://host/smmb/ + "officer/x" = /smmb/officer/x (ถูก) · "/officer/x" = /officer/x (หลุดแอป)
+    const url = (link: string) => buildPayload({ type: 'delivered', data: {}, link }, 'th').notification.data.onActionClick.default.url;
+    expect(new URL(url('/officer/sos/1'), 'https://hub.example/smmb/').pathname).toBe('/smmb/officer/sos/1');
+    expect(new URL(url('/'), 'https://hub.example/smmb/').pathname).toBe('/smmb/');
+    expect(new URL(url('/home'), 'https://app.example/').pathname).toBe('/home');
+    expect(scopeRelative('//x')).toBe('x');
   });
 
   it('non-urgent messages do not stick on screen', () => {

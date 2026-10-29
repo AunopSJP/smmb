@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal, type OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { AdminApi, type AdminAgency, type AdminBoxRow } from '../core/admin-api';
+import { AdminApi, type AdminAgency, type AdminBoxRow, type AdminOverview } from '../core/admin-api';
 import { I18n, type Tr } from '../core/i18n';
 import { Session } from '../core/session';
 import { Toast } from '../core/toast';
@@ -11,7 +11,7 @@ import { screenUrl } from '../screens/registry';
 import { Icon, type IconName } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
 
-/** D01 ภาพรวมแอดมิน — ใช้ API จริง (ตู้ · หน่วยงานรออนุมัติ · ช่องทางติดต่อ) */
+/** D01 ภาพรวมแอดมิน — ใช้ยอดสรุปจาก backend และรายการจริงสำหรับงานค้าง */
 @Component({
   selector: 'app-admin-home',
   imports: [RouterLink, PageHeader, Icon],
@@ -27,11 +27,11 @@ import { PageHeader } from '../shared/page-header';
       <div class="stats">
         <a class="stat link" [routerLink]="url('D03')">
           <p class="label">{{ i18n.t({ th: 'ตู้ออนไลน์', en: 'Boxes online' }) }}</p>
-          <p class="value ok">{{ online() }}/{{ boxes().length }}</p>
+          <p class="value ok">{{ online() }}/{{ totalBoxes() }}</p>
         </a>
         <a class="stat link" [routerLink]="url('D03')" [queryParams]="{ filter: 'low' }">
           <p class="label">{{ i18n.t({ th: 'แบตต่ำ', en: 'Low battery' }) }}</p>
-          <p class="value warn">{{ low().length }}</p>
+          <p class="value warn">{{ lowCount() }}</p>
         </a>
         <a class="stat link" [routerLink]="url('D03')" [queryParams]="{ filter: 'unbound' }">
           <p class="label">{{ i18n.t({ th: 'ตู้ยังไม่ผูก', en: 'Unbound boxes' }) }}</p>
@@ -39,7 +39,7 @@ import { PageHeader } from '../shared/page-header';
         </a>
         <a class="stat link" [routerLink]="url('D02')">
           <p class="label">{{ i18n.t({ th: 'หน่วยงานรอ', en: 'Agencies waiting' }) }}</p>
-          <p class="value">{{ pending().length }}</p>
+          <p class="value">{{ pendingCount() }}</p>
         </a>
       </div>
 
@@ -142,20 +142,29 @@ export class AdminHome implements OnInit {
   protected readonly supportDraft = signal('');
   protected readonly support = signal<string | null>(null);
   protected readonly boxes = signal<AdminBoxRow[]>([]);
+  protected readonly overview = signal<AdminOverview | null>(null);
   protected readonly pending = signal<AdminAgency[]>([]);
-  protected readonly online = computed(() => this.boxes().filter((b) => b.status === 'online' || b.status === 'sleeping').length);
-  protected readonly unbound = computed(() => this.boxes().filter((b) => b.status === 'unbound').length);
+  protected readonly technicianRequests = signal(0);
+  protected readonly online = computed(() => this.overview()?.boxes.online ?? this.boxes().filter((b) => b.status === 'online' || b.status === 'sleeping').length);
+  protected readonly totalBoxes = computed(() => this.overview()?.boxes.total ?? this.boxes().length);
+  protected readonly lowCount = computed(() => this.overview()?.boxes.low_battery ?? this.low().length);
+  protected readonly pendingCount = computed(() => this.overview()?.agencies_pending ?? this.pending().length);
+  protected readonly unbound = computed(() => this.overview()?.boxes.unbound ?? this.boxes().filter((b) => b.status === 'unbound').length);
   protected readonly low = computed(() => this.boxes().filter((b) => b.bound && b.battery && b.battery.pct < LOW_BATTERY_PCT));
 
   async ngOnInit(): Promise<void> {
-    const [boxes, pending, support] = await Promise.all([
+    const [overview, boxes, pending, support, technicianRequests] = await Promise.all([
+      this.api.overview().catch(() => null),
       this.api.boxes().catch(() => null),
       this.api.agencies('pending').catch(() => []),
       firstValueFrom(this.http.get<{ contact: string | null }>('/api/v1/support')).catch(() => null),
+      this.api.technicianRequests('open').catch(() => []),
     ]);
+    this.overview.set(overview);
     this.boxes.set(boxes?.data ?? []);
     this.pending.set(pending);
     this.support.set(support?.contact ?? null);
+    this.technicianRequests.set(technicianRequests.length);
   }
 
   protected editSupport(): void {
@@ -187,6 +196,9 @@ export class AdminHome implements OnInit {
     for (const a of this.pending()) {
       items.push({ key: a.id, icon: 'user', tag: 'pending', title: { th: 'หน่วยงานใหม่ · ' + a.name, en: 'New agency · ' + a.name }, sub: { th: 'รออนุมัติ', en: 'Waiting for approval' }, path: screenUrl('D02') });
     }
+    if (this.technicianRequests() > 0) {
+      items.push({ key: 'technician-requests', icon: 'user', tag: 'pending', title: { th: 'มีคำขอช่างใหม่', en: 'New technician requests' }, sub: { th: `${this.technicianRequests()} รายการรอดำเนินการ`, en: `${this.technicianRequests()} requests waiting` }, path: screenUrl('D15') });
+    }
     for (const b of this.boxes().filter((x) => x.status === 'offline')) {
       const seen = seenText(b.last_seen_at);
       items.push({ key: b.id, icon: 'box', tag: 'box', title: { th: 'ตู้ ' + (b.house_no ?? b.id) + ' ไม่ออนไลน์', en: 'Box ' + (b.house_no ?? b.id) + ' offline' }, sub: { th: 'ติดต่อล่าสุด ' + seen.th, en: 'Last seen ' + seen.en }, path: screenUrl('D04'), query: { id: b.id } });
@@ -207,6 +219,7 @@ export class AdminHome implements OnInit {
     { code: 'D10', icon: 'target', label: { th: 'ค่าตั้งค่าตู้', en: 'Mailbox config' } },
     { code: 'D13', icon: 'shield', label: { th: 'หน่วยงาน', en: 'Agencies' } },
     { code: 'T01', icon: 'settings', label: { th: 'งานช่าง (ติดตั้ง)', en: 'Technician (install)' } },
+    { code: 'D15', icon: 'user', label: { th: 'คำขอช่างจากเจ้าของบ้าน', en: 'Owner technician requests' } },
     { code: 'A14', icon: 'user', label: { th: 'เปลี่ยนรหัสผ่านของฉัน', en: 'Change my password' } },
   ];
 }

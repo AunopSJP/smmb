@@ -1,6 +1,6 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query } from '@nestjs/common';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { ArrayNotEmpty, ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min } from 'class-validator';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
 import { CONFIG_LIMITS } from './box-config.js';
@@ -17,6 +17,11 @@ class TestJobParam extends BoxIdParam {
 class RegisterBoxesDto {
   /** ลงทะเบียนครั้งละไม่เกิน 50 ตู้ */
   @IsInt() @Min(1) @Max(50) count!: number;
+}
+
+class ReissueQrDto {
+  @IsArray() @ArrayNotEmpty() @ArrayUnique() @IsIn([1, 2], { each: true }) slots!: (1 | 2)[];
+  @IsUUID() request_id!: string;
 }
 
 class ListBoxesQuery {
@@ -57,6 +62,21 @@ export class AdminBoxController {
   @Get('boxes/:box_id')
   detail(@Param() p: BoxIdParam) {
     return this.boxes.detail(p.box_id);
+  }
+
+  @Post('boxes/:box_id/qr/reissue')
+  reissueQr(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Body() body: ReissueQrDto) {
+    return this.boxes.reissueQr(p.box_id, body.slots, body.request_id, auth.userId);
+  }
+
+  @Delete('boxes/:box_id/config')
+  resetConfig(@Auth() auth: AuthContext, @Param() p: BoxIdParam) {
+    return this.configs.resetBoxConfig(p.box_id, auth.userId);
+  }
+
+  @Delete('boxes/:box_id')
+  remove(@Auth() auth: AuthContext, @Param() p: BoxIdParam) {
+    return this.boxes.remove(p.box_id, auth.userId);
   }
 
   /** งานทดสอบ (ปลุกตู้ + กล้อง) — ตู้ต้องถือ long-poll อยู่ ไม่งั้นงานหมดอายุใน 60 วิ */

@@ -1,6 +1,8 @@
 import { Injectable, signal } from '@angular/core';
+import { DELIVERY_LIMIT_PER_HOUR, normalizeCode } from '../rider-rules';
+export { DELIVERY_LIMIT_PER_HOUR, normalizeCode } from '../rider-rules';
 
-// ไรเดอร์ (ไม่มีบัญชี) — จำลอง /public/* ตาม api.md §5
+// ตัวจำลองไรเดอร์ (ไม่ได้ใช้แทน API ในหน้าไรเดอร์จริง)
 // ไม่เก็บข้อมูลตัวตนไรเดอร์ · log การสแกน/พิมพ์รหัสเก็บที่ server ทุกครั้งแม้ไม่ผ่าน
 
 export type RiderError = 'QR_INVALID' | 'CODE_ATTEMPTS_EXCEEDED' | 'BOX_SERVICE_CLOSED' | 'DELIVERY_LIMIT' | 'TICKET_EXPIRED';
@@ -22,16 +24,11 @@ export interface DeliveryTicket {
   issued_at: number;
 }
 
-/** เพดานแจ้งส่งของต่อตู้ 5 ครั้ง/ชั่วโมง (✅ 2026-10-27 — api.md §0, §5) */
-export const DELIVERY_LIMIT_PER_HOUR = 5;
 /** อายุ delivery ticket 10 นาที (✅ 2026-10-27) */
 export const TICKET_TTL_MS = 10 * 60 * 1000;
 /** พิมพ์รหัสผิด 3 ครั้งติดกัน → รอ 30 วิ (✅ 2026-10-27 · ของจริง: ผิดอีกรอบรอเพิ่มเป็น 2 เท่า สูงสุด 15 นาที) */
 export const CODE_MAX_WRONG = 3;
 export const CODE_LOCK_MS = 30 * 1000;
-
-/** รหัสใต้ QR ไม่สนตัวเล็กใหญ่/ขีด/ช่องว่าง */
-export const normalizeCode = (raw: string) => raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
 @Injectable({ providedIn: 'root' })
 export class RiderDemo {

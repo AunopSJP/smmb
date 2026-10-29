@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import pg from 'pg';
@@ -252,6 +252,58 @@ describe('Inspections (e2e)', () => {
     expect(p.body.status).toBe('box_problem');
     const n = await pool.query(`SELECT 1 FROM app.notification_tb WHERE user_id = $1 AND type = 'box_problem'`, [owner.id]);
     expect(n.rowCount).toBe(1);
+  });
+
+  it('QR damage moves from officer report through owner backup placement and admin reissue to a resolved case', async () => {
+    const { b, owner, officer } = await setup();
+    const { out } = await pollWhile(b, () =>
+      as(officer.cookie).post('/api/v1/inspections', { qr_text: b.qr[0].url, scan_ms: 1800 }).expect(201),
+    );
+    const inspection = (out as request.Response).body;
+    const reported = await as(officer.cookie)
+      .post(`/api/v1/inspections/${inspection.id}/qr-condition`, { condition: 'torn' })
+      .expect(200);
+    expect(reported.body.ask_qr_condition).toBe(false);
+
+    const qrRows = await pool.query<{ box_qr_code_id: string; slot: string; version: number }>(
+      `SELECT box_qr_code_id, slot, version FROM app.box_qr_code_tb WHERE box_id = $1 AND slot IN ('1','2') AND status = 'active' ORDER BY slot`,
+      [b.box_id],
+    );
+    const frontQrId = qrRows.rows.find((qr) => qr.slot === '1')?.box_qr_code_id;
+    const backupQrId = qrRows.rows.find((qr) => qr.slot === '2')?.box_qr_code_id;
+    expect(frontQrId).toBeDefined();
+    expect(backupQrId).toBeDefined();
+
+    const issue = (await as(admin.cookie).get('/api/v1/admin/qr').expect(200)).body.find(
+      (row: { id: string }) => row.id === frontQrId,
+    );
+    expect(issue).toMatchObject({ health: 'damaged', status: 'open', fix: null });
+
+    const notified = await as(admin.cookie).post(`/api/v1/admin/qr/${frontQrId}/request-backup-swap`).expect(201);
+    expect(notified.body).toMatchObject({ status: 'owner_notified', fix: 'swap' });
+    expect((await as(owner.cookie).get(`/api/v1/boxes/${b.box_id}`).expect(200)).body.qr_task).toMatchObject({ health: 'damaged' });
+
+    const confirmed = await as(owner.cookie).post(`/api/v1/boxes/${b.box_id}/qr-backup-placed`).expect(201);
+    expect(confirmed.body.status).toBe('owner_confirmed');
+    const replacement = (await as(admin.cookie)
+      .post(`/api/v1/admin/boxes/${b.box_id}/qr/reissue`, { slots: [2], request_id: randomUUID() })
+      .expect(201)).body.qr as { id: string; slot: number; version: number }[];
+    expect(replacement).toHaveLength(1);
+    expect(replacement[0].slot).toBe(2);
+    expect(replacement[0].version).toBeGreaterThan(qrRows.rows.find((qr) => qr.slot === '2')!.version);
+
+    await as(admin.cookie).post(`/api/v1/admin/qr/${frontQrId}/reissue`, { slots: [2], delivery_method: 'post' }).expect(201);
+    const resolved = await as(admin.cookie).post(`/api/v1/admin/qr/${frontQrId}/resolve`).expect(201);
+    expect(resolved.body).toMatchObject({ status: 'resolved', resolved: true });
+
+    const finalQr = await pool.query<{ box_qr_code_id: string; slot: string; status: string }>(
+      `SELECT box_qr_code_id, slot, status FROM app.box_qr_code_tb WHERE box_id = $1 AND status IN ('active','revoked') AND slot IN ('1','2') ORDER BY created_date`,
+      [b.box_id],
+    );
+    expect(finalQr.rows.find((qr) => qr.box_qr_code_id === frontQrId)?.status).toBe('revoked');
+    expect(finalQr.rows.find((qr) => qr.box_qr_code_id === backupQrId)).toMatchObject({ slot: '1', status: 'active' });
+    expect(finalQr.rows.find((qr) => qr.box_qr_code_id === replacement[0].id)).toMatchObject({ slot: '2', status: 'active' });
+    expect((await as(owner.cookie).get(`/api/v1/boxes/${b.box_id}`).expect(200)).body.qr_task).toBeNull();
   });
 
   it('scanning twice while the first job is open reuses the inspection (no second wake job) — both scans are logged', async () => {

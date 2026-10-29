@@ -123,7 +123,7 @@ describe('Push, notifications, terms (e2e)', () => {
       expect(sender.sent[0].payload.notification).toMatchObject({
         title: 'Smart Mailbox',
         body: 'เปิดแจ้งเตือนสำเร็จ ✅',
-        data: { type: 'test', onActionClick: { default: { url: '/' } } },
+        data: { type: 'test', onActionClick: { default: { url: '' } } },
       });
     });
 

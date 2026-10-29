@@ -8,6 +8,7 @@ import { type BoxDetail, minutesAgo, OwnerApi, type Sos } from '../core/owner-ap
 import { screenUrl } from '../screens/registry';
 import { Icon } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
+import { Toast } from '../core/toast';
 
 /** ต้องกดค้างกี่วินาทีถึงส่ง SOS (กันกดโดนโดยไม่ตั้งใจ ✅) */
 const HOLD_SEC = 3;
@@ -42,6 +43,15 @@ const REFRESH_MS = 20_000;
             <strong class="grow">{{ s.status === 'accepted' ? i18n.t({ th: 'มีเจ้าหน้าที่รับ SOS แล้ว', en: 'An officer took your SOS' }) : i18n.t({ th: 'SOS ของคุณยังเปิดอยู่', en: 'Your SOS is still open' }) }}</strong>
             <span>{{ i18n.t({ th: 'เปิด', en: 'Open' }) }}</span>
           </a>
+        }
+        @if (b.qr_task) {
+          <section class="card warn-card stack">
+            <strong>{{ i18n.t({ th: 'QR หน้าตู้ชำรุด', en: 'Front QR is damaged' }) }}</strong>
+            <span class="small">{{ i18n.t({ th: 'นำ QR สำรองที่เก็บด้านในมาติดหน้าตู้ แล้วกดยืนยัน ระบบจะปิด QR ใบเก่าและออกใบสำรองใหม่ให้แอดมินจัดส่ง', en: 'Move the backup QR inside the box to the front, then confirm. The old QR will be disabled and a replacement backup issued.' }) }}</span>
+            <button type="button" class="btn secondary" [disabled]="confirmingQr()" (click)="confirmBackup(b.id)">
+              {{ confirmingQr() ? i18n.t({ th: 'กำลังบันทึก…', en: 'Saving…' }) : i18n.t({ th: 'ติด QR สำรองแล้ว', en: 'Backup QR is in place' }) }}
+            </button>
+          </section>
         }
         @if (!b.coverage.has_officer) {
           <p class="card warn-card">
@@ -207,6 +217,7 @@ export class OwnerHome implements OnDestroy {
   protected readonly display = inject(DisplaySettings);
   private readonly api = inject(OwnerApi);
   private readonly router = inject(Router);
+  private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
   protected readonly time = hhmm;
   protected readonly ago = minutesAgo;
@@ -217,6 +228,7 @@ export class OwnerHome implements OnDestroy {
   protected readonly error = signal(false);
   protected readonly sending = signal(false);
   protected readonly sosError = signal(false);
+  protected readonly confirmingQr = signal(false);
 
   protected readonly holding = signal(false);
   private readonly heldMs = signal(0);
@@ -245,6 +257,19 @@ export class OwnerHome implements OnDestroy {
       this.error.set(false);
     } catch {
       this.error.set(true);
+    }
+  }
+
+  protected async confirmBackup(boxId: string): Promise<void> {
+    if (this.confirmingQr()) return;
+    this.confirmingQr.set(true);
+    try {
+      await this.api.confirmQrBackupPlaced(boxId);
+      await this.load();
+    } catch {
+      this.toast.show({ th: 'บันทึกไม่ได้ · ลองโหลดหน้าใหม่', en: 'Could not save · reload and try again' });
+    } finally {
+      this.confirmingQr.set(false);
     }
   }
 

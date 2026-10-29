@@ -9,6 +9,7 @@ struct Settings {
   String boxId;   // BX-00003
   String secret;  // device_secret hex 64 ตัว
   bool sleep = true;  // false = ไม่หลับลึก (ไว้ทดสอบ/ดู log)
+  bool debugCam = false;  // true = เปิดหน้าเว็บดูภาพกล้อง (ทดสอบเท่านั้น · debugview.h)
 };
 
 // ค่าจากเซิร์ฟเวอร์ (config ในคำตอบ boot/report)

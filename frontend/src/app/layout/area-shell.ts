@@ -7,12 +7,12 @@ import { ToastHost } from '../core/toast';
 import { AREA_LABEL, screen, TABS, type Area } from '../screens/registry';
 import { TabBar } from '../shared/tab-bar';
 
-/** หน้าที่ยังเป็นข้อมูลจำลอง (ยังไม่มี API) — QR เสีย/ปลอม · ประวัติรวมของแอดมิน · แพ็กเกจ · เพิ่มบทบาท */
-const MOCK_SCREENS = new Set(['D05', 'D06', 'D06-b', 'D07', 'D07-b', 'D08', 'D11', 'D14', 'A15', 'A16', 'H13-c']);
+/** Screen codes that intentionally remain prototypes; currently all built screens use APIs. */
+const MOCK_SCREENS = new Set<string>();
 
 /**
- * โครงของแต่ละบทบาท: แถบ "ต้นแบบ" ด้านบน · เนื้อหา · แท็บล่าง (ถ้าบทบาทนั้นมี)
- * จอกว้าง (คอม) แสดงเป็นคอลัมน์ขนาดมือถือตรงกลาง
+ * โครงของแต่ละบทบาท: เนื้อหา · แท็บล่าง (ถ้าบทบาทนั้นมี)
+ * พื้นที่เนื้อหาขยายตาม viewport ของอุปกรณ์ โดยไม่ล็อกความกว้างหน้าจอ
  */
 @Component({
   selector: 'app-area-shell',
@@ -45,8 +45,8 @@ const MOCK_SCREENS = new Set(['D05', 'D06', 'D06-b', 'D07', 'D07-b', 'D08', 'D11
       display: flex;
       flex-direction: column;
       min-height: 100dvh;
-      max-width: 480px;
-      margin: 0 auto;
+      width: 100%;
+      min-width: 0;
       background: var(--bg);
     }
     .demo {
@@ -60,7 +60,9 @@ const MOCK_SCREENS = new Set(['D05', 'D06', 'D06-b', 'D07', 'D07-b', 'D08', 'D11
     }
     main {
       flex: 1;
-      padding: 8px 16px 24px;
+      min-width: 0;
+      width: 100%;
+      padding: clamp(8px, 1.5vw, 24px) clamp(12px, 2vw, 32px) clamp(24px, 3vw, 40px);
       display: flex;
       flex-direction: column;
     }
@@ -72,6 +74,11 @@ const MOCK_SCREENS = new Set(['D05', 'D06', 'D06-b', 'D07', 'D07-b', 'D08', 'D11
       position: sticky;
       bottom: 0;
       z-index: 2;
+    }
+    @media (max-width: 480px) {
+      main {
+        padding-inline: 12px;
+      }
     }
   `,
 })

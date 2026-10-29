@@ -1,7 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import pg from 'pg';
 import { PG_POOL } from '../db/db.module.js';
-import type { Db } from '../db/tx.js';
+import { withTx, type Db } from '../db/tx.js';
+import { JobHub } from './job-hub.js';
 import {
   BOX_TZ,
   boxStatus,
@@ -27,7 +28,7 @@ export interface BoxConfigDefaultsDto {
  */
 @Injectable()
 export class BoxConfigService {
-  constructor(@Inject(PG_POOL) private readonly pool: pg.Pool) {}
+  constructor(@Inject(PG_POOL) private readonly pool: pg.Pool, private readonly hub: JobHub) {}
 
   async defaults(db: Db = this.pool): Promise<BoxConfigDefaults> {
     const { rows } = await db.query<{ config: Record<string, unknown> }>(`SELECT config FROM app.box_config_tb WHERE box_config_id = 1`);
@@ -53,6 +54,25 @@ export class BoxConfigService {
     return this.defaultsDto();
   }
 
+  async resetBoxConfig(boxId: string, adminId: string): Promise<{ box_id: string; config_ver: number; config: BoxConfig }> {
+    const result = await withTx(this.pool, async (db) => {
+      const { rowCount } = await db.query(
+        `UPDATE app.box_tb SET config_override = '{}'::jsonb, config_generation = config_generation + 1 WHERE box_id = $1`,
+        [boxId],
+      );
+      if (!rowCount) throw new NotFoundException();
+      await db.query(
+        `INSERT INTO app.data_access_log_tb (actor_user_id, subject_kind, subject_id, fields)
+         VALUES ($1, 'box', $2, '{config_reset}')`,
+        [adminId, boxId],
+      );
+      const { config, ver } = await this.forBox(boxId, db);
+      return { box_id: boxId, config_ver: ver, config };
+    });
+    this.hub.wake(boxId);
+    return result;
+  }
+
   /** เวลาตรวจรวมของหลายตู้ในคำสั่งเดียว */
   async windowsOf(boxIds: string[], db: Db = this.pool): Promise<Map<string, [string, string][]>> {
     const out = new Map<string, [string, string][]>(boxIds.map((id) => [id, []]));
@@ -73,17 +93,18 @@ export class BoxConfigService {
 
   /** ค่าที่ตู้นี้ควรมี + เลขเวอร์ชัน */
   async forBox(boxId: string, db: Db = this.pool): Promise<{ config: BoxConfig; ver: number }> {
-    const [base, override, windows] = await Promise.all([
-      this.defaults(db),
-      db.query<{ config_override: Record<string, unknown> }>(`SELECT config_override FROM app.box_tb WHERE box_id = $1`, [boxId]),
-      this.windowsOf([boxId], db),
-    ]);
+    const base = await this.defaults(db);
+    const override = await db.query<{ config_override: Record<string, unknown>; config_generation: number }>(
+      `SELECT config_override, config_generation FROM app.box_tb WHERE box_id = $1`,
+      [boxId],
+    );
+    const windows = await this.windowsOf([boxId], db);
     const config: BoxConfig = {
       windows: windows.get(boxId) ?? [],
       tz: BOX_TZ,
       ...resolveDefaults(base as unknown as Record<string, unknown>, override.rows[0]?.config_override ?? {}),
     };
-    return { config, ver: configVersion(config) };
+    return { config, ver: configVersion(config, override.rows[0]?.config_generation ?? 0) };
   }
 
   /** สถานะที่แสดงของหลายตู้ (api.md §4.2) */

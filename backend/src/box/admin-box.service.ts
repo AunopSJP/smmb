@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import pg from 'pg';
 import type { Env } from '../config/env.js';
@@ -10,12 +10,19 @@ import { deviceSecret, frontQrToken, newActivateToken, newPrintCode, showPrintCo
 import { BoxJobService, type JobDto } from './box-job.service.js';
 
 export type QrSlot = 1 | 2 | 'activate';
+const UNUSED_ACTIVATION_STATUS = 'active';
+const CONSUMED_ACTIVATION_STATUS = 'used';
 
 /** api.md §9.4 `PrintableQr` (ยังไม่มี svg — หน้าเว็บสร้างรูป QR จาก url เอง) */
 export interface PrintableQr {
   slot: QrSlot;
   url: string;
   print_code: string;
+}
+
+export interface ReissuedQr extends PrintableQr {
+  id: string;
+  version: number;
 }
 
 export interface RegisteredBox {
@@ -53,6 +60,7 @@ export interface CameraDiagnostics {
 }
 
 export interface AdminBoxDetail extends AdminBoxRow {
+  can_delete: boolean;
   service_active: boolean;
   registered_at: string;
   config: { config_ver: number; config: BoxConfig; box_config_ver: number | null; in_sync: boolean };
@@ -183,6 +191,7 @@ export class AdminBoxService {
     ]);
     return {
       ...this.row(box, status.get(boxId)!),
+      can_delete: await this.canDelete(this.pool, boxId),
       service_active: box.service_active,
       registered_at: box.created_date.toISOString(),
       config: { config_ver: cfg.ver, config: cfg.config, box_config_ver: box.config_ver_seen, in_sync: box.config_ver_seen === cfg.ver },
@@ -200,6 +209,99 @@ export class AdminBoxService {
       camera_diagnostics: mapCameraDiagnostics(reports.rows),
       auth_failures: fails.rows.map((r) => ({ reason: r.reason, at: r.created_date.toISOString() })),
     };
+  }
+
+  async remove(boxId: string, adminId: string): Promise<{ box_id: string; deleted: true }> {
+    return withTx(this.pool, async (db) => {
+      await this.load(db, boxId);
+      if (!(await this.canDelete(db, boxId, true))) {
+        throw new ConflictException({
+          code: 'BOX_NOT_DELETABLE',
+          message: 'Only an unused, never-connected box with no activity can be deleted',
+        });
+      }
+      await db.query(
+        `INSERT INTO app.data_access_log_tb (actor_user_id, subject_kind, subject_id, fields)
+         VALUES ($1, 'box', $2, '{box_deleted}')`,
+        [adminId, boxId],
+      );
+      await db.query(`DELETE FROM app.box_qr_reissue_request_tb WHERE box_id = $1`, [boxId]);
+      await db.query(`DELETE FROM app.box_nonce_tb WHERE box_id = $1`, [boxId]);
+      await db.query(`DELETE FROM app.box_qr_code_tb WHERE box_id = $1`, [boxId]);
+      await db.query(`DELETE FROM app.box_tb WHERE box_id = $1`, [boxId]);
+      return { box_id: boxId, deleted: true };
+    });
+  }
+
+  async reissueQr(boxId: string, slots: (1 | 2)[], requestId: string, adminId: string): Promise<{ box_id: string; qr: ReissuedQr[] }> {
+    return withTx(this.pool, async (db) => {
+      await this.load(db, boxId);
+      await db.query(`SELECT box_id FROM app.box_tb WHERE box_id = $1 FOR UPDATE`, [boxId]);
+      const normalizedSlots = [...new Set(slots)].sort((a, b) => a - b);
+      const { rows: previous } = await db.query<{
+        slots: string[];
+        response: { box_id: string; qr: ReissuedQr[] };
+      }>(
+        `SELECT slots, response FROM app.box_qr_reissue_request_tb WHERE box_id = $1 AND request_id = $2`,
+        [boxId, requestId],
+      );
+      if (previous[0]) {
+        if (previous[0].slots.join(',') !== normalizedSlots.join(',')) {
+          throw new ConflictException({ code: 'IDEMPOTENCY_KEY_REUSED', message: 'request_id was already used for different QR slots' });
+        }
+        return previous[0].response;
+      }
+      const qr: ReissuedQr[] = [];
+      for (const slot of normalizedSlots) {
+        await db.query(
+          `UPDATE app.box_qr_code_tb SET status = 'revoked', revoked_date = now()
+           WHERE box_id = $1 AND slot = $2 AND status = 'active'`,
+          [boxId, String(slot)],
+        );
+        qr.push(await this.issueQr(db, boxId, slot));
+      }
+      const result = { box_id: boxId, qr };
+      await db.query(
+        `INSERT INTO app.data_access_log_tb (actor_user_id, subject_kind, subject_id, fields)
+         VALUES ($1, 'box', $2, $3::text[])`,
+        [adminId, boxId, normalizedSlots.map((slot) => `qr_reissue_${slot}`)],
+      );
+      await db.query(
+        `INSERT INTO app.box_qr_reissue_request_tb (box_id, request_id, slots, response)
+         VALUES ($1, $2, $3::text[], $4::jsonb)`,
+        [boxId, requestId, normalizedSlots.map(String), JSON.stringify(result)],
+      );
+      return result;
+    });
+  }
+
+  private async canDelete(db: Db, boxId: string, lock = false): Promise<boolean> {
+    const lockClause = lock ? ' FOR UPDATE' : '';
+    const { rows } = await db.query<{ can_delete: boolean }>(
+      `SELECT (
+         b.owner_user_id IS NULL
+         AND b.last_seen_date IS NULL
+         AND b.last_poll_date IS NULL
+         AND EXISTS (SELECT 1 FROM app.box_qr_code_tb q WHERE q.box_id = b.box_id AND q.slot = 'activate' AND q.status = $2)
+         AND NOT EXISTS (SELECT 1 FROM app.box_qr_code_tb q WHERE q.box_id = b.box_id AND q.slot = 'activate' AND q.status = $3)
+         AND NOT EXISTS (SELECT 1 FROM app.zone_box_tb z WHERE z.box_id = b.box_id)
+         AND NOT EXISTS (SELECT 1 FROM app.box_report_tb r WHERE r.box_id = b.box_id)
+         AND NOT EXISTS (SELECT 1 FROM app.box_job_tb j WHERE j.box_id = b.box_id)
+         AND NOT EXISTS (SELECT 1 FROM app.scan_log_tb s WHERE s.box_id = b.box_id)
+         AND NOT EXISTS (SELECT 1 FROM app.inspection_tb i WHERE i.box_id = b.box_id)
+         AND NOT EXISTS (SELECT 1 FROM app.delivery_tb d WHERE d.box_id = b.box_id)
+         AND NOT EXISTS (SELECT 1 FROM app.sos_case_tb c WHERE c.box_id = b.box_id)
+         AND NOT EXISTS (SELECT 1 FROM app.technician_request_tb t WHERE t.box_id = b.box_id)
+         AND NOT EXISTS (
+           SELECT 1 FROM app.qr_issue_case_tb c
+           JOIN app.box_qr_code_tb q ON q.box_qr_code_id = c.box_qr_code_id
+           WHERE q.box_id = b.box_id
+         )
+       ) AS can_delete
+       FROM app.box_tb b WHERE b.box_id = $1${lockClause}`,
+      [boxId, UNUSED_ACTIVATION_STATUS, CONSUMED_ACTIVATION_STATUS],
+    );
+    return rows[0]?.can_delete ?? false;
   }
 
   /** งานทดสอบ: ปลุกตู้ → ไฟ + กล้อง → อ่าน QR อะไรก็ได้ (ช่างทดสอบหลังติดตั้ง · วัดเวลา "ได้งาน → ready") */
@@ -259,16 +361,25 @@ export class AdminBoxService {
   }
 
   /** ออก QR รุ่นแรก · รหัสพิมพ์/token ชนกัน (แทบไม่เกิด) → สุ่มใหม่ */
-  private async issueQr(db: Db, boxId: string, slot: QrSlot): Promise<PrintableQr> {
+  private async issueQr(db: Db, boxId: string, slot: QrSlot): Promise<ReissuedQr> {
     const qrKey = this.config.get('QR_SIGNING_KEY', { infer: true });
     for (let i = 0; i < 10; i++) {
-      const token = slot === 'activate' ? newActivateToken() : frontQrToken(qrKey, boxId, String(slot) as '1' | '2', 1);
-      const code = newPrintCode();
-      const { rowCount } = await db.query(
-        `INSERT INTO app.box_qr_code_tb (box_id, slot, version, token, print_code) VALUES ($1, $2, 1, $3, $4) ON CONFLICT DO NOTHING`,
-        [boxId, String(slot), token, code],
+      const { rows: versions } = await db.query<{ version: number }>(
+        `SELECT coalesce(max(version), 0) + 1 AS version
+         FROM app.box_qr_code_tb
+         WHERE box_id = $1
+           AND (($2 = 'activate' AND slot = 'activate') OR ($2 <> 'activate' AND slot IN ('1','2')))` ,
+        [boxId, String(slot)],
       );
-      if (rowCount) return { slot, url: this.qrUrl(slot, token), print_code: showPrintCode(code) };
+      const version = versions[0].version;
+      const token = slot === 'activate' ? newActivateToken() : frontQrToken(qrKey, boxId, String(slot) as '1' | '2', version);
+      const code = newPrintCode();
+      const { rows } = await db.query<{ box_qr_code_id: string }>(
+        `INSERT INTO app.box_qr_code_tb (box_id, slot, version, token, print_code)
+         VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING RETURNING box_qr_code_id`,
+        [boxId, String(slot), version, token, code],
+      );
+      if (rows[0]) return { id: rows[0].box_qr_code_id, slot, version, url: this.qrUrl(slot, token), print_code: showPrintCode(code) };
     }
     throw new Error(`could not issue a unique QR for ${boxId}`);
   }

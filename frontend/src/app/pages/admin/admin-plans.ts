@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, type OnInit } from '@angular/core';
+import { apiError } from '../../core/api';
+import { AdminApi, type AdminPlan, type AdminUserPlan } from '../../core/admin-api';
 import { I18n, type Tr } from '../../core/i18n';
-import { PlanDemo, showDate, type PlanError, type PlanStatus } from '../../core/mock/plan-demo';
+import { showDate, type PlanError, type PlanStatus } from '../../core/mock/plan-demo';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
@@ -23,6 +25,10 @@ const PLAN_ERROR: Record<PlanError, Tr> = {
   BAD_END: { th: 'วันหมดอายุต้องหลังวันนี้', en: 'The end date must be after today' },
 };
 
+function todayInBangkok(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+}
+
 // ── ส่วนแพ็กเกจในหน้าผู้ใช้ D09 ─────────────────────────────
 
 @Component({
@@ -44,8 +50,8 @@ const PLAN_ERROR: Record<PlanError, Tr> = {
       @if (editing()) {
         <fieldset class="options">
           <legend>{{ i18n.t({ th: 'เปลี่ยนเป็น', en: 'Change to' }) }}</legend>
-          @for (p of plans.activePlans(); track p.code) {
-            <label><input type="radio" name="plan" [checked]="code() === p.code" (change)="code.set(p.code)" /> {{ i18n.t(p.name) }}</label>
+          @for (p of activePlans(); track p.code) {
+            <label><input type="radio" name="plan" [checked]="code() === p.code" (change)="code.set(p.code)" /> {{ i18n.t(name(p)) }}</label>
           }
         </fieldset>
         <label class="field">
@@ -61,8 +67,8 @@ const PLAN_ERROR: Record<PlanError, Tr> = {
         }
         <p class="muted small">{{ i18n.t({ th: 'เริ่มใช้วันนี้ · แพ็กเดิมปิดวันนี้และเก็บไว้ในประวัติ', en: 'Starts today · the old plan ends today and stays in the history' }) }}</p>
         <div class="two">
-          <button type="button" class="btn secondary" (click)="editing.set(false)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
-          <button type="button" class="btn" (click)="save()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
+          <button type="button" class="btn secondary" [disabled]="saving()" (click)="editing.set(false)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
+          <button type="button" class="btn" [disabled]="saving()" (click)="save()">{{ i18n.t({ th: saving() ? 'กำลังบันทึก…' : 'บันทึก', en: saving() ? 'Saving…' : 'Save' }) }}</button>
         </div>
       } @else {
         <button type="button" class="btn secondary" (click)="edit()">{{ i18n.t({ th: 'เปลี่ยนแพ็กเกจ', en: 'Change plan' }) }}</button>
@@ -74,7 +80,7 @@ const PLAN_ERROR: Record<PlanError, Tr> = {
           @for (h of history(); track $index) {
             <li>
               <strong>{{ planName(h.plan_code) }}</strong> · {{ date(h.starts_at) }} – {{ h.ends_at ? date(h.ends_at) : i18n.t({ th: 'ปัจจุบัน', en: 'now' }) }}
-              <span class="muted small block">{{ i18n.t({ th: 'โดย ', en: 'by ' }) }}{{ i18n.t(h.by) }}{{ h.note ? ' · ' + h.note : '' }}</span>
+              <span class="muted small block">{{ i18n.t({ th: 'โดย ', en: 'by ' }) }}{{ h.set_by ?? i18n.t({ th: 'ระบบ', en: 'System' }) }}{{ h.note ? ' · ' + h.note : '' }}</span>
             </li>
           }
         </ul>
@@ -121,27 +127,67 @@ const PLAN_ERROR: Record<PlanError, Tr> = {
 })
 export class UserPlan {
   protected readonly i18n = inject(I18n);
-  protected readonly plans = inject(PlanDemo);
+  private readonly api = inject(AdminApi);
   private readonly toast = inject(Toast);
   readonly userId = input.required<string>();
 
-  protected readonly current = computed(() => this.plans.current(this.userId()));
-  protected readonly st = computed(() => PLAN_STATUS[this.plans.status(this.userId())]);
-  protected readonly history = computed(() => this.plans.history(this.userId()));
+  protected readonly plans = signal<AdminPlan[]>([]);
+  protected readonly history = signal<AdminUserPlan[]>([]);
+  protected readonly current = computed(() => {
+    const today = todayInBangkok();
+    return this.history().find((row) => row.starts_at <= today && (row.ends_at === null || today <= row.ends_at));
+  });
+  protected readonly st = computed(() => {
+    const current = this.current();
+    if (!current) return PLAN_STATUS[this.history().length ? 'expired' : 'none'];
+    if (!current.ends_at) return PLAN_STATUS.active;
+    const remaining = (Date.parse(`${current.ends_at}T00:00:00Z`) - Date.parse(`${todayInBangkok()}T00:00:00Z`)) / 86_400_000;
+    return PLAN_STATUS[remaining <= 7 ? 'expiring' : 'active'];
+  });
+  protected readonly activePlans = computed(() => this.plans().filter((plan) => plan.is_active));
   protected readonly editing = signal(false);
   protected readonly code = signal('free');
   protected readonly ends = signal('');
   protected readonly note = signal('');
   protected readonly error = signal<Tr | null>(null);
-  protected readonly tomorrow = computed(() => new Date(Date.parse(this.plans.today()) + 86_400_000).toISOString().slice(0, 10));
+  protected readonly tomorrow = computed(() => {
+    const date = new Date(`${todayInBangkok()}T00:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + 1);
+    return date.toISOString().slice(0, 10);
+  });
+  protected readonly saving = signal(false);
+  private requestSequence = 0;
+
+  constructor() {
+    effect(() => {
+      const id = this.userId();
+      const request = ++this.requestSequence;
+      void this.load(id, request);
+    });
+  }
+
+  private async load(userId: string, request: number): Promise<void> {
+    try {
+      const [plans, history] = await Promise.all([this.api.plans(), this.api.userPlans(userId)]);
+      if (request !== this.requestSequence) return;
+      this.plans.set(plans);
+      this.history.set(history);
+    } catch {
+      if (request === this.requestSequence) this.toast.show({ th: 'โหลดประวัติแพ็กไม่ได้', en: 'Could not load plan history' });
+    }
+  }
 
   protected date(iso: string): string {
     return showDate(iso, this.i18n.lang());
   }
 
   protected planName(code: string): string {
-    const p = this.plans.plan(code);
-    return p ? this.i18n.t(p.name) : code;
+    const plan = this.plans().find((item) => item.code === code);
+    return plan ? this.i18n.t({ th: plan.name_th, en: plan.name_en }) : code;
+  }
+
+  protected name(plan: AdminPlan): Tr {
+    return { th: plan.name_th, en: plan.name_en };
   }
 
   protected edit(): void {
@@ -152,15 +198,28 @@ export class UserPlan {
     this.editing.set(true);
   }
 
-  /** ของจริง: PUT /admin/users/:id/plan { plan_code, ends_at?, note? } */
-  protected save(): void {
-    const e = this.plans.setPlan(this.userId(), true, this.code(), this.ends() || null, this.note(), { th: 'แอดมิน', en: 'Admin' });
-    if (e) {
-      this.error.set(PLAN_ERROR[e]);
+  protected async save(): Promise<void> {
+    const endsAt = this.ends();
+    if (endsAt && endsAt <= todayInBangkok()) {
+      this.error.set(PLAN_ERROR.BAD_END);
       return;
     }
-    this.editing.set(false);
-    this.toast.show({ th: 'เปลี่ยนแพ็กเกจแล้ว', en: 'Plan changed' });
+    this.saving.set(true);
+    this.error.set(null);
+    try {
+      this.history.set(await this.api.setUserPlan(this.userId(), {
+        plan_code: this.code(),
+        ...(endsAt ? { ends_at: endsAt } : {}),
+        ...(this.note().trim() ? { note: this.note().trim() } : {}),
+      }));
+      this.editing.set(false);
+      this.toast.show({ th: 'เปลี่ยนแพ็กเกจแล้ว', en: 'Plan changed' });
+    } catch (err) {
+      const code = apiError(err).code;
+      this.error.set(code === 'NOT_OWNER' ? PLAN_ERROR.NOT_OWNER : code === 'PLAN_INACTIVE' ? PLAN_ERROR.PLAN_INACTIVE : code === 'PLAN_END_MUST_BE_FUTURE' ? PLAN_ERROR.BAD_END : { th: 'เปลี่ยนแพ็กเกจไม่ได้ · ลองโหลดข้อมูลใหม่', en: 'Could not change the plan · reload and try again' });
+    } finally {
+      this.saving.set(false);
+    }
   }
 }
 
@@ -173,13 +232,21 @@ export class UserPlan {
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'แพ็กเกจ', en: 'Plans' })" [back]="url('D01')" />
     <div class="stack">
+      @if (loading()) {
+        <p class="muted">{{ i18n.t({ th: 'กำลังโหลดแพ็กเกจ…', en: 'Loading plans…' }) }}</p>
+      } @else if (loadFailed()) {
+        <section class="card stack" role="alert">
+          <p>{{ i18n.t({ th: 'โหลดแพ็กเกจไม่ได้', en: 'Could not load plans' }) }}</p>
+          <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองใหม่', en: 'Try again' }) }}</button>
+        </section>
+      }
       <div class="list">
-        @for (p of plans.plans(); track p.code) {
+        @for (p of plans(); track p.code) {
           <div class="row plan">
             <span class="grow">
-              <strong>{{ i18n.t(p.name) }}</strong> <span class="muted small">({{ p.code }})</span>
+              <strong>{{ i18n.t(name(p)) }}</strong> <span class="muted small">({{ p.code }})</span>
               <span class="muted small block">
-                {{ plans.ownersCount(p.code) }} {{ i18n.t({ th: 'คนใช้อยู่', en: 'owners' }) }}{{ p.price_note ? ' · ' + i18n.t(p.price_note) : '' }}
+                {{ p.owners_count }} {{ i18n.t({ th: 'คนใช้อยู่', en: 'owners' }) }}{{ p.price_note ? ' · ' + p.price_note : '' }}
               </span>
               <span class="chips">
                 @if (p.is_default) {
@@ -192,10 +259,10 @@ export class UserPlan {
             </span>
             <span class="actions">
               @if (!p.is_default && p.is_active) {
-                <button type="button" class="mini" (click)="setDefault(p.code)">{{ i18n.t({ th: 'ตั้งเป็นเริ่มต้น', en: 'Make default' }) }}</button>
+                <button type="button" class="mini" [disabled]="busy() !== null" (click)="setDefault(p.code)">{{ i18n.t({ th: 'ตั้งเป็นเริ่มต้น', en: 'Make default' }) }}</button>
               }
               @if (!p.is_default) {
-                <button type="button" class="mini" (click)="toggle(p.code, !p.is_active)">
+                <button type="button" class="mini" [disabled]="busy() !== null" (click)="toggle(p.code, !p.is_active)">
                   {{ p.is_active ? i18n.t({ th: 'ปิดให้เลือก', en: 'Stop offering' }) : i18n.t({ th: 'เปิดให้เลือก', en: 'Offer again' }) }}
                 </button>
               }
@@ -226,13 +293,13 @@ export class UserPlan {
             <span>{{ i18n.t({ th: 'ข้อความราคา (แสดงเฉย ๆ ไม่มีการชำระเงิน)', en: 'Price note (display only — no payments)' }) }}</span>
             <input [value]="price()" (input)="price.set($any($event.target).value)" />
           </label>
-          <p class="muted small">{{ i18n.t({ th: 'ช่วงเดโมมีแค่แพ็กฟรี และเปิดทุกฟีเจอร์ — ฟีเจอร์ของแพ็กอื่นค่อยกำหนดตอนเพิ่มจริง', en: 'During the demo there is only Free, with every feature — other plans get their features when they are added' }) }}</p>
+          <p class="muted small">{{ i18n.t({ th: 'ยังไม่มีการชำระเงิน · รายการแพ็กเป็นข้อมูลกำกับและยังไม่เปลี่ยนสิทธิ์ฟีเจอร์ในระบบ', en: 'Payments are not enabled · plan entries are informational and do not change feature access' }) }}</p>
           @if (error(); as e) {
             <p class="danger-text small" role="alert">{{ i18n.t(e) }}</p>
           }
           <div class="two">
-            <button type="button" class="btn secondary" (click)="adding.set(false)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
-            <button type="submit" class="btn">{{ i18n.t({ th: 'เพิ่ม', en: 'Add' }) }}</button>
+            <button type="button" class="btn secondary" [disabled]="busy() !== null" (click)="adding.set(false)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
+            <button type="submit" class="btn" [disabled]="busy() !== null">{{ i18n.t({ th: busy() === 'create' ? 'กำลังบันทึก…' : 'เพิ่ม', en: busy() === 'create' ? 'Saving…' : 'Add' }) }}</button>
           </div>
         </form>
       } @else {
@@ -282,17 +349,41 @@ export class UserPlan {
     }
   `,
 })
-export class AdminPlans {
+export class AdminPlans implements OnInit {
   protected readonly i18n = inject(I18n);
-  protected readonly plans = inject(PlanDemo);
+  private readonly api = inject(AdminApi);
   private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
+  protected readonly plans = signal<AdminPlan[]>([]);
+  protected readonly loading = signal(true);
+  protected readonly loadFailed = signal(false);
+  protected readonly busy = signal<string | null>(null);
   protected readonly adding = signal(false);
   protected readonly code = signal('');
   protected readonly nameTh = signal('');
   protected readonly nameEn = signal('');
   protected readonly price = signal('');
   protected readonly error = signal<Tr | null>(null);
+
+  ngOnInit(): void {
+    void this.load();
+  }
+
+  private async load(): Promise<void> {
+    this.loading.set(true);
+    try {
+      this.plans.set(await this.api.plans());
+      this.loadFailed.set(false);
+    } catch {
+      this.loadFailed.set(true);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  protected name(plan: AdminPlan): Tr {
+    return { th: plan.name_th, en: plan.name_en };
+  }
 
   protected startAdd(): void {
     this.code.set('');
@@ -303,27 +394,46 @@ export class AdminPlans {
     this.adding.set(true);
   }
 
-  /** ของจริง: POST /admin/plans { code, name_th, name_en, price_note? } */
-  protected add(): void {
+  protected async add(): Promise<void> {
     const note = this.price().trim();
-    const e = this.plans.addPlan(this.code(), { th: this.nameTh(), en: this.nameEn() }, note ? { th: note, en: note } : null);
-    if (e) {
-      this.error.set(PLAN_ERROR[e]);
-      return;
+    this.busy.set('create');
+    this.error.set(null);
+    try {
+      await this.api.createPlan({ code: this.code(), name_th: this.nameTh(), name_en: this.nameEn(), ...(note ? { price_note: note } : {}) });
+      this.adding.set(false);
+      await this.load();
+      this.toast.show({ th: 'เพิ่มแพ็กเกจแล้ว', en: 'Plan added' });
+    } catch (err) {
+      const code = apiError(err).code;
+      this.error.set(code === 'PLAN_CODE_TAKEN' ? PLAN_ERROR.CODE_TAKEN : code === 'PLAN_CODE_INVALID' ? PLAN_ERROR.CODE_INVALID : code === 'PLAN_NAME_REQUIRED' ? PLAN_ERROR.NAME_REQUIRED : { th: 'เพิ่มแพ็กเกจไม่ได้ · ตรวจข้อมูลแล้วลองใหม่', en: 'Could not add the plan · check the details and try again' });
+    } finally {
+      this.busy.set(null);
     }
-    this.adding.set(false);
-    this.toast.show({ th: 'เพิ่มแพ็กเกจแล้ว', en: 'Plan added' });
   }
 
-  /** ของจริง: PATCH /admin/plans/:code { is_default: true } */
-  protected setDefault(code: string): void {
-    this.plans.setDefault(code);
-    this.toast.show({ th: 'ตั้งเป็นแพ็กเริ่มต้นแล้ว', en: 'Now the default plan' });
+  protected async setDefault(code: string): Promise<void> {
+    this.busy.set(code);
+    try {
+      await this.api.updatePlan(code, { is_default: true });
+      await this.load();
+      this.toast.show({ th: 'ตั้งเป็นแพ็กเริ่มต้นแล้ว', en: 'Now the default plan' });
+    } catch {
+      this.toast.show({ th: 'ตั้งแพ็กเริ่มต้นไม่ได้', en: 'Could not set the default plan' });
+    } finally {
+      this.busy.set(null);
+    }
   }
 
-  /** ของจริง: PATCH /admin/plans/:code { is_active } */
-  protected toggle(code: string, active: boolean): void {
-    this.plans.setActive(code, active);
-    this.toast.show(active ? { th: 'เปิดให้เลือกแล้ว', en: 'Offered again' } : { th: 'ปิดให้เลือกแล้ว', en: 'No longer offered' });
+  protected async toggle(code: string, active: boolean): Promise<void> {
+    this.busy.set(code);
+    try {
+      await this.api.updatePlan(code, { is_active: active });
+      await this.load();
+      this.toast.show(active ? { th: 'เปิดให้เลือกแล้ว', en: 'Offered again' } : { th: 'ปิดให้เลือกแล้ว', en: 'No longer offered' });
+    } catch {
+      this.toast.show({ th: 'เปลี่ยนสถานะแพ็กไม่ได้', en: 'Could not change the plan status' });
+    } finally {
+      this.busy.set(null);
+    }
   }
 }

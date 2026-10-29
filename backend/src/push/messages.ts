@@ -25,6 +25,9 @@ export const NOTIFICATION_TYPES = [
   'qr_health',
   'box_silent_26h',
   'technician_request',
+  'technician_scheduled',
+  'technician_done',
+  'qr_technician_dispatch',
   'plan_expiring',
   'test',
 ] as const;
@@ -134,6 +137,18 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
   technician_request: {
     th: (d) => ({ title: 'มีคนขอช่าง', body: `ตู้ ${s(d.box_id)} · ${s(d.reason)}` }),
     en: (d) => ({ title: 'Technician requested', body: `Mailbox ${s(d.box_id)} · ${s(d.reason)}` }),
+  },
+  technician_scheduled: {
+    th: (d) => ({ title: 'ช่างนัดหมายแล้ว', body: `ตู้ ${s(d.box_id)} · ${hhmm(d.scheduled_at)}${s(d.note) ? ` · ${s(d.note)}` : ''}` }),
+    en: (d) => ({ title: 'Technician scheduled', body: `Mailbox ${s(d.box_id)} · ${hhmm(d.scheduled_at)}${s(d.note) ? ` · ${s(d.note)}` : ''}` }),
+  },
+  technician_done: {
+    th: (d) => ({ title: 'ช่างดำเนินการแล้ว', body: `ตู้ ${s(d.box_id)}${s(d.note) ? ` · ${s(d.note)}` : ''}` }),
+    en: (d) => ({ title: 'Technician visit completed', body: `Mailbox ${s(d.box_id)}${s(d.note) ? ` · ${s(d.note)}` : ''}` }),
+  },
+  qr_technician_dispatch: {
+    th: (d) => ({ title: '🔧 งาน QR ต้องให้ช่างดำเนินการ', body: `ตู้ ${s(d.box_id)} · ตรวจ/ติด QR ใหม่` }),
+    en: (d) => ({ title: '🔧 QR technician task', body: `Mailbox ${s(d.box_id)} · inspect and replace the QR` }),
   },
   plan_expiring: {
     th: (d) => ({ title: 'แพ็กเกจใกล้หมดอายุ', body: `แพ็กเกจจะหมดอายุใน ${s(d.days)} วัน` }),

@@ -38,6 +38,7 @@ export interface BoxDetailDto extends BoxSummary {
   patrol: { in_window: boolean; windows: [string, string][]; tz: string };
   latest_events: BoxEventDto[];
   open_sos: { id: string; stage: SosStage; status: SosStatus } | null;
+  qr_task: { case_id: string; health: string; requested_at: string } | null;
 }
 
 type ActivateOutcome =
@@ -63,7 +64,7 @@ export class OwnerBoxService {
   async detail(userId: string, boxId: string): Promise<BoxDetailDto> {
     const [box] = await this.summaries(userId, boxId);
     if (!box) throw new NotFoundException();
-    const [row, cfg, coverage, events, openSos] = await Promise.all([
+    const [row, cfg, coverage, events, openSos, qrTask] = await Promise.all([
       this.pool.query<{ battery_pct: number | null; charging: boolean | null; battery_date: Date | null; last_seen_date: Date | null }>(
         `SELECT battery_pct, charging, battery_date, last_seen_date FROM app.box_tb WHERE box_id = $1`,
         [boxId],
@@ -82,6 +83,14 @@ export class OwnerBoxService {
       ),
       this.eventsOf(boxId, 5, 0),
       this.sos.openForBox(boxId),
+      this.pool.query<{ case_id: string; health: string; created_date: Date }>(
+        `SELECT c.qr_issue_case_id::text AS case_id, q.health, c.created_date
+         FROM app.qr_issue_case_tb c
+         JOIN app.box_qr_code_tb q ON q.box_qr_code_id = c.box_qr_code_id
+         WHERE q.box_id = $1 AND c.fix = 'swap' AND c.status = 'owner_notified'
+         ORDER BY c.created_date DESC LIMIT 1`,
+        [boxId],
+      ),
     ]);
     const r = row.rows[0];
     return {
@@ -95,6 +104,9 @@ export class OwnerBoxService {
       patrol: { in_window: minutesIntoWindow(cfg.config.windows, new Date()) !== null, windows: cfg.config.windows, tz: BOX_TZ },
       latest_events: events,
       open_sos: openSos,
+      qr_task: qrTask.rows[0]
+        ? { case_id: qrTask.rows[0].case_id, health: qrTask.rows[0].health, requested_at: qrTask.rows[0].created_date.toISOString() }
+        : null,
     };
   }
 

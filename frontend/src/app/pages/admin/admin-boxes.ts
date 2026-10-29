@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, signal, type OnInit } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ApiConfig } from '../../core/api';
 import { AdminApi, type AdminBoxDetail, type AdminBoxRow, type RegisteredBox } from '../../core/admin-api';
 import { I18n, type Tr } from '../../core/i18n';
@@ -73,7 +73,7 @@ type BoxFilter = 'all' | 'unbound' | 'offline' | 'low';
               <div class="qr-grid">
                 @for (q of b.qr; track q.slot) {
                   <figure>
-                    <app-qr-image [text]="q.url" level="H" [label]="i18n.t(slot(q.slot))" />
+                    <app-qr-image [text]="q.url" level="H" logo="icons/icon-128x128.png" [label]="i18n.t(slot(q.slot))" />
                     <figcaption class="small">{{ i18n.t(slot(q.slot)) }}<br /><strong>{{ q.print_code }}</strong></figcaption>
                   </figure>
                 }
@@ -152,9 +152,16 @@ type BoxFilter = 'all' | 'unbound' | 'offline' | 'low';
     }
     .add {
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: minmax(0, 1fr) auto;
       gap: 10px;
       align-items: end;
+      min-width: 0;
+    }
+    .add > * {
+      min-width: 0;
+    }
+    .add .btn {
+      width: auto;
     }
     .search {
       min-height: 44px;
@@ -177,7 +184,7 @@ type BoxFilter = 'all' | 'unbound' | 'offline' | 'low';
     }
     .qr-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
       gap: 8px;
       figure {
         margin: 0;
@@ -185,6 +192,14 @@ type BoxFilter = 'all' | 'unbound' | 'offline' | 'low';
       }
       app-qr-image {
         background: #fff;
+      }
+    }
+    @media (max-width: 420px) {
+      .add {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .add .btn {
+        width: 100%;
       }
     }
   `,
@@ -289,6 +304,10 @@ export class AdminBoxes implements OnInit {
             <dt>{{ i18n.t({ th: 'เวลาตรวจ', en: 'Patrol hours' }) }}</dt>
             <dd>{{ windows(b) }}</dd>
           </dl>
+          <p class="muted small">{{ i18n.t({ th: 'คืนค่าการตั้งค่าเฉพาะตู้นี้ เช่น เวลารายงาน การอ่าน QR และ long-poll ให้ใช้ค่ากลาง · เวลาตรวจยังมาจากโซน', en: 'Restore this box’s report, QR scan, and long-poll settings to shared defaults · patrol hours still come from its zones' }) }}</p>
+          <button type="button" class="btn secondary" [disabled]="resettingConfig()" (click)="resetConfig()">
+            {{ resettingConfig() ? i18n.t({ th: 'กำลังรีเซ็ต…', en: 'Resetting…' }) : i18n.t({ th: 'คืนค่าการตั้งค่าตู้นี้', en: 'Restore this box’s settings' }) }}
+          </button>
         </section>
 
         <h2 class="section-title">{{ i18n.t({ th: 'ทดสอบปลุกตู้', en: 'Wake test' }) }}</h2>
@@ -344,7 +363,7 @@ export class AdminBoxes implements OnInit {
         <div class="qr-grid">
           @for (q of activeQr(); track q.id) {
             <figure class="card">
-              <app-qr-image [text]="q.url" level="H" [label]="i18n.t(slot(q.slot))" />
+              <app-qr-image [text]="q.url" level="H" logo="icons/icon-128x128.png" [label]="i18n.t(slot(q.slot))" />
               <figcaption class="small">
                 <strong>{{ i18n.t(slot(q.slot)) }}</strong> v{{ q.version }}<br />
                 {{ q.print_code }}
@@ -397,6 +416,12 @@ export class AdminBoxes implements OnInit {
           </div>
         }
         <a class="btn secondary" [routerLink]="url('T01')" [queryParams]="{ id: b.id }">{{ i18n.t({ th: 'เปิดเช็กลิสต์ติดตั้ง (ช่าง)', en: 'Open install checklist' }) }}</a>
+        @if (b.can_delete) {
+          <section class="card stack delete-box">
+            <p class="small">{{ i18n.t({ th: 'ตู้นี้ยังไม่เปิดใช้และไม่มีประวัติการทำงาน', en: 'This box is unused and has no activity history' }) }}</p>
+            <button type="button" class="btn danger" (click)="deleteUnusedBox()">{{ i18n.t({ th: 'ลบตู้นี้', en: 'Delete this box' }) }}</button>
+          </section>
+        }
       </div>
     } @else {
       <p class="muted">{{ notFound() ? i18n.t({ th: 'ไม่พบตู้นี้', en: 'Mailbox not found' }) : i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
@@ -412,8 +437,12 @@ export class AdminBoxes implements OnInit {
     }
     .qr-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
       gap: 8px;
+      min-width: 0;
+      > * {
+        min-width: 0;
+      }
       figure {
         margin: 0;
         padding: 8px;
@@ -439,6 +468,7 @@ export class AdminBoxes implements OnInit {
 })
 export class AdminBox implements OnInit {
   protected readonly i18n = inject(I18n);
+  private readonly router = inject(Router);
   private readonly api = inject(AdminApi);
   private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
@@ -449,6 +479,7 @@ export class AdminBox implements OnInit {
   protected readonly box = signal<AdminBoxDetail | null>(null);
   protected readonly notFound = signal(false);
   protected readonly secret = signal<string | null>(null);
+  protected readonly resettingConfig = signal(false);
   protected readonly activeQr = computed(() => (this.box()?.qr ?? []).filter((q) => q.status === 'active' || q.slot === 'activate'));
   /** URL ที่ตู้ใช้ = origin + apiBase ของเว็บนี้ (ไม่ฮาร์ดโค้ดโดเมน) */
   protected readonly apiUrl = location.origin + inject(ApiConfig).apiBase();
@@ -503,5 +534,46 @@ export class AdminBox implements OnInit {
 
   protected print(): void {
     window.print();
+  }
+
+  protected async deleteUnusedBox(): Promise<void> {
+    const id = this.id();
+    if (!id || !this.box()?.can_delete) return;
+    const confirmed = window.confirm(this.i18n.t({
+      th: `ยืนยันลบตู้ ${id}? QR และข้อมูลตู้ที่ยังไม่เปิดใช้จะถูกลบถาวร`,
+      en: `Delete box ${id}? Its unused QR codes and box record will be permanently removed.`,
+    }));
+    if (!confirmed) return;
+    try {
+      await this.api.deleteBox(id);
+      this.toast.show({ th: 'ลบตู้แล้ว', en: 'Box deleted' });
+      await this.router.navigateByUrl(this.url('D03'));
+    } catch {
+      this.toast.show({ th: 'ลบไม่ได้ · ตู้อาจถูกเปิดใช้หรือมีประวัติแล้ว', en: 'Could not delete · the box may be activated or have activity' });
+      await this.reload();
+    }
+  }
+
+  protected async resetConfig(): Promise<void> {
+    const id = this.id();
+    if (!id || this.resettingConfig()) return;
+    const confirmed = window.confirm(this.i18n.t({
+      th: `คืนค่าการตั้งค่าการทำงานของ ${id} ให้ใช้ค่ากลางใช่ไหม? เวลาตรวจยังมาจากโซน และระบบจะเก็บ Wi-Fi, รหัสบอร์ด, เจ้าของ, QR และประวัติไว้`,
+      en: `Restore ${id} to shared settings? Patrol hours stay with its zones. Wi-Fi, board credentials, ownership, QR codes, and history are kept.`,
+    }));
+    if (!confirmed) return;
+    this.resettingConfig.set(true);
+    try {
+      const result = await this.api.resetBoxConfig(id);
+      await this.reload();
+      const synced = this.box()?.config.config_ver === result.config_ver && this.box()?.config.in_sync;
+      this.toast.show(synced
+        ? { th: 'คืนค่าแล้ว · บอร์ดรับค่ากลางแล้ว', en: 'Restored · the board has applied shared settings' }
+        : { th: 'คืนค่าแล้ว · รอบอร์ด sync เมื่อเชื่อมต่อครั้งถัดไป', en: 'Restored · waiting for the board to sync on its next connection' });
+    } catch {
+      this.toast.show({ th: 'รีเซ็ตไม่ได้ · ลองโหลดข้อมูลตู้ใหม่', en: 'Could not reset · reload the box and try again' });
+    } finally {
+      this.resettingConfig.set(false);
+    }
   }
 }
