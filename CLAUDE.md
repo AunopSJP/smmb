@@ -2,6 +2,7 @@
 
 > ไฟล์เริ่มต้นสำหรับ Claude Code · สรุป ณ 2026-10-28 · ตอบผู้ใช้เป็น**ภาษาไทย**
 > อ่านคู่กับ `docs/` ในลำดับนี้: `HANDOFF.md` → `smmb-design.md` → `api.md` → `SMMB_โปรโตคอลตู้-เซิร์ฟเวอร์.md` → `SMMB_ขั้นตอนการใช้งานแต่ละคน.md`
+> ติดตั้ง server จริง (Ubuntu ไม่มีจอ · Postgres+Redis เป็น container · systemd + nginx): `docs/DEPLOY_UBUNTU.md` + ชุดไฟล์ `deploy/` · env `API_PATH_PREFIX=/smmb-api` ตัด prefix เองแต่ originalUrl ยังเต็ม (ตู้เซ็นจาก path เต็ม · nginx ห้ามตัด path)
 > คู่มือให้ทีมเฟิร์มแวร์ ESP32-CAM: `docs/HARDWARE_FIRMWARE_GUIDE.md` (แก้โปรโตคอลตู้ → แก้ไฟล์นี้ด้วย)
 > ถ้าไฟล์เหล่านั้นขัดกับไฟล์นี้ ให้ถามผู้ใช้ — อย่าเดา
 

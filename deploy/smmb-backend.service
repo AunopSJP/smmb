@@ -1,0 +1,23 @@
+# /etc/systemd/system/smmb-backend.service
+[Unit]
+Description=SMMB backend (NestJS)
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=smmb
+WorkingDirectory=/opt/smmb/backend
+EnvironmentFile=/opt/smmb/backend/.env
+ExecStart=/usr/bin/node dist/main.js
+Restart=always
+RestartSec=3
+# รันได้ "ตัวเดียว" เท่านั้น — JobHub (ปลุกตู้) อยู่ในหน่วยความจำ
+# KillMode ใช้ค่าเริ่มต้น (control-group) อย่าตั้ง process
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

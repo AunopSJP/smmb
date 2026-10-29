@@ -23,6 +23,12 @@ export interface Env {
   QR_SIGNING_KEY: string;
   /** โหมด mock เท่านั้น: เจ้าหน้าที่ใช้งานได้โดยยังไม่เปิดแจ้งเตือน (ทดสอบบนมือถือที่ยังลงเว็บแอปไม่ได้) · production ห้ามตั้ง */
   SKIP_PUSH_REQUIRED: boolean;
+  /**
+   * prefix ของ path ที่ reverse proxy ส่งมาแบบ "ไม่ตัด" เช่น /smmb-api (ว่าง = ไม่มี prefix)
+   * ตู้เซ็นลายเซ็นจาก path เต็ม (/smmb-api/v1/box/...) — backend ตัด prefix เองตอนจับคู่ route แต่ originalUrl ยังเต็ม
+   * จึงตรวจลายเซ็นได้ · nginx ห้าม rewrite/ตัด path (CODEX_SERVER_SETUP 9.4)
+   */
+  API_PATH_PREFIX: string;
 }
 
 const NODE_ENVS = ['development', 'test', 'production'] as const;
@@ -81,7 +87,9 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     BOX_MASTER_KEY: secret('BOX_MASTER_KEY'),
     QR_SIGNING_KEY: secret('QR_SIGNING_KEY'),
     SKIP_PUSH_REQUIRED: str('SKIP_PUSH_REQUIRED', '') === '1',
+    API_PATH_PREFIX: str('API_PATH_PREFIX', '').replace(/\/+$/, ''),
   };
+  if (env.API_PATH_PREFIX && !/^\/[A-Za-z0-9._~-]+(\/[A-Za-z0-9._~-]+)*$/.test(env.API_PATH_PREFIX)) errors.push('API_PATH_PREFIX must look like /smmb-api');
   if (env.SKIP_PUSH_REQUIRED && env.NODE_ENV === 'production') errors.push('SKIP_PUSH_REQUIRED is not allowed in production');
   if (env.BOX_MASTER_KEY && env.BOX_MASTER_KEY === env.QR_SIGNING_KEY) errors.push('BOX_MASTER_KEY and QR_SIGNING_KEY must differ');
 

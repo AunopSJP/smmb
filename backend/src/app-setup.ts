@@ -5,6 +5,19 @@ import cookieParser from 'cookie-parser';
 import express from 'express';
 import type { Env } from './config/env.js';
 
+/**
+ * ตัด prefix (เช่น /smmb-api) ออกจาก req.url ตอนจับคู่ route — req.originalUrl ยังเป็น path เต็ม
+ * ลายเซ็นของตู้เซ็นจาก originalUrl จึงยังตรง · ไม่ตั้ง prefix = ไม่ทำอะไร
+ */
+export function stripPathPrefix(prefix: string) {
+  return (req: express.Request, _res: express.Response, next: express.NextFunction): void => {
+    if (prefix && (req.url === prefix || req.url.startsWith(prefix + '/') || req.url.startsWith(prefix + '?'))) {
+      req.url = req.url.slice(prefix.length) || '/';
+    }
+    next();
+  };
+}
+
 /** ตั้งค่าที่ใช้ทั้งตอนรันจริงและตอนเทสต์ — แก้ที่เดียว */
 export function configureApp(app: NestExpressApplication): void {
   const config = app.get<ConfigService<Env, true>>(ConfigService);
@@ -13,6 +26,8 @@ export function configureApp(app: NestExpressApplication): void {
   const trustProxy = config.get('TRUST_PROXY', { infer: true });
   if (trustProxy !== false) app.set('trust proxy', trustProxy);
   app.disable('x-powered-by');
+  const prefix = config.get('API_PATH_PREFIX', { infer: true });
+  if (prefix) app.use(stripPathPrefix(prefix)); // ต้องอยู่ก่อน express.raw ของ /v1/box
 
   app.use(cookieParser());
   // API ของตู้: อ่าน body เป็นไบต์ดิบ (ต้องเซ็นจากไบต์ที่ตู้ส่งจริง) — BoxAuthGuard ตรวจลายเซ็นแล้วค่อยแปลงเป็น JSON
