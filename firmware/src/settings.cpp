@@ -80,6 +80,35 @@ void settingsForgetWifi() {
   settingsSave();
 }
 
+void settingsStashWifi() {
+  prefs.begin("smmb", false);
+  prefs.putString("ssid_prev", settings.wifiSsid);
+  prefs.putString("pass_prev", settings.wifiPass);
+  prefs.end();
+  settingsForgetWifi();
+}
+
+bool settingsRestoreWifi() {
+  prefs.begin("smmb", false);
+  const String ssid = prefs.getString("ssid_prev", "");
+  const String pass = prefs.getString("pass_prev", "");
+  prefs.remove("ssid_prev");
+  prefs.remove("pass_prev");
+  prefs.end();
+  if (!ssid.length()) return false;
+  settings.wifiSsid = ssid;
+  settings.wifiPass = pass;
+  settingsSave();
+  return true;
+}
+
+void settingsClearStashedWifi() {
+  prefs.begin("smmb", false);
+  prefs.remove("ssid_prev");
+  prefs.remove("pass_prev");
+  prefs.end();
+}
+
 bool configApplyJson(const String& json, uint32_t ver) {
   BoxConfig c;
   if (!parseConfig(json, c)) return false;

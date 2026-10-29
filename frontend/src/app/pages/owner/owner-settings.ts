@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { OwnerApi, type BoxDetail, type TechnicianRequest } from '../../core/owner-api';
@@ -182,45 +182,91 @@ export class OwnerSettings {
   ];
 }
 
-// ── H13-b · เปลี่ยน Wi-Fi บ้าน ─────────────────────────────────
+// ── H13-b · เปลี่ยน Wi-Fi บ้าน (สั่งจากเว็บ → ตู้ตัด Wi-Fi เดิมแล้วกลับเข้าโหมดตั้งค่า) ─────────────
 
 @Component({
   selector: 'app-owner-wifi',
-  imports: [RouterLink, PageHeader, Icon],
+  imports: [RouterLink, PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'ตั้งค่า', en: 'Settings' })" [title]="i18n.t({ th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' })" [back]="url('H13')" />
     <div class="stack grow">
-      <ol class="card steps">
-        @for (s of steps; track $index; let i = $index) {
-          <li [class.done]="i < step()" [class.now]="i === step()">
-            <button type="button" class="num" (click)="step.set(i)" [attr.aria-label]="i18n.t({ th: 'ขั้นที่ ', en: 'Step ' }) + (i + 1)">
-              @if (i < step()) {
-                <app-icon name="check" [size]="16" />
-              } @else {
-                {{ i + 1 }}
-              }
-            </button>
-            <span>
-              <strong>{{ i18n.t(s.title) }}</strong>
-              <small>{{ i18n.t(s.sub) }}</small>
-            </span>
-          </li>
+      @if (!loaded()) {
+        <p class="muted">{{ i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
+      } @else if (!box()) {
+        <div class="card">{{ i18n.t({ th: 'ยังไม่มีตู้ที่ผูกกับบัญชีนี้', en: 'No mailbox is linked to this account yet' }) }}</div>
+      } @else {
+        @let w = box()!.wifi_reset;
+        @if (w.status === 'pending') {
+          <div class="card status">
+            <strong>{{ i18n.t({ th: 'รอตู้รับคำสั่ง…', en: 'Waiting for the mailbox…' }) }}</strong>
+            <small>{{ i18n.t({ th: 'ตู้ที่ออนไลน์จะรับคำสั่งภายในไม่กี่วินาที ถ้าตู้หลับอยู่จะรับตอนตื่นรอบถัดไป (สูงสุด 24 ชม.)', en: 'An online mailbox picks this up within seconds. A sleeping one gets it when it next wakes (up to 24 h).' }) }}</small>
+          </div>
+        } @else if (w.status === 'done') {
+          <div class="card status ok">
+            <strong>{{ i18n.t({ th: 'ตู้เข้าโหมดตั้ง Wi-Fi แล้ว', en: 'The mailbox is in setup mode' }) }}</strong>
+          </div>
+        } @else if (w.status === 'expired') {
+          <div class="card status warn">
+            <strong>{{ i18n.t({ th: 'ตู้ไม่ได้รับคำสั่ง (เกิน 24 ชม.)', en: 'The mailbox never received the command (over 24 h)' }) }}</strong>
+            <small>{{ i18n.t({ th: 'ตรวจว่าตู้เปิดอยู่และมีสัญญาณ แล้วสั่งใหม่ หรือแจ้งช่าง', en: 'Check it is powered and has signal, then try again — or ask a technician.' }) }}</small>
+          </div>
         }
-      </ol>
-      <div class="actions">
-        @if (step() < steps.length - 1) {
-          <button type="button" class="btn" (click)="step.set(step() + 1)">{{ i18n.t({ th: 'ทำขั้นนี้แล้ว', en: 'Done with this step' }) }}</button>
+
+        @if (w.status === 'pending' || w.status === 'done') {
+          <ol class="card steps">
+            @for (s of steps(w.ap_name); track $index; let i = $index) {
+              <li class="now">
+                <span class="num">{{ i + 1 }}</span>
+                <span>
+                  <strong>{{ i18n.t(s.title) }}</strong>
+                  <small>{{ i18n.t(s.sub) }}</small>
+                </span>
+              </li>
+            }
+          </ol>
         } @else {
-          <a class="btn" [routerLink]="url('H13')">{{ i18n.t({ th: 'เสร็จแล้ว', en: 'Finished' }) }}</a>
+          <div class="card">
+            <p>{{ i18n.t({ th: 'กดปุ่มด้านล่าง ตู้จะตัดการเชื่อมต่อ Wi-Fi เดิมแล้วปล่อย Wi-Fi ของตัวเองให้ตั้งค่าใหม่ — ไม่ต้องเปิดตู้หรือกดปุ่มที่ตัวตู้', en: 'Press the button below. The mailbox drops its current Wi-Fi and opens its own Wi-Fi so you can set a new one — no need to open the box or press anything on it.' }) }}</p>
+            <p class="muted">{{ i18n.t({ th: 'ระหว่างนี้ตู้จะออฟไลน์ (ตรวจตู้/ส่งของไม่ได้) ถ้าไม่ตั้ง Wi-Fi ใหม่ใน 10 นาที ตู้จะกลับไปใช้ Wi-Fi เดิมเอง', en: 'The mailbox is offline meanwhile (no patrol checks or deliveries). If no new Wi-Fi is set within 10 minutes it goes back to the old one.' }) }}</p>
+          </div>
         }
-        <a class="btn secondary" [routerLink]="url('H13-c')">{{ i18n.t({ th: 'แจ้งช่างแทน', en: 'Ask a technician instead' }) }}</a>
-      </div>
+
+        <div class="actions">
+          @if (w.status === 'pending') {
+            <button type="button" class="btn secondary" [disabled]="busy()" (click)="cancel()">{{ i18n.t({ th: 'ยกเลิกคำสั่ง', en: 'Cancel' }) }}</button>
+          } @else if (confirming()) {
+            <p class="muted">{{ i18n.t({ th: 'ยืนยัน? ตู้จะออฟไลน์ทันทีที่รับคำสั่ง', en: 'Sure? The mailbox goes offline as soon as it gets this.' }) }}</p>
+            <button type="button" class="btn" [disabled]="busy()" (click)="request()">{{ i18n.t({ th: 'ยืนยัน เปลี่ยน Wi-Fi', en: 'Yes, change Wi-Fi' }) }}</button>
+            <button type="button" class="btn secondary" (click)="confirming.set(false)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
+          } @else {
+            <button type="button" class="btn" (click)="confirming.set(true)">{{ i18n.t({ th: 'เปลี่ยน Wi-Fi ตอนนี้', en: 'Change Wi-Fi now' }) }}</button>
+          }
+          <a class="btn secondary" [routerLink]="url('H13-c')">{{ i18n.t({ th: 'แจ้งช่างแทน', en: 'Ask a technician instead' }) }}</a>
+        </div>
+      }
     </div>
   `,
   styles: `
     .grow {
       flex: 1;
+    }
+    .muted {
+      color: var(--text-muted);
+    }
+    .status {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      small {
+        color: var(--text-muted);
+      }
+      &.ok {
+        border-color: var(--ok);
+      }
+      &.warn {
+        border-color: var(--brand);
+      }
     }
     .steps {
       list-style: none;
@@ -232,11 +278,6 @@ export class OwnerSettings {
         display: flex;
         gap: 12px;
         align-items: flex-start;
-        color: var(--text-muted);
-      }
-      li.now,
-      li.done {
-        color: var(--text);
       }
       strong,
       small {
@@ -252,25 +293,11 @@ export class OwnerSettings {
       flex: none;
       width: 28px;
       height: 28px;
-      padding: 0;
       border-radius: 50%;
-      border: 1.5px solid currentColor;
-      background: none;
-      color: inherit;
-      font: inherit;
+      background: var(--brand);
+      color: #fff;
       font-size: 0.8125rem;
       font-weight: 700;
-      cursor: pointer;
-    }
-    li.now .num {
-      background: var(--brand);
-      border-color: var(--brand);
-      color: #fff;
-    }
-    li.done .num {
-      background: var(--ok);
-      border-color: var(--ok);
-      color: #fff;
     }
     .actions {
       margin-top: auto;
@@ -283,14 +310,83 @@ export class OwnerSettings {
 export class OwnerWifi {
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
-  protected readonly step = signal(0);
-  protected readonly steps: { title: Tr; sub: Tr }[] = [
-    { title: { th: 'เปิดฝาตู้', en: 'Open the box lid' }, sub: { th: 'ปุ่ม Boot อยู่บนบอร์ด', en: 'The Boot button is on the board' } },
-    { title: { th: 'กดปุ่ม Boot ค้าง 5 วินาที', en: 'Hold Boot for 5 seconds' }, sub: { th: 'ไฟฟ้ากะพริบ = เข้าโหมดตั้งค่า', en: 'Blue light blinks = setup mode' } },
-    { title: { th: 'มือถือต่อ Wi-Fi ชื่อ MAILBOX-3F9A', en: 'Join Wi-Fi “MAILBOX-3F9A”' }, sub: { th: 'หน้าตั้งค่าจะเด้งขึ้นมา', en: 'The setup page will pop up' } },
-    { title: { th: 'เลือก Wi-Fi บ้าน (2.4 GHz) + ใส่รหัส', en: 'Pick home Wi-Fi (2.4 GHz) + password' }, sub: { th: 'ไม่เด้ง: เปิดเว็บ 192.168.4.1', en: 'No pop-up? Open 192.168.4.1' } },
-    { title: { th: 'ดูไฟที่ตู้', en: 'Check the box light' }, sub: { th: 'เขียว = เสร็จ · แดง = ลองขั้น 4 ใหม่', en: 'Green = done · red = retry step 4' } },
-  ];
+  private readonly api = inject(OwnerApi);
+  private readonly route = inject(ActivatedRoute);
+  private readonly toast = inject(Toast);
+  protected readonly box = signal<BoxDetail | null>(null);
+  protected readonly loaded = signal(false);
+  protected readonly confirming = signal(false);
+  protected readonly busy = signal(false);
+  private timer: ReturnType<typeof setInterval> | null = null;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.stopPolling());
+    void this.load();
+  }
+
+  private async load(): Promise<void> {
+    const boxes = await this.api.boxes().catch(() => []);
+    const wanted = this.route.snapshot.queryParamMap.get('box');
+    const id = boxes.find((b) => b.id === wanted)?.id ?? boxes[0]?.id;
+    if (id) await this.refresh(id);
+    this.loaded.set(true);
+  }
+
+  private async refresh(id: string): Promise<void> {
+    const detail = await this.api.box(id).catch(() => null);
+    if (detail) this.box.set(detail);
+    // รอตู้รับคำสั่ง/เปลี่ยนสถานะ → ถามซ้ำทุก 3 วิ จนไม่ใช่ pending
+    if (detail?.wifi_reset.status === 'pending') this.startPolling(id);
+    else this.stopPolling();
+  }
+
+  private startPolling(id: string): void {
+    if (this.timer) return;
+    this.timer = setInterval(() => void this.refresh(id), 3000);
+  }
+
+  private stopPolling(): void {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+  }
+
+  protected steps(apName: string): { title: Tr; sub: Tr }[] {
+    return [
+      { title: { th: 'ตู้ตัด Wi-Fi เดิมแล้ว', en: 'The mailbox dropped the old Wi-Fi' }, sub: { th: 'จะได้ยินเสียงปี๊บสั้น ๆ 3 ครั้ง', en: 'You will hear three short beeps' } },
+      { title: { th: `มือถือต่อ Wi-Fi ชื่อ ${apName}`, en: `Join Wi-Fi “${apName}”` }, sub: { th: 'อยู่ใกล้ตู้ · ไม่มีรหัสผ่าน', en: 'Stay near the box · no password' } },
+      { title: { th: 'เปิดเว็บ 192.168.4.1', en: 'Open 192.168.4.1' }, sub: { th: 'ถ้าหน้าตั้งค่าไม่เด้งขึ้นเอง', en: 'If the setup page does not pop up' } },
+      { title: { th: 'เลือก Wi-Fi บ้าน (2.4 GHz) + ใส่รหัส', en: 'Pick home Wi-Fi (2.4 GHz) + password' }, sub: { th: 'ต้องทำภายใน 10 นาที ไม่งั้นตู้กลับไปใช้ Wi-Fi เดิม', en: 'Within 10 minutes, or it returns to the old Wi-Fi' } },
+    ];
+  }
+
+  protected async request(): Promise<void> {
+    const b = this.box();
+    if (!b || this.busy()) return;
+    this.busy.set(true);
+    try {
+      await this.api.requestWifiReset(b.id);
+      this.confirming.set(false);
+      await this.refresh(b.id);
+    } catch {
+      this.toast.show({ th: 'สั่งไม่สำเร็จ ลองใหม่อีกครั้ง', en: 'Could not send the command — try again' });
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async cancel(): Promise<void> {
+    const b = this.box();
+    if (!b || this.busy()) return;
+    this.busy.set(true);
+    try {
+      await this.api.cancelWifiReset(b.id);
+      await this.refresh(b.id);
+    } catch {
+      this.toast.show({ th: 'ยกเลิกไม่สำเร็จ', en: 'Could not cancel' });
+    } finally {
+      this.busy.set(false);
+    }
+  }
 }
 
 // ── H13-c · แจ้งช่างแล้ว ──────────────────────────────────────

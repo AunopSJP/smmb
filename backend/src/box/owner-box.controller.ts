@@ -1,8 +1,9 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Ip, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Ip, Param, Patch, Post, Query } from '@nestjs/common';
 import { Transform, Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, MaxLength, Min } from 'class-validator';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
+import { RateLimit } from '../rate-limit/rate-limit.guard.js';
 import { OwnerBoxService } from './owner-box.service.js';
 import { QrIssueService } from './qr-issue.service.js';
 import { TechnicianRequestService, type TechnicianRequestReason } from './technician-request.service.js';
@@ -70,6 +71,20 @@ export class OwnerBoxController {
   @Patch(':box_id')
   rename(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Body() body: RenameBoxDto) {
     return this.boxes.rename(auth.userId, p.box_id, body.name);
+  }
+
+  /** เจ้าของกด "เปลี่ยน Wi-Fi" → ตู้รับคำสั่งแล้วตัด Wi-Fi เก่า กลับโหมดปล่อย Wi-Fi (api.md §4.4) */
+  @RateLimit({ limit: 5, windowSec: 60 })
+  @Post(':box_id/wifi-reset')
+  @HttpCode(HttpStatus.OK)
+  requestWifiReset(@Auth() auth: AuthContext, @Param() p: BoxIdParam) {
+    return this.boxes.requestWifiReset(auth.userId, p.box_id);
+  }
+
+  @RateLimit({ limit: 10, windowSec: 60 })
+  @Delete(':box_id/wifi-reset')
+  cancelWifiReset(@Auth() auth: AuthContext, @Param() p: BoxIdParam) {
+    return this.boxes.cancelWifiReset(auth.userId, p.box_id);
   }
 
   @Post(':box_id/technician-requests')

@@ -29,6 +29,7 @@ export const NOTIFICATION_TYPES = [
   'technician_done',
   'qr_technician_dispatch',
   'plan_expiring',
+  'box_wifi_reset',
   'test',
 ] as const;
 
@@ -133,6 +134,16 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
   box_silent_26h: {
     th: (d) => ({ title: 'ตู้ไม่รายงาน', body: `ตู้ ${s(d.box_id)} ไม่รายงานเกิน 26 ชม.` }),
     en: (d) => ({ title: 'Mailbox silent', body: `Mailbox ${s(d.box_id)} has not reported for 26 hours` }),
+  },
+  box_wifi_reset: {
+    th: (d) => ({
+      title: '📶 ตู้กำลังเข้าโหมดตั้ง Wi-Fi ใหม่',
+      body: `ต่อมือถือกับ Wi-Fi ชื่อ ${s(d.ap_name)} แล้วเปิด 192.168.4.1 ภายใน 10 นาที (ไม่ตั้งใหม่ ตู้จะกลับไปใช้ Wi-Fi เดิม)`,
+    }),
+    en: (d) => ({
+      title: '📶 Mailbox is ready for new Wi-Fi',
+      body: `Join the Wi-Fi named ${s(d.ap_name)} and open 192.168.4.1 within 10 minutes (otherwise it goes back to the old Wi-Fi)`,
+    }),
   },
   technician_request: {
     th: (d) => ({ title: 'มีคนขอช่าง', body: `ตู้ ${s(d.box_id)} · ${s(d.reason)}` }),

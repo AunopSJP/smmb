@@ -40,6 +40,13 @@ void beepFail() {
   tone(LONG_MS);
   tone(LONG_MS);
 }
+void beepWifiReset() {
+  Serial.println("[beep] short x3 (wifi reset)");
+  tone(SHORT_MS);
+  tone(SHORT_MS);
+  tone(SHORT_MS);
+}
+
 void beepError() {
   Serial.println("[beep] long + short x2 (error)");
   tone(LONG_MS);

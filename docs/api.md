@@ -329,7 +329,12 @@ interface BoxEvent {
 | POST | `/boxes/:box_id/technician-requests` | `owner` | `{ reason: "wifi_change" \| "repair" \| "other", note? }` | 201 → `H13-c` แสดงสถานะคำขอ · 409 ถ้ามีคำขอที่ยังไม่ปิด |
 | GET | `/boxes/:box_id/technician-requests` | `owner` | — | คำขอของตู้นี้ (สถานะ `open` / `scheduled` / `done`) |
 
-- ✅ เปลี่ยน Wi-Fi: แจ้งช่างผ่านแอป หรือทำเองด้วยปุ่ม Boot บนบอร์ดค้าง 5 วิ (`H13-b` เป็นหน้าแนะนำ ไม่มี API)
+| POST | `/boxes/:box_id/wifi-reset` | `owner` | — | 200 `WifiReset` — สั่งตู้ตัด Wi-Fi เดิมแล้วกลับโหมดตั้งค่า (ปล่อย `MAILBOX-xxxxxx`) · ตู้รับตอน long-poll/boot/report · ซ้ำตอนมีคำสั่งค้าง = คงเวลาเดิม · rate limit 5/นาที · ไม่ใช่ตู้ของตัวเอง → 404 |
+| DELETE | `/boxes/:box_id/wifi-reset` | `owner` | — | 200 `WifiReset` — ยกเลิกคำสั่งที่ตู้ยังไม่รับ |
+
+- `WifiReset` = `{ status: "idle" \| "pending" \| "done" \| "expired", requested_at, done_at, ap_name }` · อยู่ใน `GET /boxes/:box_id` เป็น `wifi_reset` ด้วย · `done` แสดง 30 นาทีหลังตู้ ack · `expired` = ค้างเกิน 24 ชม.
+- ตู้ ack ด้วย event `wifi_reset` (โปรโตคอล §2.6) → แจ้งเตือน `box_wifi_reset` ถึงเจ้าของ (link `/home/settings/wifi`) · ตู้ที่ตั้ง Wi-Fi ใหม่ไม่ทันใน 10 นาทีจะกลับไปใช้ Wi-Fi เดิมเอง
+- ✅ เปลี่ยน Wi-Fi: เจ้าของกดเองในเว็บ (`H13-b`) หรือแจ้งช่างผ่านแอป
 - ✅ ช่วงทดลอง**ช่างเป็นคนตั้ง Wi-Fi**
 
 ### 4.5 แพ็กเกจของเจ้าของบ้าน (เพิ่ม 2026-10-27 — design §17)
@@ -827,7 +832,7 @@ X-Signature:  hex(HMAC-SHA256(device_secret, METHOD|PATH|TIMESTAMP|NONCE|SHA256(
 | 13.3 | ในเวลาตรวจ (long-poll) | `GET /v1/box/jobs?wait=50&config_ver=...` | มีงาน → `{ server_time, config_ver, job }` · `config_ver` ไม่ตรง → `{ server_time, config_ver, config }` ทันที (หรือหลัง long-poll ถูกปลุก) · ครบเวลาไม่มีงาน/ค่าเปลี่ยน → **204** |
 | 13.4 | เปิดไฟ + กล้องแล้ว | `POST /v1/box/jobs/{job_id}/ready` `{ light, flash }` | 200 → `Inspection.status = ready` · 410 job หมดอายุ |
 | 13.5 | อ่าน QR ประจำตัวได้/ไม่ได้ (ทุกครั้งที่ลอง) | `POST /v1/box/jobs/{job_id}/result` `{ attempt, read_ok, qr_text, read_ms, flash }` | `{ status: "pass" }` · `{ status: "retry", attempts_left }` · `{ status: "fail" }` → ไฟ เขียว/กะพริบ/แดง |
-| 13.6 | เหตุการณ์อื่น | `POST /v1/box/events` `{ type: "wifi_reset_button" \| "battery_critical" \| "camera_error" }` | 200 (ส่งครั้งเดียว ไม่ได้ก็ไม่เป็นไร) |
+| 13.6 | เหตุการณ์อื่น | `POST /v1/box/events` `{ type: "wifi_reset" \| "battery_critical" \| "camera_error" }` | 200 (ส่งครั้งเดียว ไม่ได้ก็ไม่เป็นไร) |
 | 13.6a | สถานะกล้องระหว่างงานทดสอบ | `POST /v1/box/events` `camera_test_started` · `camera_ready` · `camera_scan_result` | HMAC · เก็บในรายงานตู้ · ส่งเฉพาะงาน `test` · ไม่ส่งภาพ · ดูที่แอดมิน D04 |
 | ~~13.7~~ | ❌ **ตัดออก 2026-10-28 — ตู้ไม่มีปุ่มหน้าตู้** · ~~ไรเดอร์กดปุ่มหน้าตู้~~ | `POST /v1/box/deliveries` `{ pressed_at, press_count, battery_pct }` | `{ server_time, status: "ok" \| "limited" \| "service_closed" }` → ไฟ เขียว / ส้มกะพริบ 💡 / แดง |
 

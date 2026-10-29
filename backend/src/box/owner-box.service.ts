@@ -10,6 +10,8 @@ import type { BoxStatus } from './box-config.js';
 import { BoxConfigService } from './box-config.service.js';
 import { BOX_TZ, minutesIntoWindow } from './box-config.js';
 import { SosService, type SosStage, type SosStatus } from '../sos/sos.service.js';
+import { JobHub } from './job-hub.js';
+import { setupApName, WIFI_RESET_TTL_H } from './box-protocol.service.js';
 
 /** api.md §4.2 `BoxSummary` */
 export interface BoxSummary {
@@ -39,7 +41,23 @@ export interface BoxDetailDto extends BoxSummary {
   latest_events: BoxEventDto[];
   open_sos: { id: string; stage: SosStage; status: SosStatus } | null;
   qr_task: { case_id: string; health: string; requested_at: string } | null;
+  wifi_reset: WifiResetDto;
 }
+
+/**
+ * เจ้าของกด "เปลี่ยน Wi-Fi" (api.md §4.4) — idle ไม่มีคำสั่ง · pending รอตู้รับ (ตู้ต้องออนไลน์หรือตื่นมารายงาน) ·
+ * done ตู้ตอบรับแล้ว กำลังรอตั้ง Wi-Fi ใหม่ (แสดง 30 นาที) · expired ค้างเกิน 24 ชม. ตู้ไม่ตอบ
+ */
+export interface WifiResetDto {
+  status: 'idle' | 'pending' | 'done' | 'expired';
+  requested_at: string | null;
+  done_at: string | null;
+  /** ชื่อ Wi-Fi ที่ตู้จะปล่อย (ให้เจ้าของต่อมือถือ) */
+  ap_name: string;
+}
+
+/** แสดงสถานะ "ตู้เข้าโหมดตั้ง Wi-Fi แล้ว" นานเท่านี้ หลังตู้ตอบรับ */
+const WIFI_RESET_DONE_SHOW_MIN = 30;
 
 type ActivateOutcome =
   | { result: 'ok'; boxId: string; qrId: string }
@@ -58,6 +76,7 @@ export class OwnerBoxService {
     private readonly configs: BoxConfigService,
     private readonly codes: CodeAttempts,
     private readonly sos: SosService,
+    private readonly hub: JobHub,
   ) {}
 
   /** หน้าหลักเจ้าของบ้าน (H03) — ตู้ของคนอื่น → 404 */
@@ -65,8 +84,15 @@ export class OwnerBoxService {
     const [box] = await this.summaries(userId, boxId);
     if (!box) throw new NotFoundException();
     const [row, cfg, coverage, events, openSos, qrTask] = await Promise.all([
-      this.pool.query<{ battery_pct: number | null; charging: boolean | null; battery_date: Date | null; last_seen_date: Date | null }>(
-        `SELECT battery_pct, charging, battery_date, last_seen_date FROM app.box_tb WHERE box_id = $1`,
+      this.pool.query<{
+        battery_pct: number | null;
+        charging: boolean | null;
+        battery_date: Date | null;
+        last_seen_date: Date | null;
+        wifi_reset_requested_date: Date | null;
+        wifi_reset_done_date: Date | null;
+      }>(
+        `SELECT battery_pct, charging, battery_date, last_seen_date, wifi_reset_requested_date, wifi_reset_done_date FROM app.box_tb WHERE box_id = $1`,
         [boxId],
       ),
       this.configs.forBox(boxId),
@@ -107,7 +133,49 @@ export class OwnerBoxService {
       qr_task: qrTask.rows[0]
         ? { case_id: qrTask.rows[0].case_id, health: qrTask.rows[0].health, requested_at: qrTask.rows[0].created_date.toISOString() }
         : null,
+      wifi_reset: this.wifiResetOf(boxId, r.wifi_reset_requested_date, r.wifi_reset_done_date),
     };
+  }
+
+  private wifiResetOf(boxId: string, requested: Date | null, done: Date | null): WifiResetDto {
+    const now = Date.now();
+    const base = { ap_name: setupApName(boxId), requested_at: requested?.toISOString() ?? null, done_at: done?.toISOString() ?? null };
+    if (requested) {
+      return { ...base, status: now - requested.getTime() > WIFI_RESET_TTL_H * 3600_000 ? 'expired' : 'pending' };
+    }
+    if (done && now - done.getTime() < WIFI_RESET_DONE_SHOW_MIN * 60_000) return { ...base, status: 'done' };
+    return { ...base, status: 'idle' };
+  }
+
+  /**
+   * เจ้าของกด "เปลี่ยน Wi-Fi": จดคำสั่งไว้ที่ตู้ + ปลุก long-poll ของตู้ทันที (ตู้ที่หลับอยู่จะรับตอน boot/report ครั้งถัดไป)
+   * ตู้ของคนอื่น/ไม่ใช่ตู้ที่ผูก → 404 · มีคำสั่งรออยู่แล้ว → คืนสถานะเดิม (ไม่ออกคำสั่งใหม่ ตู้จะได้ไม่เห็น id สองค่า)
+   */
+  async requestWifiReset(userId: string, boxId: string): Promise<WifiResetDto> {
+    const { rows } = await this.pool.query<{ requested: Date | null; done: Date | null }>(
+      `UPDATE app.box_tb SET
+         wifi_reset_requested_date = CASE WHEN wifi_reset_requested_date > now() - make_interval(hours => $3) THEN wifi_reset_requested_date ELSE now() END,
+         wifi_reset_requested_by   = CASE WHEN wifi_reset_requested_date > now() - make_interval(hours => $3) THEN wifi_reset_requested_by ELSE $2 END,
+         wifi_reset_done_date      = NULL
+       WHERE box_id = $1 AND owner_user_id = $2
+       RETURNING wifi_reset_requested_date AS requested, wifi_reset_done_date AS done`,
+      [boxId, userId, WIFI_RESET_TTL_H],
+    );
+    if (!rows[0]) throw new NotFoundException();
+    this.hub.wake(boxId);
+    return this.wifiResetOf(boxId, rows[0].requested, rows[0].done);
+  }
+
+  /** ยกเลิกคำสั่งที่ตู้ยังไม่ได้รับ (ตู้รับแล้ว = ยกเลิกไม่ได้ — ตู้ตัด Wi-Fi ไปแล้ว) */
+  async cancelWifiReset(userId: string, boxId: string): Promise<WifiResetDto> {
+    const { rows } = await this.pool.query<{ requested: Date | null; done: Date | null }>(
+      `UPDATE app.box_tb SET wifi_reset_requested_date = NULL WHERE box_id = $1 AND owner_user_id = $2
+       RETURNING wifi_reset_requested_date AS requested, wifi_reset_done_date AS done`,
+      [boxId, userId],
+    );
+    if (!rows[0]) throw new NotFoundException();
+    this.hub.wake(boxId);
+    return this.wifiResetOf(boxId, rows[0].requested, rows[0].done);
   }
 
   /** ประวัติ (H12) — การตรวจที่ผ่าน + การส่งของ · เฉพาะตั้งแต่ผูกตู้ (เจ้าของเก่าไม่เห็นของเจ้าของใหม่ และกลับกัน) */

@@ -6,3 +6,4 @@ void beepPass();   // สั้น 2
 void beepRetry();  // ยาว 1
 void beepFail();   // ยาว 3
 void beepError();  // ยาว 1 + สั้น 2 : ต่อ Wi-Fi/เซิร์ฟเวอร์ไม่ได้ · 401
+void beepWifiReset();  // สั้น 3 ครั้งถี่ ๆ : รับคำสั่งเปลี่ยน Wi-Fi จากเว็บ

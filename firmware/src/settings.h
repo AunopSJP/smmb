@@ -34,6 +34,10 @@ void settingsSave();
 bool settingsProvisioned();      // มี url + box + secret
 bool settingsHasWifi();
 void settingsForgetWifi();
+/** เปลี่ยน Wi-Fi จากเว็บ: เก็บ Wi-Fi เดิมไว้สำรอง แล้วลืมของเดิม (ตั้งใหม่ไม่ทัน → settingsRestoreWifi) */
+void settingsStashWifi();
+bool settingsRestoreWifi();  // true = มี Wi-Fi สำรองและกู้คืนแล้ว
+void settingsClearStashedWifi();
 
 /** เก็บ config จาก JSON ที่เซิร์ฟเวอร์ส่ง (object "config") + เวอร์ชัน */
 bool configApplyJson(const String& configJson, uint32_t ver);

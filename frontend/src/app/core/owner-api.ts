@@ -36,8 +36,17 @@ export interface TechnicianRequest {
   admin_note: string | null;
 }
 
+/** api.md §4.4 — คำสั่ง "เปลี่ยน Wi-Fi" ที่สั่งผ่านเว็บ */
+export interface WifiReset {
+  status: 'idle' | 'pending' | 'done' | 'expired';
+  requested_at: string | null;
+  done_at: string | null;
+  ap_name: string;
+}
+
 /** api.md §4.2 (ฉบับย่อ) */
 export interface BoxDetail extends BoxSummary {
+  wifi_reset: WifiReset;
   battery: { pct: number; charging: boolean | null; reported_at: string | null } | null;
   last_seen_at: string | null;
   coverage: { has_officer: boolean; agency_names: string[] };
@@ -81,6 +90,12 @@ export class OwnerApi {
   }
   box(id: string): Promise<BoxDetail> {
     return firstValueFrom(this.http.get<BoxDetail>(`/api/v1/boxes/${encodeURIComponent(id)}`));
+  }
+  requestWifiReset(id: string): Promise<WifiReset> {
+    return firstValueFrom(this.http.post<WifiReset>(`/api/v1/boxes/${encodeURIComponent(id)}/wifi-reset`, {}));
+  }
+  cancelWifiReset(id: string): Promise<WifiReset> {
+    return firstValueFrom(this.http.delete<WifiReset>(`/api/v1/boxes/${encodeURIComponent(id)}/wifi-reset`));
   }
   rename(id: string, name: string): Promise<unknown> {
     return firstValueFrom(this.http.patch('/api/v1/boxes/' + encodeURIComponent(id), { name }));

@@ -124,6 +124,42 @@ static const char* resetReason() {
   }
 }
 
+static void sendEvent(const char* type, const char* jobId = nullptr);  // นิยามด้านล่าง
+
+// ── คำสั่งจากเซิร์ฟเวอร์ (เจ้าของบ้านกด "เปลี่ยน Wi-Fi" ในเว็บ) ─────────────────────
+// ตอบรับ (ack) ก่อนลบ Wi-Fi เสมอ — ไม่งั้นเซิร์ฟเวอร์ไม่รู้ว่าตู้รับแล้ว · ack ไม่ผ่าน = ยังไม่ทำ รอรับใหม่รอบหน้า
+static void handleCommand(JsonVariantConst cmd) {
+  if (cmd.isNull()) return;
+  const char* type = cmd["type"] | "";
+  const char* id = cmd["id"] | "";
+  if (strcmp(type, "wifi_reset") != 0 || !*id) return;
+
+  JsonDocument doc;
+  doc["type"] = "wifi_reset";
+  doc["command_id"] = id;
+  String body;
+  serializeJson(doc, body);
+  bool acked = false;
+  for (int i = 0; i < 3 && !acked; i++) {
+    if (i) delay(1000);
+    acked = apiCall("POST", "/v1/box/events", body, 3000).status == 200;
+  }
+  if (!acked) {
+    Serial.println("[cmd] wifi_reset: ack failed — will retry on next poll");
+    return;
+  }
+  Serial.println("[cmd] wifi_reset: forget Wi-Fi, back to setup mode");
+  beepWifiReset();
+  settingsStashWifi();
+  delay(300);
+  ESP.restart();  // เปิดใหม่ → ไม่มี Wi-Fi → โหมดตั้งค่า (ปล่อย MAILBOX-xxxxxx)
+}
+
+static void handleCommandIn(const String& body) {
+  JsonDocument doc;
+  if (!deserializeJson(doc, body)) handleCommand(doc["command"]);
+}
+
 // ── boot / report ──────────────────────────────────────────────────────
 static bool sendBoot() {
   JsonDocument doc;
@@ -144,6 +180,7 @@ static bool sendBoot() {
       booted = true;
       Serial.printf("[boot] ok · awake until +%ds\n", (int)(awakeUntil > nowUtc() ? awakeUntil - nowUtc() : 0));
       beepReady();
+      handleCommandIn(r.body);
       return true;
     }
     if (r.status == 401) {
@@ -176,6 +213,7 @@ static bool sendReport() {
       absorbConfig(r.body);
       lastReportDay = localDay(nowUtc());
       jobsDone = scanFail = wifiFail = 0;
+      handleCommandIn(r.body);
       return true;
     }
     if (r.status == 401) {
@@ -186,7 +224,7 @@ static bool sendReport() {
   return false;
 }
 
-static void sendEvent(const char* type, const char* jobId = nullptr) {
+static void sendEvent(const char* type, const char* jobId) {
   JsonDocument doc;
   doc["type"] = type;
   if (jobId) doc["job_id"] = jobId;
@@ -300,6 +338,7 @@ static void pollOnce() {
     if (deserializeJson(doc, r.body)) return;
     uint32_t ver = doc["config_ver"] | 0u;
     if (!doc["config"].isNull()) absorbConfig(r.body);
+    handleCommand(doc["command"]);
     if (!doc["job"].isNull()) runJob(doc["job"].as<JsonObject>());
     // Backend รุ่นก่อนที่ยังไม่ส่ง config ทาง long-poll ให้ดึงผ่าน report ตามเดิม
     if (ver && ver != boxConfig.ver) sendReport();
@@ -507,17 +546,6 @@ static void waitWithCli(unsigned long ms) {
 }
 
 // ── setup / loop ───────────────────────────────────────────────────────
-static bool resetButtonHeld() {
-  pinMode(PIN_RESET_WIFI, INPUT_PULLUP);
-  if (digitalRead(PIN_RESET_WIFI) != LOW) return false;
-  unsigned long t = millis();
-  while (millis() - t < RESET_HOLD_MS) {
-    if (digitalRead(PIN_RESET_WIFI) != LOW) return false;
-    delay(20);
-  }
-  return true;
-}
-
 void setup() {
   Serial.begin(115200);
   rtc_gpio_hold_dis((gpio_num_t)PIN_FLASH_LED);
@@ -533,11 +561,6 @@ void setup() {
   if (!signerSelfTest(false)) Serial.println("!! signer self-test FAILED — requests will be rejected");
 
   const bool fromSleep = esp_reset_reason() == ESP_RST_DEEPSLEEP;
-  if (!fromSleep && resetButtonHeld()) {
-    Serial.println("[reset] IO0 held 5 s → forget Wi-Fi");
-    settingsForgetWifi();
-    if (WiFi.status() == WL_CONNECTED) sendEvent("wifi_reset_button");
-  }
 
   // ให้เวลาพิมพ์คำสั่งตั้งค่าตอนเปิดเครื่อง (เช่น url / box / secret) ก่อนเริ่มทำงาน
   if (!fromSleep) waitWithCli(1500);
@@ -545,7 +568,15 @@ void setup() {
   // ยังไม่ได้ตั้ง → โหมดตั้งค่า (รอจนตั้งสำเร็จ)
   while (!settingsHasWifi() || !settingsProvisioned()) {
     if (!settingsProvisioned()) Serial.println("[setup] box not provisioned (url / box / secret) — use the portal or serial commands");
-    if (runSetupPortal(PORTAL_TIMEOUT_MS) && settingsProvisioned()) break;
+    if (runSetupPortal(PORTAL_TIMEOUT_MS) && settingsProvisioned()) {
+      settingsClearStashedWifi();
+      break;
+    }
+    // เจ้าของสั่งเปลี่ยน Wi-Fi แต่ตั้งใหม่ไม่ทันในเวลา → กลับไปใช้ Wi-Fi เดิม (กันตู้หลุดออนไลน์ถาวร)
+    if (settingsRestoreWifi()) {
+      Serial.println("[setup] no new Wi-Fi in time — back to the previous Wi-Fi");
+      break;
+    }
   }
 
   if (!wifiConnect()) {

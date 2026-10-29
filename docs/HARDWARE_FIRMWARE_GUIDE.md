@@ -119,10 +119,16 @@ POST /v1/box/boot  ──▶ ตั้งนาฬิกาจาก server_time
 
 ## 5. โหมดตั้ง Wi-Fi (หน้าเว็บในตัวตู้)
 
-ช่างเป็นคนตั้งตอนติดตั้ง · เจ้าของบ้านตั้งใหม่เองได้ด้วยการกดปุ่ม Boot บนบอร์ดค้าง 5 วิ
+ช่างเป็นคนตั้งตอนติดตั้ง · เจ้าของบ้านตั้งใหม่เองได้ด้วยการกด "เปลี่ยน Wi-Fi" ในเว็บ (ไม่ต้องแตะตัวตู้)
 
 **สเปก**
-1. เข้าโหมดเมื่อ: ยังไม่มี Wi-Fi ที่บันทึกไว้ · หรือกดปุ่ม Boot ค้าง 5 วิ (ลบ Wi-Fi เดิม + ส่ง event `wifi_reset_button` ถ้ายังต่อเน็ตได้) · หรือต่อ Wi-Fi เดิมไม่ได้นานเกินกำหนด
+1. เข้าโหมดเมื่อ: ยังไม่มี Wi-Fi ที่บันทึกไว้ · หรือ **เจ้าของบ้านกด "เปลี่ยน Wi-Fi ตอนนี้" ในเว็บ** (ดูกล่องด้านล่าง) · หรือต่อ Wi-Fi เดิมไม่ได้นานเกินกำหนด
+   > **เปลี่ยน Wi-Fi จากเว็บ (ไม่มีปุ่มที่ตู้):** เจ้าของกดในหน้า `H13-b` → เซิร์ฟเวอร์ตั้งคำสั่ง `wifi_reset` ให้ตู้ → ตู้รับใน reply ของ long-poll (`GET /v1/box/jobs` ตื่นทันที) / `boot` / `report` เป็น `"command": { "type": "wifi_reset", "id": "W-…" }`
+   > - ตู้ส่ง **ack ก่อนลบ Wi-Fi** : `POST /v1/box/events {"type":"wifi_reset","command_id":"W-…"}` (ลอง 3 ครั้ง · ไม่ผ่านห้ามลบ รอรับใหม่รอบหน้า) → เซิร์ฟเวอร์แจ้งเจ้าของบ้านว่าตู้เข้าโหมดตั้งค่าแล้ว
+   > - แล้วตู้เก็บ Wi-Fi เดิมไว้สำรอง (`ssid_prev` / `pass_prev`) → ปี๊บสั้น 3 ครั้ง → ลืม Wi-Fi → รีสตาร์ต → ปล่อย `MAILBOX-xxxxxx`
+   > - ตั้ง Wi-Fi ใหม่สำเร็จ → ล้างของสำรอง · **ครบ 10 นาทีไม่ได้ตั้ง → กลับไปใช้ Wi-Fi เดิมเอง** (กันตู้หลุดออนไลน์ถาวร)
+   > - คำสั่งค้างเกิน 24 ชม. เซิร์ฟเวอร์ถือว่าหมดอายุ ไม่ส่งให้ตู้อีก · เจ้าของยกเลิกคำสั่งได้
+   > - ⚠️ โหมดปล่อย Wi-Fi ตอนนี้ **ไม่มีรหัสผ่าน** (ใครอยู่ใกล้ตู้ต่อเข้ามาเปลี่ยนค่าได้) · ตู้ออฟไลน์ระหว่างนี้
 2. เปิด SoftAP ชื่อ **`MAILBOX-<เลข 6 หลักท้ายของ box_id>`** เช่น `BX-00003` → `MAILBOX-000003`
    - แอปช่างบอกช่างให้ต่อ Wi-Fi ชื่อนี้ — **ถ้าจะใช้ชื่อแบบอื่น บอกทีม backend ให้แก้ `apName()` ใน `frontend/src/app/pages/admin/technician.ts`**
 3. Captive portal: มือถือต่อแล้วหน้าตั้งค่าเด้งเอง · ไม่เด้ง → เปิด `http://192.168.4.1`
@@ -237,7 +243,7 @@ String signRequest(const char* secret, const char* method, const String& path,
 | ในเวลาตรวจ | `GET /v1/box/jobs?wait=50` | — | 204 (ไม่มีงาน) · 200 `{ server_time, config_ver, job: { job_id, type, expires_at, scan_timeout_s, attempt_max } }` |
 | เปิดกล้องพร้อม | `POST /v1/box/jobs/{job_id}/ready` | `{ "flash": false }` | 200 · 410 `JOB_EXPIRED` · 404 `JOB_NOT_FOUND` |
 | อ่าน QR แต่ละครั้ง | `POST /v1/box/jobs/{job_id}/result` | `{ attempt, read_ok, qr_text, read_ms, flash }` | 200 `{ status: "pass" \| "retry" \| "fail", attempts_left? }` |
-| เหตุการณ์อื่น | `POST /v1/box/events` | `{ "type": "wifi_reset_button" \| "battery_critical" \| "camera_error" }` | 200 · ส่งครั้งเดียว ไม่ได้ก็ไม่เป็นไร · ชื่อ type ใช้ได้เฉพาะ a-z และ _ |
+| เหตุการณ์อื่น | `POST /v1/box/events` | `{ "type": "wifi_reset" \| "battery_critical" \| "camera_error" }` | 200 · ส่งครั้งเดียว ไม่ได้ก็ไม่เป็นไร · ชื่อ type ใช้ได้เฉพาะ a-z และ _ |
 | สถานะกล้อง (เฉพาะงาน `test`) | `POST /v1/box/events` | `camera_test_started` / `camera_ready` / `camera_scan_result` | HMAC เหมือน endpoint อื่น · ไม่ส่งภาพ · แสดงในแอดมิน D04 |
 
 ข้อมูลกล้องส่งดังนี้: `camera_test_started` มี `job_id` · `camera_ready` มี `job_id`, `width`, `height` · `camera_scan_result` มี `job_id`, `attempt`, `frames`, `qr_shapes`, `read_ok`, `read_ms` · การส่งสถานะเป็น best-effort และไม่เปลี่ยนผล `/result`
@@ -325,7 +331,8 @@ String signRequest(const char* secret, const char* method, const String& path,
 | 8 | เปลี่ยนเวลาตรวจของโซน (หัวหน้า) แล้วส่ง `report` | ได้ `config` ใหม่ · "ค่าตั้งค่า" ขึ้น "ตู้มีค่าล่าสุด" |
 | 9 | ปิดเปิดไฟกลางคัน / รีสตาร์ต | กลับมา boot แล้วทำงานต่อได้เอง |
 | 10 | ปิดเราเตอร์ 2 นาทีระหว่างเวลาตรวจ | ตู้ต่อกลับได้เอง ไม่ค้าง |
-| 11 | กดปุ่ม Boot ค้าง 5 วิ | ลบ Wi-Fi + เข้าโหมดตั้งค่า + (ถ้าส่งทัน) event `wifi_reset_button` ขึ้นในรายงาน |
+| 11 | เจ้าของกด "เปลี่ยน Wi-Fi ตอนนี้" ในเว็บ ขณะตู้ออนไลน์ | ตู้ตื่นรับคำสั่งทันที → ack `wifi_reset` → ปี๊บสั้น 3 → รีสตาร์ต → ปล่อย `MAILBOX-xxxxxx` · ตั้ง Wi-Fi ใหม่ → ปี๊บ 1 (boot) · ไม่ตั้งใน 10 นาที → กลับ Wi-Fi เดิม |
+| 11b | ทำข้อ 11 ตอนตู้หลับลึก (นอกเวลาตรวจ) | กดปลุกตู้ แล้วถือต่อให้ครบ 5 วิ → เหมือนข้อ 11 |
 | 12 | วัดไฟ: หลับลึก · ถือ long-poll ทั้งช่วงเวลาตรวจ · ตรวจ 1 ครั้ง | จดตัวเลขส่งทีม |
 
 ---

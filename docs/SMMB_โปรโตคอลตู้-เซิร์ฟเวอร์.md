@@ -194,6 +194,7 @@ X-Signature    86c6520798d17a12cf2af3d156f02f1a361cb5ac3138245135d6176bd901de6c
 
 > **ข้อจำกัดสำคัญ:** การสแกน QR จากมือถือแจ้ง backend ได้ แต่ปลุก ESP32-CAM ที่หลับลึกไม่ได้ เพราะไม่มีช่องสื่อสารที่ตื่นรอรับคำสั่งอยู่ งานตรวจจะตอบทันทีได้เฉพาะตอนที่ตู้ถือ long-poll (เช่น ใน `windows` หรือ `awake_s`) โหมดทดสอบ Serial `sleep off` จะ override ตารางและถือ long-poll ตลอดเวลา (ใช้พลังงานเพิ่ม); กลับโหมดปกติด้วย `sleep on` หลังเดโม หากต้องการปลุกจาก deep sleep ได้ ต้องเพิ่ม wake input/วงจรฝั่งตู้ หรือคงการเชื่อมต่อไว้
 
+- (29 ต.ค.) คำสั่งจากเซิร์ฟเวอร์: ถ้าเจ้าของกด "เปลี่ยน Wi-Fi" ในเว็บ ตู้จะได้ `"command": { "type": "wifi_reset", "id": "W-<unix>" }` ใน `200` ของ long-poll (ปลุกทันที) และใน reply ของ `boot` / `report` ด้วย · ตู้ ack ผ่าน §2.6 ก่อนลบ Wi-Fi · ค้างเกิน 24 ชม. เซิร์ฟเวอร์เลิกส่ง
 - (28 ต.ค.) `wait` 0–55 วิ (ไม่ส่ง = 55) · 204 ไม่มี body → เวลาอยู่ใน header `X-Server-Time`
 - งานเดิมที่ยังไม่ `ready` ส่งซ้ำได้ (ถ้าคำตอบรอบก่อนหลุด ตู้ถามใหม่ก็ได้งานเดิม)
 - `type`: `"inspect"` = เจ้าหน้าที่มาตรวจ (เฟส 3) · `"test"` = แอดมิน/ช่างกดทดสอบ — **ตู้ทำเหมือนกันทุกอย่าง** (เปิดไฟ + กล้อง → ready → อ่าน QR → result) · งานทดสอบ: อ่าน QR อะไรก็ได้สำเร็จ = `pass`
@@ -268,9 +269,9 @@ X-Signature    86c6520798d17a12cf2af3d156f02f1a361cb5ac3138245135d6176bd901de6c
 ### 2.6 `POST /v1/box/events`
 
 ```json
-{ "type": "wifi_reset_button" }
+{ "type": "wifi_reset", "command_id": "W-1793248049" }
 ```
-- ประเภท : `wifi_reset_button` · `battery_critical` (< 5% ก่อนดับ) · `camera_error` · สถานะกล้องในงานทดสอบ `camera_test_started`, `camera_ready`, `camera_scan_result`
+- ประเภท : `wifi_reset` (ack คำสั่งเปลี่ยน Wi-Fi จากเว็บ — ต้องมี `command_id` ตรงกับ `command.id` ที่เซิร์ฟเวอร์ส่งมา · ส่งก่อนลบ Wi-Fi · เซิร์ฟเวอร์ล้างคำสั่ง + แจ้งเจ้าของบ้าน · id ไม่ตรง/ซ้ำ = ไม่ทำอะไร) · `battery_critical` (< 5% ก่อนดับ) · `camera_error` · สถานะกล้องในงานทดสอบ `camera_test_started`, `camera_ready`, `camera_scan_result`
 - `camera_test_started` / `camera_ready` มี `job_id` · `camera_ready` เพิ่ม `width`, `height` · `camera_scan_result` เพิ่ม `attempt`, `frames`, `qr_shapes`, `read_ok`, `read_ms`
 - สถานะกล้องส่งเฉพาะงาน `type: "test"` เพื่อแสดงใน D04 · ไม่ส่งภาพ · ส่งไม่ได้ก็ไม่เปลี่ยนผล `/result` · การตรวจจริงใช้ flow และการตัดสินของเซิร์ฟเวอร์เดิม
 - ส่งแบบ "พยายามครั้งเดียว" ส่งไม่ได้ก็ไม่เป็นไร

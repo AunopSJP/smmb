@@ -23,8 +23,23 @@ export const text = (v: unknown, max: number): string | null => (typeof v === 's
 
 export const nowS = () => Math.floor(Date.now() / 1000);
 
+/** คำสั่งจากเจ้าของบ้านที่รอตู้รับ — ตอนนี้มีอย่างเดียว: ตัด Wi-Fi เก่า แล้วกลับโหมดปล่อย Wi-Fi (โปรโตคอล §2.8) */
+export interface BoxCommand {
+  type: 'wifi_reset';
+  /** ใช้ตอบรับ (event wifi_reset + command_id) — เปลี่ยนทุกครั้งที่เจ้าของกดใหม่ */
+  id: string;
+}
+
+/** ค้างเกินนี้ = หมดอายุ (ตู้ออฟไลน์/ปิดอยู่) ไม่ส่งให้ตู้อีก · เจ้าของต้องกดใหม่ */
+export const WIFI_RESET_TTL_H = 24;
+
+/** ชื่อ Wi-Fi ที่ตู้ปล่อยตอนตั้งค่า = MAILBOX-<เลข 6 หลักท้ายของ box_id> (ตรงกับ apName() ในเฟิร์มแวร์) */
+export const setupApName = (boxId: string): string => 'MAILBOX-' + boxId.replace(/\D/g, '').padStart(6, '0').slice(-6);
+
 export interface CheckInReply {
   server_time: number;
+  /** มีคำสั่งรอตู้ — ตู้ต้องทำตามและตอบรับ */
+  command?: BoxCommand;
   config_ver: number;
   config?: BoxConfig;
   /** เฉพาะ boot: ถือ long-poll ต่อกี่วินาทีแม้นอกเวลาตรวจ (ให้ช่าง/แอดมินทดสอบปลุกตู้หลังเปิดเครื่อง · โปรโตคอล §2.1) */
@@ -75,13 +90,56 @@ export class BoxProtocolService {
     }
 
     const { config, ver } = await this.configs.forBox(boxId);
-    return { server_time: nowS(), config_ver: ver, ...(body.config_ver === ver ? {} : { config }), ...(kind === 'boot' ? { awake_s: SETUP_AWAKE_S } : {}) };
+    const command = await this.pendingCommand(boxId);
+    return {
+      server_time: nowS(),
+      config_ver: ver,
+      ...(body.config_ver === ver ? {} : { config }),
+      ...(kind === 'boot' ? { awake_s: SETUP_AWAKE_S } : {}),
+      ...(command ? { command } : {}),
+    };
   }
 
-  /** เหตุการณ์อื่น (ปุ่ม Boot ล้าง Wi-Fi / แบตวิกฤต / กล้องเสีย) — ส่งครั้งเดียว เก็บไว้ดูอย่างเดียว */
+  /** คำสั่งที่รอตู้อยู่ (ยังไม่หมดอายุ) — id คิดจากเวลาที่เจ้าของกด จึงคงที่จนกว่าจะกดใหม่ */
+  async pendingCommand(boxId: string): Promise<BoxCommand | null> {
+    const { rows } = await this.pool.query<{ at: string }>(
+      `SELECT floor(extract(epoch FROM wifi_reset_requested_date))::bigint::text AS at
+       FROM app.box_tb
+       WHERE box_id = $1 AND wifi_reset_requested_date IS NOT NULL AND wifi_reset_requested_date > now() - make_interval(hours => $2)`,
+      [boxId, WIFI_RESET_TTL_H],
+    );
+    return rows[0] ? { type: 'wifi_reset', id: `W-${rows[0].at}` } : null;
+  }
+
+  /** ตู้ตอบรับว่ากำลังตัด Wi-Fi เก่า (ส่งก่อนตัด — ตัดแล้วส่งอะไรไม่ได้) · ตอบรับซ้ำ/คำสั่งเก่า/ถูกยกเลิกแล้ว = ไม่ทำอะไร */
+  private async completeWifiReset(boxId: string, commandId: unknown): Promise<void> {
+    const pending = await this.pendingCommand(boxId);
+    if (!pending || commandId !== pending.id) return;
+    const { rows } = await this.pool.query<{ owner_user_id: string | null; name: string | null }>(
+      `UPDATE app.box_tb SET wifi_reset_requested_date = NULL, wifi_reset_done_date = now()
+       WHERE box_id = $1 AND wifi_reset_requested_date IS NOT NULL
+       RETURNING owner_user_id, name`,
+      [boxId],
+    );
+    const box = rows[0];
+    if (!box?.owner_user_id) return;
+    try {
+      await this.notifications.notify([box.owner_user_id], {
+        type: 'box_wifi_reset',
+        data: { box_id: boxId, box_name: box.name, ap_name: setupApName(boxId) },
+        link: '/home/settings/wifi',
+        tag: `wifi-reset-${boxId}`,
+      });
+    } catch (err) {
+      this.logger.error(`wifi reset notification failed for ${boxId}: ${(err as Error).message}`);
+    }
+  }
+
+  /** เหตุการณ์อื่น (ปุ่ม Boot ล้าง Wi-Fi / แบตวิกฤต / กล้องเสีย / ตอบรับคำสั่งเปลี่ยน Wi-Fi) — ส่งครั้งเดียว */
   async event(boxId: string, body: Body): Promise<{ server_time: number; config_ver: number }> {
     await this.pool.query(`INSERT INTO app.box_report_tb (box_id, kind, body) VALUES ($1, 'event', $2)`, [boxId, body]);
     await this.pool.query(`UPDATE app.box_tb SET last_seen_date = now() WHERE box_id = $1`, [boxId]);
+    if (body.type === 'wifi_reset') await this.completeWifiReset(boxId, body.command_id);
     return { server_time: nowS(), config_ver: (await this.configs.forBox(boxId)).ver };
   }
 
@@ -103,19 +161,25 @@ export class BoxProtocolService {
    * long-poll (โปรโตคอล §2.3): มีงานอยู่แล้ว → ตอบทันที · ไม่มี → รอสูงสุด waitS วิ ระหว่างนั้นมีงาน → ตอบทันที
    * คืน null = ครบเวลาไม่มีงาน (204) หรือตู้ตัดการเชื่อมต่อไปก่อน
    */
-  async poll(boxId: string, waitS: number, closed: Promise<void>): Promise<BoxJobForBox | null> {
+  async poll(boxId: string, waitS: number, closed: Promise<void>): Promise<{ job: BoxJobForBox | null; command: BoxCommand | null }> {
     await this.pool.query(`UPDATE app.box_tb SET last_poll_date = now(), last_seen_date = now() WHERE box_id = $1`, [boxId]);
     const deadline = Date.now() + Math.max(0, Math.min(waitS, MAX_WAIT_S)) * 1000;
     let gone = false;
     void closed.then(() => (gone = true));
+    const none = { job: null, command: null };
+    /** งานก่อน (ตรวจตู้ไม่ควรรอ) แล้วค่อยคำสั่ง */
+    const look = async () => {
+      const job = await this.jobs.takePending(boxId);
+      return { job, command: job ? null : await this.pendingCommand(boxId) };
+    };
 
     for (;;) {
-      const waiter = this.hub.listen(boxId); // ลงชื่อก่อนค้น — งานที่เกิดระหว่างค้นจะปลุกได้
-      const job = await this.jobs.takePending(boxId);
+      const waiter = this.hub.listen(boxId); // ลงชื่อก่อนค้น — งาน/คำสั่งที่เกิดระหว่างค้นจะปลุกได้
+      const found = await look();
       const left = deadline - Date.now();
-      if (job || gone || left <= 0) {
+      if (found.job || found.command || gone || left <= 0) {
         waiter.cancel();
-        return gone ? null : job;
+        return gone ? none : found;
       }
       let timer: NodeJS.Timeout | undefined;
       const outcome = await Promise.race([
@@ -125,9 +189,13 @@ export class BoxProtocolService {
       ]);
       clearTimeout(timer);
       waiter.cancel();
-      if (outcome === 'closed') return null;
-      if (outcome === 'woken') return this.jobs.takePending(boxId);
-      if (outcome === 'timeout') return this.jobs.takePending(boxId); // เผื่องานเข้ามาพอดีตอนหมดเวลา
+      if (outcome === 'closed') return none;
+      if (outcome === 'woken') {
+        const woke = await look();
+        if (woke.job || woke.command) return woke;
+        continue; // ปลุกเพราะเรื่องอื่น (เช่นยกเลิกคำสั่ง) — รอต่อจนครบเวลา
+      }
+      return look(); // timeout: เผื่อมีเข้ามาพอดีตอนหมดเวลา
     }
   }
 

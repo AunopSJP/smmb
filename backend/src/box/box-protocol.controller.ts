@@ -88,25 +88,26 @@ export class BoxProtocolController {
     }
     if (configVersion !== null) {
       const current = await this.box.pollConfig(id, configVersion);
-      if (current.config) return current;
+      const command = await this.box.pendingCommand(id);
+      if (current.config || command) return { ...current, ...(command ? { command } : {}) };
     }
     const closed = new Promise<void>((resolve) => res.on('close', () => resolve()));
-    const job = await this.box.poll(id, waitS, closed);
+    const { job, command } = await this.box.poll(id, waitS, closed);
     // guard ตั้ง X-Server-Time ตอนเริ่มรับคำขอ — long-poll รอได้ถึง 50 วิ ต้องตั้งใหม่ตอนตอบ (ไม่งั้นนาฬิกาตู้ถอยทีละ ~50 วิ → clock_skew)
     res.setHeader('X-Server-Time', String(nowS()));
     if (configVersion !== null) {
       const current = await this.box.pollConfig(id, configVersion);
-      if (!job && !current.config) {
+      if (!job && !command && !current.config) {
         res.status(HttpStatus.NO_CONTENT);
         return;
       }
-      return { ...current, ...(job ? { job } : {}) };
+      return { ...current, ...(job ? { job } : {}), ...(command ? { command } : {}) };
     }
-    if (!job) {
+    if (!job && !command) {
       res.status(HttpStatus.NO_CONTENT);
       return;
     }
-    return { server_time: nowS(), config_ver: await this.box.configVer(id), job };
+    return { server_time: nowS(), config_ver: await this.box.configVer(id), ...(job ? { job } : {}), ...(command ? { command } : {}) };
   }
 
   /** §2.4 เปิดไฟ + กล้องแล้ว · งานหมดอายุ/จบแล้ว → 410 JOB_EXPIRED */
@@ -142,7 +143,7 @@ export class BoxProtocolController {
   @HttpCode(HttpStatus.OK)
   event(@BoxId() id: string, @BoxBody() body: Body) {
     if (typeof body.type !== 'string' || !/^[a-z_]{1,40}$/.test(body.type)) {
-      throw new BadRequestException('type is required (e.g. wifi_reset_button, battery_critical, camera_error)');
+      throw new BadRequestException('type is required (e.g. wifi_reset, battery_critical, camera_error)');
     }
     return this.box.event(id, body);
   }
