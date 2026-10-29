@@ -54,13 +54,16 @@ describe('badge QR (officer)', () => {
   it('round-trips, and any change or another key is rejected', async () => {
     const { badgeToken, readBadge } = await import('./box-crypto.js');
     const t = badgeToken(key, { j: 'J-8f31c2', u: 'U-0071', e: 1761124030 });
-    expect(t).toMatch(/^SMMB-O1\.[\w-]+\.[\w-]{22}$/);
+    expect(t).toMatch(/^SMMB-O2\.J-8f31c2\.U-0071\.[0-9a-z]+\.[\w-]{16}$/);
+    expect(t.length).toBeLessThan(60); // QR เล็กพอให้กล้องความละเอียดต่ำอ่านได้
     expect(readBadge(key, t)).toEqual({ j: 'J-8f31c2', u: 'U-0071', e: 1761124030 });
     expect(readBadge('k'.repeat(32), t)).toBeNull();
-    const [, payload, sig] = t.split('.');
-    const other = Buffer.from(JSON.stringify({ j: 'J-000000', u: 'U-0071', e: 1761124030 })).toString('base64url');
-    expect(readBadge(key, `SMMB-O1.${other}.${sig}`)).toBeNull();
-    expect(readBadge(key, `SMMB-O1.${payload}.${sig}.x`)).toBeNull();
+    const [j, u, e, sig] = t.slice('SMMB-O2.'.length).split('.') as [string, string, string, string];
+    expect(readBadge(key, `SMMB-O2.J-000000.${u}.${e}.${sig}`)).toBeNull(); // เปลี่ยน job
+    expect(readBadge(key, `SMMB-O2.${j}.U-0099.${e}.${sig}`)).toBeNull(); // เปลี่ยนคน
+    expect(readBadge(key, `SMMB-O2.${j}.${u}.${(Number.parseInt(e, 36) + 1).toString(36)}.${sig}`)).toBeNull(); // ยืดอายุ
+    expect(readBadge(key, `${t}.x`)).toBeNull();
+    expect(readBadge(key, t.replace('SMMB-O2.', 'SMMB-O1.'))).toBeNull(); // รุ่นเก่า
     expect(readBadge(key, 'hello')).toBeNull();
   });
 });

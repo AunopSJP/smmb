@@ -10,7 +10,7 @@
 //   node scripts/box-sim.mjs event  --type camera_error
 //   node scripts/box-sim.mjs poll   --manual              ได้งานแล้วแค่พิมพ์ออกมา (สั่ง ready / result เองทีละขั้น)
 //   node scripts/box-sim.mjs ready  --job J-xxxxxx
-//   node scripts/box-sim.mjs result --job J-xxxxxx --attempt 1 --text 'SMMB-O1....'   (ไม่ใส่ --text = อ่านไม่ได้)
+//   node scripts/box-sim.mjs result --job J-xxxxxx --attempt 1 --text 'SMMB-O2....'   (ไม่ใส่ --text = อ่านไม่ได้)
 //
 // ค่า --url / --box / --secret ใส่เป็น env แทนได้: SMMB_URL, SMMB_BOX, SMMB_SECRET
 import { createHash, createHmac, randomBytes } from 'node:crypto';

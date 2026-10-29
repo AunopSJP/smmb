@@ -9,6 +9,8 @@ void debugViewStart();  // เปิดเว็บเซิร์ฟเวอ�
 void debugViewStop();
 void debugViewPoll();   // เรียกบ่อย ๆ ใน loop / ระหว่างสแกน
 bool debugViewRunning();
+/** สตรีมภาพดิบ MJPEG จากกล้อง (พอร์ต 80) นาน sec วินาที · ไม่ถอดรหัส QR ไม่คุยเซิร์ฟเวอร์ · พิมพ์ FPS ทาง Serial */
+void rawViewRun(uint32_t sec);
 /** มีคนเปิดหน้าอยู่ใน 20 วิที่ผ่านมาไหม */
 bool debugViewHasViewer();
 /** ปิดกล้องที่ถืออยู่เมื่อไม่มีใครดูแล้ว (เรียกใน loop) */

@@ -49,9 +49,12 @@ void settingsLoad() {
   settings.secret = prefs.getString("secret", "");
   settings.sleep = prefs.getBool("dsleep", false);  // ค่าเริ่มต้น = ไม่หลับลึก (คีย์ใหม่ — ค่า "sleep" เก่าที่เคยเป็น true ไม่ถูกใช้)
   settings.debugCam = prefs.getBool("dbgcam", false);
-  settings.camSize = prefs.getString("camsz", "vga");
-  settings.camXclk = prefs.getUChar("camxc", 10);
+  settings.camSize = prefs.getString("camsz", "qvga");
+  settings.camXclk = prefs.getUChar("camxc", 20);
   settings.camAe = (int8_t)prefs.getChar("camae", 0);
+  settings.camJpeg = prefs.getBool("camjpg", true);
+  settings.camQ = prefs.getUChar("camq", 6);
+  settings.camSharp = (int8_t)prefs.getChar("camsh", 2);
   String cfg = prefs.getString("cfg", "");
   uint32_t ver = prefs.getUInt("cfgver", 0);
   prefs.end();
@@ -71,6 +74,9 @@ void settingsSave() {
   prefs.putString("camsz", settings.camSize);
   prefs.putUChar("camxc", settings.camXclk);
   prefs.putChar("camae", settings.camAe);
+  prefs.putBool("camjpg", settings.camJpeg);
+  prefs.putUChar("camq", settings.camQ);
+  prefs.putChar("camsh", settings.camSharp);
   prefs.end();
 }
 

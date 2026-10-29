@@ -37,6 +37,15 @@ bool cameraSnapshotJpeg(uint8_t** out, size_t* len);
 /** ถือกล้องไว้ (cameraStop จะไม่ปิดกล้อง ปิดแค่ไฟแฟลช) — ใช้ตอนมีคนเปิดหน้าดูกล้องอยู่ */
 void cameraHold(bool hold);
 bool cameraScanning();
+/** วัดเวลาจริงของแต่ละขนาดภาพ (QVGA/VGA/SVGA): รับภาพ · JPEG→เทา · quirc · FPS · เจอ QR กี่เฟรม — ถือ QR ไว้หน้ากล้องตอนวัด */
+void cameraBench();
+
+/** ภาพดิบ JPEG ฮาร์ดแวร์ ไม่ผ่านตัวกรอง (ใช้กับ rawViewRun) */
+bool cameraRawBegin();
+void cameraRawEnd();
+
+/** หน้าดูกล้อง: false = แค่ดูภาพ/วัด FPS ไม่หา/ถอดรหัส QR (ค่าเริ่มต้น true) */
+void cameraPreviewDecode(bool on);
 /** จับ 1 เฟรมแล้วเก็บเป็นภาพตัวอย่าง (ตอนไม่ได้สแกน) — true = ได้ภาพ */
 bool cameraPreviewTick();
 /** JPEG ของภาพตัวอย่างล่าสุด (ผู้เรียกต้อง free(*out)) */

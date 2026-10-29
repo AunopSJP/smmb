@@ -465,7 +465,7 @@ interface Inspection {
 |---|---|---|---|
 | GET | `/inspections/:id` | `officer` (ผู้สร้าง) | `Inspection` — ใช้ poll ทุก 1 วิ ถ้าไม่ใช้ SSE |
 | GET | `/inspections/:id/stream` | `officer` (ผู้สร้าง) | **SSE** `event: status` `data: Inspection` ทุกครั้งที่สถานะเปลี่ยน (❓ เลือก SSE หรือ poll — โปรโตคอลตู้ §7 ข้อ 5) |
-| GET | `/inspections/:id/badge` | `officer` (ผู้สร้าง) | `{ qr: "SMMB-O1.<payload>.<sig>", expires_at }` — **ขอใหม่ทุก 30 วิ** ระหว่างอยู่หน้า `O06` · 409 `NOT_READY` ถ้าตู้ยังไม่ ready · 410 `INSPECTION_CLOSED` |
+| GET | `/inspections/:id/badge` | `officer` (ผู้สร้าง) | `{ qr: "SMMB-O2.<j>.<u>.<e>.<sig>", expires_at }` (สั้น ~47 ตัวอักษร — โปรโตคอล §3.3) — **ขอใหม่ทุก 30 วิ** ระหว่างอยู่หน้า `O06` · 409 `NOT_READY` ถ้าตู้ยังไม่ ready · 410 `INSPECTION_CLOSED` |
 | POST | `/inspections/:id/box-problem` | `officer` (ผู้สร้าง) | `{ reason: "no_light" \| "no_response" \| "scan_failed_3" \| "other", note? }` → 201 แจ้งเจ้าของบ้าน + แอดมิน → กลับ `O01` |
 
 - QR ประจำตัว**สร้างที่ server เท่านั้น** (ไม่มีรหัสลับในมือถือ) · payload `{ j: job_id, u: user_id, e: หมดอายุ }` · ผูกกับ job ของตู้นี้ → เอาไปใช้ตู้อื่นไม่ได้ · หมดอายุ 30 วิ → ถ่ายรูปเก็บไว้ใช้ไม่ได้

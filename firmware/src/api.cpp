@@ -60,6 +60,7 @@ ApiResult apiCall(const char* method, const String& suffix, const String& body, 
   const bool ok = https ? http.begin(secure, url) : http.begin(plain, url);
   if (!ok) return r;
 
+  http.setReuse(false);  // Connection: close — ให้เซิร์ฟเวอร์ปิดหลังตอบ ไม่ค้าง keep-alive
   http.setConnectTimeout((uint16_t)min<uint32_t>(timeoutMs, 10000));
   http.setTimeout((uint16_t)min<uint32_t>(timeoutMs, 65000));
   static const char* headerKeys[] = {"X-Server-Time"};
@@ -82,7 +83,8 @@ ApiResult apiCall(const char* method, const String& suffix, const String& body, 
   if (trace) Serial.printf("[trace] GET returned %d after %lu ms\n", code, millis() - startedAt);
   if (code > 0) {
     r.status = code;
-    r.body = http.getString();
+    // 204 ไม่มี body — getString() จะวนรอจนเซิร์ฟเวอร์ปิดการเชื่อมต่อ (ไม่มี timeout ในลูปนั้น) ทำให้ตู้ค้างหลัง long-poll หมดเวลา
+    if (code != 204 && http.getSize() != 0) r.body = http.getString();
     r.serverTime = (uint32_t)strtoul(http.header("X-Server-Time").c_str(), nullptr, 10);
     // ตั้งนาฬิกาเฉพาะคำขอสั้น ๆ: server ตั้ง X-Server-Time ตอนเริ่มรับคำขอ ถ้า long-poll รอ 50 วิ ค่านี้เก่า 50 วิ → นาฬิกาถอยทุกรอบจน clock_skew
     // (นาฬิกาตู้เดินจากคริสตัลอยู่แล้ว เพี้ยนไม่ถึงวินาทีต่อชั่วโมง · boot / report / ready / result ตั้งใหม่ให้ตลอด)

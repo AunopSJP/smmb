@@ -4,7 +4,7 @@ const N = 25; // ขนาดตาราง
 
 /**
  * รูปที่หน้าตาเหมือน QR สำหรับต้นแบบ (สแกนไม่ได้จริง) — seed เปลี่ยน = ลายเปลี่ยน
- * ของจริง: server สร้าง `SMMB-O1.<payload>.<sig>` แล้วแอปวาดเป็น QR (api.md §6.3)
+ * ของจริง: server สร้าง `SMMB-O2.<j>.<u>.<e>.<sig>` แล้วแอปวาดเป็น QR (api.md §6.3)
  */
 @Component({
   selector: 'app-fake-qr',

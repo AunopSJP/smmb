@@ -517,7 +517,9 @@ static void runCommand(String line) {
     }
   } else if (cmd == "camweb") {
     // ทางลัด: เปิดหน้าดูกล้องชั่วคราว N วินาที (ไม่เก็บค่า) — ปิดเองเมื่อครบเวลา
-    uint32_t sec = arg.length() ? arg.toInt() : 120;
+    // camweb [วินาที] [scan] — ค่าเริ่มต้น "ดูภาพอย่างเดียว": ไม่ถอดรหัส QR ไม่คุยกับเซิร์ฟเวอร์ · ใส่ scan = ให้หาและถอดรหัส QR ด้วย
+    uint32_t sec = arg.toInt() > 0 ? arg.toInt() : 120;
+    cameraPreviewDecode(arg.indexOf("scan") >= 0);
     if (WiFi.status() != WL_CONNECTED) {
       Serial.println("camweb: ยังไม่ต่อ Wi-Fi");
     } else {
@@ -532,8 +534,11 @@ static void runCommand(String line) {
         delay(5);
       }
       if (!wasRunning && !settings.debugCam) debugViewStop();
+      cameraPreviewDecode(true);
       Serial.println("camweb: ปิดแล้ว");
     }
+  } else if (cmd == "camraw") {
+    rawViewRun(arg.toInt() > 0 ? arg.toInt() : 300);  // ภาพสดดิบ MJPEG ไม่ผ่านตัวกรอง/ถอดรหัส
   } else if (cmd == "snap") {
     cameraDumpFrame();  // ดูภาพที่กล้องเห็น (python แปลง hex เป็นรูป)
   } else if (cmd == "portal") {
@@ -550,10 +555,14 @@ static void runCommand(String line) {
     val.trim();
     if (what == "size" && (val == "qvga" || val == "vga" || val == "svga" || val == "xga")) settings.camSize = val;
     else if (what == "xclk" && (val == "10" || val == "20")) settings.camXclk = val.toInt();
+    else if (what == "bench") cameraBench();
+    else if (what == "q" && val.toInt() >= 4 && val.toInt() <= 30) settings.camQ = val.toInt();
+    else if (what == "sharp" && val.toInt() >= -2 && val.toInt() <= 2) settings.camSharp = val.toInt();
+    else if (what == "fmt" && (val == "jpeg" || val == "gray")) settings.camJpeg = val == "jpeg";
     else if (what == "ae" && val.toInt() >= -2 && val.toInt() <= 2) settings.camAe = val.toInt();
-    else Serial.println("usage: cam size qvga|vga|svga|xga · cam xclk 10|20 · cam ae -2..2");
+    else Serial.println("usage: cam size qvga|vga|svga|xga · cam xclk 10|20 · cam fmt jpeg|gray · cam q 4..30 · cam sharp -2..2 · cam ae -2..2");
     settingsSave();
-    Serial.printf("cam size=%s xclk=%uMHz ae=%d — reboot to apply\n", settings.camSize.c_str(), settings.camXclk, settings.camAe);
+    Serial.printf("cam size=%s xclk=%uMHz fmt=%s q=%u sharp=%d ae=%d — applies on next camera start\n", settings.camSize.c_str(), settings.camXclk, settings.camJpeg ? "jpeg" : "gray", settings.camQ, settings.camSharp, settings.camAe);
   } else if (cmd == "reboot") {
     ESP.restart();
   } else {

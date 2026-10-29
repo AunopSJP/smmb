@@ -57,8 +57,9 @@ export const showPrintCode = (code: string) => `${code.slice(0, 4)}-${code.slice
 export const newJobId = () => `J-${randomBytes(3).toString('hex')}`;
 
 // ── QR ประจำตัวเจ้าหน้าที่ (โปรโตคอล §3.3) ─────────────────────────────
-// SMMB-O1.<base64url(JSON {j,u,e})>.<base64url(HMAC-SHA256(คีย์ QR, "badge|" + ส่วนกลาง) ตัด 16 ไบต์)>
+// SMMB-O2.<j>.<u>.<e เลขฐาน 36>.<base64url(HMAC-SHA256(คีย์ QR, "badge|" + j.u.e) ตัด 12 ไบต์)>
 // สร้างที่ server เท่านั้น · ผูกกับ job (j) + เจ้าหน้าที่ (u) · หมดอายุ e (วินาที UTC)
+// สั้นโดยตั้งใจ (~47 ตัวอักษร): กล้องตู้ความละเอียดต่ำ อ่าน QR เล็ก/แน่นไม่ได้ (O1 ~95 ตัวอักษร อ่านไม่ติดบนบอร์ดจริง)
 
 export interface BadgePayload {
   j: string;
@@ -66,29 +67,26 @@ export interface BadgePayload {
   e: number;
 }
 
-const BADGE_PREFIX = 'SMMB-O1.';
+const BADGE_PREFIX = 'SMMB-O2.';
 const b64url = (b: Buffer | string) => Buffer.from(b).toString('base64url');
-const badgeSig = (qrKey: string, payload: string) =>
-  createHmac('sha256', qrKey).update(`badge|${payload}`).digest().subarray(0, 16).toString('base64url');
+const badgeSig = (qrKey: string, body: string) =>
+  createHmac('sha256', qrKey).update(`badge|${body}`).digest().subarray(0, 12).toString('base64url');
 
 export function badgeToken(qrKey: string, p: BadgePayload): string {
-  const payload = b64url(JSON.stringify({ j: p.j, u: p.u, e: p.e }));
-  return `${BADGE_PREFIX}${payload}.${badgeSig(qrKey, payload)}`;
+  const body = `${p.j}.${p.u}.${p.e.toString(36)}`;
+  return `${BADGE_PREFIX}${body}.${badgeSig(qrKey, body)}`;
 }
 
 /** ตรวจลายเซ็นของ QR ประจำตัว → payload หรือ null (ไม่ใช่ของระบบ / ถูกแก้) · หมดอายุ/ผิด job ให้ผู้เรียกเช็กเอง */
 export function readBadge(qrKey: string, text: string): BadgePayload | null {
   if (!text.startsWith(BADGE_PREFIX)) return null;
-  const [payload, sig, extra] = text.slice(BADGE_PREFIX.length).trim().split('.');
-  if (!payload || !sig || extra !== undefined) return null;
-  const expected = badgeSig(qrKey, payload);
+  const parts = text.slice(BADGE_PREFIX.length).trim().split('.');
+  if (parts.length !== 4) return null;
+  const [j, u, e36, sig] = parts;
+  if (!j || !u || !e36 || !sig || !/^[0-9a-z]{1,10}$/.test(e36)) return null;
+  const expected = badgeSig(qrKey, `${j}.${u}.${e36}`);
   if (sig.length !== expected.length || !timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
-  try {
-    const p = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Partial<BadgePayload>;
-    return typeof p.j === 'string' && typeof p.u === 'string' && typeof p.e === 'number' ? { j: p.j, u: p.u, e: p.e } : null;
-  } catch {
-    return null;
-  }
+  return { j, u, e: parseInt(e36, 36) };
 }
 
 // ── delivery ticket ของไรเดอร์ (api.md §5) ─────────────────────────────

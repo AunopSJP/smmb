@@ -234,7 +234,7 @@ X-Signature    86c6520798d17a12cf2af3d156f02f1a361cb5ac3138245135d6176bd901de6c
 {
   "attempt": 1,
   "read_ok": true,
-  "qr_text": "SMMB-O1.eyJqIjoiSi04ZjMxYzIiLCJ1IjoiVS0wMDcxIiwiZSI6MTc2MTEyNDAzMH0.Zx9k…",
+  "qr_text": "SMMB-O2.J-8f31c2.U-0071.q5k3b6.Zx9kQ2hT1mA3Vw8e",
   "read_ms": 2400,
   "flash": false
 }
@@ -325,9 +325,10 @@ https://smmb.app/a/8Q3JX7KD2MZP4W9R
 
 **ข้างใน QR**
 ```
-SMMB-O1.<ข้อมูล>.<ลายเซ็น>
-ข้อมูล = { "j": "J-8f31c2", "u": "U-0071", "e": 1761124030 }
-          job_id ของตู้นี้   เจ้าหน้าที่    หมดอายุ (30 วิ)
+SMMB-O2.<j>.<u>.<e>.<ลายเซ็น>        เช่น SMMB-O2.J-8f31c2.U-0071.q5k3b6.Zx9kQ2hT1mA3Vw8e
+j = job_id ของตู้นี้ · u = เจ้าหน้าที่ · e = หมดอายุ (วินาที UTC เลขฐาน 36 · 30 วิ)
+ลายเซ็น = HMAC-SHA256(คีย์ QR, "badge|" + j.u.e) ตัด 12 ไบต์ → base64url 16 ตัว
+สั้นโดยตั้งใจ (~47 ตัวอักษร) — รุ่น O1 (JSON เป็น base64 ~95 ตัวอักษร) แน่นเกินกว่ากล้อง ESP32-CAM จะอ่านได้ (ทดสอบกับบอร์ดจริง 29 ต.ค.)
 ```
 - **ผูกกับ job_id** → ใช้ได้แค่ตู้ที่เพิ่งสแกน QR หน้าตู้เท่านั้น เอาไปใช้ตู้อื่นไม่ได้
 - หมดอายุใน 30 วิ → ถ่ายรูปเก็บไว้ใช้ทีหลังไม่ได้

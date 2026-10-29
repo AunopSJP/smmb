@@ -1,6 +1,7 @@
 #include "camera_qr.h"
 
 #include <esp_camera.h>
+#include <esp_task_wdt.h>
 
 #include "board.h"
 #include "settings.h"
@@ -38,21 +39,56 @@ static uint16_t scanFrames = 0, scanShapes = 0;
 void cameraHold(bool hold) { held = hold; }
 bool cameraScanning() { return scanning; }
 
-static void previewStore(camera_fb_t* fb, bool shape, const String& text) {
-  const size_t need = (size_t)fb->width * fb->height;
+// ภาพเทาที่ใช้ประมวลผล — กล้องส่ง JPEG ฮาร์ดแวร์ (เบา เร็ว) แล้วถอดเป็นเทาเอง · โหมดเทาตรง ๆ ใช้ buf ของเฟรมเลย
+struct GrayImg {
+  const uint8_t* px = nullptr;
+  int w = 0;
+  int h = 0;
+};
+static uint8_t* rgbBuf = nullptr;
+static uint8_t* grayBuf = nullptr;
+static size_t grayCap = 0;
+
+static bool toGray(camera_fb_t* fb, GrayImg& g) {
+  if (fb->format == PIXFORMAT_GRAYSCALE) {
+    g.px = fb->buf;
+    g.w = (int)fb->width;
+    g.h = (int)fb->height;
+    return true;
+  }
+  if (fb->format != PIXFORMAT_JPEG) return false;
+  const size_t n = (size_t)fb->width * fb->height;
+  if (grayCap < n) {
+    free(grayBuf);
+    free(rgbBuf);
+    grayBuf = (uint8_t*)ps_malloc(n);
+    rgbBuf = (uint8_t*)ps_malloc(n * 3);
+    grayCap = grayBuf && rgbBuf ? n : 0;
+  }
+  if (!grayCap) return false;
+  if (!fmt2rgb888(fb->buf, fb->len, PIXFORMAT_JPEG, rgbBuf)) return false;
+  for (size_t i = 0; i < n; i++) grayBuf[i] = (rgbBuf[3 * i] + 2 * rgbBuf[3 * i + 1] + rgbBuf[3 * i + 2]) >> 2;  // ไม่ขึ้นกับลำดับ R/B
+  g.px = grayBuf;
+  g.w = (int)fb->width;
+  g.h = (int)fb->height;
+  return true;
+}
+
+static void previewStore(const GrayImg& g, bool shape, const String& text) {
+  const size_t need = (size_t)g.w * g.h;
   if (!prevBuf || prevCap < need) {
     free(prevBuf);
     prevBuf = (uint8_t*)ps_malloc(need);
     prevCap = prevBuf ? need : 0;
   }
   if (!prevBuf) return;
-  memcpy(prevBuf, fb->buf, need);
-  prevW = fb->width;
-  prevH = fb->height;
+  memcpy(prevBuf, g.px, need);
+  prevW = g.w;
+  prevH = g.h;
   uint32_t sum = 0, n = 0;
-  for (size_t y = fb->height / 4; y < fb->height * 3 / 4; y += 8)
-    for (size_t x = fb->width / 4; x < fb->width * 3 / 4; x += 8) {
-      sum += fb->buf[y * fb->width + x];
+  for (size_t y = g.h / 4; y < (size_t)g.h * 3 / 4; y += 8)
+    for (size_t x = g.w / 4; x < (size_t)g.w * 3 / 4; x += 8) {
+      sum += g.px[y * g.w + x];
       n++;
     }
   prevBrightness = n ? sum / n : 0;
@@ -97,8 +133,7 @@ String cameraPreviewJson() {
   return out;
 }
 
-bool cameraStart() {
-  if (running) return true;
+static camera_config_t makeConfig() {
   camera_config_t c = {};
   c.pin_pwdn = CAM_PIN_PWDN;
   c.pin_reset = CAM_PIN_RESET;
@@ -121,15 +156,21 @@ bool cameraStart() {
   c.ledc_timer = LEDC_TIMER_0;
   c.ledc_channel = LEDC_CHANNEL_0;
   // ขาวดำ VGA: QR ประจำตัว (~100 ตัวอักษร) จากจอมือถือระยะ 15–30 ซม. ต้องการความละเอียดพอสมควร
-  c.pixel_format = PIXFORMAT_GRAYSCALE;
+  c.pixel_format = settings.camJpeg ? PIXFORMAT_JPEG : PIXFORMAT_GRAYSCALE;
   c.frame_size = settings.camSize == "qvga" ? FRAMESIZE_QVGA
                  : settings.camSize == "svga" ? FRAMESIZE_SVGA
                  : settings.camSize == "xga"  ? FRAMESIZE_XGA
                                               : FRAMESIZE_VGA;
-  c.jpeg_quality = 12;
+  c.jpeg_quality = settings.camQ;  // เลขน้อย = คมกว่า (ค่าเริ่มต้น 6)
   c.fb_count = 2;
   c.fb_location = CAMERA_FB_IN_PSRAM;
   c.grab_mode = CAMERA_GRAB_LATEST;
+  return c;
+}
+
+bool cameraStart() {
+  if (running) return true;
+  camera_config_t c = makeConfig();
   esp_err_t err = esp_camera_init(&c);
   // กล้องหาไม่เจอชั่วคราว (ไฟตก/เซนเซอร์ค้าง) → ปิด-เปิดขา PWDN แล้วลองใหม่ 2 ครั้งก่อนยอมแพ้
   for (int retry = 0; err != ESP_OK && retry < 2; retry++) {
@@ -155,7 +196,7 @@ bool cameraStart() {
   // ภาพจากเซนเซอร์บนบอร์ดนี้กลับซ้าย-ขวา → กลับให้ถูกที่เซนเซอร์ (QR กลับด้านถอดไม่ได้)
   if (sensor_t* sen = esp_camera_sensor_get()) {
     sen->set_hmirror(sen, 1);
-    sen->set_sharpness(sen, 2);
+    sen->set_sharpness(sen, settings.camSharp);
     sen->set_contrast(sen, 1);
     sen->set_ae_level(sen, settings.camAe);
   }
@@ -187,11 +228,16 @@ bool cameraAutoFlash(bool allowed) {
   }
   camera_fb_t* fb = esp_camera_fb_get();
   if (!fb) return flashOn;
+  GrayImg g;
+  if (!toGray(fb, g)) {
+    esp_camera_fb_return(fb);
+    return flashOn;
+  }
   // ค่าความสว่างเฉลี่ยตรงกลางภาพ (สุ่มทุก 8 พิกเซล)
   uint32_t sum = 0, n = 0;
-  for (size_t y = fb->height / 4; y < fb->height * 3 / 4; y += 8)
-    for (size_t x = fb->width / 4; x < fb->width * 3 / 4; x += 8) {
-      sum += fb->buf[y * fb->width + x];
+  for (size_t y = g.h / 4; y < (size_t)g.h * 3 / 4; y += 8)
+    for (size_t x = g.w / 4; x < (size_t)g.w * 3 / 4; x += 8) {
+      sum += g.px[y * g.w + x];
       n++;
     }
   esp_camera_fb_return(fb);
@@ -224,9 +270,9 @@ static bool decodeAll(String& out) {
   return false;
 }
 
-static bool scanFrame(camera_fb_t* fb, struct quirc* decoder, bool fullFrame, String& text, bool& foundShape) {
-  const int frameWidth = static_cast<int>(fb->width);
-  const int frameHeight = static_cast<int>(fb->height);
+static bool scanFrame(const GrayImg& g, struct quirc* decoder, bool fullFrame, String& text, bool& foundShape) {
+  const int frameWidth = g.w;
+  const int frameHeight = g.h;
   const int scanWidth = fullFrame ? frameWidth : centerWidth(frameWidth);
   const int scanHeight = fullFrame ? frameHeight : centerHeight(frameHeight);
   const int offsetX = (frameWidth - scanWidth) / 2;
@@ -238,7 +284,7 @@ static bool scanFrame(camera_fb_t* fb, struct quirc* decoder, bool fullFrame, St
   uint8_t* image = quirc_begin(decoder, &width, &height);
   for (int y = 0; y < height; y++) {
     memcpy(image + static_cast<size_t>(y) * width,
-           fb->buf + static_cast<size_t>(offsetY + y) * frameWidth + offsetX,
+           g.px + static_cast<size_t>(offsetY + y) * frameWidth + offsetX,
            width);
   }
   quirc_end(decoder);
@@ -268,16 +314,23 @@ struct ScanGuard {
   ~ScanGuard() { scanning = false; }
 };
 
+static bool previewDecode = true;
+void cameraPreviewDecode(bool on) { previewDecode = on; }
+
 bool cameraPreviewTick() {
   if (!running) return false;
   camera_fb_t* fb = esp_camera_fb_get();
   if (!fb) return false;
   String text;
   bool found = false;
-  scanFrame(fb, qr, false, text, found);
-  previewStore(fb, found, text);
+  GrayImg g;
+  const bool ok = toGray(fb, g);
+  if (ok) {
+    if (previewDecode) scanFrame(g, qr, false, text, found);
+    previewStore(g, found, text);
+  }
   esp_camera_fb_return(fb);
-  return true;
+  return ok;
 }
 
 static void (*previewSink)(const uint8_t*, size_t) = nullptr;
@@ -305,18 +358,28 @@ QrRead cameraScanQr(uint32_t timeoutMs) {
     frames++;
     if (previewSink && millis() - lastPreviewAt >= previewIntervalMs) {
       lastPreviewAt = millis();
-      uint8_t* jpg = nullptr;
-      size_t jpgLen = 0;
-      if (frame2jpg(fb, 40, &jpg, &jpgLen) && jpg) {
-        previewSink(jpg, jpgLen);
-        free(jpg);
+      if (fb->format == PIXFORMAT_JPEG) {
+        previewSink(fb->buf, fb->len);  // JPEG ของเซนเซอร์ส่งตรง ไม่เข้ารหัสซ้ำ
+      } else {
+        uint8_t* jpg = nullptr;
+        size_t jpgLen = 0;
+        if (frame2jpg(fb, 40, &jpg, &jpgLen) && jpg) {
+          previewSink(jpg, jpgLen);
+          free(jpg);
+        }
       }
     }
     String text;
     bool found = false;
+    GrayImg g;
+    if (!toGray(fb, g)) {
+      esp_camera_fb_return(fb);
+      delay(20);
+      continue;
+    }
     const bool fullFrame = frames % QR_FULL_FRAME_INTERVAL == 0;
-    const bool decoded = scanFrame(fb, fullFrame ? qrFull : qr, fullFrame, text, found);
-    previewStore(fb, found, text);
+    const bool decoded = scanFrame(g, fullFrame ? qrFull : qr, fullFrame, text, found);
+    previewStore(g, found, text);
     esp_camera_fb_return(fb);
     scanFrames = frames;
     debugViewPoll();  // ให้หน้าดูกล้องยังตอบได้ระหว่างอ่าน QR
@@ -345,7 +408,17 @@ bool cameraSnapshotJpeg(uint8_t** out, size_t* len) {
   bool started = !running && cameraStart();
   if (!running) return false;
   camera_fb_t* fb = esp_camera_fb_get();
-  bool ok = fb && frame2jpg(fb, 80, out, len);
+  bool ok = false;
+  if (fb && fb->format == PIXFORMAT_JPEG) {
+    *out = (uint8_t*)malloc(fb->len);
+    if (*out) {
+      memcpy(*out, fb->buf, fb->len);
+      *len = fb->len;
+      ok = true;
+    }
+  } else if (fb) {
+    ok = frame2jpg(fb, 80, out, len);
+  }
   if (fb) esp_camera_fb_return(fb);
   if (started) cameraStop();
   return ok;
@@ -365,16 +438,100 @@ void cameraDumpFrame() {
   if (!fb) {
     Serial.println("snap: no frame");
   } else {
-    const int step = (fb->width + 319) / 320;  // ย่อให้กว้างไม่เกิน 320
-    const int w = fb->width / step, h = fb->height / step;
+    GrayImg g;
+    if (!toGray(fb, g)) {
+      Serial.println("snap: cannot decode frame");
+      esp_camera_fb_return(fb);
+      if (!wasRunning) cameraStop();
+      return;
+    }
+    const int step = (g.w + 319) / 320;  // ย่อให้กว้างไม่เกิน 320
+    const int w = g.w / step, h = g.h / step;
     Serial.printf("SNAP %d %d\n", w, h);
     char line[2 * 320 + 2];
     for (int y = 0; y < h; y++) {
-      for (int x = 0; x < w; x++) sprintf(line + 2 * x, "%02x", fb->buf[(y * step) * fb->width + x * step]);
+      for (int x = 0; x < w; x++) sprintf(line + 2 * x, "%02x", g.px[(y * step) * g.w + x * step]);
       Serial.println(line);
     }
     Serial.println("SNAPEND");
     esp_camera_fb_return(fb);
   }
   if (!wasRunning) cameraStop();
+}
+
+// ── ภาพดิบ (ไว้ดูกล้องจริง ๆ ไม่ผ่านตัวกรอง) ──────────────────────────────
+// JPEG ฮาร์ดแวร์ของเซนเซอร์เอง: ไม่กลับภาพ ไม่ปรับ sharpness/contrast/ae ไม่แปลงเทา ไม่เข้ารหัสซ้ำ
+bool cameraRawBegin() {
+  if (running) {
+    esp_camera_deinit();
+    running = false;
+  }
+  camera_config_t c = makeConfig();
+  c.pixel_format = PIXFORMAT_JPEG;
+  c.jpeg_quality = settings.camQ;
+  c.fb_count = 2;
+  c.grab_mode = CAMERA_GRAB_LATEST;
+  const esp_err_t err = esp_camera_init(&c);
+  if (err != ESP_OK) Serial.printf("[cam] raw init failed 0x%x\n", err);
+  // ภาพดิบ: ใช้ sharpness/ae ชุดเดียวกับตอนสแกนเพื่อให้เห็นตรงกัน (ไม่กลับภาพ ไม่ปรับ contrast)
+  if (err == ESP_OK) {
+    if (sensor_t* sen = esp_camera_sensor_get()) {
+      sen->set_sharpness(sen, settings.camSharp);
+      sen->set_ae_level(sen, settings.camAe);
+    }
+  }
+  return err == ESP_OK;
+}
+
+void cameraRawEnd() { esp_camera_deinit(); }
+
+void cameraBench() {
+  const char* sizes[] = {"qvga", "vga", "svga"};
+  const String keep = settings.camSize;
+  for (const char* sz : sizes) {
+    settings.camSize = sz;
+    if (running) {
+      esp_camera_deinit();
+      running = false;
+    }
+    if (!cameraStart()) {
+      Serial.printf("bench %s: camera failed\n", sz);
+      continue;
+    }
+    uint32_t tGrab = 0, tGray = 0, tQr = 0;
+    int n = 0, shapes = 0, decoded = 0, w = 0, h = 0;
+    for (int i = 0; i < 12; i++) {
+      esp_task_wdt_reset();
+      const uint32_t t0 = millis();
+      camera_fb_t* fb = esp_camera_fb_get();
+      const uint32_t t1 = millis();
+      if (!fb) continue;
+      GrayImg g;
+      const bool ok = toGray(fb, g);
+      const uint32_t t2 = millis();
+      String text;
+      bool found = false;
+      if (ok) {
+        w = g.w;
+        h = g.h;
+        scanFrame(g, qr, false, text, found);
+      }
+      const uint32_t t3 = millis();
+      esp_camera_fb_return(fb);
+      tGrab += t1 - t0;
+      tGray += t2 - t1;
+      tQr += t3 - t2;
+      n++;
+      if (found) shapes++;
+      if (text.length()) decoded++;
+    }
+    if (n) {
+      const float perFrame = (float)(tGrab + tGray + tQr) / n;
+      Serial.printf("bench %s %dx%d: grab %u ms · jpeg->gray %u ms · quirc %u ms · total %.0f ms = %.1f fps · QR shape %d/%d · decoded %d\n", sz, w, h,
+                    tGrab / n, tGray / n, tQr / n, perFrame, 1000.0f / perFrame, shapes, n, decoded);
+    }
+    esp_camera_deinit();
+    running = false;
+  }
+  settings.camSize = keep;  // ไม่บันทึก
 }

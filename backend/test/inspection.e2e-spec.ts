@@ -144,7 +144,7 @@ describe('Inspections (e2e)', () => {
     expect((await as(officer.cookie).get(`/api/v1/inspections/${ins.id}`).expect(200)).body.status).toBe('ready');
 
     const badge = (await as(officer.cookie).get(`/api/v1/inspections/${ins.id}/badge`).expect(200)).body;
-    expect(badge.qr).toMatch(/^SMMB-O1\.[\w-]+\.[\w-]+$/);
+    expect(badge.qr).toMatch(/^SMMB-O2\.J-[0-9a-f]{6}\.U-\d+\.[0-9a-z]+\.[\w-]{16}$/);
 
     // ครั้งแรกกล้องอ่านอย่างอื่นมา → ลองใหม่ · ครั้งที่ 2 อ่าน QR ประจำตัวได้ → ผ่าน
     const r1 = await box(b, 'POST', `/v1/box/jobs/${ins.job_id}/result`, { attempt: 1, read_ok: true, qr_text: 'hello', read_ms: 900 }).expect(200);

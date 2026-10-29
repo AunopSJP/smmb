@@ -2,6 +2,8 @@
 
 #include <WebServer.h>
 #include <WiFi.h>
+#include <esp_camera.h>
+#include <esp_task_wdt.h>
 
 #include "camera_qr.h"
 #include "settings.h"
@@ -10,6 +12,8 @@
 static WebServer* server = nullptr;
 static uint32_t lastViewMs = 0;
 static const uint32_t VIEWER_TTL_MS = 20000;
+
+void cliPoll();  // main.cpp — ให้สั่ง camonly off ได้ระหว่างสตรีม
 
 static String viewKey() { return sha256Hex(settings.secret).substring(0, 8); }
 
@@ -151,3 +155,74 @@ void debugViewIdleCheck() {
 }
 
 String debugViewUrl() { return "http://" + WiFi.localIP().toString() + "/?k=" + viewKey(); }
+
+// ── ภาพดิบ MJPEG ────────────────────────────────────────────────────────
+// ไว้ดูกล้องจริง ๆ: JPEG ฮาร์ดแวร์ → ส่งตรงเป็น multipart ทีละเฟรม ไม่ผ่านตัวกรอง/แปลงเทา/เข้ารหัสซ้ำ
+// บล็อกจนครบเวลา (ระหว่างนี้ตู้ไม่ถือ long-poll) · ต้องมี ?k= เหมือนหน้าดูกล้องปกติ
+void rawViewRun(uint32_t sec) {
+  debugViewStop();
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("rawview: ยังไม่ต่อ Wi-Fi");
+    return;
+  }
+  if (!cameraRawBegin()) return;
+  WiFiServer srv(80);
+  srv.begin();
+  const String key = viewKey();
+  Serial.printf("rawview: http://%s/?k=%s (%u วิ · ภาพดิบ ไม่ผ่านตัวกรอง)\n", WiFi.localIP().toString().c_str(), key.c_str(), (unsigned)sec);
+  const uint32_t endAt = millis() + sec * 1000UL;
+  while ((int32_t)(endAt - millis()) > 0) {
+    esp_task_wdt_reset();
+    cliPoll();
+    WiFiClient c = srv.available();
+    if (!c) {
+      delay(10);
+      continue;
+    }
+    c.setTimeout(2);
+    const String req = c.readStringUntil('\n');
+    for (uint32_t t = millis(); millis() - t < 1500;) {  // ทิ้ง header ที่เหลือ
+      const String h = c.readStringUntil('\n');
+      if (h.length() <= 1) break;
+    }
+    if (req.indexOf("k=" + key) < 0) {
+      c.print("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\nforbidden");
+      c.stop();
+      continue;
+    }
+    if (req.startsWith("GET /stream")) {
+      c.print("HTTP/1.1 200 OK\r\nContent-Type: multipart/x-mixed-replace; boundary=frame\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n");
+      uint32_t frames = 0, bytes = 0, mark = millis();
+      while (c.connected() && (int32_t)(endAt - millis()) > 0) {
+        esp_task_wdt_reset();
+        cliPoll();
+        camera_fb_t* fb = esp_camera_fb_get();
+        if (!fb) {
+          delay(5);
+          continue;
+        }
+        c.printf("--frame\r\nContent-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n", (unsigned)fb->len);
+        c.write(fb->buf, fb->len);
+        c.print("\r\n");
+        bytes += fb->len;
+        frames++;
+        esp_camera_fb_return(fb);
+        if (millis() - mark >= 3000) {
+          Serial.printf("rawview: %.1f fps · %u KB/frame · %ux%u\n", frames * 1000.0f / (millis() - mark), bytes / frames / 1024,
+                        (unsigned)fb->width, (unsigned)fb->height);
+          frames = bytes = 0;
+          mark = millis();
+        }
+      }
+      c.stop();
+    } else {
+      const String html = String("<!doctype html><meta name=viewport content='width=device-width,initial-scale=1'>") +
+                          "<body style='margin:0;background:#000'><img src='/stream?k=" + key + "' style='width:100%;display:block'>";
+      c.printf("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\nContent-Length: %u\r\n\r\n%s", (unsigned)html.length(), html.c_str());
+      c.stop();
+    }
+  }
+  srv.stop();
+  cameraRawEnd();
+  Serial.println("rawview: ปิดแล้ว");
+}
