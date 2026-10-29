@@ -75,15 +75,50 @@ export class AuthLine {
         <p class="muted small">{{ i18n.t({ th: 'ทำครั้งเดียว แล้วเปิดจากไอคอนได้เลย', en: 'Do this once, then open it from the icon' }) }}</p>
       </div>
       <ol class="card how">
-        <li><span><strong>{{ i18n.t({ th: 'กดปุ่มแชร์', en: 'Tap Share' }) }}</strong><small>{{ i18n.t({ th: 'อยู่ด้านล่างของ Safari', en: 'At the bottom of Safari' }) }}</small></span></li>
-        <li><span><strong>{{ i18n.t({ th: 'เลือก "เพิ่มไปยังหน้าจอหลัก"', en: 'Choose “Add to Home Screen”' }) }}</strong><small>{{ i18n.t({ th: 'เลื่อนลงหาในเมนู', en: 'Scroll down the menu' }) }}</small></span></li>
-        <li><span><strong>{{ i18n.t({ th: 'เปิดแอปจากไอคอน Smart Mailbox', en: 'Open Smart Mailbox from its icon' }) }}</strong><small>{{ i18n.t({ th: 'ที่หน้าจอโฮมของมือถือ', en: 'On your home screen' }) }}</small></span></li>
+        <li><span><strong>{{ i18n.t({ th: 'กดปุ่มแชร์', en: 'Tap Share' }) }}</strong><small>{{ i18n.t({ th: 'อยู่ด้านล่างของ Safari', en: 'At the bottom of Safari' }) }}</small>
+          <svg class="pic" viewBox="0 0 240 90" role="img" [attr.aria-label]="i18n.t({ th: 'ภาพ: แถบล่างของ Safari มีปุ่มแชร์อยู่ตรงกลาง', en: 'Picture: the Safari bottom bar with the Share button in the middle' })">
+            <rect x="1" y="1" width="238" height="88" rx="14" class="screen" />
+            <rect x="14" y="14" width="212" height="20" rx="10" class="bar" />
+            <text x="120" y="28" text-anchor="middle" class="tiny">smmb · hub</text>
+            <rect x="1" y="52" width="238" height="37" rx="14" class="dock" />
+            <path d="M28 70l8-7v14zM66 63v14M62 70h8" class="ico" />
+            <circle cx="120" cy="70" r="17" class="ring" />
+            <path d="M120 78V62M113 68l7-7 7 7M113 71v8h14v-8" class="ico hi" />
+            <rect x="170" y="63" width="14" height="14" rx="3" class="ico" />
+            <path d="M205 63v14M198 70h14" class="ico" />
+          </svg></span></li>
+        <li><span><strong>{{ i18n.t({ th: 'เลือก "เพิ่มไปยังหน้าจอหลัก"', en: 'Choose “Add to Home Screen”' }) }}</strong><small>{{ i18n.t({ th: 'เลื่อนลงหาในเมนู', en: 'Scroll down the menu' }) }}</small>
+          <svg class="pic" viewBox="0 0 240 120" role="img" [attr.aria-label]="i18n.t({ th: 'ภาพ: เมนูแชร์ มีแถว เพิ่มไปยังหน้าจอหลัก', en: 'Picture: the share menu with the Add to Home Screen row' })">
+            <rect x="1" y="1" width="238" height="118" rx="14" class="screen" />
+            <rect x="14" y="12" width="212" height="22" rx="8" class="row" />
+            <text x="26" y="27" class="tiny">คัดลอก · Copy</text>
+            <rect x="14" y="40" width="212" height="26" rx="8" class="row hiRow" />
+            <rect x="22" y="45" width="16" height="16" rx="4" class="ico hi" />
+            <path d="M30 49v8M26 53h8" class="ico hi" />
+            <text x="46" y="58" class="tiny strongT">เพิ่มไปยังหน้าจอหลัก · Add to Home Screen</text>
+            <rect x="14" y="72" width="212" height="22" rx="8" class="row" />
+            <text x="26" y="87" class="tiny">ค้นหาในหน้า · Find on Page</text>
+            <text x="120" y="111" text-anchor="middle" class="tiny muted">↓ เลื่อนลงหา · scroll down</text>
+          </svg></span></li>
+        <li><span><strong>{{ i18n.t({ th: 'เปิดแอปจากไอคอน Smart Mailbox', en: 'Open Smart Mailbox from its icon' }) }}</strong><small>{{ i18n.t({ th: 'ที่หน้าจอโฮมของมือถือ', en: 'On your home screen' }) }}</small>
+          <svg class="pic" viewBox="0 0 240 90" role="img" [attr.aria-label]="i18n.t({ th: 'ภาพ: ไอคอน Smart Mailbox บนหน้าจอโฮม', en: 'Picture: the Smart Mailbox icon on the home screen' })">
+            <rect x="1" y="1" width="238" height="88" rx="14" class="screen" />
+            <rect x="24" y="14" width="40" height="40" rx="10" class="app" />
+            <rect x="36" y="26" width="16" height="12" rx="2" class="mail" />
+            <path d="M36 28l8 6 8-6" class="mailline" />
+            <text x="44" y="68" text-anchor="middle" class="tiny strongT">Smart Mailbox</text>
+            <rect x="100" y="14" width="40" height="40" rx="10" class="ghost" />
+            <rect x="170" y="14" width="40" height="40" rx="10" class="ghost" />
+          </svg></span></li>
       </ol>
-      <p class="info-box android">
-        <strong>{{ i18n.t({ th: 'Android ไม่ต้องทำขั้นนี้', en: 'Android: skip this step' }) }}</strong><br />
-        <span class="small">{{ i18n.t({ th: 'ใช้งานต่อได้เลย', en: 'You can carry on' }) }}</span>
+      <p class="info-box">
+        <strong>{{ i18n.t({ th: 'ข้อควรรู้ (iPhone)', en: 'Good to know (iPhone)' }) }}</strong><br />
+        <span class="small">{{ i18n.t({ th: 'ต้องเปิดเว็บนี้ด้วย Safari เท่านั้น (Chrome บน iPhone เพิ่มลงหน้าจอหลักแบบรับแจ้งเตือนไม่ได้) · ต้องใช้ iOS 16.4 ขึ้นไป · หลังติดตั้ง ให้เปิดจากไอคอนแล้วล็อกอินใหม่อีกครั้ง เพราะแอปที่ติดตั้งแยกจาก Safari', en: 'Use Safari only (Chrome on iPhone cannot install it with notifications) · needs iOS 16.4 or newer · after installing, open it from the icon and sign in again — the installed app is separate from Safari' }) }}</span>
       </p>
-      <p class="muted small">{{ i18n.t({ th: 'iPhone ต้องติดตั้งก่อน จึงจะรับแจ้งเตือนได้', en: 'On iPhone, notifications only work after installing' }) }}</p>
+      <p class="info-box android">
+        <strong>{{ i18n.t({ th: 'Android ไม่ต้องติดตั้งก็รับแจ้งเตือนได้', en: 'Android: no install needed for notifications' }) }}</strong><br />
+        <span class="small">{{ i18n.t({ th: 'ใช้ Chrome แล้วกด "อนุญาต" ตอนเปิดแจ้งเตือน · อยากได้ไอคอนบนหน้าจอ: เมนู ⋮ → ติดตั้งแอป', en: 'Use Chrome and tap “Allow” when asked · for a home-screen icon: ⋮ menu → Install app' }) }}</span>
+      </p>
       <a class="btn push-end" [routerLink]="url('A03')">{{ i18n.t({ th: 'ทำแล้ว ไปต่อ', en: 'Done, continue' }) }}</a>
     </div>
   `,
@@ -97,6 +132,72 @@ export class AuthLine {
     .android {
       background: var(--brand-lighter);
       color: var(--brand);
+    }
+    .pic {
+      display: block;
+      width: 100%;
+      max-width: 260px;
+      margin: 8px 0 4px;
+      .screen {
+        fill: var(--surface);
+        stroke: var(--text-muted);
+        stroke-width: 1.5;
+      }
+      .bar,
+      .row {
+        fill: var(--bg);
+      }
+      .dock {
+        fill: var(--bg);
+      }
+      .hiRow {
+        fill: var(--brand-lighter);
+        stroke: var(--brand);
+        stroke-width: 1.5;
+      }
+      .ico {
+        fill: none;
+        stroke: var(--text-muted);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .hi {
+        stroke: var(--brand);
+      }
+      .ring {
+        fill: none;
+        stroke: var(--brand);
+        stroke-width: 2.5;
+        stroke-dasharray: 4 4;
+      }
+      .tiny {
+        font-size: 9px;
+        fill: var(--text);
+      }
+      .strongT {
+        font-weight: 700;
+      }
+      .muted {
+        fill: var(--text-muted);
+      }
+      .app {
+        fill: var(--brand);
+      }
+      .mail {
+        fill: #fff;
+      }
+      .mailline {
+        fill: none;
+        stroke: var(--brand);
+        stroke-width: 1.5;
+      }
+      .ghost {
+        fill: var(--bg);
+        stroke: var(--text-muted);
+        stroke-width: 1;
+        stroke-dasharray: 3 3;
+      }
     }
   `,
 })

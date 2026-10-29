@@ -9,13 +9,14 @@ import { I18n, type Lang, type Tr } from '../../core/i18n';
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
+import { PushStatus } from '../../shared/push-status';
 import { AccountActions } from '../auth/auth-account';
 
 // ── H13 · ตั้งค่าตู้ ───────────────────────────────────────────
 
 @Component({
   selector: 'app-owner-settings',
-  imports: [RouterLink, PageHeader, Icon, AccountActions],
+  imports: [RouterLink, PageHeader, Icon, AccountActions, PushStatus],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
@@ -24,6 +25,7 @@ import { AccountActions } from '../auth/auth-account';
       [bell]="url('H14')"
     />
     <div class="stack grow">
+      <app-push-status />
       @if (boxes().length > 1) {
         <div class="segmented chips" role="group">
           @for (b of boxes(); track b.id) {
@@ -60,7 +62,7 @@ import { AccountActions } from '../auth/auth-account';
       }
 
       <nav class="list">
-        @for (m of menu; track m.code) {
+        @for (m of menu(); track m.code) {
           <a class="row" [routerLink]="url(m.code)">
             <span class="icon-bubble"><app-icon [name]="m.icon" [size]="20" /></span>
             <span class="grow">
@@ -174,12 +176,15 @@ export class OwnerSettings {
   protected signout(): void {
     void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04')));
   }
-  protected readonly menu: { code: string; icon: IconName; title: Tr; sub: Tr; badge?: Tr }[] = [
-    { code: 'H13-b', icon: 'layers', title: { th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' }, sub: { th: 'ทำเองได้ ใช้เวลาราว 5 นาที', en: 'Do it yourself, about 5 minutes' } },
+  protected readonly menu = computed<{ code: string; icon: IconName; title: Tr; sub: Tr; badge?: Tr }[]>(() => {
+    const pushOn = this.session.me()?.push.subscribed === true;
+    return [
+    { code: 'H13-b', icon: 'layers', title: { th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' }, sub: { th: 'กดสั่งจากเว็บ ตู้จะเข้าโหมดตั้งค่าเอง', en: 'Tap here — the mailbox enters setup mode by itself' } },
     { code: 'H13-c', icon: 'user', title: { th: 'แจ้งช่าง', en: 'Request a technician' }, sub: { th: 'ให้ช่างนัดมาตั้งค่า / ซ่อม', en: 'A technician will set up or repair' } },
-    { code: 'H14', icon: 'bell', title: { th: 'การแจ้งเตือน', en: 'Notifications' }, sub: { th: 'เปิดอยู่', en: 'On' }, badge: { th: 'เปิด', en: 'On' } },
+    { code: 'H14', icon: 'bell', title: { th: 'การแจ้งเตือน', en: 'Notifications' }, sub: pushOn ? { th: 'เครื่องนี้รับแจ้งเตือนอยู่', en: 'This device gets notifications' } : { th: 'เครื่องนี้ยังไม่ได้เปิด — แตะเพื่อเปิด', en: 'Off on this device — tap to turn on' }, ...(pushOn ? { badge: { th: 'เปิด', en: 'On' } } : {}) },
     { code: 'H13-d', icon: 'settings', title: { th: 'การแสดงผล', en: 'Display' }, sub: { th: 'ธีม · ภาษา · ขนาดตัวอักษร', en: 'Theme · language · text size' } },
   ];
+  });
 }
 
 // ── H13-b · เปลี่ยน Wi-Fi บ้าน (สั่งจากเว็บ → ตู้ตัด Wi-Fi เดิมแล้วกลับเข้าโหมดตั้งค่า) ─────────────

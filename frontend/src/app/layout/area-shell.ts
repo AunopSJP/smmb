@@ -19,7 +19,7 @@ const MOCK_SCREENS = new Set<string>();
   imports: [RouterOutlet, RouterLink, TabBar, ToastHost],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="frame">
+    <div class="frame" [style.--content-w]="contentWidth">
       @if (mock()) {
         <a class="demo" routerLink="/demo">
           {{ i18n.t({ th: 'ต้นแบบ · ข้อมูลจำลอง', en: 'Prototype · sample data' }) }} · {{ i18n.t(areaLabel()) }}
@@ -58,10 +58,13 @@ const MOCK_SCREENS = new Set<string>();
       color: var(--brand-dark);
       text-decoration: none;
     }
+    /* จอใหญ่ (คอม/iPad): จำกัดความกว้างเนื้อหาให้อ่านง่าย กึ่งกลางจอ · มือถือเต็มจอเหมือนเดิม */
     main {
       flex: 1;
       min-width: 0;
       width: 100%;
+      max-width: var(--content-w, 640px);
+      margin-inline: auto;
       padding: clamp(8px, 1.5vw, 24px) clamp(12px, 2vw, 32px) clamp(24px, 3vw, 40px);
       display: flex;
       flex-direction: column;
@@ -71,6 +74,11 @@ const MOCK_SCREENS = new Set<string>();
     }
     /* หน้าลูกเต็มความสูง: อยู่ใน styles.scss (สไตล์ของ component นี้ไปไม่ถึงหน้าลูก) */
     app-tab-bar {
+      width: 100%;
+      max-width: var(--content-w, 640px);
+      margin-inline: auto;
+      border-radius: var(--radius) var(--radius) 0 0;
+      overflow: hidden;
       position: sticky;
       bottom: 0;
       z-index: 2;
@@ -86,6 +94,8 @@ export class AreaShell {
   protected readonly i18n = inject(I18n);
   private readonly route = inject(ActivatedRoute);
   private readonly area = this.route.snapshot.data['area'] as Area;
+  /** แอดมิน/หัวหน้ามีตารางและรายการเยอะ → กว้างกว่าบทบาทอื่น */
+  protected readonly contentWidth = this.area === 'admin' || this.area === 'head' ? '960px' : '640px';
   protected readonly areaLabel = computed(() => AREA_LABEL[this.area]);
   protected readonly tabs = computed(() => TABS[this.area]);
   /** แถบ "ต้นแบบ" เฉพาะหน้าที่ยังเป็นข้อมูลจำลอง — ที่เหลือใช้ API จริงทั้งหมด */
