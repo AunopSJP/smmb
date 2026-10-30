@@ -97,7 +97,7 @@ export class BoxProtocolController {
       if (current.config || command) return { ...current, ...(command ? { command } : {}) };
     }
     const closed = new Promise<void>((resolve) => res.on('close', () => resolve()));
-    const { job, command } = await this.box.poll(id, waitS, closed);
+    const { job, command } = await this.box.poll(id, waitS, closed, configVersion);
     // guard ตั้ง X-Server-Time ตอนเริ่มรับคำขอ — long-poll รอได้ถึง 50 วิ ต้องตั้งใหม่ตอนตอบ (ไม่งั้นนาฬิกาตู้ถอยทีละ ~50 วิ → clock_skew)
     res.setHeader('X-Server-Time', String(nowS()));
     if (configVersion !== null) {

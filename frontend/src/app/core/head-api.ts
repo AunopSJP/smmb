@@ -49,6 +49,7 @@ export interface ZoneHouse {
   box_id: string;
   house_no: string | null;
   box_name: string | null;
+  area: string | null;
   box_status: BoxStatus;
 }
 
@@ -61,7 +62,11 @@ export interface HouseHit {
   box_id: string;
   house_no: string | null;
   box_name: string | null;
-  zones: { agency_name: string; zone_name: string }[];
+  /** หมู่บ้าน/ย่านที่เจ้าของระบุ */
+  area: string | null;
+  box_status: BoxStatus;
+  /** โซนที่บ้านนี้อยู่แล้ว · mine = ของหน่วยงานเรา */
+  zones: { agency_name: string; zone_name: string; mine: boolean }[];
 }
 
 export const AGENCY_TYPE_LABEL: Record<AgencyType, { th: string; en: string }> = {
@@ -141,7 +146,8 @@ export class HeadApi {
   removeZone(id: string): Promise<unknown> {
     return firstValueFrom(this.http.delete(`/api/v1/agency/zones/${encodeURIComponent(id)}`));
   }
-  searchHouses(q: string): Promise<HouseHit[]> {
-    return this.get<HouseHit[]>(`/api/v1/agency/houses/search?q=${encodeURIComponent(q)}`);
+  /** ไม่ใส่คำค้น = บ้านที่ยังไม่มีหน่วยงานไหนดูแล */
+  searchHouses(q = ''): Promise<HouseHit[]> {
+    return this.get<HouseHit[]>(`/api/v1/agency/houses/search${q ? `?q=${encodeURIComponent(q)}` : ''}`);
   }
 }

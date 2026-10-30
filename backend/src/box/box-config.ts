@@ -35,6 +35,19 @@ export const DEFAULT_CONFIG: BoxConfigDefaults = {
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+/** ค่าทับเฉพาะตู้ที่ใช้ได้จริง — คัดเฉพาะคีย์ที่รู้จักและอยู่ในช่วง (ที่เหลือทิ้ง) */
+export function pickOverride(raw: Record<string, unknown>): Partial<BoxConfigDefaults> {
+  const out: Partial<BoxConfigDefaults> = {};
+  if (typeof raw.report_at === 'string' && HHMM.test(raw.report_at)) out.report_at = raw.report_at;
+  if (typeof raw.flash_when_dark === 'boolean') out.flash_when_dark = raw.flash_when_dark;
+  for (const key of ['scan_timeout_s', 'max_attempts', 'longpoll_wait_s'] as const) {
+    const v = raw[key];
+    const [min, max] = CONFIG_LIMITS[key];
+    if (Number.isInteger(v) && (v as number) >= min && (v as number) <= max) out[key] = v as number;
+  }
+  return out;
+}
+
 /** ค่าจากฐานข้อมูล (ค่ากลาง + ค่าทับเฉพาะตู้) → ค่าที่ใช้จริง · ค่าที่ผิดรูปแบบใช้ค่าเริ่มต้นแทน (ตู้ต้องได้ค่าที่ใช้ได้เสมอ) */
 export function resolveDefaults(...layers: Record<string, unknown>[]): BoxConfigDefaults {
   const out = { ...DEFAULT_CONFIG };

@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, inject, signal, type OnInit } from 
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { I18n } from '../core/i18n';
+import { UnreadCount } from '../core/unread';
 import { Icon, type IconName } from './icon';
 
 /** api.md §3 `GET /me/notifications` — หัวข้อ/เนื้อความแปลที่ server ตาม prefs.lang แล้ว */
@@ -27,6 +28,9 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
   box_problem: { icon: 'alert', tone: 'warn' },
   box_offline: { icon: 'alert', tone: 'warn' },
   box_silent_26h: { icon: 'alert', tone: 'warn' },
+  box_service_closed: { icon: 'alert', tone: 'warn' },
+  box_service_opened: { icon: 'check', tone: 'ok' },
+  box_unbound: { icon: 'info', tone: 'warn' },
   low_battery: { icon: 'alert', tone: 'warn' },
   qr_fake: { icon: 'scan', tone: 'danger' },
   member_pending: { icon: 'user', tone: '' },
@@ -94,6 +98,7 @@ export class NotificationList implements OnInit {
   protected readonly i18n = inject(I18n);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly unread = inject(UnreadCount);
   protected readonly items = signal<Notification[]>([]);
   protected readonly loading = signal(true);
 
@@ -117,7 +122,11 @@ export class NotificationList implements OnInit {
   }
 
   protected open(n: Notification): void {
-    if (!n.read_at) void firstValueFrom(this.http.post('/api/v1/me/notifications/read', { ids: [n.id] })).catch(() => undefined);
+    if (!n.read_at) {
+      void firstValueFrom(this.http.post('/api/v1/me/notifications/read', { ids: [n.id] }))
+        .then(() => this.unread.refresh())
+        .catch(() => undefined);
+    }
     if (n.link?.startsWith('/') && !n.link.startsWith('//')) void this.router.navigateByUrl(n.link);
   }
 }

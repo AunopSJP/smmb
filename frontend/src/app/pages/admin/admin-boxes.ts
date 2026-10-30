@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, signal, type OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ApiConfig } from '../../core/api';
-import { AdminApi, type AdminBoxDetail, type AdminBoxRow, type FirmwareInfo, type RegisteredBox } from '../../core/admin-api';
+import { AdminApi, type AdminBoxDetail, type BoxConfigOverride, type AdminBoxRow, type FirmwareInfo, type RegisteredBox } from '../../core/admin-api';
 import { I18n, type Tr } from '../../core/i18n';
 import { minutesAgo, type BoxStatus } from '../../core/owner-api';
 import { Toast } from '../../core/toast';
@@ -304,11 +304,86 @@ export class AdminBoxes implements OnInit {
             <dt>{{ i18n.t({ th: 'เวลาตรวจ', en: 'Patrol hours' }) }}</dt>
             <dd>{{ windows(b) }}</dd>
           </dl>
+          <details class="override">
+            <summary>{{ i18n.t({ th: 'ตั้งค่าเฉพาะตู้นี้ (ทับค่ากลาง)', en: 'This box only (overrides the shared settings)' }) }}</summary>
+            <p class="muted small">{{ i18n.t({ th: 'เว้นว่าง = ใช้ค่ากลาง · เช่น ตู้สัญญาณแย่ให้ long-poll สั้นลง', en: 'Leave blank to use the shared value · e.g. shorten long-poll for a weak-signal box' }) }}</p>
+            <label class="field">
+              <span>{{ i18n.t({ th: 'เวลารายงานรายวัน', en: 'Daily report time' }) }} · {{ b.config.config.report_at }}</span>
+              <input type="time" [value]="ovReport()" (input)="ovReport.set($any($event.target).value)" />
+            </label>
+            <label class="field">
+              <span>{{ i18n.t({ th: 'เวลาสแกน QR ต่อครั้ง (วินาที 10–60)', en: 'QR scan time per try (s, 10–60)' }) }} · {{ b.config.config.scan_timeout_s }}</span>
+              <input inputmode="numeric" [value]="ovScan()" (input)="ovScan.set($any($event.target).value)" />
+            </label>
+            <label class="field">
+              <span>{{ i18n.t({ th: 'ลองสแกนได้กี่ครั้ง (1–5)', en: 'Scan attempts (1–5)' }) }} · {{ b.config.config.max_attempts }}</span>
+              <input inputmode="numeric" [value]="ovAttempts()" (input)="ovAttempts.set($any($event.target).value)" />
+            </label>
+            <label class="field">
+              <span>{{ i18n.t({ th: 'รอ long-poll ต่อรอบ (วินาที 20–55)', en: 'Long-poll wait (s, 20–55)' }) }} · {{ b.config.config.longpoll_wait_s }}</span>
+              <input inputmode="numeric" [value]="ovLongpoll()" (input)="ovLongpoll.set($any($event.target).value)" />
+            </label>
+            <label class="field">
+              <span>{{ i18n.t({ th: 'เปิดไฟแฟลชเมื่อมืด', en: 'Flash when dark' }) }} · {{ b.config.config.flash_when_dark ? i18n.t({ th: 'เปิด', en: 'on' }) : i18n.t({ th: 'ปิด', en: 'off' }) }}</span>
+              <select [value]="ovFlash()" (change)="ovFlash.set($any($event.target).value)">
+                <option value="">{{ i18n.t({ th: 'ใช้ค่ากลาง', en: 'Shared value' }) }}</option>
+                <option value="on">{{ i18n.t({ th: 'เปิด', en: 'On' }) }}</option>
+                <option value="off">{{ i18n.t({ th: 'ปิด', en: 'Off' }) }}</option>
+              </select>
+            </label>
+            @if (ovError(); as e) {
+              <p class="danger-text small" role="alert">{{ i18n.t(e) }}</p>
+            }
+            <button type="button" class="btn" [disabled]="savingOverride()" (click)="saveOverride()">{{ i18n.t({ th: 'บันทึกค่าเฉพาะตู้', en: 'Save box settings' }) }}</button>
+          </details>
           <p class="muted small">{{ i18n.t({ th: 'คืนค่าการตั้งค่าเฉพาะตู้นี้ เช่น เวลารายงาน การอ่าน QR และ long-poll ให้ใช้ค่ากลาง · เวลาตรวจยังมาจากโซน', en: 'Restore this box’s report, QR scan, and long-poll settings to shared defaults · patrol hours still come from its zones' }) }}</p>
           <button type="button" class="btn secondary" [disabled]="resettingConfig()" (click)="resetConfig()">
             {{ resettingConfig() ? i18n.t({ th: 'กำลังรีเซ็ต…', en: 'Resetting…' }) : i18n.t({ th: 'คืนค่าการตั้งค่าตู้นี้', en: 'Restore this box’s settings' }) }}
           </button>
         </section>
+
+        <h2 class="section-title">{{ i18n.t({ th: 'การให้บริการ', en: 'Service' }) }}</h2>
+        <section class="card stack">
+          <div class="fw-now">
+            <span class="muted">{{ i18n.t({ th: 'สถานะบริการ', en: 'Service status' }) }}</span>
+            <span class="chip" [class.ok]="b.service_active" [class.danger]="!b.service_active">
+              {{ b.service_active ? i18n.t({ th: 'เปิดบริการ', en: 'In service' }) : i18n.t({ th: 'ปิดบริการ', en: 'Switched off' }) }}
+            </span>
+          </div>
+          @if (!b.service_active && b.service_reason) {
+            <p class="small">{{ i18n.t({ th: 'เหตุผล: ', en: 'Reason: ' }) }}{{ b.service_reason }}</p>
+          }
+          @if (b.service_active) {
+            <p class="muted small">{{ i18n.t({ th: 'ปิดแล้วเจ้าหน้าที่ตรวจตู้นี้ไม่ได้ ไรเดอร์เห็นหน้า "ตู้ปิดบริการ" และเจ้าของบ้านได้รับแจ้งเตือน', en: 'Officers cannot check a switched-off box, riders see “out of service”, and the owner is notified' }) }}</p>
+            <label class="field">
+              <span>{{ i18n.t({ th: 'เหตุผล (ไม่บังคับ)', en: 'Reason (optional)' }) }}</span>
+              <input maxlength="200" [value]="serviceReason()" (input)="serviceReason.set($any($event.target).value)" />
+            </label>
+            <button type="button" class="btn secondary danger-outline" [disabled]="serviceBusy()" (click)="setService(false)">
+              {{ i18n.t({ th: 'ปิดบริการตู้นี้', en: 'Switch this box off' }) }}
+            </button>
+          } @else {
+            <button type="button" class="btn" [disabled]="serviceBusy()" (click)="setService(true)">
+              {{ i18n.t({ th: 'เปิดบริการตู้นี้อีกครั้ง', en: 'Switch this box back on' }) }}
+            </button>
+          }
+        </section>
+
+        @if (b.bound) {
+          <h2 class="section-title">{{ i18n.t({ th: 'ยกเลิกการผูกตู้', en: 'Unlink the box' }) }}</h2>
+          <section class="card stack">
+            <p class="muted small">
+              {{ i18n.t({ th: 'ใช้เมื่อเจ้าของขายบ้าน/ย้ายออก — ตู้กลับเป็น "ยังไม่ผูก" ถอดออกจากทุกโซน และได้ QR เปิดใช้ตู้ใบใหม่ให้เจ้าของคนใหม่ (QR หน้าตู้ที่ติดอยู่ใช้ต่อได้) ประวัติเก่ายังอยู่', en: 'Use when the owner sold or moved out — the box becomes “not bound”, leaves every zone, and gets a new activation QR for the next owner (front QR stickers keep working). History is kept.' }) }}
+            </p>
+            <label class="field">
+              <span>{{ i18n.t({ th: 'เหตุผล', en: 'Reason' }) }}</span>
+              <input maxlength="200" [placeholder]="i18n.t({ th: 'เช่น ขายบ้าน', en: 'e.g. house sold' })" [value]="unbindReason()" (input)="unbindReason.set($any($event.target).value)" />
+            </label>
+            <button type="button" class="btn secondary danger-outline" [disabled]="unbinding() || !unbindReason().trim()" (click)="unbind()">
+              {{ i18n.t({ th: 'ยกเลิกการผูกตู้นี้', en: 'Unlink this box' }) }}
+            </button>
+          </section>
+        }
 
         <h2 class="section-title">{{ i18n.t({ th: 'อัปเดตเฟิร์มแวร์', en: 'Firmware update' }) }}</h2>
         <section class="card stack">
@@ -481,6 +556,23 @@ export class AdminBoxes implements OnInit {
     }
   `,
   styles: `
+    /* ตั้งค่าเฉพาะตู้ (details) — ให้ช่องแต่ละช่องมีระยะห่างเหมือนการ์ดอื่น */
+    .override {
+      margin: 12px 0;
+    }
+    .override > summary {
+      cursor: pointer;
+      font-weight: 700;
+      padding: 8px 0;
+    }
+    .override[open] {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .override[open] > summary {
+      padding-bottom: 0;
+    }
     .fw-now {
       display: flex;
       align-items: baseline;
@@ -587,6 +679,18 @@ export class AdminBox implements OnInit {
   protected readonly notFound = signal(false);
   protected readonly secret = signal<string | null>(null);
   protected readonly resettingConfig = signal(false);
+  protected readonly ovReport = signal('');
+  protected readonly ovScan = signal('');
+  protected readonly ovAttempts = signal('');
+  protected readonly ovLongpoll = signal('');
+  protected readonly ovFlash = signal('');
+  protected readonly ovError = signal<Tr | null>(null);
+  protected readonly savingOverride = signal(false);
+  private ovLoadedFor: string | null = null;
+  protected readonly unbindReason = signal('');
+  protected readonly unbinding = signal(false);
+  protected readonly serviceReason = signal('');
+  protected readonly serviceBusy = signal(false);
   protected readonly firmware = signal<FirmwareInfo[]>([]);
   protected readonly fwVersion = signal('');
   protected readonly fwFile = signal<File | null>(null);
@@ -614,7 +718,13 @@ export class AdminBox implements OnInit {
     const id = this.id();
     if (!id) return;
     try {
-      this.box.set(await this.api.box(id));
+      const box = await this.api.box(id);
+      this.box.set(box);
+      // เติมฟอร์มค่าเฉพาะตู้จากค่าที่ทับอยู่ — ครั้งแรกที่โหลดตู้นี้เท่านั้น (ไม่ทับสิ่งที่แอดมินกำลังพิมพ์)
+      if (this.ovLoadedFor !== id) {
+        this.ovLoadedFor = id;
+        this.fillOverride(box.config.override ?? {});
+      }
     } catch {
       if (!this.box()) this.notFound.set(true);
     }
@@ -650,6 +760,91 @@ export class AdminBox implements OnInit {
         : { th: 'อัปโหลดไม่ได้ · ต้องเป็นไฟล์ firmware.bin ของ ESP32 ไม่เกิน 1.9 MB และชื่อเวอร์ชันไม่มีช่องว่าง', en: 'Upload failed · it must be an ESP32 firmware.bin up to 1.9 MB, and the version name must have no spaces' });
     } finally {
       this.uploadingFw.set(false);
+    }
+  }
+
+  private fillOverride(o: Partial<BoxConfigOverride>): void {
+    this.ovReport.set(o.report_at ?? '');
+    this.ovScan.set(o.scan_timeout_s === undefined ? '' : String(o.scan_timeout_s));
+    this.ovAttempts.set(o.max_attempts === undefined ? '' : String(o.max_attempts));
+    this.ovLongpoll.set(o.longpoll_wait_s === undefined ? '' : String(o.longpoll_wait_s));
+    this.ovFlash.set(o.flash_when_dark === undefined ? '' : o.flash_when_dark ? 'on' : 'off');
+  }
+
+  /** PUT /admin/boxes/:id/config — ส่งเฉพาะช่องที่กรอก (ช่องว่าง = ใช้ค่ากลาง) · ตู้ได้ค่าใหม่ทันทีที่ long-poll */
+  protected async saveOverride(): Promise<void> {
+    const id = this.id();
+    if (!id || this.savingOverride()) return;
+    const body: Partial<BoxConfigOverride> = {};
+    const num = (raw: string, min: number, max: number): number | undefined | null => {
+      const t = raw.trim();
+      if (!t) return undefined;
+      const n = Number(t);
+      return Number.isInteger(n) && n >= min && n <= max ? n : null;
+    };
+    const scan = num(this.ovScan(), 10, 60);
+    const attempts = num(this.ovAttempts(), 1, 5);
+    const longpoll = num(this.ovLongpoll(), 20, 55);
+    if (scan === null || attempts === null || longpoll === null) {
+      this.ovError.set({ th: 'ตัวเลขอยู่นอกช่วง — สแกน 10–60 · ลอง 1–5 · long-poll 20–55', en: 'A number is out of range — scan 10–60 · tries 1–5 · long-poll 20–55' });
+      return;
+    }
+    this.ovError.set(null);
+    if (this.ovReport()) body.report_at = this.ovReport();
+    if (scan !== undefined) body.scan_timeout_s = scan;
+    if (attempts !== undefined) body.max_attempts = attempts;
+    if (longpoll !== undefined) body.longpoll_wait_s = longpoll;
+    if (this.ovFlash()) body.flash_when_dark = this.ovFlash() === 'on';
+    this.savingOverride.set(true);
+    try {
+      await this.api.setBoxConfig(id, body);
+      await this.reload();
+      this.toast.show({ th: 'บันทึกแล้ว · ตู้ได้ค่าใหม่ทันทีที่ติดต่อ', en: 'Saved · the box picks it up at its next contact' });
+    } catch {
+      this.toast.show({ th: 'บันทึกไม่ได้', en: 'Could not save' });
+    } finally {
+      this.savingOverride.set(false);
+    }
+  }
+
+  protected async unbind(): Promise<void> {
+    const id = this.id();
+    const reason = this.unbindReason().trim();
+    if (!id || !reason || this.unbinding()) return;
+    if (!window.confirm(this.i18n.t({
+      th: `ยกเลิกการผูก ${id} ใช่ไหม? เจ้าของเดิมจะไม่เห็นตู้นี้อีก และตู้ถูกถอดออกจากทุกโซน`,
+      en: `Unlink ${id}? The current owner will no longer see it and it leaves every zone.`,
+    }))) return;
+    this.unbinding.set(true);
+    try {
+      await this.api.unbind(id, reason);
+      this.unbindReason.set('');
+      await this.reload();
+      this.toast.show({ th: 'ยกเลิกการผูกแล้ว · พิมพ์ QR เปิดใช้ตู้ใบใหม่ได้ที่หัวข้อ QR', en: 'Unlinked · print the new activation QR under QR' });
+    } catch (err) {
+      const code = (err as { error?: { code?: string } })?.error?.code;
+      this.toast.show(code === 'SOS_OPEN'
+        ? { th: 'มี SOS ค้างอยู่ — ปิดเคสก่อนแล้วค่อยยกเลิกการผูก', en: 'An SOS is open — close it first' }
+        : { th: 'ยกเลิกการผูกไม่ได้', en: 'Could not unlink' });
+    } finally {
+      this.unbinding.set(false);
+    }
+  }
+
+  protected async setService(active: boolean): Promise<void> {
+    const id = this.id();
+    if (!id || this.serviceBusy()) return;
+    if (!active && !window.confirm(this.i18n.t({ th: `ปิดบริการ ${id} ใช่ไหม? เจ้าหน้าที่จะตรวจตู้นี้ไม่ได้จนกว่าจะเปิดใหม่`, en: `Switch ${id} off? Officers cannot check it until it is switched back on.` }))) return;
+    this.serviceBusy.set(true);
+    try {
+      await this.api.setService(id, active, this.serviceReason().trim());
+      this.serviceReason.set('');
+      await this.reload();
+      this.toast.show(active ? { th: 'เปิดบริการแล้ว', en: 'Switched on' } : { th: 'ปิดบริการแล้ว · แจ้งเจ้าของบ้านแล้ว', en: 'Switched off · the owner was notified' });
+    } catch {
+      this.toast.show({ th: 'ทำไม่ได้', en: 'Could not change it' });
+    } finally {
+      this.serviceBusy.set(false);
     }
   }
 

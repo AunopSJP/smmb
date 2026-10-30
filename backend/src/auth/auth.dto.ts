@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsIn, IsString, Length, Matches, MaxLength, MinLength, ValidateNested } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, Length, Matches, MaxLength, MinLength, ValidateNested } from 'class-validator';
 import { normalizePhone } from './phone.js';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
@@ -19,10 +19,17 @@ class PasswordField {
   password!: string;
 }
 
+/** ย่าน/หมู่บ้าน (ไม่บังคับ) — ว่าง = ไม่ระบุ */
+const emptyToUndefined = ({ value }: { value: unknown }) => {
+  const v = typeof value === 'string' ? value.trim() : value;
+  return v === '' ? undefined : v;
+};
+
 export class SignupOwnerDto extends PasswordField {
   @Transform(trim) @IsString() @Length(1, 100) name!: string;
   @Transform(phone) @IsString() @Matches(PHONE_RE, { message: PHONE_MSG }) phone!: string;
   @Transform(trim) @IsString() @Length(1, 50) house_no!: string;
+  @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 100) area?: string;
   @IsString() @Length(1, 50) terms_version!: string;
 }
 
@@ -62,8 +69,23 @@ export class ChangePasswordDto {
   @IsString() @MinLength(8) @MaxLength(128) new_password!: string;
 }
 
+/** การแสดงผลที่เก็บกับบัญชี (api.md §3 `Prefs`) — `lang` ใช้กับข้อความแจ้งเตือนจาก server ด้วย */
+export class PrefsDto {
+  @IsOptional() @IsIn(['light', 'dark', 'system']) theme?: 'light' | 'dark' | 'system';
+  @IsOptional() @IsIn(['th', 'en']) lang?: 'th' | 'en';
+  @IsOptional() @IsIn(['normal', 'large', 'xlarge']) text_size?: 'normal' | 'large' | 'xlarge';
+  @IsOptional() @IsBoolean() simple_home?: boolean;
+  @IsOptional() @IsBoolean() night_auto_dark?: boolean;
+}
+
+export class UpdateMeDto {
+  @IsOptional() @Transform(trim) @IsString() @Length(1, 100) display_name?: string;
+  @IsOptional() @ValidateNested() @Type(() => PrefsDto) prefs?: PrefsDto;
+}
+
 export class AddOwnerRoleDto {
   @Transform(trim) @IsString() @Length(1, 50) house_no!: string;
+  @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 100) area?: string;
   @IsString() @Length(1, 50) terms_version!: string;
 }
 

@@ -12,8 +12,22 @@ const STAGE_CALL_AT = 60;
 const POLL_MS = 1000;
 
 /** ถาม GET /sos/:id ทุก 1 วิ ระหว่างอยู่หน้านี้ — ใช้ร่วมทุกหน้า SOS ของเจ้าของบ้าน */
-function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void): void {
-  const tick = () => api.sos(id()).then(onData).catch(() => undefined);
+function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLink?: (ok: boolean) => void): void {
+  let fails = 0;
+  const tick = () => {
+    if (!id()) return Promise.resolve(); // เปิดหน้านี้ตรง ๆ โดยไม่มี ?id → ไม่ยิง /sos/ ว่าง
+    return api
+      .sos(id())
+      .then((s) => {
+        fails = 0;
+        onLink?.(true);
+        onData(s);
+      })
+      .catch(() => {
+        // เน็ตหลุด/เซิร์ฟเวอร์ไม่ตอบ 5 รอบติด (≈5 วิ) → บอกให้โทรเอง — ห้ามปล่อยหน้า "กำลังรอ" ค้างโดยไม่รู้ว่าขาดการติดต่อ
+        if (++fails >= 5) onLink?.(false);
+      });
+  };
   void tick();
   const t = setInterval(tick, POLL_MS);
   inject(DestroyRef).onDestroy(() => clearInterval(t));
@@ -28,6 +42,11 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void): voi
   template: `
     @let st = sos()?.stage ?? 'zone';
     <div class="sos-page" role="main" aria-live="polite">
+      @if (!linkOk()) {
+        <p class="link-lost" role="alert">
+          {{ i18n.t({ th: 'ติดต่อเซิร์ฟเวอร์ไม่ได้ — โทรแจ้งเหตุเองทันที: 191 / 1669', en: 'Cannot reach the server — call for help yourself now: 191 / 1669' }) }}
+        </p>
+      }
       @if (st === 'call_yourself') {
         <header class="sos-head">
           <span class="pill">{{ i18n.t({ th: 'ยังไม่มีคนรับ', en: 'No one has accepted yet' }) }} · {{ time() }}</span>
@@ -95,6 +114,15 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void): voi
     </div>
   `,
   styles: `
+    .link-lost {
+      margin: 0;
+      padding: 12px 16px;
+      background: #fff;
+      color: var(--sos);
+      font-weight: 800;
+      text-align: center;
+      border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    }
     .steps {
       list-style: none;
       margin: 0;
@@ -166,20 +194,30 @@ export class SosWaiting {
   /** ?id=<sos id> */
   readonly id = input<string>('');
   protected readonly sos = signal<Sos | null>(null);
+  protected readonly linkOk = signal(true);
   private readonly now = signal(Date.now());
   private readonly elapsed = computed(() => (this.now(), this.sos() ? secondsSince(this.sos()!.created_at) : 0));
   protected readonly time = computed(() => mmss(this.elapsed()));
   protected readonly toCall = computed(() => Math.max(0, STAGE_CALL_AT - this.elapsed()));
 
   constructor() {
-    pollSos(this.api, () => this.id(), (s) => {
-      this.sos.set(s);
-      this.now.set(Date.now());
-      // มีคนรับ → H11 · ปิด/ยกเลิกแล้ว → หน้าผล / หน้าหลัก
-      if (s.status === 'accepted') void this.router.navigate([screenUrl('H11')], { queryParams: { id: s.id }, replaceUrl: true });
-      else if (s.status === 'closed') void this.router.navigate([screenUrl('H11-b')], { queryParams: { id: s.id }, replaceUrl: true });
-      else if (s.status === 'cancelled') void this.router.navigateByUrl(screenUrl('H03'), { replaceUrl: true });
+    // ไม่มี ?id (เช่น เปิดลิงก์เก่า) → ไม่มี SOS ให้ติดตาม กลับหน้าหลัก
+    queueMicrotask(() => {
+      if (!this.id()) void this.router.navigateByUrl(screenUrl('H03'), { replaceUrl: true });
     });
+    pollSos(
+      this.api,
+      () => this.id(),
+      (s) => {
+        this.sos.set(s);
+        this.now.set(Date.now());
+        // มีคนรับ → H11 · ปิด/ยกเลิกแล้ว → หน้าผล / หน้าหลัก
+        if (s.status === 'accepted') void this.router.navigate([screenUrl('H11')], { queryParams: { id: s.id }, replaceUrl: true });
+        else if (s.status === 'closed') void this.router.navigate([screenUrl('H11-b')], { queryParams: { id: s.id }, replaceUrl: true });
+        else if (s.status === 'cancelled') void this.router.navigateByUrl(screenUrl('H03'), { replaceUrl: true });
+      },
+      (ok) => this.linkOk.set(ok),
+    );
   }
 }
 

@@ -147,6 +147,7 @@ export const SCREENS: ScreenDef[] = [
   s('O11', 'officer', 'sos/close', 'ปิดเรื่อง + หมายเหตุ', 'Close with a note', { fullscreen: true, next: ['O12'] }),
   s('O13', 'officer', 'account', 'บัญชี', 'Account', { next: ['O13-b'] }),
   s('O13-b', 'officer', 'account/display', 'การแสดงผล', 'Display'),
+  s('O14', 'officer', 'notifications', 'แจ้งเตือน', 'Notifications', { noTabs: true }),
 
   // ── หัวหน้าหน่วยงาน ────────────────────────────────────────
   s('L04', 'head', '', 'ภาพรวมทีมวันนี้', 'Team today', { next: ['L09', 'O02'] }),

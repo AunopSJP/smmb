@@ -1,6 +1,7 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Length, Matches, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, Min } from 'class-validator';
 import { AccessService } from '../auth/access.service.js';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
@@ -22,6 +23,11 @@ class TodayQuery {
 
 class LogsQuery {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page: number = 1;
+}
+
+class ExportLogsQuery {
+  /** ย้อนหลังกี่วัน (1–365) */
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(365) days: number = 30;
 }
 
 class SetActiveDto {
@@ -65,6 +71,18 @@ export class AgencyController {
   @Get('logs')
   async logs(@Auth() auth: AuthContext, @Query() q: LogsQuery) {
     return this.todays.logs(await this.agencyId(auth), q.page);
+  }
+
+  /** ส่งออกประวัติการสแกนเป็น CSV (L08) — `?days=1..365` (ค่าเริ่มต้น 30) · สูงสุด 10,000 แถว */
+  @RequireRole('head')
+  @Get('logs/export.csv')
+  async exportLogs(@Auth() auth: AuthContext, @Query() q: ExportLogsQuery, @Res({ passthrough: true }) res: Response) {
+    const csv = await this.todays.logsCsv(await this.agencyId(auth), q.days);
+    const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="smmb-scan-log-${day}.csv"`);
+    res.setHeader('Cache-Control', 'no-store');
+    return csv;
   }
 
   @RequireRole('head')

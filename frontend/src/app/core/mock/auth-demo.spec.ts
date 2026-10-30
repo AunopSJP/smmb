@@ -5,6 +5,7 @@ const form = (patch: Partial<SignupForm>): SignupForm => ({
   phone: '0899999999',
   password: 'longenough',
   house_no: '1/1',
+  area: '',
   group_code: '',
   agency_name: '',
   agency_type: 'police',

@@ -59,6 +59,8 @@ export interface SignupForm {
   phone: string;
   password: string;
   house_no: string;
+  /** หมู่บ้าน/ย่าน (ไม่บังคับ) */
+  area: string;
   group_code: string;
   agency_name: string;
   agency_type: 'police' | 'guard' | 'other';
@@ -69,7 +71,7 @@ export interface SignupForm {
 
 export type FormKey = 'owner' | 'officer' | 'agency' | 'addOwner' | 'join';
 
-const emptyForm = (): SignupForm => ({ name: '', phone: '', password: '', house_no: '', group_code: '', agency_name: '', agency_type: 'police', contact: '', terms: false });
+const emptyForm = (): SignupForm => ({ name: '', phone: '', password: '', house_no: '', area: '', group_code: '', agency_name: '', agency_type: 'police', contact: '', terms: false });
 
 export type SigninResult =
   | { ok: true; phone: string; roles: DemoAccountRole[]; name: Tr; must_change_password: boolean; pending: DemoAccount['pending'] | null }

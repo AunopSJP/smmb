@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { OwnerApi, type BoxDetail, type TechnicianRequest } from '../../core/owner-api';
+import { OwnerApi, type BoxDetail, type PlanInfo, type TechnicianRequest } from '../../core/owner-api';
 import { Session } from '../../core/session';
 import { Toast } from '../../core/toast';
 import { DisplaySettings, type TextSize, type Theme } from '../../core/display-settings';
@@ -48,6 +48,18 @@ import { AccountActions } from '../auth/auth-account';
                 {{ b.name }} <button type="button" class="link" (click)="startRename()">{{ i18n.t({ th: 'แก้', en: 'Edit' }) }}</button>
               }
             </dd>
+            <dt>{{ i18n.t({ th: 'หมู่บ้าน / ย่าน', en: 'Village / area' }) }}</dt>
+            <dd>
+              @if (editingArea()) {
+                <input class="name-input" maxlength="100" [value]="areaDraft()" (input)="areaDraft.set($any($event.target).value)" />
+                <span class="rename-actions">
+                  <button type="button" class="link" (click)="editingArea.set(false)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
+                  <button type="button" class="link strong" (click)="saveArea()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
+                </span>
+              } @else {
+                {{ b.area || '—' }} <button type="button" class="link" (click)="startArea()">{{ i18n.t({ th: 'แก้', en: 'Edit' }) }}</button>
+              }
+            </dd>
             <dt>{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd>{{ b.id }}</dd>
             <dt>{{ i18n.t({ th: 'แบต', en: 'Battery' }) }}</dt>
             <dd>{{ b.battery ? b.battery.pct + '%' : '—' }}{{ b.battery?.charging ? i18n.t({ th: ' · ชาร์จอยู่', en: ' · charging' }) : '' }}</dd>
@@ -56,7 +68,14 @@ import { AccountActions } from '../auth/auth-account';
             <dt>{{ i18n.t({ th: 'เวลาตรวจ', en: 'Patrol hours' }) }}</dt>
             <dd>{{ windows(b) }}</dd>
             <dt>{{ i18n.t({ th: 'แพ็กเกจ', en: 'Plan' }) }}</dt>
-            <dd>{{ i18n.t({ th: 'ฟรี', en: 'Free' }) }} <span class="muted small block">{{ i18n.t({ th: 'ไม่มีวันหมดอายุ', en: 'No end date' }) }}</span></dd>
+            <dd>
+              @if (plan(); as p) {
+                {{ p.name || '—' }}
+                <span class="muted small block" [class.warn-text]="p.status === 'expiring' || p.status === 'expired'">{{ planNote(p) }}</span>
+              } @else {
+                —
+              }
+            </dd>
           </dl>
         </section>
       }
@@ -137,8 +156,12 @@ export class OwnerSettings {
   protected readonly box = signal<BoxDetail | null>(null);
   protected readonly renaming = signal(false);
   protected readonly draft = signal('');
+  protected readonly plan = signal<PlanInfo | null>(null);
+  protected readonly editingArea = signal(false);
+  protected readonly areaDraft = signal('');
 
   constructor() {
+    void this.api.plan().then((p) => this.plan.set(p)).catch(() => undefined);
     void this.api.boxes().then((b) => {
       this.boxes.set(b);
       if (b[0]) void this.open(b[0].id);
@@ -156,6 +179,34 @@ export class OwnerSettings {
   protected startRename(): void {
     this.draft.set(this.box()?.name ?? '');
     this.renaming.set(true);
+  }
+
+  /** ข้อความใต้ชื่อแพ็ก: ไม่มีวันหมดอายุ / ถึงวันที่ / ใกล้หมด / หมดแล้ว */
+  protected planNote(p: PlanInfo): string {
+    const date = p.ends_at ? new Date(p.ends_at).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'medium', timeZone: 'Asia/Bangkok' }) : '';
+    if (p.status === 'expired') return this.i18n.t({ th: `หมดอายุเมื่อ ${date}`, en: `Expired on ${date}` });
+    if (p.status === 'expiring') return this.i18n.t({ th: `ใกล้หมดอายุ · ถึง ${date}`, en: `Expiring soon · until ${date}` });
+    return p.ends_at ? this.i18n.t({ th: `ใช้ได้ถึง ${date}`, en: `Valid until ${date}` }) : this.i18n.t({ th: 'ไม่มีวันหมดอายุ', en: 'No end date' });
+  }
+
+  protected startArea(): void {
+    this.areaDraft.set(this.box()?.area ?? '');
+    this.editingArea.set(true);
+  }
+
+  /** PATCH /boxes/:box_id { area } — เจ้าหน้าที่/หัวหน้าเห็นย่านนี้ตอนเพิ่มบ้านเข้าโซน */
+  protected async saveArea(): Promise<void> {
+    const b = this.box();
+    if (!b) return;
+    const area = this.areaDraft().trim();
+    try {
+      await this.api.setArea(b.id, area);
+      this.editingArea.set(false);
+      await this.open(b.id);
+      this.toast.show({ th: 'บันทึกย่านแล้ว', en: 'Area saved' });
+    } catch {
+      this.toast.show({ th: 'บันทึกไม่ได้', en: 'Couldn’t save' });
+    }
   }
 
   /** PATCH /boxes/:box_id { name } */

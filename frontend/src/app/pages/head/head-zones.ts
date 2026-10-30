@@ -109,12 +109,17 @@ export class HeadZones implements OnInit {
 
 @Component({
   selector: 'app-head-zone-edit',
-  imports: [PageHeader],
+  imports: [PageHeader, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './head-zone-edit.scss',
   template: `
     <app-page-header [caption]="isNew() ? i18n.t({ th: 'สร้างโซน', en: 'New zone' }) : i18n.t({ th: 'แก้ไขโซน', en: 'Edit zone' })" [title]="name() || i18n.t({ th: 'โซนใหม่', en: 'New zone' })" [back]="url('L06')" />
     <div class="stack grow">
+      <ol class="steps">
+        <li class="on">{{ i18n.t({ th: '1 · ชื่อ + เวลาตรวจ', en: '1 · Name + hours' }) }}</li>
+        <li [class.on]="!isNew()">{{ i18n.t({ th: '2 · เพิ่มบ้าน', en: '2 · Add houses' }) }}</li>
+        <li [class.on]="!isNew()">{{ i18n.t({ th: '3 · เพิ่มเจ้าหน้าที่', en: '3 · Add officers' }) }}</li>
+      </ol>
       <section class="card stack">
         <label class="field">
           <span>{{ i18n.t({ th: 'ชื่อโซน', en: 'Zone name' }) }}</span>
@@ -148,6 +153,9 @@ export class HeadZones implements OnInit {
         </button>
       </section>
 
+      @if (isNew()) {
+        <p class="muted small">{{ i18n.t({ th: 'กด "สร้างโซน" ก่อน แล้วจะเพิ่มบ้านและเจ้าหน้าที่ได้ในหน้านี้', en: 'Press “Create zone” first — then you can add houses and officers here' }) }}</p>
+      }
       @if (zone(); as z) {
         <section class="card stack">
           <div class="head">
@@ -156,34 +164,61 @@ export class HeadZones implements OnInit {
           <div class="chips">
             @for (h of z.houses; track h.box_id) {
               <button type="button" class="pill" (click)="removeHouse(h.box_id)" [attr.aria-label]="i18n.t({ th: 'เอาออก ', en: 'Remove ' }) + (h.house_no ?? h.box_id)">
-                {{ h.house_no ?? h.box_id }} <span aria-hidden="true">×</span>
+                {{ h.house_no ?? h.box_id }}{{ h.area ? ' · ' + h.area : '' }} <span aria-hidden="true">×</span>
               </button>
             } @empty {
               <span class="muted small">{{ i18n.t({ th: 'ยังไม่มีบ้าน', en: 'No houses yet' }) }}</span>
             }
           </div>
           <form class="add-window" (submit)="$event.preventDefault(); search()">
-            <input type="search" [placeholder]="i18n.t({ th: 'ค้นบ้านเลขที่ / รหัสตู้', en: 'Search house no. / box id' })" [value]="q()" (input)="q.set($any($event.target).value)" />
+            <input type="search" [placeholder]="i18n.t({ th: 'บ้านเลขที่ / หมู่บ้าน / รหัสตู้', en: 'House no. / village / box id' })" [value]="q()" (input)="q.set($any($event.target).value)" />
             <button type="submit" class="btn secondary small-btn">{{ i18n.t({ th: 'ค้น', en: 'Search' }) }}</button>
           </form>
+          <button type="button" class="btn secondary small-btn browse" (click)="browse()">
+            {{ i18n.t({ th: 'ดูบ้านที่ยังไม่มีใครดูแล', en: 'Show houses nobody covers yet' }) }}
+          </button>
+          @if (searched()) {
+            <p class="muted small">
+              {{ mode() === 'browse'
+                ? i18n.t({ th: 'บ้านที่เจ้าของผูกตู้แล้ว แต่ยังไม่อยู่ในโซนของหน่วยงานไหนเลย', en: 'Houses with a bound box that no agency covers yet' })
+                : i18n.t({ th: 'ผลค้น "' + searchedFor() + '" (สูงสุด 20 หลัง)', en: 'Results for "' + searchedFor() + '" (max 20)' }) }}
+            </p>
+          }
           @for (h of hits(); track h.box_id) {
             <div class="hit">
               <span class="grow">
-                <strong>{{ h.house_no }}</strong> <span class="muted small">{{ h.box_id }}{{ h.box_name ? ' · ' + h.box_name : '' }}</span>
-                @if (h.zones.length) {
-                  <span class="muted small block">{{ i18n.t({ th: 'อยู่ในโซน: ', en: 'In zones: ' }) }}{{ zonesOf(h) }}</span>
+                <strong>{{ h.house_no ?? h.box_id }}</strong>
+                @if (h.area) {
+                  <span class="chip">{{ h.area }}</span>
                 }
+                <span class="muted small">{{ h.box_id }}{{ h.box_name ? ' · ' + h.box_name : '' }}</span>
+                <span class="muted small block">
+                  {{ statusText(h) }} ·
+                  @if (!h.zones.length) {
+                    <span class="warn-text">{{ i18n.t({ th: 'ยังไม่มีใครดูแล', en: 'nobody covers it yet' }) }}</span>
+                  } @else {
+                    {{ i18n.t({ th: 'อยู่ในโซน: ', en: 'In zones: ' }) }}{{ zonesOf(h) }}
+                  }
+                </span>
               </span>
               @if (inZone(h.box_id)) {
-                <span class="chip ok">{{ i18n.t({ th: 'อยู่แล้ว', en: 'Added' }) }}</span>
+                <span class="chip ok">{{ i18n.t({ th: 'อยู่ในโซนนี้แล้ว', en: 'In this zone' }) }}</span>
               } @else {
                 <button type="button" class="btn small-btn" (click)="addHouse(h.box_id)">+ {{ i18n.t({ th: 'เพิ่ม', en: 'Add' }) }}</button>
               }
             </div>
           }
-          @if (searched() && !hits().length) {
-            <p class="muted small">{{ i18n.t({ th: 'ไม่พบ — ค้นได้เฉพาะตู้ที่เจ้าของบ้านผูกแล้ว', en: 'Nothing found — only boxes already bound by an owner' }) }}</p>
+          @if (addable().length > 1) {
+            <button type="button" class="btn small-btn" (click)="addAll()">+ {{ i18n.t({ th: 'เพิ่มทั้งหมดที่เห็น', en: 'Add all shown' }) }} ({{ addable().length }})</button>
           }
+          @if (searched() && !hits().length) {
+            <p class="muted small">
+              {{ mode() === 'browse'
+                ? i18n.t({ th: 'ไม่มีบ้านที่รอเพิ่มแล้ว — ทุกหลังที่เจ้าของผูกตู้แล้วมีหน่วยงานดูแลอยู่', en: 'Nothing waiting — every bound house is already covered' })
+                : i18n.t({ th: 'ไม่พบ — ค้นได้เฉพาะตู้ที่เจ้าของบ้านผูกแล้ว (เช็กว่าเจ้าของผูกตู้แล้ว และพิมพ์บ้านเลขที่ตรงกับที่เจ้าของกรอก)', en: 'Nothing found — only boxes already bound by an owner (check the owner has bound it and the number matches what they entered)' }) }}
+            </p>
+          }
+          <p class="muted small">{{ i18n.t({ th: 'เพิ่มบ้านได้เมื่อเจ้าของผูกตู้แล้ว · บ้านเดียวอยู่ได้หลายหน่วยงาน · ตู้จะรับเวลาตรวจใหม่ตอนรายงานครั้งถัดไป', en: 'A house can be added once its owner has bound the box · one house may be in several agencies · the box gets the new hours at its next report' }) }}</p>
         </section>
 
         <section class="card stack">
@@ -201,9 +236,12 @@ export class HeadZones implements OnInit {
               </span>
             </label>
           } @empty {
-            <p class="muted small">{{ i18n.t({ th: 'ยังไม่มีสมาชิกที่ใช้งานได้', en: 'No active members yet' }) }}</p>
+            <p class="muted small">
+              {{ i18n.t({ th: 'ยังไม่มีสมาชิกที่ใช้งานได้ — ให้เจ้าหน้าที่สมัครด้วยรหัสกลุ่ม แล้วอนุมัติที่หน้า', en: 'No active members yet — officers sign up with the group code, then you approve them on' }) }}
+              <a [routerLink]="url('L05')">{{ i18n.t({ th: 'สมาชิก', en: 'Members' }) }}</a>
+            </p>
           }
-          <p class="muted small">{{ i18n.t({ th: 'หัวหน้าตรวจตู้ได้เฉพาะโซนที่ใส่ตัวเองไว้', en: 'Heads can only inspect zones they are in' }) }}</p>
+          <p class="muted small">{{ i18n.t({ th: 'ติ๊กคนที่จะตรวจโซนนี้ · คนที่ยังไม่ได้อนุมัติจะไม่อยู่ในรายการ · หัวหน้าตรวจตู้ได้เฉพาะโซนที่ใส่ตัวเองไว้', en: 'Tick who patrols this zone · members not yet approved are not listed · heads can only inspect zones they are in' }) }}</p>
         </section>
 
         <button type="button" class="btn secondary danger-outline" (click)="remove()">{{ i18n.t({ th: 'ลบโซนนี้', en: 'Delete this zone' }) }}</button>
@@ -211,6 +249,34 @@ export class HeadZones implements OnInit {
     </div>
   `,
   styles: `
+    .steps {
+      display: flex;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      li {
+        flex: 1;
+        padding: 6px 8px;
+        border-radius: 8px;
+        background: var(--icon-bg);
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-align: center;
+      }
+      li.on {
+        background: var(--brand-lighter);
+        color: var(--brand);
+      }
+    }
+    .browse {
+      align-self: flex-start;
+    }
+    .warn-text {
+      color: var(--orange);
+      font-weight: 700;
+    }
     .hit,
     .officer {
       display: flex;
@@ -257,6 +323,10 @@ export class HeadZoneEdit {
   protected readonly q = signal('');
   protected readonly hits = signal<HouseHit[]>([]);
   protected readonly searched = signal(false);
+  protected readonly mode = signal<'search' | 'browse'>('search');
+  protected readonly searchedFor = signal('');
+  /** ผลที่เห็นอยู่และยังไม่อยู่ในโซนนี้ — ไว้ปุ่ม "เพิ่มทั้งหมด" */
+  protected readonly addable = computed(() => this.hits().filter((h) => !this.inZone(h.box_id)));
 
   constructor() {
     effect(() => {
@@ -322,9 +392,29 @@ export class HeadZoneEdit {
 
   protected async search(): Promise<void> {
     const q = this.q().trim();
-    if (!q) return;
+    if (!q) return this.browse();
+    this.mode.set('search');
+    this.searchedFor.set(q);
     this.hits.set(await this.api.searchHouses(q).catch(() => []));
     this.searched.set(true);
+  }
+
+  /** บ้านที่เจ้าของผูกตู้แล้วแต่ยังไม่มีหน่วยงานไหนดูแล */
+  protected async browse(): Promise<void> {
+    this.mode.set('browse');
+    this.hits.set(await this.api.searchHouses().catch(() => []));
+    this.searched.set(true);
+  }
+
+  protected statusText(h: HouseHit): string {
+    const t: Record<string, Tr> = {
+      online: { th: 'ตู้ออนไลน์', en: 'box online' },
+      sleeping: { th: 'ตู้พัก', en: 'box sleeping' },
+      offline: { th: 'ตู้ไม่ออนไลน์', en: 'box offline' },
+      service_closed: { th: 'ปิดบริการ', en: 'service closed' },
+      unbound: { th: 'ยังไม่ผูก', en: 'not bound' },
+    };
+    return this.i18n.t(t[h.box_status] ?? { th: h.box_status, en: h.box_status });
   }
 
   protected inZone(boxId: string): boolean {
@@ -332,11 +422,16 @@ export class HeadZoneEdit {
   }
 
   protected zonesOf(h: HouseHit): string {
-    return h.zones.map((z) => `${z.agency_name} / ${z.zone_name}`).join(', ');
+    return h.zones.map((z) => (z.mine ? z.zone_name + this.i18n.t({ th: ' (ของเรา)', en: ' (ours)' }) : `${z.agency_name} / ${z.zone_name}`)).join(', ');
   }
 
   protected addHouse(boxId: string): Promise<void> {
     return this.setHouses([...(this.zone()?.houses.map((h) => h.box_id) ?? []), boxId]);
+  }
+
+  protected addAll(): Promise<void> {
+    const have = this.zone()?.houses.map((h) => h.box_id) ?? [];
+    return this.setHouses([...have, ...this.addable().map((h) => h.box_id)]);
   }
 
   protected removeHouse(boxId: string): Promise<void> {
@@ -350,6 +445,7 @@ export class HeadZoneEdit {
     try {
       await this.api.setHouses(z.id, ids);
       await this.load(z.id);
+      if (this.searched()) await (this.mode() === 'browse' ? this.browse() : this.search());
     } catch (err) {
       const e = apiError(err);
       this.toast.show(ZONE_ERROR[e.code ?? ''] ?? { th: 'บันทึกไม่ได้', en: 'Couldn’t save' });

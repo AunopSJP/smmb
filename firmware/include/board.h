@@ -10,10 +10,6 @@
 // ไฟแฟลชบนบอร์ด (LED ขาว) — ใช้เป็นไฟส่องกล้องตอนมืด (flash_when_dark)
 #define PIN_FLASH_LED 4
 
-// ปุ่ม IO0 (บนบอร์ดเสริม/จัมเปอร์แฟลช) — กดค้าง 5 วิตอนเปิดเครื่อง = ลบ Wi-Fi เข้าโหมดตั้งค่า
-#define PIN_RESET_WIFI 0
-#define RESET_HOLD_MS 5000
-
 // กล้อง AI-Thinker
 #define CAM_PIN_PWDN 32
 #define CAM_PIN_RESET -1

@@ -41,10 +41,10 @@ describe('messages', () => {
 
 describe('buildPayload', () => {
   it('uses the Angular service worker format and opens the link on click', () => {
-    const p = buildPayload({ type: 'sos_new', data: { house_no: '99/9', phone: '0812345678' }, link: '/officer/sos/1', tag: 'sos-1' }, 'en');
+    const p = buildPayload({ type: 'sos_new', data: { house_no: '99/9' }, link: '/officer/sos/1', tag: 'sos-1' }, 'en');
     expect(p.notification).toMatchObject({
       title: '🆘 SOS',
-      body: 'House 99/9 · 0812345678',
+      body: 'House 99/9 needs help · tap to see details and accept',
       tag: 'sos-1',
       renotify: true,
       requireInteraction: true,

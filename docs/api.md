@@ -133,7 +133,7 @@ client **ห้ามเดาจาก `message`** ให้ดู `code` เ�
 
 | method | path | สิทธิ์ | body | ตอบ |
 |---|---|---|---|---|
-| POST | `/auth/signup/owner` | public | `{ name, phone, password, house_no, terms_version }` | 201 + set cookie `sid` → ไปหน้า `A07` ผูกตู้ · 409 `PHONE_TAKEN` · 400 `TERMS_NOT_ACCEPTED` (`A06-b`) |
+| POST | `/auth/signup/owner` | public | `{ name, phone, password, house_no, area?, terms_version }` (`area` = หมู่บ้าน/ย่าน ไม่บังคับ ≤ 100 ตัว → คัดลอกลงตู้ตอนผูกตู้ ไว้แยกบ้านเลขที่ซ้ำ · `/me/roles/owner` รับ `area?` เหมือนกัน) | 201 + set cookie `sid` → ไปหน้า `A07` ผูกตู้ · 409 `PHONE_TAKEN` · 400 `TERMS_NOT_ACCEPTED` (`A06-b`) |
 | POST | `/auth/signup/officer` | public | `{ name, phone, password, group_code, terms_version }` | 201 + cookie · สถานะ `pending` (`A11`) · 404 `GROUP_CODE_INVALID` · 409 `PHONE_TAKEN` |
 | POST | `/auth/signup/agency` | public | `{ agency: { name, type: "police"\|"guard"\|"other", contact }, head: { name, phone, password }, terms_version }` — `contact` 3–200 ตัว (บังคับ ✅ 2026-10-27) ช่องทางติดต่อที่ตั้งใจเปิดเผย แสดงให้คนที่ขอเข้าหน่วยงาน | 201 + cookie · หน่วยงานสถานะ `pending` (`L02`) |
 | POST | `/auth/signin` | public | `{ phone, password }` | 200 `{ ok: true, data: Me }` + cookie · 401 `INVALID_CREDENTIALS` (`A04-b` — เบอร์ไม่มีบัญชีก็ตอบแบบเดียวกัน) · 401 `ACCOUNT_LOCKED` · 401 `ACCOUNT_DISABLED` (บอกเฉพาะเมื่อรหัสถูก) · 429 `RATE_LIMITED` |
@@ -194,7 +194,7 @@ interface Me {
 | method | path | สิทธิ์ | body | ตอบ |
 |---|---|---|---|---|
 | GET | `/me` | login | — | `Me` |
-| PATCH | `/me` | login | `{ display_name?, prefs?: Partial<Prefs> }` | `Me` |
+| PATCH | `/me` | login | `{ display_name?, prefs?: Partial<Prefs> }` ✅ 2026-10-30 (ส่งเฉพาะที่เปลี่ยน · prefs รวมกับของเดิม · ค่านอกรายการ/ฟิลด์เกิน → 400) — เว็บส่งให้เองทุกครั้งที่เปลี่ยนภาษา/ธีม/ขนาดตัวอักษร และใช้ค่าจากบัญชีตอนล็อกอิน · **`prefs.lang` ใช้แปลข้อความแจ้งเตือนจาก server** | `Me` |
 | GET | `/me/notifications` | login | `?page&per_page&unread` | paginated `Notification` (หน้า `H14` / `L09` / `D12`) |
 | POST | `/me/notifications/read` | login | `{ ids?: string[] }` — ไม่ส่ง = อ่านทั้งหมด | 200 |
 
@@ -263,7 +263,7 @@ interface Notification {
 | method | path | สิทธิ์ | body | ตอบ |
 |---|---|---|---|---|
 | POST | `/boxes/activate` | `owner` | `{ qr_text }` (สแกน — ลิงก์ `https://smmb.app/a/<16 ตัว>`) **หรือ** `{ code }` (พิมพ์รหัสใต้ QR) | 200 `{ box: BoxSummary, needs_name: true }` → หน้า `A08` · 404 `QR_INVALID` (`A07-b`) · 409 `BOX_ALREADY_OWNED` "ตู้ถูกผูกแล้ว กรุณาติดต่อผู้ดูแล" (`A07-c`) · 429 `CODE_ATTEMPTS_EXCEEDED` |
-| PATCH | `/boxes/:box_id` | `owner` (เจ้าของตู้) | `{ name }` (1–40 ตัว) | `BoxSummary` → `A09` |
+| PATCH | `/boxes/:box_id` | `owner` (เจ้าของตู้) | `{ name?, area? }` (ส่งอย่างน้อยหนึ่งอย่าง · name 1–40 ตัว · area ≤ 100 ตัว `''` = ล้าง) | `BoxSummary` (มี `area`) → `A09` |
 
 - ✅ Activate QR ใช้ได้**ครั้งเดียว** — ผูกสำเร็จแล้วรหัสนี้ตายทันที (ทำใน transaction เดียวกับการผูก)
 - ✅ ทุกครั้งที่สแกน/พิมพ์ บันทึก scan log แม้ไม่ผ่าน (§12): `qr_kind: "activate"`, `method: scan|code`, `result`
@@ -305,7 +305,7 @@ type TodoItem =
 | method | path | สิทธิ์ | query | ตอบ |
 |---|---|---|---|---|
 | GET | `/boxes/:box_id/events` | `owner` | `?from&to&type&page&per_page` — `type` หลายค่าคั่น `,`: `inspected`, `delivered`, `offline`, `low_battery`, `sos`, `qr` | paginated `BoxEvent` (`H12`, `H12-e` เลือกช่วงวันที่) |
-| GET | `/boxes/:box_id/events/:event_id` | `owner` | — | `BoxEvent` + `detail` (`H12-b` ตรวจ · `H12-c` ส่งของ · `H12-d` ตู้ไม่ออนไลน์) |
+| GET | `/boxes/:box_id/events/:event_id` | `owner` | — | `BoxEvent` + `detail` (`H12-b` ตรวจ · `H12-c` ส่งของ · `H12-d` ตู้ไม่ออนไลน์) · ❌ **ไม่ใช้** (2026-10-30): หน้า H12-b/c/d แสดงจากรายการ `GET /boxes/:box_id/events` ที่มีรายละเอียดครบอยู่แล้ว |
 
 ```ts
 interface BoxEvent {
@@ -345,7 +345,7 @@ interface BoxEvent {
 
 | method | path | สิทธิ์ | ตอบ |
 |---|---|---|---|
-| GET | `/me/plan` | `owner` | `PlanInfo` — หน้าตั้งค่า `H13` แถว "แพ็กเกจ" · ค่าเดียวกับ `BoxDetail.plan` และ `Me.plan` |
+| GET | `/me/plan` | `owner` | `PlanInfo` ✅ 2026-10-30 — หน้าตั้งค่า `H13` แถว "แพ็กเกจ" (ชื่อแปลตาม `prefs.lang` · `status`: active / expiring (เหลือ ≤ 7 วัน) / expired / none) · `BoxDetail.plan` / `Me.plan` ยังไม่ใส่ — เว็บเรียก route นี้ตรง ๆ · เหลือ ≤ 7 วัน → งานเบื้องหลังแจ้ง `plan_expiring` ครั้งเดียว |
 
 ```ts
 interface PlanInfo {
@@ -408,7 +408,7 @@ interface PlanInfo {
 | method | path | สิทธิ์ | ตอบ |
 |---|---|---|---|
 | GET | `/officer/summary` | `officer` | `OfficerSummary` (`O01*`) |
-| GET | `/officer/houses` | `officer` | `?zone_id&status=unchecked\|checked` → บ้านในโซนของฉัน (เรียงตามลำดับเดิน 💡) |
+| GET | `/officer/houses` | `officer` | `?zone_id&status=unchecked\|checked` → บ้านในโซนของฉัน (เรียงตามลำดับเดิน 💡) · ❌ **ไม่ใช้** (2026-10-30): หน้า O01 ใช้ตัวเลข `houses_total` / `houses_checked` + บ้านถัดไปจาก `GET /officer/summary` · ไม่มีหน้ารายชื่อบ้านให้เดิน |
 
 ```ts
 interface OfficerSummary {
@@ -588,7 +588,7 @@ interface Member { id; name; display_name; phone; status: "pending" | "active" |
 | PUT | `/agency/zones/:id/houses` | `head` | `{ box_ids: string[] }` แทนที่ทั้งชุด (`L07-b`) | `ZoneHouse[]` · 400 `HOUSE_NOT_FOUND` ถ้ามีตู้ที่ไม่มีอยู่/ยังไม่มีเจ้าของ · บ้านที่อยู่ในโซนของหน่วยงานอื่นแล้ว**ใส่ได้** (✅ 2026-10-28) |
 | PUT | `/agency/zones/:id/officers` | `head` | `{ user_ids: string[] }` แทนที่ทั้งชุด (`L07-c`) | `Member[]` · 400 ถ้ามีคนที่ไม่ใช่สมาชิก active |
 | DELETE | `/agency/zones/:id` | `head` | — | 200 · บ้านที่ไม่เหลือโซนไหนเลยกลับเป็น "ยังไม่มีเจ้าหน้าที่ดูแล" |
-| GET | `/agency/houses/search` | `head` | `?q=` บ้านเลขที่ | `{ box_id, house_no, box_name, zones: {agency_name, zone_name}[] }[]` — ใช้ตอนเพิ่มบ้านเข้าโซน |
+| GET | `/agency/houses/search` | `head` | `?q=` บ้านเลขที่/รหัสตู้ (ไม่ส่ง = **บ้านที่ยังไม่มีหน่วยงานไหนดูแล** ไว้ไล่เพิ่ม) · สูงสุด 20 · ตรงต้นคำขึ้นก่อน | `{ box_id, house_no, box_name, box_status, zones: {agency_name, zone_name, mine}[] }[]` — `mine` = โซนของหน่วยงานเรา · เฉพาะตู้ที่เจ้าของผูกแล้ว (เพิ่มเข้าโซนได้เมื่อเจ้าของผูกตู้แล้วเท่านั้น) |
 
 ```ts
 interface Zone { id; name; windows: [string, string][]; tz: "Asia/Bangkok"; houses_count; officers_count; is_mine: boolean; updated_at }
@@ -606,7 +606,7 @@ interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus }
 | method | path | สิทธิ์ | query | ตอบ |
 |---|---|---|---|---|
 | GET | `/agency/logs` | `head` | `?page` (หน้าละ 30) | ✅ 2026-10-28 `{ data: [{ id, at, officer: { id, display_name }, box_id, house_no, qr_kind: "front"\|"badge", qr_slot, method, result }], page, per_page }` ใหม่สุดก่อน (`L08`) — การสแกน QR หน้าตู้ของคนในหน่วยงาน + ผลที่ตู้อ่าน QR ประจำตัวของการตรวจของหน่วยงานนี้ (รวมที่ไม่ผ่าน · กฎข้อ 6) · ตัวกรองโซน/วันที่/CSV 🔜 |
-| GET | `/agency/logs/export.csv` | `head` | เหมือนข้างบน | ไฟล์ CSV (UTF-8 BOM ให้ Excel อ่านภาษาไทยได้) 💡 |
+| GET | `/agency/logs/export.csv` | `head` | `?days=1..365` (ค่าเริ่มต้น 30) | ✅ 2026-10-30 ไฟล์ CSV (UTF-8 + BOM ให้ Excel อ่านภาษาไทยถูก · เวลาไทย · ช่องที่ขึ้นต้น `= + - @` ใส่ `'` นำหน้ากันสูตร) · ประวัติการสแกนของหน่วยงานตัวเองเรียงใหม่→เก่า สูงสุด 10,000 แถว · คอลัมน์: time, officer, house_no, box_id, qr_kind, qr_slot, method, result |
 
 ---
 
@@ -657,11 +657,11 @@ interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus }
 | POST | `/admin/boxes/:box_id/device-secret` | — | 200 `{ box_id, device_secret }` — เปิดดูรหัสลับประจำตู้อีกครั้ง (เขียนลงบอร์ดใหม่ / เปลี่ยนบอร์ด) · ✅ 2026-10-28 · บันทึกทุกครั้งใน `data_access_log_tb` (`subject_kind: "box"`, `fields: ["device_secret"]`) · ไม่มีตู้ → 404 |
 | GET | `/admin/boxes/:box_id/test-jobs/:job_id` | — | `Job`: `status` (`waiting`/`delivered`/`ready`/`passed`/`failed`/`expired`) · `delivered_at` · `ready_at` · `wake_ms` · `attempts[]` (รวม `qr_text` ที่กล้องอ่านได้) |
 | GET | `/admin/boxes/:box_id/preview` | — | `{ job_id, at, jpeg_b64 }` ภาพล่าสุดจากกล้องตอนทดสอบ (ตู้ส่งผ่านโปรโตคอล §2.7 เฉพาะงาน test) · 204 = ยังไม่มี/เก่าเกิน 30 วิ · ไม่เก็บลงฐานข้อมูล |
-| PATCH | `/admin/boxes/:box_id/service` | `{ active: boolean, reason? }` | ✅ เปิดปิดบริการ — ปิดแล้วไรเดอร์เห็น `R03-b`, ตรวจไม่ได้ |
+| PATCH | `/admin/boxes/:box_id/service` | `{ active: boolean, reason? (≤ 200) }` | ✅ 2026-10-30 เปิดปิดบริการ — ปิดแล้วไรเดอร์เห็น `R03-b` (`box_status: service_closed`), เจ้าหน้าที่ตรวจไม่ได้ (`BOX_SERVICE_CLOSED`) · แจ้งเจ้าของบ้านเมื่อสถานะเปลี่ยน (`box_service_closed` / `box_service_opened`) · ตั้งซ้ำค่าเดิม = ไม่แจ้ง · บันทึกใน `data_access_log_tb` · `AdminBoxDetail` มี `service_reason`, `service_changed_at` |
 | GET | `/admin/firmware` | — | `[{ version, sha256, size, uploaded_at }]` เฟิร์มแวร์ที่อัปโหลดไว้ (ล่าสุดก่อน ≤ 50) |
 | POST | `/admin/firmware/:version` | body = ไบต์ดิบของ `.bin` (≤ 1.9 MB ขึ้นต้น `E9`) | 201 `{ version, sha256, size, uploaded_at }` · เวอร์ชันซ้ำ 409 `FIRMWARE_EXISTS` · ไฟล์ไม่ใช่เฟิร์มแวร์ ESP32 / ขนาดไม่ถูก 400 |
 | PUT | `/admin/boxes/:box_id/firmware` | `{ version }` · `null` = ยกเลิก | 204 · ตู้ได้คำสั่ง `ota` ตอน long-poll/boot (โปรโตคอล §2.9) · `box.fw_target` ในรายละเอียดตู้ = เวอร์ชันที่รอตู้อัปเดต |
-| POST | `/admin/boxes/:box_id/unbind` | `{ reason }` | ✅ ยกเลิกการผูก (เช่น ขายบ้าน) → ออก Activate QR ใหม่ให้ |
+| POST | `/admin/boxes/:box_id/unbind` | `{ reason (1–200) }` | ✅ 2026-10-30 ยกเลิกการผูก (ขายบ้าน/ย้ายออก) → `{ box_id, qr }` (QR เปิดใช้ตู้ใบใหม่) · ล้างเจ้าของ/บ้านเลขที่/ย่าน/ชื่อ · ถอดออกจากทุกโซน · QR หน้าตู้ใช้ต่อ · ประวัติเก่าอยู่ · 409 `BOX_NOT_BOUND` · 409 `SOS_OPEN` · แจ้งเจ้าของเดิม (`box_unbound`) · บันทึกเหตุผลใน `data_access_log_tb` |
 | GET | `/admin/boxes/:box_id/qr` | — | `QrCode[]` ทุกใบทุกรุ่น (รวมใบที่ยกเลิกแล้ว) |
 | GET | `/admin/qr` | `?health=damaged,suspicious,maybe_fake,expiring` | `D05` QR ผิดปกติและเคสที่ยังดำเนินการอยู่ · เคสยังแสดงแม้ QR ใบเดิมถูก revoke แล้ว |
 | GET | `/admin/qr/:qr_id` | — | สถานะและขั้นตอนของเคส QR (`D06`–`D08`) |
@@ -694,7 +694,7 @@ interface PrintableQr {           // สำหรับไฟล์พิมพ�
 - `GET /admin/boxes/:box_id/qr/print.pdf?slots=1,2` 💡 ไฟล์ PDF พร้อมพิมพ์ (QR + รหัสใต้ QR + รหัสตู้)
 - ✅ (2026-10-28 เขียนแล้ว) `POST /admin/boxes` (`{ count }` อย่างเดียว — ตัด `{ box_ids }` ออก) · `GET /admin/boxes?q&page&per_page` (ยังไม่มีตัวกรอง status/battery/agency) · `GET /admin/boxes/:box_id` (ฉบับย่อ: สถานะ · แบต · fw · `config` ที่ตู้ควรได้ + `in_sync` · QR ทุกใบ · 20 รายการล่าสุดที่ตู้ส่งมา · 10 ครั้งล่าสุดที่ลายเซ็นไม่ผ่าน — ยังไม่มีข้อมูลเจ้าของ จึงยังไม่ลง data access log) · งานทดสอบ
 - `PrintableQr` ยังไม่มี `svg` — หน้าเว็บสร้างรูป QR จาก `url` เอง · `device_secret` = HMAC(`BOX_MASTER_KEY`, box_id) คำนวณใหม่ได้จาก master key จึงไม่เก็บในฐานข้อมูลและไม่แสดงในหน้าตู้
-- ยังไม่ทำ: เปิดปิดบริการ · unbind · ค่าทับเฉพาะตู้
+- ✅ เปิดปิดบริการ · unbind · ค่าทับเฉพาะตู้ ทำแล้ว 2026-10-30
 
 ### 9.5 ค่าตั้งค่าตู้
 
@@ -702,7 +702,7 @@ interface PrintableQr {           // สำหรับไฟล์พิมพ�
 |---|---|---|---|
 | GET | `/admin/box-config` | — | `{ config_ver, config: BoxConfigDefaults, updated_at, updated_by }` (`D10`) |
 | PUT | `/admin/box-config` | `BoxConfigDefaults` | เพิ่ม `config_ver` → ✅ ตู้ดึงค่าใหม่ภายใน 1 วัน (ตอนรายงานรายวัน) |
-| PUT | `/admin/boxes/:box_id/config` | `Partial<BoxConfigDefaults>` | ค่าทับเฉพาะตู้ (เช่น ตู้ที่สัญญาณแย่ให้ `longpoll_wait_s` สั้นลง) |
+| PUT | `/admin/boxes/:box_id/config` | `Partial<BoxConfigDefaults>` (ช่วงตัวเลขเดียวกับค่ากลาง) | ✅ 2026-10-30 ค่าทับเฉพาะตู้ (เช่น ตู้ที่สัญญาณแย่ให้ `longpoll_wait_s` สั้นลง) · **แทนที่ทั้งชุด** (คีย์ที่ไม่ส่ง = ใช้ค่ากลาง · `{}` = ล้างทั้งหมด) · เพิ่มรุ่น config + ปลุก long-poll ให้ตู้ได้ค่าใหม่ทันที · ตอบ `{ box_id, config_ver, config, override }` · `AdminBoxDetail.config.override` = ค่าที่ทับอยู่ |
 | DELETE | `/admin/boxes/:box_id/config` | — | ล้างค่าทับเฉพาะตู้และเพิ่มรุ่นบังคับซิงก์ ให้กลับไปใช้ค่ากลาง · ปลุก long-poll ที่ถืออยู่ให้รับ config ใหม่ทันที; ถ้าหลับ/ออฟไลน์จะ sync เมื่อ boot/report/long-poll ครั้งถัดไป · ไม่ลบ Wi-Fi, device secret, owner, QR หรือประวัติ |
 
 ```ts
@@ -877,7 +877,7 @@ payload ที่ส่งให้ service worker (✅ 2026-10-27 — รูป
 | `low_battery` | เจ้าของบ้าน + แอดมิน | 🔋 แบตตู้เหลือ 18% | `/` |
 | `swap_backup_qr` | เจ้าของบ้าน | 📮 กรุณาเอา QR ใบ 2 ในตู้ไปติดแทน | `/` |
 | `box_problem` | เจ้าของบ้าน + แอดมิน | ⚠️ เจ้าหน้าที่แจ้งว่าตู้ไม่ตอบ | `/` |
-| `sos_new` | เจ้าหน้าที่ (ตามขั้น) | 🆘 SOS บ้าน 99/9 · 081-xxx | `/officer/sos/:id` |
+| `sos_new` | เจ้าหน้าที่ (ตามขั้น) | 🆘 SOS บ้าน 99/9 ต้องการความช่วยเหลือ (**ไม่ใส่เบอร์** — เบอร์เห็นในแอปเฉพาะตอน SOS เปิดอยู่ + บันทึกการเปิดดู · แก้ 2026-10-30) | `/officer/sos/:id` |
 | `sos_taken` | เจ้าหน้าที่คนอื่น | รับแล้วโดย ส.ต.ต. สมชาย | `/officer/sos/:id` |
 | `sos_accepted` / `sos_closed` | เจ้าของบ้าน | รับเรื่องแล้ว / ปิดเรื่องแล้ว | `/sos/:id` |
 | `sos_cancelled` | เจ้าหน้าที่ที่ได้รับ | SOS ถูกยกเลิกแล้ว | `/officer/sos/:id` |

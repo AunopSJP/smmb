@@ -6,6 +6,21 @@ import type { RequiredRole } from './auth.decorators.js';
 import { AccessService } from './access.service.js';
 import { TermsService } from './terms.service.js';
 
+/** api.md §4.5 `PlanInfo` — แพ็กเกจปัจจุบันของบัญชีเจ้าของบ้าน */
+export interface PlanInfo {
+  code: string;
+  /** แปลตามภาษาที่เลือกไว้กับบัญชี */
+  name: string;
+  price_note: string | null;
+  status: 'active' | 'expiring' | 'expired' | 'none';
+  starts_at: string | null;
+  ends_at: string | null;
+  features: Record<string, number | boolean>;
+}
+
+/** เหลือกี่วันถึงเรียกว่า "ใกล้หมดอายุ" */
+export const PLAN_EXPIRING_DAYS = 7;
+
 export interface Prefs {
   theme: 'light' | 'dark' | 'system';
   lang: 'th' | 'en';
@@ -51,6 +66,57 @@ export class MeService {
     private readonly access: AccessService,
     private readonly terms: TermsService,
   ) {}
+
+  /**
+   * แพ็กเกจปัจจุบัน = แถวที่คลุมเวลาตอนนี้ · ไม่มี → ใช้แถวล่าสุดที่หมดอายุแล้ว (`expired`) · ไม่เคยมีเลย → `none`
+   * SOS และการตรวจตู้ไม่ขึ้นกับแพ็กเกจ (design §0 ข้อ 9)
+   */
+  async plan(userId: string): Promise<PlanInfo> {
+    const { rows } = await this.pool.query<{
+      plan_code: string;
+      name_th: string;
+      name_en: string;
+      price_note: string | null;
+      features: Record<string, number | boolean>;
+      start_date: Date;
+      end_date: Date | null;
+      lang: string | null;
+      current: boolean;
+    }>(
+      `SELECT p.plan_code, p.name_th, p.name_en, p.price_note, p.features, up.start_date, up.end_date, u.prefs->>'lang' AS lang,
+              (up.start_date <= now() AND (up.end_date IS NULL OR up.end_date > now())) AS current
+       FROM app.user_plan_tb up
+       JOIN app.plan_tb p ON p.plan_code = up.plan_code
+       JOIN app.user_tb u ON u.user_id = up.user_id
+       WHERE up.user_id = $1 AND up.start_date <= now()
+       ORDER BY (up.end_date IS NULL OR up.end_date > now()) DESC, up.start_date DESC
+       LIMIT 1`,
+      [userId],
+    );
+    const r = rows[0];
+    if (!r) return { code: '', name: '', price_note: null, status: 'none', starts_at: null, ends_at: null, features: {} };
+    const left = r.end_date ? r.end_date.getTime() - Date.now() : null;
+    const status: PlanInfo['status'] = !r.current ? 'expired' : left !== null && left <= PLAN_EXPIRING_DAYS * 86_400_000 ? 'expiring' : 'active';
+    return {
+      code: r.plan_code,
+      name: r.lang === 'en' ? r.name_en : r.name_th,
+      price_note: r.price_note,
+      status,
+      starts_at: r.start_date.toISOString(),
+      ends_at: r.end_date?.toISOString() ?? null,
+      features: r.features,
+    };
+  }
+
+  /** แก้ชื่อที่แสดง / การแสดงผล — prefs รวมกับของเดิม (ส่งมาเฉพาะที่เปลี่ยน) · คืน Me ใหม่ */
+  async update(userId: string, patch: { display_name?: string; prefs?: Partial<Prefs> }, sessionId?: string): Promise<Me> {
+    const prefs = Object.fromEntries(Object.entries(patch.prefs ?? {}).filter(([, v]) => v !== undefined));
+    await this.pool.query(
+      `UPDATE app.user_tb SET prefs = prefs || $2::jsonb, display_name = coalesce($3, display_name) WHERE user_id = $1`,
+      [userId, JSON.stringify(prefs), patch.display_name ?? null],
+    );
+    return this.build(userId, undefined, sessionId);
+  }
 
   /** sessionId = เครื่องที่ถาม (ใช้ตอบ push.subscribed ของเครื่องนี้) */
   async build(userId: string, db: Db = this.pool, sessionId?: string): Promise<Me> {

@@ -4,10 +4,11 @@ import pg from 'pg';
 import type { Env } from '../config/env.js';
 import { PG_POOL } from '../db/db.module.js';
 import { withTx, type Db } from '../db/tx.js';
-import type { BoxConfig, BoxStatus } from './box-config.js';
+import { pickOverride, type BoxConfig, type BoxConfigDefaults, type BoxStatus } from './box-config.js';
 import { BoxConfigService } from './box-config.service.js';
 import { deviceSecret, frontQrToken, newActivateToken, newPrintCode, showPrintCode } from './box-crypto.js';
 import { BoxJobService, type JobDto } from './box-job.service.js';
+import { NotificationService } from '../push/notification.service.js';
 
 export type QrSlot = 1 | 2 | 'activate';
 const UNUSED_ACTIVATION_STATUS = 'active';
@@ -64,8 +65,12 @@ export interface CameraDiagnostics {
 export interface AdminBoxDetail extends AdminBoxRow {
   can_delete: boolean;
   service_active: boolean;
+  /** เหตุผลที่ปิดบริการ (ตอนเปิดอยู่ = null) */
+  service_reason: string | null;
+  service_changed_at: string | null;
   registered_at: string;
-  config: { config_ver: number; config: BoxConfig; box_config_ver: number | null; in_sync: boolean };
+  /** override = ค่าที่ทับเฉพาะตู้นี้ (ว่าง = ใช้ค่ากลางทั้งหมด) */
+  config: { config_ver: number; config: BoxConfig; box_config_ver: number | null; in_sync: boolean; override: Partial<BoxConfigDefaults> };
   qr: (PrintableQr & { id: string; version: number; status: string; health: string; issued_at: string })[];
   reports: { kind: 'boot' | 'report' | 'event'; at: string; body: Record<string, unknown> }[];
   camera_diagnostics: CameraDiagnostics | null;
@@ -78,6 +83,8 @@ interface BoxRow {
   name: string | null;
   owner_user_id: string | null;
   service_active: boolean;
+  service_reason: string | null;
+  service_changed_date: Date | null;
   battery_pct: number | null;
   charging: boolean | null;
   battery_date: Date | null;
@@ -90,7 +97,7 @@ interface BoxRow {
   created_date: Date;
 }
 
-const BOX_COLS = `box_id, house_no, name, owner_user_id, service_active, battery_pct, charging, battery_date,
+const BOX_COLS = `box_id, house_no, name, owner_user_id, service_active, service_reason, service_changed_date, battery_pct, charging, battery_date,
   last_seen_date, last_poll_date, fw, fw_target, config_override, config_ver_seen, created_date`;
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
@@ -137,6 +144,7 @@ export class AdminBoxService {
     private readonly config: ConfigService<Env, true>,
     private readonly configs: BoxConfigService,
     private readonly jobs: BoxJobService,
+    private readonly notifications: NotificationService,
   ) {}
 
   /**
@@ -196,8 +204,10 @@ export class AdminBoxService {
       ...this.row(box, status.get(boxId)!),
       can_delete: await this.canDelete(this.pool, boxId),
       service_active: box.service_active,
+      service_reason: box.service_reason,
+      service_changed_at: box.service_changed_date?.toISOString() ?? null,
       registered_at: box.created_date.toISOString(),
-      config: { config_ver: cfg.ver, config: cfg.config, box_config_ver: box.config_ver_seen, in_sync: box.config_ver_seen === cfg.ver },
+      config: { config_ver: cfg.ver, config: cfg.config, box_config_ver: box.config_ver_seen, in_sync: box.config_ver_seen === cfg.ver, override: pickOverride(box.config_override) },
       qr: qr.rows.map((r) => ({
         id: r.box_qr_code_id,
         slot: this.slot(r.slot),
@@ -212,6 +222,68 @@ export class AdminBoxService {
       camera_diagnostics: mapCameraDiagnostics(reports.rows),
       auth_failures: fails.rows.map((r) => ({ reason: r.reason, at: r.created_date.toISOString() })),
     };
+  }
+
+  /**
+   * เปิด/ปิดบริการตู้ — ปิดแล้วตรวจตู้ไม่ได้ (BOX_SERVICE_CLOSED) และไรเดอร์เห็นหน้าตู้ปิดบริการ · บันทึกใน data_access_log_tb
+   * แจ้งเจ้าของบ้านเมื่อสถานะเปลี่ยนจริง (ตั้งซ้ำค่าเดิม = ไม่แจ้ง ไม่บันทึกซ้ำ)
+   */
+  async setService(boxId: string, active: boolean, reason: string | null, adminId: string): Promise<{ box_id: string; service_active: boolean }> {
+    const changed = await withTx(this.pool, async (db) => {
+      const box = await this.load(db, boxId);
+      const note = active ? null : reason?.trim() || null;
+      if (box.service_active === active && box.service_reason === note) return null;
+      await db.query(`UPDATE app.box_tb SET service_active = $2, service_reason = $3, service_changed_date = now() WHERE box_id = $1`, [boxId, active, note]);
+      await db.query(
+        `INSERT INTO app.data_access_log_tb (actor_user_id, subject_kind, subject_id, fields) VALUES ($1, 'box', $2, $3)`,
+        [adminId, boxId, [active ? 'service_opened' : 'service_closed']],
+      );
+      return { becameDifferent: box.service_active !== active, owner: box.owner_user_id, name: box.name, note };
+    });
+    if (changed?.becameDifferent && changed.owner) {
+      await this.notifications
+        .notify([changed.owner], {
+          type: active ? 'box_service_opened' : 'box_service_closed',
+          data: { box_id: boxId, box_name: changed.name, reason: changed.note ?? '' },
+          link: '/home',
+          tag: `service-${boxId}`,
+        })
+        .catch(() => undefined);
+    }
+    return { box_id: boxId, service_active: active };
+  }
+
+  /**
+   * ยกเลิกการผูกตู้ (ขายบ้าน / ย้ายออก) — ตู้ไม่ถูกลบ ประวัติเก่ายังอยู่ · ตู้กลับเป็น "ยังไม่ผูก":
+   * ล้างเจ้าของ/บ้านเลขที่/ย่าน/ชื่อ · ถอดออกจากทุกโซน · ออก QR เปิดใช้ตู้ใบใหม่ให้เจ้าของคนใหม่ (QR หน้าตู้ที่ติดอยู่ใช้ต่อได้)
+   * มี SOS ค้างอยู่ → 409 ต้องปิดเคสก่อน · บันทึกใน data_access_log_tb · แจ้งเจ้าของเดิม
+   */
+  async unbind(boxId: string, reason: string, adminId: string): Promise<{ box_id: string; qr: ReissuedQr }> {
+    const out = await withTx(this.pool, async (db) => {
+      const box = await this.load(db, boxId);
+      if (!box.owner_user_id) throw new ConflictException({ code: 'BOX_NOT_BOUND', message: 'this box has no owner' });
+      const sos = await db.query(`SELECT 1 FROM app.sos_case_tb WHERE box_id = $1 AND status IN ('open','accepted')`, [boxId]);
+      if (sos.rowCount) throw new ConflictException({ code: 'SOS_OPEN', message: 'close the open SOS of this box first' });
+      await db.query(
+        `UPDATE app.box_tb SET owner_user_id = NULL, name = NULL, house_no = NULL, area = NULL, bound_date = NULL,
+           wifi_reset_requested_date = NULL, wifi_reset_requested_by = NULL, offline_notified_date = NULL
+         WHERE box_id = $1`,
+        [boxId],
+      );
+      await db.query(`DELETE FROM app.zone_box_tb WHERE box_id = $1`, [boxId]);
+      // QR เปิดใช้ตู้ใบเก่าถูกใช้ไปแล้ว — ใบที่ยังไม่ใช้ (ถ้ามี) ยกเลิกก่อนออกใบใหม่
+      await db.query(`UPDATE app.box_qr_code_tb SET status = 'revoked', revoked_date = now() WHERE box_id = $1 AND slot = 'activate' AND status = 'active'`, [boxId]);
+      const qr = await this.issueQr(db, boxId, 'activate');
+      await db.query(
+        `INSERT INTO app.data_access_log_tb (actor_user_id, subject_kind, subject_id, fields) VALUES ($1, 'box', $2, $3)`,
+        [adminId, boxId, ['box_unbound', `reason:${reason.slice(0, 200)}`]],
+      );
+      return { qr, owner: box.owner_user_id, name: box.name };
+    });
+    await this.notifications
+      .notify([out.owner], { type: 'box_unbound', data: { box_id: boxId, box_name: out.name }, link: '/home', tag: `unbound-${boxId}` })
+      .catch(() => undefined);
+    return { box_id: boxId, qr: out.qr };
   }
 
   async remove(boxId: string, adminId: string): Promise<{ box_id: string; deleted: true }> {

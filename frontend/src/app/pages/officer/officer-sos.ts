@@ -22,7 +22,7 @@ const go = (router: Router, code: string, id?: string) =>
   imports: [RouterLink, PageHeader, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="session.me()?.agency?.name ?? ''" [title]="session.me()?.display_name ?? ''" />
+    <app-page-header [caption]="session.me()?.agency?.name ?? ''" [title]="session.me()?.display_name ?? ''" [bell]="url('O14')" />
     <div class="stack">
       @for (c of open(); track c.id) {
         @if (c.mine) {

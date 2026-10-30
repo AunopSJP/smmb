@@ -421,7 +421,7 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
     await this.safeNotify(() =>
       this.notifications.notify(userIds, {
         type: 'sos_new',
-        data: { sos_id: id, house_no: c.house_no, phone: c.owner_phone },
+        data: { sos_id: id, house_no: c.house_no },
         link: `/officer/sos/case?id=${id}`,
         tag: `sos-${id}`,
       }),

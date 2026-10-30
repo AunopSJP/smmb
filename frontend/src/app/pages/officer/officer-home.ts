@@ -17,7 +17,7 @@ const REFRESH_MS = 30_000;
   imports: [RouterLink, PageHeader, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="caption()" [title]="session.me()?.display_name ?? ''" />
+    <app-page-header [caption]="caption()" [title]="session.me()?.display_name ?? ''" [bell]="url('O14')" />
 
     <div class="stack">
       @if (error()) {

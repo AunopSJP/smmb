@@ -4,6 +4,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { I18n, type Lang } from './i18n';
+import type { ServerPrefs } from './session';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type TextSize = 'normal' | 'large' | 'xlarge';
@@ -46,6 +47,25 @@ export class DisplaySettings {
   readonly lang = this.i18n.lang;
 
   private readonly hour = signal(bangkokHour());
+
+  /** ค่าที่เก็บกับบัญชี (ชื่อฟิลด์ตาม api.md §3 `Prefs`) */
+  readonly prefs = computed<ServerPrefs>(() => ({
+    theme: this.theme(),
+    lang: this.lang(),
+    text_size: this.textSize(),
+    simple_home: this.simpleHome(),
+    night_auto_dark: this.nightAutoDark(),
+  }));
+
+  /** ใช้ค่าจากบัญชี (ตอนล็อกอิน) — ภาษาที่เลือกไว้ที่เครื่องอื่นตามมาด้วย */
+  apply(p: Partial<ServerPrefs> | null | undefined): void {
+    if (!p) return;
+    if (p.theme) this.theme.set(p.theme);
+    if (p.lang) this.lang.set(p.lang);
+    if (p.text_size) this.textSize.set(p.text_size);
+    if (p.simple_home !== undefined) this.simpleHome.set(p.simple_home);
+    if (p.night_auto_dark !== undefined) this.nightAutoDark.set(p.night_auto_dark);
+  }
 
   /** ธีมที่ใช้จริง: ตอนตรวจกลางคืน เจ้าหน้าที่ได้ธีมมืดเพื่อไม่แสบตา */
   readonly nightActive = computed(

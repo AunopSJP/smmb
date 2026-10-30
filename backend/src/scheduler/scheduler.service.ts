@@ -3,6 +3,7 @@ import pg from 'pg';
 import { PG_POOL } from '../db/db.module.js';
 import { minutesIntoWindow, SILENT_AFTER_MS, WINDOW_GRACE_MIN } from '../box/box-config.js';
 import { BoxConfigService } from '../box/box-config.service.js';
+import { PLAN_EXPIRING_DAYS } from '../auth/me.service.js';
 import { NotificationService } from '../push/notification.service.js';
 
 const TICK_MS = 60_000;
@@ -58,6 +59,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         this.lastHourly = now.getTime();
         await this.safely('silent', () => this.watchSilent(now));
         await this.safely('cleanup', () => this.cleanup());
+        await this.safely('plans', () => this.watchPlans());
       }
       if (bangkokHour(now) >= HEALTH_HOUR && this.lastHealthDay !== bangkokDay(now)) {
         this.lastHealthDay = bangkokDay(now);
@@ -133,6 +135,22 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     const admins = await this.adminIds();
     for (const r of rows) {
       await this.notifications.notify(admins, { type: 'box_silent_26h', data: { box_id: r.box_id }, link: `/admin/boxes/detail?id=${r.box_id}`, tag: `silent-${r.box_id}` }).catch(this.warn);
+    }
+    return rows.length;
+  }
+
+  // ── แพ็กเกจใกล้หมดอายุ ─────────────────────────────────────────────────
+
+  /** แพ็กเกจที่จะหมดอายุใน 7 วัน → แจ้งเจ้าของบ้านครั้งเดียวต่อช่วงแพ็ก (SOS/ตรวจตู้ไม่ขึ้นกับแพ็ก — แจ้งไว้เฉยๆ) */
+  async watchPlans(): Promise<number> {
+    const { rows } = await this.pool.query<{ user_id: string; days: number }>(
+      `UPDATE app.user_plan_tb SET expiring_notified_date = now()
+       WHERE end_date IS NOT NULL AND end_date > now() AND end_date <= now() + make_interval(days => $1) AND expiring_notified_date IS NULL
+       RETURNING user_id, greatest(1, ceil(extract(epoch FROM end_date - now()) / 86400))::int AS days`,
+      [PLAN_EXPIRING_DAYS],
+    );
+    for (const r of rows) {
+      await this.notifications.notify([r.user_id], { type: 'plan_expiring', data: { days: r.days }, link: '/home/settings', tag: 'plan-expiring' }).catch(this.warn);
     }
     return rows.length;
   }

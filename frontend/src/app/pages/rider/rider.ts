@@ -389,7 +389,7 @@ export class RiderLimited {
       <div class="result mid">
         <span class="big-icon white"><app-icon name="check" [size]="40" /></span>
         <h1>{{ i18n.t({ th: 'ส่งสำเร็จ', en: 'Delivered' }) }}</h1>
-        <p class="house">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ house() ?? '99/9' }}</p>
+        <p class="house">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ house() }}</p>
         <p class="small">
           {{ i18n.t({ th: 'แจ้งเจ้าของบ้านแล้ว ', en: 'Owner notified at ' }) }}{{ at() ?? '' }}<br />
           {{ i18n.t({ th: 'ปิดหน้านี้ได้เลย ขอบคุณครับ', en: 'You can close this page. Thank you!' }) }}
@@ -416,6 +416,14 @@ export class RiderLimited {
 })
 export class RiderDone {
   protected readonly i18n = inject(I18n);
+  private readonly router = inject(Router);
   readonly house = input<string>();
   readonly at = input<string>();
+
+  constructor() {
+    // เปิดหน้านี้ตรง ๆ โดยไม่ได้แจ้งส่งของจริง (ไม่มีบ้านเลขที่) → อย่าขึ้น "ส่งสำเร็จ" ลอย ๆ กลับหน้าแรกของไรเดอร์
+    queueMicrotask(() => {
+      if (!this.house()) void this.router.navigateByUrl(screenUrl('R01'), { replaceUrl: true });
+    });
+  }
 }

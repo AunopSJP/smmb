@@ -56,7 +56,7 @@ export class AuthService {
     const hash = await this.passwords.hash(dto.password);
     return withTx(this.pool, async (db) => {
       await this.terms.assertCurrent(db, dto.terms_version);
-      const userId = await this.insertUser(db, { name: dto.name, phone: dto.phone, houseNo: dto.house_no, hash });
+      const userId = await this.insertUser(db, { name: dto.name, phone: dto.phone, houseNo: dto.house_no, area: dto.area, hash });
       await db.query(`INSERT INTO app.user_role_tb (user_id, role) VALUES ($1, 'owner')`, [userId]);
       await this.account.giveDefaultPlan(db, userId);
       await this.terms.accept(db, userId, dto.terms_version, meta);
@@ -120,8 +120,8 @@ export class AuthService {
         throw err;
       }
       await db.query(
-        `UPDATE app.user_tb SET house_no = $2, perm_version = perm_version + 1 WHERE user_id = $1`,
-        [userId, dto.house_no],
+        `UPDATE app.user_tb SET house_no = $2, area = coalesce($3, area), perm_version = perm_version + 1 WHERE user_id = $1`,
+        [userId, dto.house_no, dto.area ?? null],
       );
       await this.account.giveDefaultPlan(db, userId);
       await this.terms.accept(db, userId, dto.terms_version, meta);
@@ -224,13 +224,13 @@ export class AuthService {
 
   private async insertUser(
     db: Db,
-    u: { name: string; phone: string; houseNo?: string; hash: string },
+    u: { name: string; phone: string; houseNo?: string; area?: string; hash: string },
   ): Promise<string> {
     try {
       const { rows } = await db.query<{ user_id: string }>(
-        `INSERT INTO app.user_tb (phone, name, display_name, house_no, password_hash)
-         VALUES ($1, $2, $2, $3, $4) RETURNING user_id`,
-        [u.phone, u.name, u.houseNo ?? null, u.hash],
+        `INSERT INTO app.user_tb (phone, name, display_name, house_no, area, password_hash)
+         VALUES ($1, $2, $2, $3, $5, $4) RETURNING user_id`,
+        [u.phone, u.name, u.houseNo ?? null, u.hash, u.area ?? null],
       );
       return rows[0].user_id;
     } catch (err) {

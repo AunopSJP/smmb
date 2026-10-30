@@ -75,6 +75,7 @@ const BUILT: Record<string, Loader> = {
   O10: () => officer.sos().then((m) => m.OfficerSosHandling),
   O11: () => officer.sos().then((m) => m.OfficerSosClose),
   O13: () => import('./pages/officer/officer-account').then((m) => m.OfficerAccount),
+  O14: () => import('./pages/officer/officer-notifications').then((m) => m.OfficerNotifications),
   'O13-b': () => owner.settings().then((m) => m.OwnerDisplay),
   L04: () => import('./pages/head-home').then((m) => m.HeadHome),
   L05: () => head.members().then((m) => m.HeadMembers),

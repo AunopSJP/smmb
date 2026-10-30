@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import pg from 'pg';
+import { toCsv } from '../common/csv.js';
 import { BOX_TZ } from '../box/box-config.js';
 import { BoxConfigService } from '../box/box-config.service.js';
 import { PG_POOL } from '../db/db.module.js';
@@ -38,6 +39,8 @@ export interface AgencyLogDto {
 }
 
 const LOG_PAGE = 30;
+/** ส่งออก CSV สูงสุดกี่แถว */
+export const CSV_MAX_ROWS = 10_000;
 
 /** ภาพรวมทีมวันนี้ + ประวัติการสแกนของหน่วยงาน — กรองหน่วยงานใน SQL ทุกคำสั่ง (กฎข้อ 9) */
 @Injectable()
@@ -124,6 +127,23 @@ export class AgencyTodayService {
 
   /** สมาชิกทุกสถานะของหน่วยงาน (คนที่ถูกปิดไปแล้วก็ยังเห็นประวัติเดิม) · ใหม่สุดก่อน */
   async logs(agencyId: string, page: number): Promise<{ data: AgencyLogDto[]; page: number; per_page: number }> {
+    const data = await this.logRows(agencyId, LOG_PAGE, (page - 1) * LOG_PAGE, null);
+    return { data, page, per_page: LOG_PAGE };
+  }
+
+  /**
+   * ส่งออกประวัติการสแกนเป็น CSV (UTF-8 + BOM ให้ Excel อ่านภาษาไทยถูก) — ย้อนหลัง `days` วัน เรียงใหม่ → เก่า สูงสุด 10,000 แถว
+   * ช่องที่ขึ้นต้นด้วย = + - @ ใส่ ' นำหน้า (กัน CSV injection) · เวลาเป็นเวลาไทย
+   */
+  async logsCsv(agencyId: string, days: number): Promise<string> {
+    const rows = await this.logRows(agencyId, CSV_MAX_ROWS, 0, days);
+    const head = ['time (Asia/Bangkok)', 'officer', 'house_no', 'box_id', 'qr_kind', 'qr_slot', 'method', 'result'];
+    const fmt = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Bangkok', dateStyle: 'short', timeStyle: 'medium' });
+    const body = rows.map((r) => [fmt.format(new Date(r.at)), r.officer?.display_name ?? '', r.house_no ?? '', r.box_id ?? '', r.qr_kind, r.qr_slot === null ? '' : String(r.qr_slot), r.method, r.result]);
+    return toCsv([head, ...body]);
+  }
+
+  private async logRows(agencyId: string, limit: number, offset: number, sinceDays: number | null): Promise<AgencyLogDto[]> {
     const { rows } = await this.pool.query<{
       scan_log_id: string;
       created_date: Date;
@@ -144,26 +164,23 @@ export class AgencyTodayService {
        LEFT JOIN app.user_tb u ON u.user_id = coalesce(l.user_id, i.officer_user_id)
        LEFT JOIN app.box_tb b ON b.box_id = l.box_id
        LEFT JOIN app.box_qr_code_tb q ON q.box_qr_code_id = l.box_qr_code_id
-       WHERE (l.actor_kind = 'officer' AND EXISTS (SELECT 1 FROM app.agency_member_tb m WHERE m.user_id = l.user_id AND m.agency_id = $1))
-          OR (l.actor_kind = 'box' AND i.agency_id = $1)
+       WHERE ((l.actor_kind = 'officer' AND EXISTS (SELECT 1 FROM app.agency_member_tb m WHERE m.user_id = l.user_id AND m.agency_id = $1))
+          OR (l.actor_kind = 'box' AND i.agency_id = $1))
+         AND ($4::int IS NULL OR l.created_date > now() - make_interval(days => $4))
        ORDER BY l.created_date DESC, l.scan_log_id DESC
        LIMIT $2 OFFSET $3`,
-      [agencyId, LOG_PAGE, (page - 1) * LOG_PAGE],
+      [agencyId, limit, offset, sinceDays],
     );
-    return {
-      data: rows.map((r) => ({
-        id: String(r.scan_log_id),
-        at: r.created_date.toISOString(),
-        officer: r.user_id ? { id: r.user_id, display_name: r.display_name ?? '' } : null,
-        box_id: r.box_id,
-        house_no: r.house_no,
-        qr_kind: r.qr_kind,
-        qr_slot: r.slot === '1' ? 1 : r.slot === '2' ? 2 : null,
-        method: r.method,
-        result: r.result,
-      })),
-      page,
-      per_page: LOG_PAGE,
-    };
+    return rows.map((r) => ({
+      id: String(r.scan_log_id),
+      at: r.created_date.toISOString(),
+      officer: r.user_id ? { id: r.user_id, display_name: r.display_name ?? '' } : null,
+      box_id: r.box_id,
+      house_no: r.house_no,
+      qr_kind: r.qr_kind,
+      qr_slot: r.slot === '1' ? 1 : r.slot === '2' ? 2 : null,
+      method: r.method,
+      result: r.result,
+    }));
   }
 }

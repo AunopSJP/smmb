@@ -25,6 +25,8 @@ export interface ZoneHouseDto {
   box_id: string;
   house_no: string | null;
   box_name: string | null;
+  /** ย่าน/หมู่บ้านที่เจ้าของระบุ (ไม่ระบุ = null) */
+  area: string | null;
   box_status: BoxStatus;
 }
 
@@ -33,7 +35,11 @@ export interface HouseSearchDto {
   box_id: string;
   house_no: string | null;
   box_name: string | null;
-  zones: { agency_name: string; zone_name: string }[];
+  area: string | null;
+  /** ตู้ออนไลน์ไหม / ปิดบริการไหม — ให้หัวหน้าเห็นว่าเพิ่มบ้านที่ตรวจได้จริงหรือเปล่า */
+  box_status: BoxStatus;
+  /** โซนที่บ้านนี้อยู่แล้ว (ทุกหน่วยงาน) · mine = ของหน่วยงานเรา */
+  zones: { agency_name: string; zone_name: string; mine: boolean }[];
 }
 
 /** ผลค้นบ้านสูงสุดต่อครั้ง */
@@ -123,23 +129,45 @@ export class ZoneService {
   /**
    * ค้นบ้านจากบ้านเลขที่ (หรือรหัสตู้) เพื่อเพิ่มเข้าโซน — เฉพาะตู้ที่มีเจ้าของแล้ว · ไม่เห็นชื่อ/เบอร์เจ้าของบ้าน
    * บอกว่าบ้านนี้อยู่โซนไหนแล้วบ้าง (รวมหน่วยงานอื่น) ให้หัวหน้าเห็นว่ามีใครดูแลอยู่
+   * ไม่ใส่คำค้น = บ้านที่ยังไม่มีหน่วยงานไหนดูแล (ไล่ดูแล้วเพิ่มได้เลย โดยไม่ต้องรู้บ้านเลขที่) · ตรงต้นคำขึ้นก่อน
    */
-  async searchHouses(q: string): Promise<HouseSearchDto[]> {
-    const { rows } = await this.pool.query<HouseSearchDto>(
-      `SELECT b.box_id, b.house_no, b.name AS box_name,
-              coalesce((SELECT json_agg(json_build_object('agency_name', a.name, 'zone_name', z.name) ORDER BY a.name, z.name)
+  async searchHouses(agencyId: string, q?: string): Promise<HouseSearchDto[]> {
+    const term = q?.trim() ?? '';
+    const { rows } = await this.pool.query<{
+      box_id: string;
+      house_no: string | null;
+      name: string | null;
+      area: string | null;
+      owner_user_id: string | null;
+      service_active: boolean;
+      last_poll_date: Date | null;
+      last_seen_date: Date | null;
+      config_override: Record<string, unknown>;
+      zones: HouseSearchDto['zones'];
+    }>(
+      `SELECT b.box_id, b.house_no, b.name, b.area, b.owner_user_id, b.service_active, b.last_poll_date, b.last_seen_date, b.config_override,
+              coalesce((SELECT json_agg(json_build_object('agency_name', a.name, 'zone_name', z.name, 'mine', a.agency_id = $3) ORDER BY a.name, z.name)
                 FROM app.zone_box_tb zb
                 JOIN app.zone_tb z ON z.zone_id = zb.zone_id AND z.deleted_date IS NULL
                 JOIN app.agency_tb a ON a.agency_id = z.agency_id AND a.status = 'approved'
                 WHERE zb.box_id = b.box_id), '[]') AS zones
        FROM app.box_tb b
        WHERE b.owner_user_id IS NOT NULL
-         AND (b.house_no ILIKE $1 OR b.box_id ILIKE $1 OR replace(b.box_id, '-', '') ILIKE $1)
-       ORDER BY b.house_no NULLS LAST, b.box_id
+         AND (
+           $4::boolean
+           OR (b.house_no ILIKE $1 OR b.box_id ILIKE $1 OR replace(b.box_id, '-', '') ILIKE $1 OR b.area ILIKE $1)
+         )
+         AND (NOT $4::boolean OR NOT EXISTS (
+           SELECT 1 FROM app.zone_box_tb zb
+           JOIN app.zone_tb z ON z.zone_id = zb.zone_id AND z.deleted_date IS NULL
+           JOIN app.agency_tb a ON a.agency_id = z.agency_id AND a.status = 'approved'
+           WHERE zb.box_id = b.box_id))
+       ORDER BY (b.house_no ILIKE $5 OR b.box_id ILIKE $5) DESC, b.house_no NULLS LAST, b.box_id
        LIMIT $2`,
-      [likeContains(q), HOUSE_SEARCH_LIMIT],
+      [likeContains(term), HOUSE_SEARCH_LIMIT, agencyId, term === '', likeContains(term).slice(1)],
     );
-    return rows.map((r) => ({ box_id: r.box_id, house_no: r.house_no, box_name: r.box_name, zones: r.zones }));
+    const status = await this.boxConfigs.statusOf(rows);
+    return rows.map((r) => ({ box_id: r.box_id, house_no: r.house_no, box_name: r.name, area: r.area, box_status: status.get(r.box_id)!, zones: r.zones }));
   }
 
   async create(agencyId: string, userId: string, name: string, windows: unknown): Promise<ZoneDto> {
@@ -242,20 +270,21 @@ export class ZoneService {
       box_id: string;
       house_no: string | null;
       name: string | null;
+      area: string | null;
       owner_user_id: string | null;
       service_active: boolean;
       last_poll_date: Date | null;
       last_seen_date: Date | null;
       config_override: Record<string, unknown>;
     }>(
-      `SELECT b.box_id, b.house_no, b.name, b.owner_user_id, b.service_active, b.last_poll_date, b.last_seen_date, b.config_override
+      `SELECT b.box_id, b.house_no, b.name, b.area, b.owner_user_id, b.service_active, b.last_poll_date, b.last_seen_date, b.config_override
        FROM app.zone_box_tb zb JOIN app.box_tb b ON b.box_id = zb.box_id
        WHERE zb.zone_id = $1
        ORDER BY b.house_no NULLS LAST, b.box_id`,
       [zoneId],
     );
     const status = await this.boxConfigs.statusOf(rows);
-    return rows.map((r) => ({ box_id: r.box_id, house_no: r.house_no, box_name: r.name, box_status: status.get(r.box_id)! }));
+    return rows.map((r) => ({ box_id: r.box_id, house_no: r.house_no, box_name: r.name, area: r.area, box_status: status.get(r.box_id)! }));
   }
 
   private async officersOf(agencyId: string, zoneId: string): Promise<MemberDto[]> {

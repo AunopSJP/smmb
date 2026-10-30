@@ -1,9 +1,9 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Patch, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import pg from 'pg';
 import { PG_POOL } from '../db/db.module.js';
 import { RateLimit } from '../rate-limit/rate-limit.guard.js';
-import { Auth, Public } from './auth.decorators.js';
+import { Auth, Public, RequireRole } from './auth.decorators.js';
 import { AllowDuringSetup } from './account-setup.guard.js';
 import {
   AcceptTermsDto,
@@ -14,9 +14,10 @@ import {
   SignupAgencyDto,
   SignupOfficerDto,
   SignupOwnerDto,
+  UpdateMeDto,
 } from './auth.dto.js';
 import { AuthService, type ClientMeta } from './auth.service.js';
-import { MeService, type Me } from './me.service.js';
+import { MeService, type Me, type PlanInfo } from './me.service.js';
 import { SessionService, type AuthContext } from './session.service.js';
 import { TermsService, type CurrentTerms } from './terms.service.js';
 
@@ -120,6 +121,20 @@ export class MeController {
   @Get()
   get(@Auth() auth: AuthContext): Promise<Me> {
     return this.me.build(auth.userId, undefined, auth.sessionId);
+  }
+
+  /** แพ็กเกจปัจจุบันของบัญชีเจ้าของบ้าน (หน้าตั้งค่าตู้ H13) */
+  @RequireRole('owner')
+  @Get('plan')
+  plan(@Auth() auth: AuthContext): Promise<PlanInfo> {
+    return this.me.plan(auth.userId);
+  }
+
+  /** แก้ชื่อที่แสดง / ภาษา-ธีม-ขนาดตัวอักษร (api.md §3) — `prefs.lang` ใช้แปลข้อความแจ้งเตือน */
+  @AllowDuringSetup()
+  @Patch()
+  update(@Auth() auth: AuthContext, @Body() dto: UpdateMeDto): Promise<Me> {
+    return this.me.update(auth.userId, dto, auth.sessionId);
   }
 
   /** ยอมรับข้อตกลงฉบับใหม่ (A13) — บันทึกหลักฐานใน terms_acceptance_tb */

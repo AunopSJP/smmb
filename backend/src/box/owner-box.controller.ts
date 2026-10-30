@@ -25,8 +25,10 @@ class EventsQuery {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) per_page = 20;
 }
 
-class RenameBoxDto {
-  @Transform(trim) @IsString() @Length(1, 40) name!: string;
+class UpdateBoxDto {
+  @IsOptional() @Transform(trim) @IsString() @Length(1, 40) name?: string;
+  /** ย่าน/หมู่บ้าน · '' = ล้าง */
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(100) area?: string;
 }
 
 class TechnicianRequestDto {
@@ -68,9 +70,11 @@ export class OwnerBoxController {
     return this.boxes.events(auth.userId, p.box_id, q.page, q.per_page);
   }
 
+  /** ตั้งชื่อตู้ และ/หรือย่าน (ส่งอย่างน้อยหนึ่งอย่าง) */
   @Patch(':box_id')
-  rename(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Body() body: RenameBoxDto) {
-    return this.boxes.rename(auth.userId, p.box_id, body.name);
+  update(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Body() body: UpdateBoxDto) {
+    if (body.name === undefined && body.area === undefined) throw new BadRequestException('send name and/or area');
+    return this.boxes.update(auth.userId, p.box_id, body);
   }
 
   /** เจ้าของกด "เปลี่ยน Wi-Fi" → ตู้รับคำสั่งแล้วตัด Wi-Fi เก่า กลับโหมดปล่อย Wi-Fi (api.md §4.4) */

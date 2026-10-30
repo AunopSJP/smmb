@@ -179,6 +179,11 @@ describe('Rider + SOS + owner home (e2e)', () => {
       // ขั้นโซน: เจ้าหน้าที่ในโซนของทั้งสองหน่วยงาน (หัวหน้าที่ไม่อยู่ในโซนยังไม่ได้)
       expect(await notified(police.officer.id, 'sos_new')).toHaveLength(1);
       expect(await notified(guard.officer.id, 'sos_new')).toHaveLength(1);
+      // เบอร์เจ้าของบ้านห้ามอยู่ในแจ้งเตือน (ส่งถึงหลายคน + ค้างในประวัติ) — เห็นได้เฉพาะในหน้าเคสตอน SOS เปิดอยู่
+      for (const n of [...(await notified(police.officer.id, 'sos_new')), ...(await notified(guard.officer.id, 'sos_new'))]) {
+        expect(JSON.stringify(n.data)).not.toContain(o.phone);
+        expect(n.data).not.toHaveProperty('phone');
+      }
       expect(await notified(police.head.id, 'sos_new')).toHaveLength(0);
       await as(police.head.cookie).get(`/api/v1/sos/${sos.id}/card`).expect(404);
       const card = (await as(guard.officer.cookie).get(`/api/v1/sos/${sos.id}/card`).expect(200)).body;

@@ -55,6 +55,15 @@ export interface AdminOverview {
   owners_by_plan: { plan_code: string; owners_count: number }[];
 }
 
+/** ค่าทับเฉพาะตู้ (ไม่ตั้ง = ใช้ค่ากลาง) */
+export interface BoxConfigOverride {
+  report_at: string;
+  scan_timeout_s: number;
+  max_attempts: number;
+  flash_when_dark: boolean;
+  longpoll_wait_s: number;
+}
+
 export interface BoxConfig {
   report_at: string;
   scan_timeout_s: number;
@@ -67,8 +76,10 @@ export interface BoxConfig {
 export interface AdminBoxDetail extends AdminBoxRow {
   can_delete: boolean;
   service_active: boolean;
+  /** เหตุผลที่ปิดบริการ (เปิดอยู่ = null) */
+  service_reason?: string | null;
   registered_at: string;
-  config: { config_ver: number; config: BoxConfig; box_config_ver: number | null; in_sync: boolean };
+  config: { config_ver: number; config: BoxConfig; box_config_ver: number | null; in_sync: boolean; override: Partial<BoxConfigOverride> };
   qr: (PrintableQr & { id: string; version: number; status: string; health: string; issued_at: string })[];
   reports: { kind: 'boot' | 'report' | 'event'; at: string; body: Record<string, unknown> }[];
   camera_diagnostics: CameraDiagnostics | null;
@@ -231,6 +242,10 @@ export class AdminApi {
   box(id: string): Promise<AdminBoxDetail> {
     return this.get(`/api/v1/admin/boxes/${encodeURIComponent(id)}`);
   }
+  /** ตั้งค่าทับเฉพาะตู้ — แทนที่ทั้งชุด (ส่ง {} = ใช้ค่ากลางทั้งหมด) */
+  setBoxConfig(id: string, override: Partial<BoxConfigOverride>): Promise<unknown> {
+    return firstValueFrom(this.http.put(`/api/v1/admin/boxes/${encodeURIComponent(id)}/config`, override));
+  }
   resetBoxConfig(id: string): Promise<{ box_id: string; config_ver: number; config: BoxConfig }> {
     return firstValueFrom(this.http.delete<{ box_id: string; config_ver: number; config: BoxConfig }>(`/api/v1/admin/boxes/${encodeURIComponent(id)}/config`));
   }
@@ -245,6 +260,14 @@ export class AdminApi {
   }
   revealSecret(id: string): Promise<{ box_id: string; device_secret: string }> {
     return this.post(`/api/v1/admin/boxes/${encodeURIComponent(id)}/device-secret`);
+  }
+  /** ยกเลิกการผูกตู้ (ขายบ้าน/ย้ายออก) → ได้ QR เปิดใช้ตู้ใบใหม่ */
+  unbind(id: string, reason: string): Promise<{ box_id: string }> {
+    return firstValueFrom(this.http.post<{ box_id: string }>(`/api/v1/admin/boxes/${encodeURIComponent(id)}/unbind`, { reason }));
+  }
+  /** เปิด/ปิดบริการตู้ (ปิดแล้วตรวจตู้ไม่ได้ · แจ้งเจ้าของบ้าน) */
+  setService(id: string, active: boolean, reason?: string): Promise<{ box_id: string; service_active: boolean }> {
+    return firstValueFrom(this.http.patch<{ box_id: string; service_active: boolean }>(`/api/v1/admin/boxes/${encodeURIComponent(id)}/service`, { active, reason: reason || undefined }));
   }
   firmwareList(): Promise<FirmwareInfo[]> {
     return this.get('/api/v1/admin/firmware');

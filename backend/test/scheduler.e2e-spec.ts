@@ -241,6 +241,36 @@ describe('Scheduler (e2e)', () => {
     });
   });
 
+  describe('plan (GET /me/plan) and the expiring notice', () => {
+    it('shows the current plan in the saved language, flags expiring/expired, and warns the owner once', async () => {
+      const owner = await signupOwner(`97/${seq++}`);
+      const plan = async () => (await http().get('/api/v1/me/plan').set('Cookie', owner.cookie).expect(200)).body;
+      expect(await plan()).toMatchObject({ code: 'free', name: 'ฟรี', status: 'active', ends_at: null });
+      await http().patch('/api/v1/me').set('Cookie', owner.cookie).send({ prefs: { lang: 'en' } }).expect(200);
+      expect((await plan()).name).toBe('Free');
+
+      // ใกล้หมดอายุ (3 วัน) → status expiring + แจ้งเตือนครั้งเดียว
+      await pool.query(`UPDATE app.user_plan_tb SET end_date = now() + interval '3 days' WHERE user_id = $1`, [owner.id]);
+      expect(await plan()).toMatchObject({ status: 'expiring', ends_at: expect.any(String) });
+      const count = async () => (await pool.query(`SELECT 1 FROM app.notification_tb WHERE user_id = $1 AND type = 'plan_expiring'`, [owner.id])).rowCount ?? 0;
+      await scheduler().watchPlans();
+      await scheduler().watchPlans();
+      expect(await count()).toBe(1);
+
+      // ยังเหลือเยอะ → active · หมดแล้ว → expired (ยังเห็นแพ็กล่าสุด)
+      await pool.query(`UPDATE app.user_plan_tb SET end_date = now() + interval '30 days' WHERE user_id = $1`, [owner.id]);
+      expect((await plan()).status).toBe('active');
+      await pool.query(`UPDATE app.user_plan_tb SET start_date = now() - interval '10 days', end_date = now() - interval '1 day' WHERE user_id = $1`, [owner.id]);
+      expect(await plan()).toMatchObject({ code: 'free', status: 'expired' });
+    });
+
+    it('only homeowners can read it', async () => {
+      const head = await readyHead();
+      await as(head).get('/api/v1/me/plan').expect(404);
+      await http().get('/api/v1/me/plan').expect(401);
+    });
+  });
+
   describe('cleanup', () => {
     it('removes sessions that expired long ago and keeps recent ones', async () => {
       const mk = (hash: string, expire: string) =>

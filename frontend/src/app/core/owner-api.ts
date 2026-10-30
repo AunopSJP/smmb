@@ -6,10 +6,23 @@ export type BoxStatus = 'online' | 'offline' | 'sleeping' | 'service_closed' | '
 export type SosStage = 'zone' | 'agency' | 'call_yourself';
 export type SosStatus = 'open' | 'accepted' | 'closed' | 'cancelled';
 
+/** api.md §4.5 */
+export interface PlanInfo {
+  code: string;
+  name: string;
+  price_note: string | null;
+  status: 'active' | 'expiring' | 'expired' | 'none';
+  starts_at: string | null;
+  ends_at: string | null;
+  features: Record<string, number | boolean>;
+}
+
 export interface BoxSummary {
   id: string;
   name: string;
   house_no: string;
+  /** หมู่บ้าน/ย่าน ('' = ไม่ได้ระบุ) */
+  area: string;
   status: BoxStatus;
 }
 
@@ -99,6 +112,13 @@ export class OwnerApi {
   }
   rename(id: string, name: string): Promise<unknown> {
     return firstValueFrom(this.http.patch('/api/v1/boxes/' + encodeURIComponent(id), { name }));
+  }
+  plan(): Promise<PlanInfo> {
+    return firstValueFrom(this.http.get<PlanInfo>('/api/v1/me/plan'));
+  }
+  /** ตั้งย่าน/หมู่บ้านของบ้าน ('' = ล้าง) */
+  setArea(id: string, area: string): Promise<unknown> {
+    return firstValueFrom(this.http.patch('/api/v1/boxes/' + encodeURIComponent(id), { area }));
   }
   technicianRequests(id: string): Promise<TechnicianRequest[]> {
     return firstValueFrom(this.http.get<TechnicianRequest[]>(`/api/v1/boxes/${encodeURIComponent(id)}/technician-requests`));

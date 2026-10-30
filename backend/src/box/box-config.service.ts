@@ -8,6 +8,7 @@ import {
   boxStatus,
   configVersion,
   mergeWindows,
+  pickOverride,
   resolveDefaults,
   type BoxConfig,
   type BoxConfigDefaults,
@@ -68,6 +69,29 @@ export class BoxConfigService {
       );
       const { config, ver } = await this.forBox(boxId, db);
       return { box_id: boxId, config_ver: ver, config };
+    });
+    this.hub.wake(boxId);
+    return result;
+  }
+
+  /**
+   * ตั้งค่าทับเฉพาะตู้ (เช่น ตู้สัญญาณแย่ให้ long-poll สั้นลง) — **แทนที่ทั้งชุด**: คีย์ที่ไม่ส่งกลับไปใช้ค่ากลาง
+   * เพิ่มรุ่น (generation) ให้ตู้ดึงค่าใหม่ทันที · ปลุก long-poll ที่รออยู่ · บันทึกผู้ตั้งใน data_access_log_tb
+   */
+  async setBoxConfig(boxId: string, override: Record<string, unknown>, adminId: string): Promise<{ box_id: string; config_ver: number; config: BoxConfig; override: Partial<BoxConfigDefaults> }> {
+    const picked = pickOverride(override);
+    const result = await withTx(this.pool, async (db) => {
+      const { rowCount } = await db.query(
+        `UPDATE app.box_tb SET config_override = $2::jsonb, config_generation = config_generation + 1 WHERE box_id = $1`,
+        [boxId, JSON.stringify(picked)],
+      );
+      if (!rowCount) throw new NotFoundException();
+      await db.query(
+        `INSERT INTO app.data_access_log_tb (actor_user_id, subject_kind, subject_id, fields) VALUES ($1, 'box', $2, $3)`,
+        [adminId, boxId, ['config_override', ...Object.keys(picked)]],
+      );
+      const { config, ver } = await this.forBox(boxId, db);
+      return { box_id: boxId, config_ver: ver, config, override: picked };
     });
     this.hub.wake(boxId);
     return result;

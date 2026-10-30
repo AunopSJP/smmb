@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { Transform } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString, IsUUID, Length, Matches } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString, IsUUID, Length, Matches, MaxLength } from 'class-validator';
 import { AccessService } from '../auth/access.service.js';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
@@ -33,7 +33,8 @@ class SetHousesDto {
 }
 
 class HouseSearchQuery {
-  @Transform(trim) @IsString() @Length(1, 50) q!: string;
+  /** ไม่ส่ง/ว่าง = รายการบ้านที่ยังไม่มีหน่วยงานไหนดูแล (ไว้ไล่เพิ่มเข้าโซน) */
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(50) q?: string;
 }
 
 class SetOfficersDto {
@@ -43,12 +44,15 @@ class SetOfficersDto {
 // docs/api.md §8.3 — ค้นบ้านเพื่อเพิ่มเข้าโซน (/agency/houses/search)
 @Controller('api/v1/agency/houses')
 export class HouseController {
-  constructor(private readonly zones: ZoneService) {}
+  constructor(
+    private readonly zones: ZoneService,
+    private readonly access: AccessService,
+  ) {}
 
   @RequireRole('head')
   @Get('search')
-  search(@Query() q: HouseSearchQuery) {
-    return this.zones.searchHouses(q.q);
+  async search(@Auth() auth: AuthContext, @Query() q: HouseSearchQuery) {
+    return this.zones.searchHouses(await this.access.load(auth.userId).then((a) => a.agency!.id), q.q);
   }
 }
 

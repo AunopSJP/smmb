@@ -170,7 +170,13 @@ export class BoxProtocolService {
    * long-poll (โปรโตคอล §2.3): มีงานอยู่แล้ว → ตอบทันที · ไม่มี → รอสูงสุด waitS วิ ระหว่างนั้นมีงาน → ตอบทันที
    * คืน null = ครบเวลาไม่มีงาน (204) หรือตู้ตัดการเชื่อมต่อไปก่อน
    */
-  async poll(boxId: string, waitS: number, closed: Promise<void>): Promise<{ job: BoxJobForBox | null; command: BoxCommand | null }> {
+  async poll(
+    boxId: string,
+    waitS: number,
+    closed: Promise<void>,
+    /** รุ่นค่าตั้งค่าที่ตู้มีอยู่ — ถ้าแอดมินเปลี่ยนค่าระหว่างรอ จะตอบทันทีเพื่อให้ตู้ได้ค่าใหม่ (ไม่ต้องรอครบเวลา) */
+    configVer: number | null = null,
+  ): Promise<{ job: BoxJobForBox | null; command: BoxCommand | null }> {
     await this.pool.query(`UPDATE app.box_tb SET last_poll_date = now(), last_seen_date = now() WHERE box_id = $1`, [boxId]);
     const deadline = Date.now() + Math.max(0, Math.min(waitS, MAX_WAIT_S)) * 1000;
     let gone = false;
@@ -202,6 +208,7 @@ export class BoxProtocolService {
       if (outcome === 'woken') {
         const woke = await look();
         if (woke.job || woke.command) return woke;
+        if (configVer !== null && (await this.configs.forBox(boxId)).ver !== configVer) return none; // ค่าตั้งค่าเปลี่ยน → ตอบ config ใหม่ทันที
         continue; // ปลุกเพราะเรื่องอื่น (เช่นยกเลิกคำสั่ง) — รอต่อจนครบเวลา
       }
       return look(); // timeout: เผื่อมีเข้ามาพอดีตอนหมดเวลา

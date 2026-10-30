@@ -260,6 +260,11 @@ export class AuthChangePassword {
         <span>{{ i18n.t({ th: 'บ้านเลขที่', en: 'House number' }) }}</span>
         <input autocomplete="address-line1" [value]="f().house_no" (input)="set('house_no', $any($event.target).value)" />
       </label>
+      <label class="field">
+        <span>{{ i18n.t({ th: 'หมู่บ้าน / ย่าน (ไม่บังคับ)', en: 'Village / area (optional)' }) }}</span>
+        <input maxlength="100" autocomplete="address-level3" [placeholder]="i18n.t({ th: 'เช่น หมู่บ้านสุขใจ', en: 'e.g. Sukjai Village' })" [value]="f().area" (input)="set('area', $any($event.target).value)" />
+        <small>{{ i18n.t({ th: 'ช่วยให้เจ้าหน้าที่แยกบ้านเลขที่ซ้ำกันคนละหมู่บ้าน', en: 'Helps officers tell apart the same house number in different villages' }) }}</small>
+      </label>
       <app-terms-check from="A15" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="!!f().house_no.trim() && !f().terms" />
       @if (errorCode(); as e) {
         <p class="danger-text small" role="alert">{{ i18n.t(errors[e]) }}</p>
@@ -298,7 +303,7 @@ export class AuthAddOwner {
     this.busy.set(true);
     try {
       const terms = await firstValueFrom(this.http.get<{ version: string }>('/api/v1/terms/current'));
-      await firstValueFrom(this.http.post('/api/v1/me/roles/owner', { house_no: this.f().house_no.trim(), terms_version: terms.version }));
+      await firstValueFrom(this.http.post('/api/v1/me/roles/owner', { house_no: this.f().house_no.trim(), area: this.f().area.trim() || undefined, terms_version: terms.version }));
       await this.realSession.refresh();
       this.realSession.use('owner');
       void this.router.navigateByUrl(screenUrl('A07'));

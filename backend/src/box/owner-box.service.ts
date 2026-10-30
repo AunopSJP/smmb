@@ -18,6 +18,8 @@ export interface BoxSummary {
   id: string;
   name: string;
   house_no: string;
+  /** ย่าน/หมู่บ้าน (ว่าง = ไม่ได้ระบุ) */
+  area: string;
   status: BoxStatus;
 }
 
@@ -257,9 +259,15 @@ export class OwnerBoxService {
     return this.summaries(userId);
   }
 
-  /** ตั้งชื่อตู้ — ตู้ของคนอื่น → 404 */
-  async rename(userId: string, boxId: string, name: string): Promise<BoxSummary> {
-    const { rowCount } = await this.pool.query(`UPDATE app.box_tb SET name = $3 WHERE box_id = $1 AND owner_user_id = $2`, [boxId, userId, name]);
+  /** ตั้งชื่อตู้ / ย่าน — ตู้ของคนอื่น → 404 · area = '' ล้างค่า · ไม่ส่งฟิลด์ = ไม่แตะ */
+  async update(userId: string, boxId: string, patch: { name?: string; area?: string }): Promise<BoxSummary> {
+    const { rowCount } = await this.pool.query(
+      `UPDATE app.box_tb SET
+         name = coalesce($3, name),
+         area = CASE WHEN $4::boolean THEN nullif($5, '') ELSE area END
+       WHERE box_id = $1 AND owner_user_id = $2`,
+      [boxId, userId, patch.name ?? null, patch.area !== undefined, patch.area ?? null],
+    );
     if (!rowCount) throw new NotFoundException();
     const [box] = await this.summaries(userId, boxId);
     return box;
@@ -297,7 +305,8 @@ export class OwnerBoxService {
     if (qr.status === 'used' || qr.owner_user_id) return { result: 'already_owned', boxId: qr.box_id, qrId: qr.box_qr_code_id };
 
     await db.query(
-      `UPDATE app.box_tb SET owner_user_id = $2, house_no = (SELECT house_no FROM app.user_tb WHERE user_id = $2), bound_date = now()
+      `UPDATE app.box_tb SET owner_user_id = $2, house_no = (SELECT house_no FROM app.user_tb WHERE user_id = $2),
+         area = (SELECT area FROM app.user_tb WHERE user_id = $2), bound_date = now()
        WHERE box_id = $1`,
       [qr.box_id, userId],
     );
@@ -310,18 +319,19 @@ export class OwnerBoxService {
       box_id: string;
       name: string | null;
       house_no: string | null;
+      area: string | null;
       owner_user_id: string | null;
       service_active: boolean;
       last_poll_date: Date | null;
       last_seen_date: Date | null;
       config_override: Record<string, unknown>;
     }>(
-      `SELECT box_id, name, house_no, owner_user_id, service_active, last_poll_date, last_seen_date, config_override
+      `SELECT box_id, name, house_no, area, owner_user_id, service_active, last_poll_date, last_seen_date, config_override
        FROM app.box_tb WHERE owner_user_id = $1 AND ($2::text IS NULL OR box_id = $2)
        ORDER BY bound_date, box_id`,
       [userId, boxId ?? null],
     );
     const status = await this.configs.statusOf(rows);
-    return rows.map((r) => ({ id: r.box_id, name: r.name ?? '', house_no: r.house_no ?? '', status: status.get(r.box_id)! }));
+    return rows.map((r) => ({ id: r.box_id, name: r.name ?? '', house_no: r.house_no ?? '', area: r.area ?? '', status: status.get(r.box_id)! }));
   }
 }

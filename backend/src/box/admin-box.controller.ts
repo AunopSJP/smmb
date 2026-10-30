@@ -1,7 +1,7 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query, Req, Res } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { Type } from 'class-transformer';
-import { ArrayNotEmpty, ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min } from 'class-validator';
+import { ArrayNotEmpty, ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, MaxLength, Min } from 'class-validator';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
 import { CONFIG_LIMITS } from './box-config.js';
@@ -29,6 +29,26 @@ class FirmwareTargetDto {
 class RegisterBoxesDto {
   /** ลงทะเบียนครั้งละไม่เกิน 50 ตู้ */
   @IsInt() @Min(1) @Max(50) count!: number;
+}
+
+class ServiceDto {
+  @IsBoolean() active!: boolean;
+  /** เหตุผลที่ปิด (ไม่บังคับ · ตอนเปิดไม่ใช้) */
+  @IsOptional() @IsString() @MaxLength(200) reason?: string;
+}
+
+/** ค่าทับเฉพาะตู้ — ส่งเฉพาะที่จะทับ (ช่วงตัวเลขเดียวกับค่ากลาง) */
+class BoxConfigOverrideDto {
+  @IsOptional() @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) report_at?: string;
+  @IsOptional() @IsInt() @Min(CONFIG_LIMITS.scan_timeout_s[0]) @Max(CONFIG_LIMITS.scan_timeout_s[1]) scan_timeout_s?: number;
+  @IsOptional() @IsInt() @Min(CONFIG_LIMITS.max_attempts[0]) @Max(CONFIG_LIMITS.max_attempts[1]) max_attempts?: number;
+  @IsOptional() @IsBoolean() flash_when_dark?: boolean;
+  @IsOptional() @IsInt() @Min(CONFIG_LIMITS.longpoll_wait_s[0]) @Max(CONFIG_LIMITS.longpoll_wait_s[1]) longpoll_wait_s?: number;
+}
+
+class UnbindDto {
+  /** เหตุผล (บันทึกไว้ในประวัติแอดมิน) เช่น "ขายบ้าน" */
+  @IsString() @Length(1, 200) reason!: string;
 }
 
 class ReissueQrDto {
@@ -81,6 +101,25 @@ export class AdminBoxController {
   @Post('boxes/:box_id/qr/reissue')
   reissueQr(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Body() body: ReissueQrDto) {
     return this.boxes.reissueQr(p.box_id, body.slots, body.request_id, auth.userId);
+  }
+
+  /** เปิด/ปิดบริการตู้ (api.md §9.4) */
+  @Patch('boxes/:box_id/service')
+  setService(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Body() body: ServiceDto) {
+    return this.boxes.setService(p.box_id, body.active, body.reason ?? null, auth.userId);
+  }
+
+  /** ยกเลิกการผูกตู้ (ขายบ้าน / ย้ายออก) → ออก QR เปิดใช้ตู้ใบใหม่ (api.md §9.4) */
+  @Post('boxes/:box_id/unbind')
+  @HttpCode(HttpStatus.OK)
+  unbind(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Body() body: UnbindDto) {
+    return this.boxes.unbind(p.box_id, body.reason, auth.userId);
+  }
+
+  /** ตั้งค่าทับเฉพาะตู้ (แทนที่ทั้งชุด · ส่ง {} = ใช้ค่ากลางทั้งหมด) */
+  @Put('boxes/:box_id/config')
+  setBoxConfig(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Body() body: BoxConfigOverrideDto) {
+    return this.configs.setBoxConfig(p.box_id, { ...body }, auth.userId);
   }
 
   @Delete('boxes/:box_id/config')

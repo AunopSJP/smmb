@@ -17,8 +17,18 @@ export interface Me {
   phone: string;
   agency: { id: string; name: string; type: string; is_head: boolean; contact: string | null } | null;
   push: { subscribed: boolean };
+  /** การแสดงผลที่เก็บกับบัญชี — `lang` ใช้แปลข้อความแจ้งเตือนจาก server ด้วย */
+  prefs: ServerPrefs;
   must_change_password: boolean;
   terms_update_required: boolean;
+}
+
+export interface ServerPrefs {
+  theme: 'light' | 'dark' | 'system';
+  lang: 'th' | 'en';
+  text_size: 'normal' | 'large' | 'xlarge';
+  simple_home: boolean;
+  night_auto_dark: boolean;
 }
 
 /** หน้าแรกของแต่ละบทบาท */

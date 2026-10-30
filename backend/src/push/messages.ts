@@ -30,6 +30,9 @@ export const NOTIFICATION_TYPES = [
   'qr_technician_dispatch',
   'plan_expiring',
   'box_wifi_reset',
+  'box_service_closed',
+  'box_service_opened',
+  'box_unbound',
   'test',
 ] as const;
 
@@ -80,8 +83,9 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
     en: (d) => ({ title: '⚠️ Mailbox problem', body: `An officer reported ${box(d, 'en')} did not respond` }),
   },
   sos_new: {
-    th: (d) => ({ title: '🆘 SOS', body: `บ้าน ${s(d.house_no)} · ${s(d.phone)}` }),
-    en: (d) => ({ title: '🆘 SOS', body: `House ${s(d.house_no)} · ${s(d.phone)}` }),
+    // ไม่ใส่เบอร์เจ้าของบ้านในข้อความ: push ถูกส่งถึงหลายคนและค้างอยู่ในประวัติแจ้งเตือน — เบอร์เห็นในแอปเฉพาะตอน SOS เปิดอยู่ (และมีบันทึกการเปิดดู)
+    th: (d) => ({ title: '🆘 SOS', body: `บ้าน ${s(d.house_no)} ต้องการความช่วยเหลือ · แตะเพื่อดูรายละเอียดและรับเรื่อง` }),
+    en: (d) => ({ title: '🆘 SOS', body: `House ${s(d.house_no)} needs help · tap to see details and accept` }),
   },
   sos_taken: {
     th: (d) => ({ title: 'SOS มีคนรับแล้ว', body: `รับแล้วโดย ${s(d.officer_name)}` }),
@@ -134,6 +138,18 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
   box_silent_26h: {
     th: (d) => ({ title: 'ตู้ไม่รายงาน', body: `ตู้ ${s(d.box_id)} ไม่รายงานเกิน 26 ชม.` }),
     en: (d) => ({ title: 'Mailbox silent', body: `Mailbox ${s(d.box_id)} has not reported for 26 hours` }),
+  },
+  box_service_closed: {
+    th: (d) => ({ title: '⛔ ตู้ปิดบริการชั่วคราว', body: `${box(d, 'th')} ถูกปิดบริการ${s(d.reason) ? ' — ' + s(d.reason) : ''} · เจ้าหน้าที่จะตรวจตู้นี้ไม่ได้จนกว่าจะเปิดใหม่` }),
+    en: (d) => ({ title: '⛔ Mailbox service paused', body: `${box(d, 'en')} was switched off${s(d.reason) ? ' — ' + s(d.reason) : ''} · officers cannot check it until it is switched back on` }),
+  },
+  box_unbound: {
+    th: (d) => ({ title: 'ยกเลิกการผูกตู้แล้ว', body: `${box(d, 'th')} ถูกยกเลิกการผูกกับบัญชีของคุณ (เช่น ขายบ้าน/ย้ายออก) · ถ้าไม่ได้ขอ ติดต่อผู้ดูแล` }),
+    en: (d) => ({ title: 'Mailbox unlinked', body: `${box(d, 'en')} was unlinked from your account (e.g. house sold / moved) · if you did not ask for this, contact the admin` }),
+  },
+  box_service_opened: {
+    th: (d) => ({ title: '✅ ตู้กลับมาให้บริการแล้ว', body: `${box(d, 'th')} เปิดบริการอีกครั้ง` }),
+    en: (d) => ({ title: '✅ Mailbox service resumed', body: `${box(d, 'en')} is back in service` }),
   },
   box_wifi_reset: {
     th: (d) => ({

@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, model, signal, ty
 import { firstValueFrom } from 'rxjs';
 import { HeadApi } from '../../core/head-api';
 import { I18n, type Tr } from '../../core/i18n';
+import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { NotificationList } from '../../shared/notification-list';
@@ -96,6 +97,20 @@ const RESULT_TEXT: Record<string, Tr> = {
       @if (more()) {
         <button type="button" class="btn secondary" (click)="loadMore()">{{ i18n.t({ th: 'ดูเพิ่ม', en: 'Load more' }) }}</button>
       }
+      <div class="export">
+        <label class="field">
+          <span>{{ i18n.t({ th: 'ส่งออกเป็นไฟล์ Excel (CSV)', en: 'Export as a spreadsheet (CSV)' }) }}</span>
+          <select [value]="days()" (change)="days.set(+$any($event.target).value)">
+            <option value="7">{{ i18n.t({ th: '7 วันล่าสุด', en: 'Last 7 days' }) }}</option>
+            <option value="30">{{ i18n.t({ th: '30 วันล่าสุด', en: 'Last 30 days' }) }}</option>
+            <option value="90">{{ i18n.t({ th: '90 วันล่าสุด', en: 'Last 90 days' }) }}</option>
+            <option value="365">{{ i18n.t({ th: '1 ปีล่าสุด', en: 'Last year' }) }}</option>
+          </select>
+        </label>
+        <button type="button" class="btn secondary" [disabled]="exporting()" (click)="exportCsv()">
+          {{ exporting() ? i18n.t({ th: 'กำลังเตรียมไฟล์…', en: 'Preparing…' }) : i18n.t({ th: 'ดาวน์โหลด CSV', en: 'Download CSV' }) }}
+        </button>
+      </div>
       <p class="muted small">{{ i18n.t({ th: 'บันทึกทุกการสแกน/พิมพ์รหัส แม้ไม่ผ่าน · ลบหรือแก้ไม่ได้', en: 'Every scan or typed code is logged, even failures · cannot be edited' }) }}</p>
     </div>
   `,
@@ -118,6 +133,7 @@ export class HeadLog implements OnInit {
   protected readonly i18n = inject(I18n);
   protected readonly api = inject(HeadApi);
   private readonly http = inject(HttpClient);
+  private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
   protected readonly onlyProblems = signal(false);
   protected readonly all = signal<LogRow[]>([]);
@@ -137,6 +153,28 @@ export class HeadLog implements OnInit {
     if (!r) return;
     this.all.update((a) => [...a, ...r.data]);
     this.more.set(r.data.length === r.per_page);
+  }
+
+  protected readonly days = signal(30);
+  protected readonly exporting = signal(false);
+
+  /** GET /agency/logs/export.csv?days= — สูงสุด 10,000 แถว */
+  protected async exportCsv(): Promise<void> {
+    if (this.exporting()) return;
+    this.exporting.set(true);
+    try {
+      const blob = await firstValueFrom(this.http.get(`/api/v1/agency/logs/export.csv?days=${this.days()}`, { responseType: 'blob' }));
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `smmb-scan-log-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      this.toast.show({ th: 'ส่งออกไม่ได้ ลองใหม่อีกครั้ง', en: 'Could not export — try again' });
+    } finally {
+      this.exporting.set(false);
+    }
   }
 
   protected async loadMore(): Promise<void> {

@@ -82,7 +82,7 @@ state machine เต็มอยู่ `smmb-design.md` §6 · SOS อยู่ 
 - โครงเพิ่ม: `core/admin-api.ts` · `core/head-api.ts` · `shared/box-test.ts` (ทดสอบปลุกตู้ + กล้อง ใช้ทั้ง D04/T01) · `shared/notification-list.ts` (H14/L09/D12)
 - โครง: `core/api.ts` (apiBase จาก `config.json` ตอนรัน + ส่ง cookie) · `core/session.ts` (`Me` จริง + guard `requireRole`) · `core/inspection-api.ts` · `core/owner-api.ts` · `shared/qr-scanner.ts` (กล้อง + BarcodeDetector / jsQR) · `shared/qr-image.ts` (สร้างรูป QR)
 - **inject ใน guard ต้องทำก่อน await** (หลัง await ไม่อยู่ใน injection context — เคยพังแล้ว)
-- รหัสหน้าที่ไม่มีใน wireframe (เพิ่ม 2026-10-27): `A14` เปลี่ยนรหัสผ่าน · `A15` เพิ่มบทบาทเจ้าของบ้าน · `A16` ขอเข้าหน่วยงาน · `D14` แพ็กเกจ
+- รหัสหน้าที่ไม่มีใน wireframe (เพิ่ม 2026-10-27): `A14` เปลี่ยนรหัสผ่าน · `A15` เพิ่มบทบาทเจ้าของบ้าน · `A16` ขอเข้าหน่วยงาน · `D14` แพ็กเกจ · `O14` แจ้งเตือนของเจ้าหน้าที่ (เพิ่ม 2026-10-30 — เจ้าหน้าที่ดูแจ้งเตือนย้อนหลังได้ · กระดิ่งที่หน้า O01/O12)
 - ทุกหน้าใน wireframe มีหน้าจริงแล้ว ยกเว้น `H15*` (ข้อเสนอ) · ลิงก์ใน QR: `/b/<token>` → ไรเดอร์ `R02` · `/a/<token>` → ผูกตู้ `A07`
 - `frontend/src/app/core/mock/` ยังมีตัวช่วยสำหรับ `/demo`, บัญชีเริ่มต้นที่ล็อกอินกับ backend seed และ state เก็บร่างฟอร์มสมัคร; อย่าใช้เป็นแหล่งสถานะจริงของ flow ที่มี API
 - โครง frontend:

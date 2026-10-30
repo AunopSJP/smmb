@@ -378,7 +378,7 @@ describe('Boxes (e2e)', () => {
       const owner = await signupOwner('12/3');
       const url = b.qr.find((q) => q.slot === 'activate')!.url;
       const res = await as(owner.cookie).post('/api/v1/boxes/activate', { qr_text: url }).expect(200);
-      expect(res.body).toEqual({ box: { id: b.box_id, name: '', house_no: '12/3', status: 'offline' }, needs_name: true });
+      expect(res.body).toEqual({ box: { id: b.box_id, name: '', house_no: '12/3', area: '', status: 'offline' }, needs_name: true });
 
       const other = await signupOwner();
       expect((await as(other.cookie).post('/api/v1/boxes/activate', { qr_text: url }).expect(409)).body.code).toBe('BOX_ALREADY_OWNED');
@@ -429,7 +429,7 @@ describe('Boxes (e2e)', () => {
       const z2 = (await as(guard.cookie).post('/api/v1/agency/zones', { name: 'ประตู 1', windows: [['08:00', '10:00'], ['20:00', '22:00']] }).expect(201)).body;
 
       const houses = await as(police.cookie).put(`/api/v1/agency/zones/${z1.id}/houses`, { box_ids: [b.box_id] }).expect(200);
-      expect(houses.body).toEqual([{ box_id: b.box_id, house_no: '55/1', box_name: null, box_status: expect.any(String) }]);
+      expect(houses.body).toEqual([{ box_id: b.box_id, house_no: '55/1', box_name: null, area: null, box_status: expect.any(String) }]);
       await as(guard.cookie).put(`/api/v1/agency/zones/${z2.id}/houses`, { box_ids: [b.box_id] }).expect(200);
 
       const found = await as(guard.cookie).get('/api/v1/agency/houses/search?q=55/').expect(200);
@@ -452,6 +452,80 @@ describe('Boxes (e2e)', () => {
       // โซนของหน่วยงานอื่น → 404
       await as(guard.cookie).put(`/api/v1/agency/zones/${z1.id}/houses`, { box_ids: [b.box_id] }).expect(404);
       expect((await as(police.cookie).get(`/api/v1/agency/zones/${z1.id}`).expect(200)).body.houses_count).toBe(1);
+    });
+
+    it('house search: no query lists houses nobody covers yet · matches by prefix first · says which zones are ours · shows box status', async () => {
+      const free = await boundBox('61/1');
+      const taken = await boundBox('61/2');
+      const noise = await boundBox('161/9'); // มี "61/" อยู่กลางคำ — ตรงต้นคำต้องขึ้นก่อน
+      const head = await readyHead();
+      const other = await readyHead();
+      const mine = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ของเรา', windows: [['06:00', '09:00']] }).expect(201)).body;
+      const theirs = (await as(other.cookie).post('/api/v1/agency/zones', { name: 'ของเขา', windows: [['06:00', '09:00']] }).expect(201)).body;
+      await as(head.cookie).put(`/api/v1/agency/zones/${mine.id}/houses`, { box_ids: [taken.b.box_id] }).expect(200);
+      await as(other.cookie).put(`/api/v1/agency/zones/${theirs.id}/houses`, { box_ids: [noise.b.box_id] }).expect(200);
+
+      // ไม่ใส่คำค้น = เฉพาะบ้านที่ไม่มีหน่วยงานไหนดูแล
+      const browse = (await as(head.cookie).get('/api/v1/agency/houses/search').expect(200)).body as { box_id: string }[];
+      const ids = browse.map((h) => h.box_id);
+      expect(ids).toContain(free.b.box_id);
+      expect(ids).not.toContain(taken.b.box_id);
+      expect(ids).not.toContain(noise.b.box_id);
+
+      // ค้นด้วยคำ: ตรงต้นคำก่อน · บอกว่าโซนไหนเป็นของเรา · มีสถานะตู้
+      const found = (await as(head.cookie).get(`/api/v1/agency/houses/search?q=${encodeURIComponent('61/')}`).expect(200)).body as {
+        box_id: string;
+        box_status: string;
+        zones: { zone_name: string; mine: boolean }[];
+      }[];
+      const order = found.map((h) => h.box_id);
+      expect(order.indexOf(noise.b.box_id)).toBeGreaterThan(order.indexOf(free.b.box_id));
+      expect(order.indexOf(noise.b.box_id)).toBeGreaterThan(order.indexOf(taken.b.box_id));
+      expect(found.find((h) => h.box_id === taken.b.box_id)!.zones).toEqual([expect.objectContaining({ zone_name: 'ของเรา', mine: true })]);
+      expect(found.find((h) => h.box_id === noise.b.box_id)!.zones).toEqual([expect.objectContaining({ zone_name: 'ของเขา', mine: false })]);
+      expect(found.find((h) => h.box_id === free.b.box_id)).toMatchObject({ zones: [], box_status: expect.any(String) });
+
+      // ไม่ใช่หัวหน้า = ค้นไม่ได้
+      await as(free.owner.cookie).get('/api/v1/agency/houses/search').expect(404);
+    });
+
+    it('area (หมู่บ้าน/ย่าน): optional at signup, copied to the box on binding, editable by the owner, searchable and shown to heads', async () => {
+      const signup = async (house: string, area?: string) => {
+        const res = await http()
+          .post('/api/v1/auth/signup/owner')
+          .send({ name: 'เจ้าของ', phone: phone(), password: PW, house_no: house, terms_version: terms, ...(area === undefined ? {} : { area }) })
+          .expect(201);
+        return { id: res.body.id as string, cookie: sid(res) };
+      };
+      const bind = async (owner: { cookie: string }) => {
+        const [b] = await register();
+        await as(owner.cookie).post('/api/v1/boxes/activate', { qr_text: b.qr.find((q) => q.slot === 'activate')!.url }).expect(200);
+        return b;
+      };
+      const a = await signup('88/1', 'หมู่บ้านสุขใจ');
+      const boxA = await bind(a);
+      const b2 = await signup('88/1', ''); // เว้นว่าง = ไม่ระบุ (บ้านเลขที่ซ้ำกับหมู่บ้านอื่น)
+      const boxB = await bind(b2);
+
+      const list = (await as(a.cookie).get('/api/v1/boxes').expect(200)).body as { id: string; area: string }[];
+      expect(list.find((x) => x.id === boxA.box_id)!.area).toBe('หมู่บ้านสุขใจ');
+      expect((await as(b2.cookie).get('/api/v1/boxes').expect(200)).body[0].area).toBe('');
+
+      // เจ้าของแก้ย่านได้ · ล้างได้ · ต้องส่งอะไรสักอย่าง · ของคนอื่น 404
+      const patch = (cookie: string, id: string, body: object) => http().patch(`/api/v1/boxes/${id}`).set('Cookie', cookie).send(body);
+      await patch(b2.cookie, boxB.box_id, { area: 'หมู่บ้านร่มเย็น' }).expect(200);
+      expect((await as(b2.cookie).get('/api/v1/boxes').expect(200)).body[0].area).toBe('หมู่บ้านร่มเย็น');
+      await patch(b2.cookie, boxB.box_id, {}).expect(400);
+      await patch(a.cookie, boxB.box_id, { area: 'x' }).expect(404);
+
+      // หัวหน้า: ค้นจากชื่อย่านได้ · ผลมีย่านให้แยกบ้านเลขที่ซ้ำ
+      const head = await readyHead();
+      const found = (await as(head.cookie).get(`/api/v1/agency/houses/search?q=${encodeURIComponent('สุขใจ')}`).expect(200)).body as { box_id: string; area: string | null }[];
+      expect(found.map((h) => h.box_id)).toContain(boxA.box_id);
+      expect(found.map((h) => h.box_id)).not.toContain(boxB.box_id);
+      const both = (await as(head.cookie).get(`/api/v1/agency/houses/search?q=${encodeURIComponent('88/1')}`).expect(200)).body as { box_id: string; area: string | null }[];
+      expect(both.find((h) => h.box_id === boxA.box_id)!.area).toBe('หมู่บ้านสุขใจ');
+      expect(both.find((h) => h.box_id === boxB.box_id)!.area).toBe('หมู่บ้านร่มเย็น');
     });
 
     it('only bound boxes can be added', async () => {
@@ -559,6 +633,214 @@ describe('Boxes (e2e)', () => {
       await as(admin.cookie).delete(`/api/v1/admin/firmware/${ver}`).expect(204);
       expect((await as(admin.cookie).get('/api/v1/admin/firmware').expect(200)).body.map((f: { version: string }) => f.version)).not.toContain(ver);
       await as(admin.cookie).delete(`/api/v1/admin/firmware/${ver}`).expect(404);
+    });
+  });
+
+  describe('admin opens / closes the service of a box', () => {
+    const patchService = (id: string, body: object, cookie = admin.cookie) => http().patch(`/api/v1/admin/boxes/${id}/service`).set('Cookie', cookie).send(body);
+
+    it('closing blocks officers and riders, tells the owner once, and opening restores it', async () => {
+      const { b, owner } = await boundBox('93/1');
+      const head = await readyHead();
+      const zone = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ปิดบริการ', windows: [['00:00', '23:59']] }).expect(201)).body;
+      await as(head.cookie).put(`/api/v1/agency/zones/${zone.id}/houses`, { box_ids: [b.box_id] }).expect(200);
+
+      expect((await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}`).expect(200)).body).toMatchObject({ service_active: true, service_reason: null });
+
+      await patchService(b.box_id, { active: false, reason: 'ย้ายบ้าน' }).expect(200);
+      const detail = (await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}`).expect(200)).body;
+      expect(detail).toMatchObject({ service_active: false, service_reason: 'ย้ายบ้าน' });
+      expect(detail.service_changed_at).toEqual(expect.any(String));
+
+      // เจ้าของได้แจ้งเตือน 1 ครั้ง (ปิดซ้ำด้วยเหตุผลเดิมไม่แจ้งซ้ำ)
+      await patchService(b.box_id, { active: false, reason: 'ย้ายบ้าน' }).expect(200);
+      const count = async (type: string) => (await pool.query(`SELECT 1 FROM app.notification_tb WHERE user_id = $1 AND type = $2 AND data->>'box_id' = $3`, [owner.id, type, b.box_id])).rowCount ?? 0;
+      expect(await count('box_service_closed')).toBe(1);
+
+      // ไรเดอร์: หน้าตู้ปิดบริการ
+      const front = b.qr.find((q) => q.slot === 1)!.url;
+      const rider = await http().get(`/api/v1/public/qr/${front.split('/b/')[1]}`);
+      expect(rider.status).toBe(200);
+      expect(rider.body.box_status).toBe('service_closed'); // R03-b
+
+      await patchService(b.box_id, { active: true }).expect(200);
+      expect((await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}`).expect(200)).body).toMatchObject({ service_active: true, service_reason: null });
+      expect(await count('box_service_opened')).toBe(1);
+    });
+
+    it('only admins · unknown box → 404 · bad body → 400', async () => {
+      const { b, owner } = await boundBox('93/2');
+      await patchService(b.box_id, { active: false }, owner.cookie).expect(404);
+      await patchService('BX-99999', { active: false }).expect(404);
+      await patchService(b.box_id, { active: 'no' }).expect(400);
+      await patchService(b.box_id, { active: false, reason: 'x'.repeat(201) }).expect(400);
+    });
+  });
+
+  describe('admin unbinds a box (house sold / moved out)', () => {
+    const unbind = (id: string, body: object, cookie = admin.cookie) => http().post(`/api/v1/admin/boxes/${id}/unbind`).set('Cookie', cookie).send(body);
+
+    it('clears the owner, house, area and zones, issues a new activation QR, and the next owner can bind it', async () => {
+      const first = await signupOwner('95/1');
+      const [b] = await register();
+      await as(first.cookie).post('/api/v1/boxes/activate', { qr_text: b.qr.find((q) => q.slot === 'activate')!.url }).expect(200);
+      await http().patch(`/api/v1/boxes/${b.box_id}`).set('Cookie', first.cookie).send({ name: 'ตู้เก่า', area: 'หมู่บ้านเก่า' }).expect(200);
+      const head = await readyHead();
+      const zone = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ขายบ้าน', windows: [['06:00', '09:00']] }).expect(201)).body;
+      await as(head.cookie).put(`/api/v1/agency/zones/${zone.id}/houses`, { box_ids: [b.box_id] }).expect(200);
+
+      const res = await unbind(b.box_id, { reason: 'ขายบ้าน' }).expect(200);
+      expect(res.body.box_id).toBe(b.box_id);
+      expect(res.body.qr).toMatchObject({ slot: 'activate', url: expect.stringContaining('/a/'), print_code: expect.any(String) });
+      expect(res.body.qr.url).not.toBe(b.qr.find((q) => q.slot === 'activate')!.url);
+
+      // เจ้าของเดิมไม่มีตู้นี้แล้ว · ได้แจ้งเตือน · โซนไม่มีบ้านนี้
+      expect((await as(first.cookie).get('/api/v1/boxes').expect(200)).body).toEqual([]);
+      expect((await pool.query(`SELECT 1 FROM app.notification_tb WHERE user_id = $1 AND type = 'box_unbound'`, [first.id])).rowCount).toBe(1);
+      expect((await as(head.cookie).get(`/api/v1/agency/zones/${zone.id}`).expect(200)).body.houses_count).toBe(0);
+      const detail = (await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}`).expect(200)).body;
+      expect(detail).toMatchObject({ bound: false, house_no: null, name: null });
+      expect(detail.can_delete).toBe(false); // มีประวัติแล้ว ลบไม่ได้
+
+      // QR เปิดใช้ใบเก่าใช้ไม่ได้อีก · เจ้าของคนใหม่ผูกด้วยใบใหม่ได้ · บ้านเลขที่/ย่านเป็นของคนใหม่
+      const second = await signupOwner('96/2');
+      await as(second.cookie).post('/api/v1/boxes/activate', { qr_text: b.qr.find((q) => q.slot === 'activate')!.url }).expect(409);
+      await as(second.cookie).post('/api/v1/boxes/activate', { qr_text: res.body.qr.url }).expect(200);
+      const mine = (await as(second.cookie).get('/api/v1/boxes').expect(200)).body;
+      expect(mine).toEqual([expect.objectContaining({ id: b.box_id, house_no: '96/2', name: '', area: '' })]);
+
+      // ประวัติแอดมินมีเหตุผล
+      const log = await pool.query(`SELECT fields FROM app.data_access_log_tb WHERE subject_id = $1 AND 'box_unbound' = ANY(fields)`, [b.box_id]);
+      expect(log.rows[0].fields).toContain('reason:ขายบ้าน');
+    });
+
+    it('refuses an unbound box, an open SOS, a missing reason, and non-admins', async () => {
+      const [free] = await register();
+      await unbind(free.box_id, { reason: 'x' }).expect(409);
+      const { b, owner } = await boundBox('95/3');
+      await unbind(b.box_id, { reason: 'x' }, owner.cookie).expect(404);
+      await unbind(b.box_id, {}).expect(400);
+      await unbind('BX-99999', { reason: 'x' }).expect(404);
+    });
+  });
+
+  describe('per-box settings override (admin)', () => {
+    const put = (id: string, body: object, cookie = admin.cookie) => http().put(`/api/v1/admin/boxes/${id}/config`).set('Cookie', cookie).send(body);
+
+    it('overrides some values for one box only, wakes the box, replaces the whole set, and {} goes back to the shared values', async () => {
+      const [b, other] = await register(2);
+      const first = (await box(b, 'POST', '/v1/box/boot', { config_ver: 0 }).expect(200)).body;
+      const base = first.config as { longpoll_wait_s: number; flash_when_dark: boolean; scan_timeout_s: number };
+
+      const poll = box(b, 'GET', `/v1/box/jobs?wait=10&config_ver=${first.config_ver}`).then((r) => r);
+      await new Promise((r) => setTimeout(r, 300));
+      const res = await put(b.box_id, { longpoll_wait_s: 30, flash_when_dark: !base.flash_when_dark }).expect(200);
+      expect(res.body).toMatchObject({ box_id: b.box_id, override: { longpoll_wait_s: 30, flash_when_dark: !base.flash_when_dark } });
+      const woke = await poll; // ตู้ที่ถือ long-poll ได้ค่าใหม่ทันที
+      expect(woke.status).toBe(200);
+      expect(woke.body.config).toMatchObject({ longpoll_wait_s: 30, flash_when_dark: !base.flash_when_dark, scan_timeout_s: base.scan_timeout_s });
+      expect(woke.body.config_ver).not.toBe(first.config_ver);
+
+      // ตู้อื่นไม่โดน
+      expect((await box(other, 'POST', '/v1/box/boot', { config_ver: 0 }).expect(200)).body.config.longpoll_wait_s).toBe(base.longpoll_wait_s);
+
+      // แอดมินเห็นค่าที่ทับ · PUT แทนที่ทั้งชุด (คีย์ที่ไม่ส่งกลับไปใช้ค่ากลาง)
+      expect((await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}`).expect(200)).body.config.override).toEqual({ longpoll_wait_s: 30, flash_when_dark: !base.flash_when_dark });
+      await put(b.box_id, { max_attempts: 2 }).expect(200);
+      const detail = (await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}`).expect(200)).body.config;
+      expect(detail.override).toEqual({ max_attempts: 2 });
+      expect(detail.config).toMatchObject({ max_attempts: 2, longpoll_wait_s: base.longpoll_wait_s });
+
+      await put(b.box_id, {}).expect(200);
+      expect((await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}`).expect(200)).body.config.override).toEqual({});
+      expect((await pool.query(`SELECT 1 FROM app.data_access_log_tb WHERE subject_id = $1 AND 'config_override' = ANY(fields)`, [b.box_id])).rowCount).toBeGreaterThanOrEqual(3);
+    });
+
+    it('validates ranges · only admins · unknown box', async () => {
+      const [b] = await register();
+      const owner = await signupOwner('92/1');
+      await put(b.box_id, { scan_timeout_s: 5 }).expect(400);
+      await put(b.box_id, { longpoll_wait_s: 99 }).expect(400);
+      await put(b.box_id, { max_attempts: 9 }).expect(400);
+      await put(b.box_id, { report_at: '25:00' }).expect(400);
+      await put(b.box_id, { flash_when_dark: 'yes' }).expect(400);
+      await put(b.box_id, { unknown_key: 1 }).expect(400);
+      await put(b.box_id, { max_attempts: 2 }, owner.cookie).expect(404);
+      await put('BX-99999', { max_attempts: 2 }).expect(404);
+    });
+  });
+
+  describe('scan log CSV export (head)', () => {
+    it('exports only this agency\'s scans, newest first, with a BOM and spreadsheet formulas defused', async () => {
+      const head = await readyHead();
+      const other = await readyHead();
+      const idOf = async (cookie: string) => (await as(cookie).get('/api/v1/me').expect(200)).body.id as string;
+      const [headId, otherId] = [await idOf(head.cookie), await idOf(other.cookie)];
+      await pool.query(`UPDATE app.user_tb SET display_name = '=HYPERLINK("x")' WHERE user_id = $1`, [headId]);
+      const log = (userId: string, result: string, ago: string) =>
+        pool.query(
+          `INSERT INTO app.scan_log_tb (actor_kind, user_id, qr_kind, method, raw, result, created_date) VALUES ('officer', $1, 'front', 'scan', 'x', $2, now() - $3::interval)`,
+          [userId, result, ago],
+        );
+      await log(headId, 'ok', '1 hour');
+      await log(headId, 'not_in_zone', '2 hours');
+      await log(headId, 'old_one', '40 days');
+      await log(otherId, 'someone_elses', '1 hour');
+
+      const res = await as(head.cookie).get('/api/v1/agency/logs/export.csv?days=30').buffer(true).expect(200);
+      expect(res.headers['content-type']).toMatch(/text\/csv/);
+      expect(res.headers['content-disposition']).toMatch(/attachment; filename="smmb-scan-log-\d{4}-\d{2}-\d{2}\.csv"/);
+      const text = res.text;
+      expect(text.charCodeAt(0)).toBe(0xfeff);
+      const lines = text.slice(1).split('\r\n');
+      expect(lines[0]).toContain('"time (Asia/Bangkok)","officer"');
+      expect(lines).toHaveLength(3); // หัวตาราง + 2 แถวใน 30 วัน (ของหน่วยงานอื่น/เก่ากว่า 30 วันไม่มา)
+      expect(lines[1]).toContain('"ok"');
+      expect(lines[2]).toContain('"not_in_zone"');
+      expect(text).not.toContain('someone_elses');
+      expect(text).not.toContain('old_one');
+      expect(text).toContain('"\'=HYPERLINK(""x"")"'); // กันสูตร
+
+      // ย้อนหลังนานขึ้นเห็นแถวเก่าด้วย · พารามิเตอร์ผิด · ไม่ใช่หัวหน้า
+      expect((await as(head.cookie).get('/api/v1/agency/logs/export.csv?days=60').buffer(true).expect(200)).text).toContain('old_one');
+      await as(head.cookie).get('/api/v1/agency/logs/export.csv?days=0').expect(400);
+      await as(head.cookie).get('/api/v1/agency/logs/export.csv?days=999').expect(400);
+      const owner = await signupOwner('92/2');
+      await as(owner.cookie).get('/api/v1/agency/logs/export.csv').expect(404);
+    });
+  });
+
+  describe('account preferences (PATCH /me) — language of notifications', () => {
+    it('saves the language and display choices to the account and returns the new Me', async () => {
+      const owner = await signupOwner('94/1');
+      const patch = (body: object) => http().patch('/api/v1/me').set('Cookie', owner.cookie).send(body);
+      expect((await as(owner.cookie).get('/api/v1/me').expect(200)).body.prefs).toMatchObject({ lang: 'th' });
+
+      const res = await patch({ prefs: { lang: 'en', theme: 'dark' } }).expect(200);
+      expect(res.body.prefs).toMatchObject({ lang: 'en', theme: 'dark', text_size: 'normal' });
+      // ส่งมาเฉพาะที่เปลี่ยน — ที่ไม่ส่งคงเดิม
+      const next = await patch({ prefs: { text_size: 'large' }, display_name: 'Owner Display' }).expect(200);
+      expect(next.body).toMatchObject({ display_name: 'Owner Display', prefs: { lang: 'en', theme: 'dark', text_size: 'large' } });
+
+      // ค่าที่ไม่รู้จัก / ฟิลด์เกิน → 400
+      await patch({ prefs: { lang: 'jp' } }).expect(400);
+      await patch({ prefs: { evil: true } }).expect(400);
+      await patch({ role: 'admin' }).expect(400);
+      await http().patch('/api/v1/me').send({ prefs: { lang: 'en' } }).expect(401);
+    });
+
+    it('notifications follow the saved language (stored as type + data, translated when read)', async () => {
+      const { b, owner } = await boundBox('94/2');
+      await http().patch('/api/v1/me').set('Cookie', owner.cookie).send({ prefs: { lang: 'en' } }).expect(200);
+      await as(admin.cookie).put(`/api/v1/admin/boxes/${b.box_id}/service`, {}).catch(() => undefined);
+      await http().patch(`/api/v1/admin/boxes/${b.box_id}/service`).set('Cookie', admin.cookie).send({ active: false, reason: 'maintenance' }).expect(200);
+      const list = (await as(owner.cookie).get('/api/v1/me/notifications').expect(200)).body.data as { type: string; title: string; body: string }[];
+      const n = list.find((x) => x.type === 'box_service_closed')!;
+      expect(n.title).toMatch(/Mailbox service paused/);
+      expect(n.body).toMatch(/maintenance/);
+      await http().patch('/api/v1/me').set('Cookie', owner.cookie).send({ prefs: { lang: 'th' } }).expect(200);
+      const th = (await as(owner.cookie).get('/api/v1/me/notifications').expect(200)).body.data as { type: string; title: string }[];
+      expect(th.find((x) => x.type === 'box_service_closed')!.title).toMatch(/ปิดบริการ/);
     });
   });
 

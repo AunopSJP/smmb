@@ -30,7 +30,7 @@ const boxDetail = (inSync: boolean): AdminBoxDetail => ({
   can_delete: false,
   service_active: true,
   registered_at: '2026-10-28T00:00:00.000Z',
-  config: { config_ver: 12, config, box_config_ver: 12, in_sync: inSync },
+  config: { config_ver: 12, config, box_config_ver: 12, in_sync: inSync, override: {} },
   qr: [],
   reports: [],
   camera_diagnostics: null,
