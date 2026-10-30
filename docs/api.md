@@ -657,6 +657,9 @@ interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus }
 | GET | `/admin/boxes/:box_id/test-jobs/:job_id` | — | `Job`: `status` (`waiting`/`delivered`/`ready`/`passed`/`failed`/`expired`) · `delivered_at` · `ready_at` · `wake_ms` · `attempts[]` (รวม `qr_text` ที่กล้องอ่านได้) |
 | GET | `/admin/boxes/:box_id/preview` | — | `{ job_id, at, jpeg_b64 }` ภาพล่าสุดจากกล้องตอนทดสอบ (ตู้ส่งผ่านโปรโตคอล §2.7 เฉพาะงาน test) · 204 = ยังไม่มี/เก่าเกิน 30 วิ · ไม่เก็บลงฐานข้อมูล |
 | PATCH | `/admin/boxes/:box_id/service` | `{ active: boolean, reason? }` | ✅ เปิดปิดบริการ — ปิดแล้วไรเดอร์เห็น `R03-b`, ตรวจไม่ได้ |
+| GET | `/admin/firmware` | — | `[{ version, sha256, size, uploaded_at }]` เฟิร์มแวร์ที่อัปโหลดไว้ (ล่าสุดก่อน ≤ 50) |
+| POST | `/admin/firmware/:version` | body = ไบต์ดิบของ `.bin` (≤ 1.9 MB ขึ้นต้น `E9`) | 201 `{ version, sha256, size, uploaded_at }` · เวอร์ชันซ้ำ 409 `FIRMWARE_EXISTS` · ไฟล์ไม่ใช่เฟิร์มแวร์ ESP32 / ขนาดไม่ถูก 400 |
+| PUT | `/admin/boxes/:box_id/firmware` | `{ version }` · `null` = ยกเลิก | 204 · ตู้ได้คำสั่ง `ota` ตอน long-poll/boot (โปรโตคอล §2.9) · `box.fw_target` ในรายละเอียดตู้ = เวอร์ชันที่รอตู้อัปเดต |
 | POST | `/admin/boxes/:box_id/unbind` | `{ reason }` | ✅ ยกเลิกการผูก (เช่น ขายบ้าน) → ออก Activate QR ใหม่ให้ |
 | GET | `/admin/boxes/:box_id/qr` | — | `QrCode[]` ทุกใบทุกรุ่น (รวมใบที่ยกเลิกแล้ว) |
 | GET | `/admin/qr` | `?health=damaged,suspicious,maybe_fake,expiring` | `D05` QR ผิดปกติและเคสที่ยังดำเนินการอยู่ · เคสยังแสดงแม้ QR ใบเดิมถูก revoke แล้ว |

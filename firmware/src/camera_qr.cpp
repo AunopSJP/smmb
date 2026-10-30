@@ -193,12 +193,10 @@ bool cameraStart() {
     esp_camera_deinit();
     return false;
   }
-  // ภาพจากเซนเซอร์บนบอร์ดนี้กลับซ้าย-ขวา → กลับให้ถูกที่เซนเซอร์ (QR กลับด้านถอดไม่ได้)
+  // ภาพ native ตามสเก็ตช์ esp32-cam-qvga15: ไม่กลับภาพ/ไม่เร่ง contrast (ภาพกลับซ้าย-ขวาถอดได้ด้วยการลองกลับด้านใน scanFrame) · sharpness/ae ปรับได้ด้วย cam
   if (sensor_t* sen = esp_camera_sensor_get()) {
-    sen->set_hmirror(sen, 1);
-    sen->set_sharpness(sen, settings.camSharp);
-    sen->set_contrast(sen, 1);
-    sen->set_ae_level(sen, settings.camAe);
+    if (settings.camSharp != 0) sen->set_sharpness(sen, settings.camSharp);
+    if (settings.camAe != 0) sen->set_ae_level(sen, settings.camAe);
   }
   running = true;
   // ทิ้ง 2 เฟรมแรก (รับแสงยังไม่นิ่ง)

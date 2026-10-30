@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, signal, type OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ApiConfig } from '../../core/api';
-import { AdminApi, type AdminBoxDetail, type AdminBoxRow, type RegisteredBox } from '../../core/admin-api';
+import { AdminApi, type AdminBoxDetail, type AdminBoxRow, type FirmwareInfo, type RegisteredBox } from '../../core/admin-api';
 import { I18n, type Tr } from '../../core/i18n';
 import { minutesAgo, type BoxStatus } from '../../core/owner-api';
 import { Toast } from '../../core/toast';
@@ -310,6 +310,34 @@ export class AdminBoxes implements OnInit {
           </button>
         </section>
 
+        <h2 class="section-title">{{ i18n.t({ th: 'อัปเดตเฟิร์มแวร์', en: 'Firmware update' }) }}</h2>
+        <section class="card stack">
+          <p class="muted small">
+            {{ i18n.t({ th: 'อัปโหลดไฟล์ firmware.bin (ชื่อเวอร์ชันต้องตรงกับ FW_VERSION ในไฟล์ที่คอมไพล์) แล้วสั่งตู้ — ตู้โหลดไปลงเองตอนถือสายอยู่ แล้วรีสตาร์ต', en: 'Upload firmware.bin (the version name must match FW_VERSION compiled into it), then send it to the box. The box downloads it while polling, installs it and restarts.' }) }}
+          </p>
+          @if (b.fw_target) {
+            <p class="warn-text">
+              {{ i18n.t({ th: 'รอตู้อัปเดตเป็น', en: 'Waiting for the box to update to' }) }} <strong>{{ b.fw_target }}</strong>
+              <button type="button" class="btn secondary" (click)="setTarget(null)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
+            </p>
+          }
+          <div class="row">
+            <input type="text" class="input" maxlength="32" placeholder="0.2.1" [value]="fwVersion()" (input)="fwVersion.set($any($event.target).value)" />
+            <input type="file" accept=".bin" (change)="fwFile.set($any($event.target).files?.[0] ?? null)" />
+            <button type="button" class="btn secondary" [disabled]="uploadingFw() || !fwFile() || !fwVersion()" (click)="uploadFirmware()">
+              {{ uploadingFw() ? i18n.t({ th: 'กำลังอัปโหลด…', en: 'Uploading…' }) : i18n.t({ th: 'อัปโหลด', en: 'Upload' }) }}
+            </button>
+          </div>
+          @for (f of firmware(); track f.version) {
+            <div class="row">
+              <span>{{ f.version }} · {{ (f.size / 1024).toFixed(0) }} KB @if (f.version === b.fw) { · {{ i18n.t({ th: 'ตู้รันอยู่', en: 'running' }) }} }</span>
+              <button type="button" class="btn secondary" [disabled]="f.version === b.fw || f.version === b.fw_target" (click)="setTarget(f.version)">
+                {{ i18n.t({ th: 'สั่งตู้นี้อัปเดต', en: 'Update this box' }) }}
+              </button>
+            </div>
+          }
+        </section>
+
         <h2 class="section-title">{{ i18n.t({ th: 'ทดสอบปลุกตู้', en: 'Wake test' }) }}</h2>
         <app-box-test [boxId]="b.id" (finished)="reload()" />
 
@@ -480,6 +508,10 @@ export class AdminBox implements OnInit {
   protected readonly notFound = signal(false);
   protected readonly secret = signal<string | null>(null);
   protected readonly resettingConfig = signal(false);
+  protected readonly firmware = signal<FirmwareInfo[]>([]);
+  protected readonly fwVersion = signal('');
+  protected readonly fwFile = signal<File | null>(null);
+  protected readonly uploadingFw = signal(false);
   protected readonly activeQr = computed(() => (this.box()?.qr ?? []).filter((q) => q.status === 'active' || q.slot === 'activate'));
   /** URL ที่ตู้ใช้ = origin + apiBase ของเว็บนี้ (ไม่ฮาร์ดโค้ดโดเมน) */
   protected readonly apiUrl = location.origin + inject(ApiConfig).apiBase();
@@ -491,6 +523,7 @@ export class AdminBox implements OnInit {
 
   ngOnInit(): void {
     void this.reload();
+    void this.loadFirmware();
   }
 
   async reload(): Promise<void> {
@@ -500,6 +533,49 @@ export class AdminBox implements OnInit {
       this.box.set(await this.api.box(id));
     } catch {
       if (!this.box()) this.notFound.set(true);
+    }
+  }
+
+  private async loadFirmware(): Promise<void> {
+    try {
+      this.firmware.set(await this.api.firmwareList());
+    } catch {
+      /* รายการเฟิร์มแวร์ไม่ขึ้น = ไม่กระทบหน้าอื่น */
+    }
+  }
+
+  protected async uploadFirmware(): Promise<void> {
+    const file = this.fwFile();
+    const version = this.fwVersion().trim();
+    if (!file || !version || this.uploadingFw()) return;
+    this.uploadingFw.set(true);
+    try {
+      await this.api.uploadFirmware(version, file);
+      this.fwFile.set(null);
+      this.fwVersion.set('');
+      await this.loadFirmware();
+      this.toast.show({ th: 'อัปโหลดแล้ว', en: 'Uploaded' });
+    } catch (e) {
+      const code = (e as { status?: number })?.status;
+      this.toast.show(code === 409
+        ? { th: 'มีเวอร์ชันนี้แล้ว · ใช้ชื่อเวอร์ชันใหม่', en: 'That version already exists · use a new version name' }
+        : { th: 'อัปโหลดไม่ได้ · ต้องเป็นไฟล์ firmware.bin ของ ESP32 ไม่เกิน 1.9 MB และชื่อเวอร์ชันไม่มีช่องว่าง', en: 'Upload failed · it must be an ESP32 firmware.bin up to 1.9 MB, and the version name must have no spaces' });
+    } finally {
+      this.uploadingFw.set(false);
+    }
+  }
+
+  protected async setTarget(version: string | null): Promise<void> {
+    const id = this.id();
+    if (!id) return;
+    try {
+      await this.api.setFirmwareTarget(id, version);
+      await this.reload();
+      this.toast.show(version
+        ? { th: `สั่ง ${id} อัปเดตเป็น ${version} แล้ว`, en: `${id} will update to ${version}` }
+        : { th: 'ยกเลิกการอัปเดตแล้ว', en: 'Update cancelled' });
+    } catch {
+      this.toast.show({ th: 'สั่งไม่ได้', en: 'Could not send the update' });
     }
   }
 

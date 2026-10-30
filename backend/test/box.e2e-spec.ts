@@ -495,6 +495,65 @@ describe('Boxes (e2e)', () => {
     });
   });
 
+  describe('firmware update (OTA via the server)', () => {
+    const image = () => Buffer.concat([Buffer.from([0xe9]), randomBytes(100_000)]);
+    const upload = (version: string, data: Buffer, cookie = admin.cookie) =>
+      http().post(`/api/v1/admin/firmware/${version}`).set('Cookie', cookie).set('Content-Type', 'application/octet-stream').send(data);
+
+    it('admin uploads → sets the target → the box hears the command, downloads the exact file, then reports the new version', async () => {
+      const [b] = await register();
+      const ver = `t${run}${seq++}`;
+      const data = image();
+      const up = await upload(ver, data).expect(201);
+      expect(up.body).toMatchObject({ version: ver, size: data.length });
+      await upload(ver, data).expect(409); // เวอร์ชันซ้ำ = ห้ามเขียนทับ
+      await box(b, 'POST', '/v1/box/boot', { fw: 'old', config_ver: 0 }).expect(200);
+
+      const poll = box(b, 'GET', '/v1/box/jobs?wait=10').then((r) => r);
+      await new Promise((r) => setTimeout(r, 300));
+      await as(admin.cookie).put(`/api/v1/admin/boxes/${b.box_id}/firmware`, { version: ver }).expect(204);
+      const res = await poll;
+      expect(res.status).toBe(200);
+      expect(res.body.command).toMatchObject({ type: 'ota', id: `U-${ver}`, version: ver, size: data.length, sha256: up.body.sha256 });
+
+      const file = await box(b, 'GET', `/v1/box/firmware/${ver}`).buffer(true).parse((rs, cb) => {
+        const chunks: Buffer[] = [];
+        rs.on('data', (c: Buffer) => chunks.push(c));
+        rs.on('end', () => cb(null, Buffer.concat(chunks)));
+      }).expect(200);
+      expect(Buffer.compare(file.body as Buffer, data)).toBe(0);
+
+      // ตู้รายงานเวอร์ชันใหม่ → งานอัปเดตจบ ไม่ส่งซ้ำ
+      const boot = await box(b, 'POST', '/v1/box/boot', { fw: ver, config_ver: 0 }).expect(200);
+      expect(boot.body.command).toBeUndefined();
+      await box(b, 'GET', '/v1/box/jobs?wait=0').expect(204);
+      expect((await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}`).expect(200)).body).toMatchObject({ fw: ver, fw_target: null });
+    });
+
+    it('only admins upload/target · bad files are refused · a box can download only what is aimed at it', async () => {
+      const [b, other] = await register(2);
+      const owner = await signupOwner();
+      const ver = `t${run}${seq++}`;
+      await upload(ver, image(), owner.cookie).expect(404);
+      await upload(`bad${ver}`, Buffer.alloc(100_000, 1)).expect(400); // ไม่ใช่ไฟล์เฟิร์มแวร์ ESP32
+      await upload(`small${ver}`, Buffer.from([0xe9, 1, 2])).expect(400);
+      await upload('bad%20ver', image()).expect(400); // ชื่อเวอร์ชันผิดรูปแบบ
+      await upload(ver, image()).expect(201);
+
+      await as(owner.cookie).put(`/api/v1/admin/boxes/${b.box_id}/firmware`, { version: ver }).expect(404);
+      await as(admin.cookie).put(`/api/v1/admin/boxes/${b.box_id}/firmware`, { version: 'nope' }).expect(404);
+      await box(b, 'GET', `/v1/box/firmware/${ver}`).expect(404); // ยังไม่ได้ตั้งเป้าหมาย
+
+      await as(admin.cookie).put(`/api/v1/admin/boxes/${b.box_id}/firmware`, { version: ver }).expect(204);
+      await box(other, 'GET', `/v1/box/firmware/${ver}`).expect(404); // ตู้อื่นโหลดไม่ได้
+      await box(b, 'GET', `/v1/box/firmware/${ver}`).expect(200);
+
+      // ยกเลิกได้ก่อนตู้รับ
+      await as(admin.cookie).put(`/api/v1/admin/boxes/${b.box_id}/firmware`, { version: null }).expect(204);
+      await box(b, 'GET', '/v1/box/jobs?wait=0').expect(204);
+    });
+  });
+
   describe('owner wifi reset', () => {
     const wifi = (cookie: string, id: string) => as(cookie).get(`/api/v1/boxes/${id}`).then((r) => r.body.wifi_reset);
 

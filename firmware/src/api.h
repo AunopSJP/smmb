@@ -15,3 +15,7 @@ ApiResult apiCall(const char* method, const String& suffix, const String& body, 
 uint32_t nowUtc();
 bool clockSet();
 void clockSetFrom(uint32_t serverTime);
+
+/** OTA: โหลดเฟิร์มแวร์ `version` จากเซิร์ฟเวอร์ (GET /v1/box/firmware/<version> เซ็นลายเซ็น) ลงพาร์ทิชันอัปเดต
+ *  ตรวจขนาด + sha256 ก่อนยืนยัน (ไม่ตรง = ไม่สลับพาร์ทิชัน) · true = ลงเสร็จ พร้อมรีสตาร์ต */
+bool apiDownloadFirmware(const String& version, size_t size, const String& sha256Hex);

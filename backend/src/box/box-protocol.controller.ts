@@ -19,6 +19,7 @@ import { Public } from '../auth/auth.decorators.js';
 import { AllowClockSkew, BoxAuthGuard, type BoxRequest } from './box-auth.guard.js';
 import { BoxJobService } from './box-job.service.js';
 import { BoxPreviewService } from './box-preview.service.js';
+import { FirmwareService } from './firmware.service.js';
 import { bool, BoxProtocolService, int, MAX_WAIT_S, nowS, text } from './box-protocol.service.js';
 
 /** box_id ที่ BoxAuthGuard ยืนยันแล้ว */
@@ -58,6 +59,7 @@ export class BoxProtocolController {
     private readonly box: BoxProtocolService,
     private readonly jobService: BoxJobService,
     private readonly preview: BoxPreviewService,
+    private readonly firmware: FirmwareService,
   ) {}
 
   /** §2.1 เปิดเครื่อง — ยอมให้นาฬิกาเพี้ยน (ยังไม่เคยตั้งเวลา) */
@@ -151,6 +153,17 @@ export class BoxProtocolController {
     const stored = await this.preview.store(id, jobIdValue, Buffer.from(b64, 'base64'));
     if (!stored) throw new ConflictException({ code: 'PREVIEW_NOT_ALLOWED', message: 'preview is only accepted during a live test job' });
     return { server_time: nowS() };
+  }
+
+  /** §2.9 โหลดเฟิร์มแวร์ที่สั่งอัปเดต (OTA) — ได้เฉพาะเวอร์ชันที่แอดมินตั้งเป็นเป้าหมายของตู้นี้ */
+  @Get('firmware/:version')
+  async firmwareFile(@BoxId() id: string, @Param('version') version: string, @Res() res: Response) {
+    const f = await this.firmware.fileFor(id, version);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Length', String(f.data.length));
+    res.setHeader('X-Firmware-Sha256', f.sha256);
+    res.setHeader('Cache-Control', 'no-store');
+    res.end(f.data);
   }
 
   /** §2.6 เหตุการณ์อื่น */

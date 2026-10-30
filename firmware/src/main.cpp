@@ -18,6 +18,7 @@
 #include "buzzer.h"
 #include "camera_qr.h"
 #include "debugview.h"
+#include "ota.h"
 #include "portal.h"
 #include "settings.h"
 #include "signer.h"
@@ -135,6 +136,21 @@ static void handleCommand(JsonVariantConst cmd) {
   if (cmd.isNull()) return;
   const char* type = cmd["type"] | "";
   const char* id = cmd["id"] | "";
+  if (strcmp(type, "ota") == 0 && *id) {
+    // อัปเดตเฟิร์มแวร์จากเซิร์ฟเวอร์ — ลองครั้งเดียวต่อการเปิดเครื่อง (ล้มเหลวแล้วไม่วนโหลดซ้ำจนแบตหมด)
+    static bool tried = false;
+    const String ver = cmd["version"] | "";
+    if (tried || !ver.length() || ver == FW_VERSION) return;
+    tried = true;
+    Serial.printf("[cmd] ota: %s -> %s (%u bytes)\n", FW_VERSION, ver.c_str(), (unsigned)(cmd["size"] | 0u));
+    if (apiDownloadFirmware(ver, cmd["size"] | 0u, cmd["sha256"] | "")) {
+      Serial.println("[cmd] ota: done — rebooting");
+      delay(300);
+      ESP.restart();
+    }
+    sendEvent("ota_failed");
+    return;
+  }
   if (strcmp(type, "wifi_reset") != 0 || !*id) return;
 
   JsonDocument doc;
@@ -651,6 +667,11 @@ void setup() {
 void loop() {
   esp_task_wdt_reset();
   cliPoll();
+  if (otaBusy()) {
+    delay(50);
+    return;
+  }
+  otaStart();
   if (settings.debugCam && WiFi.status() == WL_CONNECTED) {
     debugViewStart();
     debugViewPoll();

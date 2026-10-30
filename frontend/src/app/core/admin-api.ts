@@ -35,6 +35,15 @@ export interface AdminBoxRow {
   last_seen_at: string | null;
   last_poll_at: string | null;
   fw: string | null;
+  /** เวอร์ชันเฟิร์มแวร์ที่สั่งให้ตู้อัปเดต (ตู้ยังไม่ได้รัน) */
+  fw_target: string | null;
+}
+
+export interface FirmwareInfo {
+  version: string;
+  sha256: string;
+  size: number;
+  uploaded_at: string;
 }
 
 export interface AdminOverview {
@@ -236,6 +245,19 @@ export class AdminApi {
   }
   revealSecret(id: string): Promise<{ box_id: string; device_secret: string }> {
     return this.post(`/api/v1/admin/boxes/${encodeURIComponent(id)}/device-secret`);
+  }
+  firmwareList(): Promise<FirmwareInfo[]> {
+    return this.get('/api/v1/admin/firmware');
+  }
+  /** อัปโหลดไฟล์ .bin ของเฟิร์มแวร์ตู้ (ส่งเป็นไบต์ดิบ) */
+  uploadFirmware(version: string, file: File): Promise<FirmwareInfo> {
+    return firstValueFrom(
+      this.http.post<FirmwareInfo>(`/api/v1/admin/firmware/${encodeURIComponent(version)}`, file, { headers: { 'Content-Type': 'application/octet-stream' } }),
+    );
+  }
+  /** สั่งตู้อัปเดตเฟิร์มแวร์ (null = ยกเลิก) · ตู้รับตอน long-poll แล้วโหลดไปลงเอง */
+  setFirmwareTarget(id: string, version: string | null): Promise<unknown> {
+    return firstValueFrom(this.http.put(`/api/v1/admin/boxes/${encodeURIComponent(id)}/firmware`, { version }));
   }
   startTest(id: string): Promise<Job> {
     return this.post(`/api/v1/admin/boxes/${encodeURIComponent(id)}/test-jobs`);

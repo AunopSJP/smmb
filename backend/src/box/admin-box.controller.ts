@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query, Req, Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { Type } from 'class-transformer';
 import { ArrayNotEmpty, ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min } from 'class-validator';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
@@ -8,12 +8,22 @@ import { CONFIG_LIMITS } from './box-config.js';
 import { BoxConfigService } from './box-config.service.js';
 import { AdminBoxService } from './admin-box.service.js';
 import { BoxPreviewService } from './box-preview.service.js';
+import { FirmwareService } from './firmware.service.js';
 
 class BoxIdParam {
   @Matches(/^BX-\d{5,10}$/) box_id!: string;
 }
 class TestJobParam extends BoxIdParam {
   @Matches(/^J-[0-9a-f]{6}$/) job_id!: string;
+}
+
+class FirmwareVersionParam {
+  @Matches(/^[0-9A-Za-z._+-]{1,32}$/) version!: string;
+}
+
+class FirmwareTargetDto {
+  /** null = ยกเลิกงานอัปเดต */
+  @IsOptional() @Matches(/^[0-9A-Za-z._+-]{1,32}$/) version?: string | null;
 }
 
 class RegisterBoxesDto {
@@ -49,6 +59,7 @@ export class AdminBoxController {
     private readonly boxes: AdminBoxService,
     private readonly configs: BoxConfigService,
     private readonly preview: BoxPreviewService,
+    private readonly firmware: FirmwareService,
   ) {}
 
   /** ลงทะเบียนตู้ตอนผลิต → รหัสลับประจำตู้ (ได้ครั้งเดียว) + QR ชุดแรก */
@@ -110,6 +121,26 @@ export class AdminBoxController {
       return;
     }
     return { job_id: frame.jobId, at: frame.at.toISOString(), jpeg_b64: frame.jpeg.toString('base64') };
+  }
+
+  /** เฟิร์มแวร์ที่อัปโหลดไว้ (ล่าสุดก่อน) */
+  @Get('firmware')
+  listFirmware() {
+    return this.firmware.list();
+  }
+
+  /** อัปโหลดไฟล์ .bin (body = ไบต์ดิบ) ตั้งชื่อเวอร์ชันเอง — ต้องตรงกับ FW_VERSION ในไฟล์ ไม่งั้นตู้จะอัปเดตซ้ำ */
+  @Post('firmware/:version')
+  uploadFirmware(@Auth() auth: AuthContext, @Param() p: FirmwareVersionParam, @Req() req: Request) {
+    if (!Buffer.isBuffer(req.body)) throw new BadRequestException('send the .bin file as the raw request body');
+    return this.firmware.upload(p.version, req.body, auth.userId);
+  }
+
+  /** สั่งตู้อัปเดต (หรือยกเลิกด้วย version = null) — ตู้รับตอน long-poll แล้วโหลดไปลงเอง */
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Put('boxes/:box_id/firmware')
+  async setFirmwareTarget(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Body() body: FirmwareTargetDto): Promise<void> {
+    await this.firmware.setTarget(p.box_id, body.version ?? null, auth.userId);
   }
 
   @Get('box-config')

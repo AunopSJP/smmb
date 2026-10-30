@@ -33,6 +33,8 @@ export function configureApp(app: NestExpressApplication): void {
   // API ของตู้: อ่าน body เป็นไบต์ดิบ (ต้องเซ็นจากไบต์ที่ตู้ส่งจริง) — BoxAuthGuard ตรวจลายเซ็นแล้วค่อยแปลงเป็น JSON
   // ลงทะเบียนก่อน app.init() → อยู่ก่อนตัวอ่าน JSON ของ Nest (ตัวนั้นข้ามคำขอที่อ่าน body แล้ว)
   // ภาพสดจากกล้อง (งานทดสอบ) เป็น JSON ที่มี JPEG แบบ base64 → ใหญ่กว่าคำขออื่น
+  // อัปโหลดเฟิร์มแวร์ (ไบต์ดิบ ≤ 1.9 MB) โดยแอดมิน — อ่านเป็น Buffer เอง ไม่ผ่านตัวอ่าน JSON
+  app.use('/api/v1/admin/firmware', express.raw({ type: () => true, limit: '2mb' }));
   app.use('/v1/box/preview', express.raw({ type: () => true, limit: '120kb' }));
   app.use('/v1/box', express.raw({ type: () => true, limit: '16kb' }));
   // ดูคำขอจากตู้แบบสด ๆ ตอนทดสอบบอร์ด (npm run dev:mock เปิดให้เอง) — เหตุผลที่ลายเซ็นไม่ผ่านพิมพ์จาก BoxAuthGuard

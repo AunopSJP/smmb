@@ -6,6 +6,7 @@ import { NotificationService } from '../push/notification.service.js';
 import type { BoxConfig } from './box-config.js';
 import { BoxConfigService } from './box-config.service.js';
 import { BoxJobService, type BoxJobForBox } from './box-job.service.js';
+import { FirmwareService } from './firmware.service.js';
 import { JobHub } from './job-hub.js';
 
 /** แบตต่ำกว่านี้ → แจ้งเจ้าของบ้าน + แอดมิน (✅ api.md §0) */
@@ -25,9 +26,13 @@ export const nowS = () => Math.floor(Date.now() / 1000);
 
 /** คำสั่งจากเจ้าของบ้านที่รอตู้รับ — ตอนนี้มีอย่างเดียว: ตัด Wi-Fi เก่า แล้วกลับโหมดปล่อย Wi-Fi (โปรโตคอล §2.8) */
 export interface BoxCommand {
-  type: 'wifi_reset';
-  /** ใช้ตอบรับ (event wifi_reset + command_id) — เปลี่ยนทุกครั้งที่เจ้าของกดใหม่ */
+  type: 'wifi_reset' | 'ota';
+  /** ใช้ตอบรับ (event wifi_reset + command_id) — เปลี่ยนทุกครั้งที่เจ้าของกดใหม่ · ota: `U-<version>` */
   id: string;
+  /** เฉพาะ ota: เวอร์ชัน/ขนาด/sha256 ของเฟิร์มแวร์ที่ตู้ต้องโหลดจาก `GET /v1/box/firmware/<version>` (โปรโตคอล §2.9) */
+  version?: string;
+  size?: number;
+  sha256?: string;
 }
 
 /** ค้างเกินนี้ = หมดอายุ (ตู้ออฟไลน์/ปิดอยู่) ไม่ส่งให้ตู้อีก · เจ้าของต้องกดใหม่ */
@@ -60,6 +65,7 @@ export class BoxProtocolService {
     private readonly jobs: BoxJobService,
     private readonly hub: JobHub,
     private readonly notifications: NotificationService,
+    private readonly firmware: FirmwareService,
   ) {}
 
   /**
@@ -89,6 +95,7 @@ export class BoxProtocolService {
       await this.notifyLowBattery(boxId, box?.owner_user_id ?? null, box?.name ?? null, battery);
     }
 
+    await this.firmware.clearIfDone(boxId);
     const { config, ver } = await this.configs.forBox(boxId);
     const command = await this.pendingCommand(boxId);
     return {
@@ -108,7 +115,9 @@ export class BoxProtocolService {
        WHERE box_id = $1 AND wifi_reset_requested_date IS NOT NULL AND wifi_reset_requested_date > now() - make_interval(hours => $2)`,
       [boxId, WIFI_RESET_TTL_H],
     );
-    return rows[0] ? { type: 'wifi_reset', id: `W-${rows[0].at}` } : null;
+    if (rows[0]) return { type: 'wifi_reset', id: `W-${rows[0].at}` };
+    const offer = await this.firmware.offerFor(boxId);
+    return offer ? { type: 'ota', id: `U-${offer.version}`, ...offer } : null;
   }
 
   /** ตู้ตอบรับว่ากำลังตัด Wi-Fi เก่า (ส่งก่อนตัด — ตัดแล้วส่งอะไรไม่ได้) · ตอบรับซ้ำ/คำสั่งเก่า/ถูกยกเลิกแล้ว = ไม่ทำอะไร */
