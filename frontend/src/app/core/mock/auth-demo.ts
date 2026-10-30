@@ -42,7 +42,11 @@ export const ROLE_HOME: Record<DemoAccountRole, string> = {
 
 /** เบอร์: ตัดขีด/ช่องว่าง · +66 → 0 · ต้องเป็น 0 + 9 หลัก (api.md §2) */
 export function normalizePhone(raw: string): string | null {
-  let d = raw.replace(/[^\d+]/g, '');
+  // เลขไทย ๐-๙ และเต็มความกว้างจากคีย์บอร์ดมือถือ → เลขอารบิก ก่อนตัดอักขระอื่น (ให้ตรงกับ backend)
+  let d = raw
+    .replace(/[๐-๙]/g, (c) => String(c.charCodeAt(0) - 0x0e50))
+    .normalize('NFKC')
+    .replace(/[^\d+]/g, '');
   if (d.startsWith('+66')) d = '0' + d.slice(3);
   else if (d.startsWith('66') && d.length === 11) d = '0' + d.slice(2);
   return /^0\d{9}$/.test(d) ? d : null;

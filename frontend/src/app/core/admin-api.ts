@@ -255,6 +255,9 @@ export class AdminApi {
       this.http.post<FirmwareInfo>(`/api/v1/admin/firmware/${encodeURIComponent(version)}`, file, { headers: { 'Content-Type': 'application/octet-stream' } }),
     );
   }
+  deleteFirmware(version: string): Promise<unknown> {
+    return firstValueFrom(this.http.delete(`/api/v1/admin/firmware/${encodeURIComponent(version)}`));
+  }
   /** สั่งตู้อัปเดตเฟิร์มแวร์ (null = ยกเลิก) · ตู้รับตอน long-poll แล้วโหลดไปลงเอง */
   setFirmwareTarget(id: string, version: string | null): Promise<unknown> {
     return firstValueFrom(this.http.put(`/api/v1/admin/boxes/${encodeURIComponent(id)}/firmware`, { version }));

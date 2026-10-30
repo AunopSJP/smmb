@@ -292,7 +292,7 @@ export class InspectionService implements OnModuleInit {
       const data = { box_id: ins.box.id, box_name: owner.rows[0]?.name ?? null, reason };
       await this.safeNotify(async () => {
         if (owner.rows[0]?.owner_user_id) await this.notifications.notify([owner.rows[0].owner_user_id], { type: 'box_problem', data, link: '/home' });
-        await this.notifications.notify(await this.adminIds(), { type: 'box_problem', data, link: `/admin/boxes/${ins.box.id}` });
+        await this.notifications.notify(await this.adminIds(), { type: 'box_problem', data, link: `/admin/boxes/detail?id=${ins.box.id}` });
       });
     }
     return this.get(userId, id);
@@ -482,7 +482,7 @@ export class InspectionService implements OnModuleInit {
       this.notifications.notify(await this.adminIds(), {
         type: 'qr_fake',
         data: { box_id: boxId, raw: raw.slice(0, 120) },
-        link: boxId ? `/admin/boxes/${boxId}` : '/admin/qr',
+        link: boxId ? `/admin/boxes/detail?id=${boxId}` : '/admin/qr',
       }),
     );
   }

@@ -117,7 +117,7 @@ describe('Push, notifications, terms (e2e)', () => {
       await subscribe(other, endpoint()).expect(201);
 
       const res = await http().post('/api/v1/me/push/test').set('Cookie', u.cookie).expect(202);
-      expect(res.body).toEqual({ sent: 1 });
+      expect(res.body).toEqual({ sent: 1, removed: 0, failed: 0 });
       expect(sender.sent).toHaveLength(1);
       expect(sender.sent[0].endpoint).toBe(mine);
       expect(sender.sent[0].payload.notification).toMatchObject({

@@ -126,10 +126,15 @@ export class PushStatus {
 
   protected async test(): Promise<void> {
     await this.run(async () => {
-      const sent = await this.push.sendTest();
-      const msg: Tr = sent > 0
-        ? { th: 'ส่งแจ้งเตือนทดสอบแล้ว — รอสักครู่', en: 'Test sent — it should arrive in a moment' }
-        : { th: 'ส่งไม่ถึงเครื่องนี้ ลองปิดแล้วเปิดใหม่', en: 'It did not reach this device — turn it off and on again' };
+      const r = await this.push.sendTest();
+      const msg: Tr =
+        r.sent > 0
+          ? { th: 'ส่งแจ้งเตือนทดสอบแล้ว — รอสักครู่ (ถ้าไม่เห็น ดูว่าเปิดสิทธิ์แจ้งเตือนของเบราว์เซอร์/แอปไว้)', en: 'Test sent — it should arrive in a moment (if not, check the browser/app notification permission)' }
+          : r.removed > 0
+            ? { th: 'เครื่องนี้หมดอายุแล้ว — ปิดแจ้งเตือนแล้วเปิดใหม่', en: 'This device’s subscription expired — turn notifications off and on again' }
+            : r.failed > 0
+              ? { th: `เซิร์ฟเวอร์ส่งไม่สำเร็จ (${r.failure_status ?? 'เครือข่าย'}) — ปิดแล้วเปิดใหม่ ถ้ายังไม่ได้แจ้งผู้ดูแล`, en: `The server could not deliver it (${r.failure_status ?? 'network'}) — turn it off and on; if it persists, tell the admin` }
+              : { th: 'เครื่องนี้ยังไม่ได้ผูกกับบัญชี — ปิดแจ้งเตือนแล้วเปิดใหม่', en: 'This device is not linked to your account yet — turn notifications off and on again' };
       this.toast.show(msg);
     });
   }

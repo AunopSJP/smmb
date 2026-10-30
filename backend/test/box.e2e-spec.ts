@@ -41,6 +41,7 @@ describe('Boxes (e2e)', () => {
     post: (url: string, body: object = {}) => http().post(url).set('Cookie', cookie).send(body),
     patch: (url: string, body: object) => http().patch(url).set('Cookie', cookie).send(body),
     put: (url: string, body: object = {}) => http().put(url).set('Cookie', cookie).send(body),
+    delete: (url: string) => http().delete(url).set('Cookie', cookie),
   });
   const nowS = () => Math.floor(Date.now() / 1000);
 
@@ -548,9 +549,16 @@ describe('Boxes (e2e)', () => {
       await box(other, 'GET', `/v1/box/firmware/${ver}`).expect(404); // ตู้อื่นโหลดไม่ได้
       await box(b, 'GET', `/v1/box/firmware/${ver}`).expect(200);
 
+      // ลบไม่ได้ขณะมีตู้รออยู่ · ยกเลิกแล้วลบได้ · ลบแล้วไม่อยู่ในรายการ · คนทั่วไปลบไม่ได้
+      await as(owner.cookie).delete(`/api/v1/admin/firmware/${ver}`).expect(404);
+      await as(admin.cookie).delete(`/api/v1/admin/firmware/${ver}`).expect(409);
+
       // ยกเลิกได้ก่อนตู้รับ
       await as(admin.cookie).put(`/api/v1/admin/boxes/${b.box_id}/firmware`, { version: null }).expect(204);
       await box(b, 'GET', '/v1/box/jobs?wait=0').expect(204);
+      await as(admin.cookie).delete(`/api/v1/admin/firmware/${ver}`).expect(204);
+      expect((await as(admin.cookie).get('/api/v1/admin/firmware').expect(200)).body.map((f: { version: string }) => f.version)).not.toContain(ver);
+      await as(admin.cookie).delete(`/api/v1/admin/firmware/${ver}`).expect(404);
     });
   });
 

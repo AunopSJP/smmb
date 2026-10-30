@@ -54,6 +54,18 @@ export class FirmwareService {
     }
   }
 
+  /** ลบไฟล์เวอร์ชันเก่า · ถ้ามีตู้ที่รอโหลดเวอร์ชันนี้อยู่ = 409 (ยกเลิกงานอัปเดตของตู้ก่อน) */
+  async remove(version: string): Promise<void> {
+    if (!VERSION_RE.test(version)) throw new NotFoundException();
+    try {
+      const { rowCount } = await this.pool.query(`DELETE FROM app.firmware_tb WHERE version = $1`, [version]);
+      if (!rowCount) throw new NotFoundException();
+    } catch (e) {
+      if ((e as { code?: string }).code === '23503') throw new ConflictException({ code: 'FIRMWARE_IN_USE', message: 'a box is waiting to install this version' });
+      throw e;
+    }
+  }
+
   /** ตั้งให้ตู้อัปเดตเป็นเวอร์ชันนี้ (null = ยกเลิก) → ปลุก long-poll ให้ตู้รับคำสั่งทันที */
   async setTarget(boxId: string, version: string | null, userId: string): Promise<void> {
     if (version !== null) {

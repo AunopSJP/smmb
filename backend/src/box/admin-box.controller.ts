@@ -136,6 +136,12 @@ export class AdminBoxController {
     return this.firmware.upload(p.version, req.body, auth.userId);
   }
 
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete('firmware/:version')
+  async removeFirmware(@Param() p: FirmwareVersionParam): Promise<void> {
+    await this.firmware.remove(p.version);
+  }
+
   /** สั่งตู้อัปเดต (หรือยกเลิกด้วย version = null) — ตู้รับตอน long-poll แล้วโหลดไปลงเอง */
   @HttpCode(HttpStatus.NO_CONTENT)
   @Put('boxes/:box_id/firmware')

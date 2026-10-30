@@ -47,7 +47,7 @@ export class PushController {
   async test(@Auth() auth: AuthContext) {
     if (!this.push.enabled) throw pushUnavailable();
     const r = await this.push.sendToUser(auth.userId, { type: 'test', data: {}, link: '/' }, auth.sessionId);
-    return { sent: r.sent };
+    return { sent: r.sent, removed: r.removed, failed: r.failed, ...(r.failure_status ? { failure_status: r.failure_status } : {}) };
   }
 }
 

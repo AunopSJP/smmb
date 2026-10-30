@@ -312,30 +312,55 @@ export class AdminBoxes implements OnInit {
 
         <h2 class="section-title">{{ i18n.t({ th: 'อัปเดตเฟิร์มแวร์', en: 'Firmware update' }) }}</h2>
         <section class="card stack">
-          <p class="muted small">
-            {{ i18n.t({ th: 'อัปโหลดไฟล์ firmware.bin (ชื่อเวอร์ชันต้องตรงกับ FW_VERSION ในไฟล์ที่คอมไพล์) แล้วสั่งตู้ — ตู้โหลดไปลงเองตอนถือสายอยู่ แล้วรีสตาร์ต', en: 'Upload firmware.bin (the version name must match FW_VERSION compiled into it), then send it to the box. The box downloads it while polling, installs it and restarts.' }) }}
-          </p>
-          @if (b.fw_target) {
-            <p class="warn-text">
-              {{ i18n.t({ th: 'รอตู้อัปเดตเป็น', en: 'Waiting for the box to update to' }) }} <strong>{{ b.fw_target }}</strong>
-              <button type="button" class="btn secondary" (click)="setTarget(null)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
-            </p>
-          }
-          <div class="row">
-            <input type="text" class="input" maxlength="32" placeholder="0.2.1" [value]="fwVersion()" (input)="fwVersion.set($any($event.target).value)" />
-            <input type="file" accept=".bin" (change)="fwFile.set($any($event.target).files?.[0] ?? null)" />
-            <button type="button" class="btn secondary" [disabled]="uploadingFw() || !fwFile() || !fwVersion()" (click)="uploadFirmware()">
-              {{ uploadingFw() ? i18n.t({ th: 'กำลังอัปโหลด…', en: 'Uploading…' }) : i18n.t({ th: 'อัปโหลด', en: 'Upload' }) }}
-            </button>
+          <div class="fw-now">
+            <span class="muted">{{ i18n.t({ th: 'ตู้รันเวอร์ชัน', en: 'Box is running' }) }}</span>
+            <strong class="fw-ver">{{ b.fw ?? '—' }}</strong>
           </div>
-          @for (f of firmware(); track f.version) {
-            <div class="row">
-              <span>{{ f.version }} · {{ (f.size / 1024).toFixed(0) }} KB @if (f.version === b.fw) { · {{ i18n.t({ th: 'ตู้รันอยู่', en: 'running' }) }} }</span>
-              <button type="button" class="btn secondary" [disabled]="f.version === b.fw || f.version === b.fw_target" (click)="setTarget(f.version)">
-                {{ i18n.t({ th: 'สั่งตู้นี้อัปเดต', en: 'Update this box' }) }}
-              </button>
+          @if (b.fw_target) {
+            <div class="fw-pending">
+              <span>{{ i18n.t({ th: 'รอตู้อัปเดตเป็น', en: 'Waiting for the box to update to' }) }} <strong>{{ b.fw_target }}</strong></span>
+              <button type="button" class="btn secondary fw-act" (click)="setTarget(null)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
             </div>
           }
+        </section>
+
+        <div class="list">
+          @for (f of firmware(); track f.version) {
+            <div class="row">
+              <span class="grow">
+                <strong>{{ f.version }}</strong>
+                <span class="muted small block">{{ (f.size / 1024).toFixed(0) }} KB · {{ fwDate(f.uploaded_at) }}</span>
+              </span>
+              @if (f.version === b.fw) {
+                <span class="chip ok">{{ i18n.t({ th: 'ตู้รันอยู่', en: 'Running' }) }}</span>
+              } @else if (f.version === b.fw_target) {
+                <span class="chip warn">{{ i18n.t({ th: 'รอตู้อัปเดต', en: 'Pending' }) }}</span>
+              } @else {
+                <button type="button" class="btn fw-act" (click)="setTarget(f.version)">{{ i18n.t({ th: 'อัปเดตตู้นี้', en: 'Update box' }) }}</button>
+                <button type="button" class="btn secondary fw-act" [attr.aria-label]="i18n.t({ th: 'ลบ ', en: 'Delete ' }) + f.version" (click)="removeFirmware(f.version)">
+                  {{ i18n.t({ th: 'ลบ', en: 'Delete' }) }}
+                </button>
+              }
+            </div>
+          } @empty {
+            <p class="row muted">{{ i18n.t({ th: 'ยังไม่มีเฟิร์มแวร์ที่อัปโหลดไว้', en: 'No firmware uploaded yet' }) }}</p>
+          }
+        </div>
+
+        <section class="card stack">
+          <strong>{{ i18n.t({ th: 'อัปโหลดเวอร์ชันใหม่', en: 'Upload a new version' }) }}</strong>
+          <label class="field">
+            <span>{{ i18n.t({ th: 'ชื่อเวอร์ชัน', en: 'Version name' }) }}</span>
+            <input type="text" maxlength="32" [placeholder]="fwSuggest()" [value]="fwVersion()" (input)="fwVersion.set($any($event.target).value)" />
+            <small>{{ i18n.t({ th: 'ต้องตรงกับ FW_VERSION ในไฟล์ที่คอมไพล์ (เว้นว่าง = ใช้ที่แนะนำ)', en: 'Must match FW_VERSION compiled into the file (empty = use the suggestion)' }) }}</small>
+          </label>
+          <label class="fw-drop" [class.has-file]="fwFile()">
+            <input type="file" accept=".bin" (change)="fwFile.set($any($event.target).files?.[0] ?? null)" />
+            <span>{{ fwFile() ? fwFile()!.name + ' · ' + (fwFile()!.size / 1024).toFixed(0) + ' KB' : i18n.t({ th: 'แตะเพื่อเลือกไฟล์ firmware.bin', en: 'Tap to choose firmware.bin' }) }}</span>
+          </label>
+          <button type="button" class="btn" [disabled]="uploadingFw() || !fwFile() || !(fwVersion().trim() || fwSuggest())" (click)="uploadFirmware()">
+            {{ uploadingFw() ? i18n.t({ th: 'กำลังอัปโหลด…', en: 'Uploading…' }) : i18n.t({ th: 'อัปโหลด', en: 'Upload' }) }}
+          </button>
         </section>
 
         <h2 class="section-title">{{ i18n.t({ th: 'ทดสอบปลุกตู้', en: 'Wake test' }) }}</h2>
@@ -456,6 +481,60 @@ export class AdminBoxes implements OnInit {
     }
   `,
   styles: `
+    .fw-now {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .fw-ver {
+      font-size: 1.5rem;
+    }
+    .fw-pending {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      background: var(--warn-bg);
+      color: var(--warn);
+    }
+    .btn.fw-act {
+      width: auto;
+      min-height: 40px;
+      padding: 6px 14px;
+      font-size: 0.9375rem;
+      flex: none;
+    }
+    .fw-drop {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 64px;
+      padding: 12px;
+      border: 2px dashed color-mix(in srgb, var(--text-muted) 55%, transparent);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      text-align: center;
+      cursor: pointer;
+      word-break: break-all;
+    }
+    .fw-drop.has-file {
+      border-style: solid;
+      border-color: var(--ok);
+      color: var(--text);
+    }
+    .fw-drop input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+    .fw-drop:focus-within {
+      outline: 2px solid var(--brand);
+      outline-offset: 1px;
+    }
     .grow {
       flex: 1;
       min-width: 0;
@@ -512,6 +591,11 @@ export class AdminBox implements OnInit {
   protected readonly fwVersion = signal('');
   protected readonly fwFile = signal<File | null>(null);
   protected readonly uploadingFw = signal(false);
+  /** ชื่อเวอร์ชันที่แนะนำ = เลขท้ายของเวอร์ชันล่าสุด + 1 (x.y.z → x.y.z+1) */
+  protected readonly fwSuggest = computed(() => {
+    const m = /^(.*?)(\d+)$/.exec(this.firmware()[0]?.version ?? '');
+    return m ? `${m[1]}${Number(m[2]) + 1}` : '';
+  });
   protected readonly activeQr = computed(() => (this.box()?.qr ?? []).filter((q) => q.status === 'active' || q.slot === 'activate'));
   /** URL ที่ตู้ใช้ = origin + apiBase ของเว็บนี้ (ไม่ฮาร์ดโค้ดโดเมน) */
   protected readonly apiUrl = location.origin + inject(ApiConfig).apiBase();
@@ -544,9 +628,13 @@ export class AdminBox implements OnInit {
     }
   }
 
+  protected fwDate(iso: string): string {
+    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+
   protected async uploadFirmware(): Promise<void> {
     const file = this.fwFile();
-    const version = this.fwVersion().trim();
+    const version = this.fwVersion().trim() || this.fwSuggest();
     if (!file || !version || this.uploadingFw()) return;
     this.uploadingFw.set(true);
     try {
@@ -562,6 +650,21 @@ export class AdminBox implements OnInit {
         : { th: 'อัปโหลดไม่ได้ · ต้องเป็นไฟล์ firmware.bin ของ ESP32 ไม่เกิน 1.9 MB และชื่อเวอร์ชันไม่มีช่องว่าง', en: 'Upload failed · it must be an ESP32 firmware.bin up to 1.9 MB, and the version name must have no spaces' });
     } finally {
       this.uploadingFw.set(false);
+    }
+  }
+
+  protected async removeFirmware(version: string): Promise<void> {
+    const ok = window.confirm(this.i18n.t({
+      th: `ลบไฟล์เฟิร์มแวร์ ${version} ใช่ไหม? ตู้ที่รันเวอร์ชันนี้อยู่ไม่กระทบ แต่จะสั่งอัปเดตเป็นเวอร์ชันนี้อีกไม่ได้จนกว่าจะอัปโหลดใหม่`,
+      en: `Delete firmware ${version}? Boxes already running it are not affected, but it can’t be sent again until uploaded again.`,
+    }));
+    if (!ok) return;
+    try {
+      await this.api.deleteFirmware(version);
+      await this.loadFirmware();
+      this.toast.show({ th: 'ลบแล้ว', en: 'Deleted' });
+    } catch {
+      this.toast.show({ th: 'ลบไม่ได้ · อาจมีตู้รอโหลดเวอร์ชันนี้อยู่ ให้ยกเลิกงานอัปเดตของตู้นั้นก่อน', en: 'Could not delete · a box may be waiting for it — cancel that update first' });
     }
   }
 

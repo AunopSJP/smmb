@@ -125,6 +125,7 @@ state machine เต็มอยู่ `smmb-design.md` §6 · SOS อยู่ 
 - งาน `type: "test"` = แอดมิน/ช่างทดสอบตู้ · `inspect` (ตรวจจริง) มาในเฟส 3 · ผลอ่าน QR เก็บ `box_job_attempt_tb` (แทน `inspection_attempt_tb` ในร่าง)
 - ตู้จำลอง: `npm run box:sim` (`backend/scripts/box-sim.mjs`) · ทดสอบบอร์ด: โปรโตคอล §8
 - **โหมด mock (✅ ผู้ใช้สั่ง 2026-10-28 "ใช้ MockData ไปก่อน เอาแค่ core ให้บอร์ดต่อได้")**: `npm run dev:mock` (`backend/scripts/dev-mock.mjs`) = PGlite ฝังในโปรแกรม (`backend/.mockdb/`) + migration + ข้อมูลจำลอง (บัญชีรหัส `demo1234`, ตู้ `BX-00001`/`BX-00002`, โซนตรวจทั้งวัน) · ไม่ต้องมี Postgres/Redis · `DB_POOL_MAX=1` · `BOX_REQUEST_LOG=1` พิมพ์คำขอตู้ · **ตอนนี้โฟกัส core ให้บอร์ดคุยกับ backend ได้ — อย่าเพิ่มฟีเจอร์ใหม่ถ้าผู้ใช้ไม่สั่ง**
+- ✅ งานเบื้องหลัง (`backend/src/scheduler/` · migration `0017`): ตู้หลุดในเวลาตรวจ (`box_offline`) · ตู้เงียบ 26 ชม. (`box_silent_26h`) · สุขภาพ QR รายวัน 23:00 (`qr_health`) · ล้าง session เก่า — แต่ละงานจำว่าแจ้งแล้ว ไม่แจ้งซ้ำ · `SCHEDULER=off` ปิดได้
 - ❌ `POST /v1/box/deliveries` ตัดออกแล้ว (ไม่มีปุ่มหน้าตู้)
 - คำตอบ `boot` มี `awake_s` = 900 → ตู้ถือ long-poll 15 นาทีหลังเปิดเครื่องแม้นอกเวลาตรวจ (ตู้ใหม่ยังไม่อยู่โซนไหน ช่างก็ทดสอบปลุกได้) · ชื่อ Wi-Fi ตอนตั้งค่า `MAILBOX-<6 หลักท้าย>` (`apName()` ใน `technician.ts`)
 - ตู้จำลองแบบเหมือนบอร์ด: `npm run box:sim -- live` (boot → long-poll · งานทดสอบผ่านเอง · งานตรวจรอวางข้อความ QR ประจำตัว) · รหัสลับดูซ้ำได้ `POST /admin/boxes/:id/device-secret` (บันทึกการเปิดดู)

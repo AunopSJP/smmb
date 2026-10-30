@@ -16,6 +16,9 @@ import { screenUrl } from '../../screens/registry';
         <input
           [type]="show() ? 'text' : 'password'"
           [attr.autocomplete]="isNew() ? 'new-password' : 'current-password'"
+          autocapitalize="off"
+          autocorrect="off"
+          spellcheck="false"
           maxlength="128"
           [value]="value()"
           (input)="value.set($any($event.target).value)"

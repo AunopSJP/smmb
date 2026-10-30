@@ -218,7 +218,7 @@ export class BoxProtocolService {
       );
       await this.notifications.notify(
         admins.rows.map((r) => r.user_id),
-        { type: 'low_battery', data, link: `/admin/boxes/${boxId}`, tag: `battery-${boxId}` },
+        { type: 'low_battery', data, link: `/admin/boxes/detail?id=${boxId}`, tag: `battery-${boxId}` },
       );
     } catch (err) {
       // แจ้งเตือนล้มเหลวไม่ทำให้ตู้ได้ error (ตู้จะลองส่งรายงานซ้ำโดยไม่จำเป็น)

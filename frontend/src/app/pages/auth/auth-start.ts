@@ -388,7 +388,8 @@ export class AuthSignin implements OnInit {
     const r = await this.session.signin(normalizePhone(this.phone()) ?? this.phone(), this.password());
     this.busy.set(false);
     if (!r.ok) {
-      this.password.set('');
+      // ล้างรหัสเฉพาะเมื่อรหัสผิดจริง — ถูกจำกัด/เน็ตหลุด ไม่ต้องให้พิมพ์ใหม่บนมือถือ
+      if (r.code === 'INVALID_CREDENTIALS' || r.code === 'ACCOUNT_LOCKED') this.password.set('');
       this.error.set(this.errorText(r.code, r.status));
       return;
     }

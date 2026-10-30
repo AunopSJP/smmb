@@ -173,8 +173,8 @@ describe('Auth (e2e)', () => {
       expect(res.body.code).toBe('ACCOUNT_LOCKED');
     });
 
-    it('more than 5 signin calls a minute from one IP → 429 RATE_LIMITED', async () => {
-      for (let i = 0; i < 5; i++) {
+    it('more than 20 signin calls a minute from one IP → 429 RATE_LIMITED', async () => {
+      for (let i = 0; i < 20; i++) {
         await http().post('/api/v1/auth/signin').send({ phone: '0700000000', password: 'x' }).expect(401);
       }
       const res = await http().post('/api/v1/auth/signin').send({ phone: '0700000000', password: 'x' }).expect(429);

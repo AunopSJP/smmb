@@ -89,8 +89,9 @@ client **ห้ามเดาจาก `message`** ให้ดู `code` เ�
 | route | เพดาน | เกินแล้ว |
 |---|---|---|
 | ค่าเริ่มต้น (ต่อ route ต่อ IP) | 100 ครั้ง/นาที | 429 |
-| `POST /auth/signin` | 5 ครั้ง/นาที ต่อ IP · รหัสผิด 5 ครั้งใน 15 นาที (signin + change-password รวมกัน) → พักบัญชี 15 นาที | 401 `ACCOUNT_LOCKED` |
-| signup / `/me/roles/owner` / `/me/agency/join` | 10 ครั้ง/นาที ต่อ IP (กันเดารหัสกลุ่ม) | 429 |
+| `POST /auth/signin` | 20 ครั้ง/นาที ต่อ IP (ผ่อนจาก 5 — ทีมทดสอบใช้ Wi-Fi/เครือข่ายมือถือเดียวกัน) · รหัสผิด 5 ครั้งใน 15 นาที (signin + change-password รวมกัน) → พักบัญชี 15 นาที | 401 `ACCOUNT_LOCKED` |
+| `signup/owner` · `signup/agency` | 30 ครั้ง/นาที ต่อ IP | 429 |
+| `signup/officer` / `/me/roles/owner` / `/me/agency/join` | 10 ครั้ง/นาที ต่อ IP (กันเดารหัสกลุ่ม) | 429 |
 | พิมพ์รหัสใต้ QR (ทุก route ที่รับ `code`) | ผิด 3 ครั้งติดกัน (ต่อ IP) → รอ 30 วิ · ผิดอีกรอบรอเพิ่มเป็น 2 เท่า สูงสุด 15 นาที · ถูก 1 ครั้งนับใหม่ | 429 `CODE_ATTEMPTS_EXCEEDED` |
 | `POST /public/deliveries` + ปุ่มหน้าตู้ (ไรเดอร์) | **5 ครั้ง/ชั่วโมง ต่อตู้** นับรวมทั้ง QR และปุ่ม | 429 `DELIVERY_LIMIT` → หน้า `R03-c` · ปุ่ม: ตู้ได้ `status: "limited"` |
 | `GET /inspections/:id/badge` | 4 ครั้ง/นาที ต่อการตรวจ (ขอใหม่ทุก 30 วิ + เผื่อ) | 429 |
@@ -219,7 +220,7 @@ interface Prefs {
 | GET | `/me/push/vapid-key` | public | — | `{ public_key }` · 503 `PUSH_UNAVAILABLE` ถ้า server ไม่ได้ตั้ง VAPID key |
 | POST | `/me/push/subscriptions` | login | `PushSubscriptionJSON` (`{ endpoint, keys: { p256dh, auth }, expirationTime? }`) + `{ device_label? }` | 201 `{ ok: true }` · endpoint เดิม = ย้ายมาเป็นของ session นี้ (ไม่สร้างซ้ำ) · 400 ถ้า endpoint ไม่ใช่ push service ที่รู้จัก |
 | DELETE | `/me/push/subscriptions` | login | `{ endpoint }` | 200 · endpoint ของคนอื่น = ไม่เกิดอะไร (ไม่บอกว่ามี) |
-| POST | `/me/push/test` | login | — | 202 `{ sent }` ส่งแจ้งเตือนทดสอบ 1 ครั้ง**ถึงเครื่องนี้** (ขั้น "เปิดแจ้งเตือน" `A03`) · ไม่เก็บลงหน้าแจ้งเตือน |
+| POST | `/me/push/test` | login | — | 202 `{ sent, removed, failed, failure_status? }` ส่งแจ้งเตือนทดสอบ 1 ครั้ง**ถึงเครื่องนี้** (`sent`=0 และ `removed`=0 → เครื่องนี้ยังไม่ผูกกับ session · `removed`>0 → push service บอกว่า subscription ตายแล้ว ให้เปิดใหม่ · `failed`>0 → push service ปฏิเสธ `failure_status` 401/403 = กุญแจ VAPID ไม่ตรง) (ขั้น "เปิดแจ้งเตือน" `A03`) · ไม่เก็บลงหน้าแจ้งเตือน |
 
 - ✅ (2026-10-27) **subscription ผูกกับ session ของเครื่องนั้น** — ออกจากระบบ / ถูกเตะ / session หมดอายุ → เครื่องนั้นหยุดได้รับแจ้งเตือน (มือถือที่ใช้ร่วมกันไม่เห็น SOS ของคนที่ออกไปแล้ว) · `Me.push.subscribed` = เครื่องนี้ (session นี้) มี subscription · `PUSH_REQUIRED` = ไม่มีเครื่องไหนที่ยังรับได้เลย
 - ✅ **endpoint ต้องเป็น https ของ push service ที่รู้จักเท่านั้น** (FCM, Mozilla, Apple, Windows) — server ยิงคำขอไปที่ endpoint นี้ ถ้าไม่จำกัดจะถูกใช้ยิงเข้าระบบภายใน (SSRF) · รายการอยู่ `backend/src/push/push.sender.ts`

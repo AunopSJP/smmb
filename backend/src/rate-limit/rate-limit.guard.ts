@@ -45,6 +45,8 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
     if (count > opts.limit) {
+      // ไว้เช็กว่า TRUST_PROXY ผิด (ทุกคนมี IP เดียวกัน) หรือคนหลายคนใช้ IP เดียวกัน (NAT) — ดู journalctl -u smmb-backend | grep RateLimit
+      if (count === opts.limit + 1) this.logger.warn(`429 ${route} from ${req.ip ?? 'unknown'} (limit ${opts.limit}/${opts.windowSec}s)`);
       throw new AppError(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMITED', 'too many requests');
     }
     return true;

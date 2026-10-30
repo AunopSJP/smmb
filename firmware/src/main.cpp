@@ -8,6 +8,7 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <Preferences.h>
 #include <WebServer.h>
 #include <WiFi.h>
 #include <driver/rtc_io.h>
@@ -142,6 +143,17 @@ static void handleCommand(JsonVariantConst cmd) {
     const String ver = cmd["version"] | "";
     if (tried || !ver.length() || ver == FW_VERSION) return;
     tried = true;
+    // เวอร์ชันที่เคยลงไปแล้วแต่ตู้ยังรายงานเป็นอย่างอื่น = ไฟล์ที่อัปโหลดมี FW_VERSION ไม่ตรงชื่อ → อย่าลงซ้ำวนไปเรื่อย ๆ
+    Preferences otaPrefs;
+    otaPrefs.begin("smmb", false);
+    const bool already = otaPrefs.getString("otatry", "") == ver;
+    otaPrefs.putString("otatry", ver);
+    otaPrefs.end();
+    if (already) {
+      Serial.printf("[cmd] ota: %s was already installed once but the box still reports %s — name mismatch, skipping\n", ver.c_str(), FW_VERSION);
+      sendEvent("ota_failed");
+      return;
+    }
     Serial.printf("[cmd] ota: %s -> %s (%u bytes)\n", FW_VERSION, ver.c_str(), (unsigned)(cmd["size"] | 0u));
     if (apiDownloadFirmware(ver, cmd["size"] | 0u, cmd["sha256"] | "")) {
       Serial.println("[cmd] ota: done — rebooting");

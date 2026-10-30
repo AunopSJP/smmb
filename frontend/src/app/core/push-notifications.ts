@@ -75,10 +75,10 @@ export class PushNotifications {
     await sub.unsubscribe();
   }
 
-  /** ส่งแจ้งเตือนทดสอบถึงเครื่องนี้ (A03) — คืนจำนวนที่ส่งถึง */
-  async sendTest(): Promise<number> {
-    const res = await firstValueFrom(this.http.post<{ sent: number }>('/api/v1/me/push/test', {}));
-    return res.sent;
+  /** ส่งแจ้งเตือนทดสอบถึงเครื่องนี้ (A03) — คืนผลละเอียดไว้บอกสาเหตุ */
+  async sendTest(): Promise<PushTestResult> {
+    const res = await firstValueFrom(this.http.post<Partial<PushTestResult>>('/api/v1/me/push/test', {}));
+    return { sent: res.sent ?? 0, removed: res.removed ?? 0, failed: res.failed ?? 0, failure_status: res.failure_status };
   }
 
   private async subscription(): Promise<PushSubscription> {
@@ -87,6 +87,13 @@ export class PushNotifications {
     const { public_key } = await firstValueFrom(this.http.get<{ public_key: string }>('/api/v1/me/push/vapid-key'));
     return this.swPush.requestSubscription({ serverPublicKey: public_key });
   }
+}
+
+export interface PushTestResult {
+  sent: number;
+  removed: number;
+  failed: number;
+  failure_status?: number;
 }
 
 export class PushBlockedError extends Error {

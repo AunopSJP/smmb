@@ -25,6 +25,8 @@ export interface SendResult {
   sent: number;
   removed: number;
   failed: number;
+  /** HTTP status ล่าสุดที่ push service ปฏิเสธ (401/403 = กุญแจ VAPID ไม่ตรง · 400 = payload ผิด) — ไว้ให้หน้าทดสอบบอกสาเหตุ */
+  failure_status?: number;
 }
 
 @Injectable()
@@ -110,7 +112,9 @@ export class PushService {
             ]);
           } else {
             result.failed++;
-            this.logger.warn(`push to ${new URL(sub.endpoint).host} failed (${status ?? 'network'})`);
+            if (status) result.failure_status = status;
+            const body = String((err as { body?: unknown }).body ?? (err as Error).message ?? '').slice(0, 200);
+            this.logger.warn(`push to ${new URL(sub.endpoint).host} failed (${status ?? 'network'}): ${body}`);
             await this.pool.query(
               `UPDATE app.push_subscription_tb SET failed_count = failed_count + 1 WHERE push_subscription_id = $1`,
               [sub.push_subscription_id],

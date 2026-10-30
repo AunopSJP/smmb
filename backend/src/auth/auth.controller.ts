@@ -22,8 +22,12 @@ import { TermsService, type CurrentTerms } from './terms.service.js';
 
 const meta = (req: Request): ClientMeta => ({ ip: req.ip, userAgent: req.get('user-agent') });
 
-/** กันเดารหัสกลุ่ม / สมัครรัว · 💡 ตัวเลขยังไม่ได้ตกลง */
+/** กันเดารหัสกลุ่ม (เข้าหน่วยงาน / เพิ่มบทบาท) · 💡 ตัวเลขยังไม่ได้ตกลง */
 const SIGNUP_LIMIT = { limit: 10, windowSec: 60 };
+/** สมัครบัญชีใหม่ — ผ่อนกว่า เพราะทีมทดสอบ/บ้านเดียวกันใช้ IP เดียวกัน (NAT ของ Wi-Fi / เครือข่ายมือถือ) */
+const SIGNUP_FORM_LIMIT = { limit: 30, windowSec: 60 };
+/** ล็อกอิน: รหัสผิดถูกจำกัดต่อบัญชีอยู่แล้ว (5 ครั้ง/15 นาที) ต่อ IP จึงผ่อนได้ ไม่งั้นคนหลายคนที่ใช้ Wi-Fi เดียวกันล็อกอินพร้อมกันไม่ได้ */
+const SIGNIN_LIMIT = { limit: 20, windowSec: 60 };
 
 // docs/api.md §2
 @Controller('api/v1/auth')
@@ -35,7 +39,7 @@ export class AuthController {
   ) {}
 
   @Public()
-  @RateLimit(SIGNUP_LIMIT)
+  @RateLimit(SIGNUP_FORM_LIMIT)
   @Post('signup/owner')
   async signupOwner(@Body() dto: SignupOwnerDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const { token, me } = await this.auth.signupOwner(dto, meta(req));
@@ -53,7 +57,7 @@ export class AuthController {
   }
 
   @Public()
-  @RateLimit(SIGNUP_LIMIT)
+  @RateLimit(SIGNUP_FORM_LIMIT)
   @Post('signup/agency')
   async signupAgency(@Body() dto: SignupAgencyDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const { token, me } = await this.auth.signupAgency(dto, meta(req));
@@ -61,9 +65,9 @@ export class AuthController {
     return me;
   }
 
-  /** api.md §0: 5 ครั้ง/นาที ต่อ IP */
+  /** api.md §0: 20 ครั้ง/นาที ต่อ IP + ล็อกบัญชี 5 ครั้ง/15 นาที */
   @Public()
-  @RateLimit({ limit: 5, windowSec: 60 })
+  @RateLimit(SIGNIN_LIMIT)
   @HttpCode(HttpStatus.OK)
   @Post('signin')
   async signin(@Body() dto: SigninDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {

@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { BoxModule } from './box/box.module.js';
 import { InspectionModule } from './inspection/inspection.module.js';
 import { RiderModule } from './rider/rider.module.js';
+import { SchedulerModule } from './scheduler/scheduler.module.js';
 import { SosModule } from './sos/sos.module.js';
 import { AllExceptionsFilter } from './common/http-exception.filter.js';
 import { validateEnv } from './config/env.js';
@@ -28,6 +29,7 @@ import { SupportModule } from './support/support.module.js';
     SupportModule,
     BoxModule,
     InspectionModule,
+    SchedulerModule,
     RiderModule,
     SosModule,
   ],
