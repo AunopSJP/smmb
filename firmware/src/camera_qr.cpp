@@ -197,6 +197,8 @@ bool cameraStart() {
   if (sensor_t* sen = esp_camera_sensor_get()) {
     if (settings.camSharp != 0) sen->set_sharpness(sen, settings.camSharp);
     if (settings.camAe != 0) sen->set_ae_level(sen, settings.camAe);
+    sen->set_vflip(sen, settings.camFlip & 1);
+    sen->set_hmirror(sen, (settings.camFlip >> 1) & 1);
   }
   running = true;
   // ทิ้ง 2 เฟรมแรก (รับแสงยังไม่นิ่ง)
@@ -476,6 +478,8 @@ bool cameraRawBegin() {
     if (sensor_t* sen = esp_camera_sensor_get()) {
       sen->set_sharpness(sen, settings.camSharp);
       sen->set_ae_level(sen, settings.camAe);
+      sen->set_vflip(sen, settings.camFlip & 1);
+      sen->set_hmirror(sen, (settings.camFlip >> 1) & 1);
     }
   }
   return err == ESP_OK;

@@ -10,6 +10,7 @@ struct Settings {
   String secret;  // device_secret hex 64 ตัว
   bool sleep = false;  // false (ค่าเริ่มต้น) = ถือ long-poll ตลอด → สแกน QR แล้วตู้ตอบทันที · true = หลับลึกตามเวลาตรวจ (ประหยัดไฟ แต่ปลุกไม่ได้)
   uint8_t camQ = 12;       // คุณภาพ JPEG ของเซนเซอร์ 4..30 (เลขน้อย = คมกว่า ไฟล์ใหญ่กว่า) · 12 = ค่าของสเก็ตช์ดูกล้องที่ภาพคม
+  uint8_t camFlip = 3;     // กลับภาพที่เซนเซอร์: บิต 1 = กลับบน-ล่าง (vflip) · บิต 2 = กลับซ้าย-ขวา (hmirror) · 3 = หมุน 180° (ตู้ติดตั้งแบบกลับหัว) · 0 = ไม่กลับ
   int8_t camSharp = 0;     // sharpness ของเซนเซอร์ -2..2 · 0 = ภาพ native (ไม่แต่ง)
   bool camJpeg = true;     // true = กล้องส่ง JPEG ฮาร์ดแวร์แล้วถอดเป็นเทา (เบา ได้ FPS สูง) · false = เทาดิบ (หนัก ช้า)
   String camSize = "qvga";  // qvga | vga | svga | xga (ปรับด้วยคำสั่ง cam size)

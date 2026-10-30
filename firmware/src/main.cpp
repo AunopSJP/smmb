@@ -596,6 +596,7 @@ static void runCommand(String line) {
     else if (what == "bench") cameraBench();
     else if (what == "q" && val.toInt() >= 4 && val.toInt() <= 30) settings.camQ = val.toInt();
     else if (what == "sharp" && val.toInt() >= -2 && val.toInt() <= 2) settings.camSharp = val.toInt();
+    else if (what == "flip" && val.toInt() >= 0 && val.toInt() <= 3) settings.camFlip = val.toInt();  // 0 ไม่กลับ · 1 บน-ล่าง · 2 ซ้าย-ขวา · 3 หมุน 180°
     else if (what == "fmt" && (val == "jpeg" || val == "gray")) settings.camJpeg = val == "jpeg";
     else if (what == "ae" && val.toInt() >= -2 && val.toInt() <= 2) settings.camAe = val.toInt();
     else Serial.println("usage: cam size qvga|vga|svga|xga · cam xclk 10|20 · cam fmt jpeg|gray · cam q 4..30 · cam sharp -2..2 · cam ae -2..2");

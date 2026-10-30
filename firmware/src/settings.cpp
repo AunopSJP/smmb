@@ -57,6 +57,7 @@ void settingsLoad() {
     settings.camJpeg = prefs.getBool("camjpg", true);
     settings.camQ = prefs.getUChar("camq", 12);
     settings.camSharp = (int8_t)prefs.getChar("camsh", 0);
+    settings.camFlip = prefs.getUChar("camflip", 3);
   }
   String cfg = prefs.getString("cfg", "");
   uint32_t ver = prefs.getUInt("cfgver", 0);
@@ -81,6 +82,7 @@ void settingsSave() {
   prefs.putBool("camjpg", settings.camJpeg);
   prefs.putUChar("camq", settings.camQ);
   prefs.putChar("camsh", settings.camSharp);
+  prefs.putUChar("camflip", settings.camFlip);
   prefs.end();
 }
 
