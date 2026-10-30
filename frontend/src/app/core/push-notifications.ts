@@ -82,11 +82,24 @@ export class PushNotifications {
   }
 
   private async subscription(): Promise<PushSubscription> {
-    const existing = await firstValueFrom(this.swPush.subscription);
-    if (existing) return existing;
     const { public_key } = await firstValueFrom(this.http.get<{ public_key: string }>('/api/v1/me/push/vapid-key'));
+    const existing = await firstValueFrom(this.swPush.subscription);
+    if (existing) {
+      // subscription เก่าที่สร้างด้วยกุญแจ VAPID ชุดอื่น (เซิร์ฟเวอร์เปลี่ยนกุญแจ / เคยใช้กับ dev) → push service ตอบ 403 → สมัครใหม่ด้วยกุญแจปัจจุบัน
+      if (sameKey(existing.options?.applicationServerKey, public_key)) return existing;
+      await existing.unsubscribe().catch(() => undefined);
+    }
     return this.swPush.requestSubscription({ serverPublicKey: public_key });
   }
+}
+
+/** กุญแจ VAPID (base64url ของเซิร์ฟเวอร์) ตรงกับ applicationServerKey ของ subscription ไหม · ไม่รู้ค่า = ถือว่าตรง (ไม่ทำลาย subscription ที่ใช้ได้) */
+export function sameKey(actual: ArrayBuffer | null | undefined, expectedB64Url: string): boolean {
+  if (!actual) return true;
+  const pad = '='.repeat((4 - (expectedB64Url.length % 4)) % 4);
+  const raw = atob((expectedB64Url + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  const a = new Uint8Array(actual);
+  return a.length === raw.length && a.every((v, i) => v === raw.charCodeAt(i));
 }
 
 export interface PushTestResult {

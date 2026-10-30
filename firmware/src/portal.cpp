@@ -43,6 +43,11 @@ static void scanNetworks() {
   WiFi.scanDelete();
 }
 
+// เซิร์ฟเวอร์ตั้งต้น — ช่าง/คนตั้งค่าไม่ต้องพิมพ์ URL เอง (แก้ได้ด้วย -DDEFAULT_SERVER_URL=\"...\" ใน platformio.ini)
+#ifndef DEFAULT_SERVER_URL
+#define DEFAULT_SERVER_URL "https://hub.sjp-dev.net/smmb-api"
+#endif
+
 static const char PAGE_HEAD[] = R"HTML(<!doctype html><html lang="th"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>ตั้ง Wi-Fi ให้ตู้</title>
 <style>body{font-family:sans-serif;margin:0;padding:16px;max-width:480px;margin:auto;background:#fafafa;color:#222}
@@ -62,7 +67,7 @@ static void handleRoot() {
   h += "<label>หรือพิมพ์ชื่อ Wi-Fi</label><input name=ssid2 autocomplete=off placeholder='ถ้าไม่เห็นในรายการ'>";
   h += "<label>รหัส Wi-Fi</label><input name=pass type=password autocomplete=off>";
   h += "</div><details class=box><summary>ตั้งค่าอุปกรณ์ (ช่าง)</summary>";
-  h += "<label>URL เซิร์ฟเวอร์</label><input name=url value=\"" + esc(settings.url) + "\" placeholder='https://hub.sjp-dev.net/smmb-api'>";
+  h += "<label>URL เซิร์ฟเวอร์</label><input name=url value=\"" + esc(settings.url.length() ? settings.url : String(DEFAULT_SERVER_URL)) + "\" placeholder='https://hub.sjp-dev.net/smmb-api'>";
   h += "<label>รหัสตู้ (box_id)</label><input name=box value=\"" + esc(settings.boxId) + "\" placeholder='BX-00003'>";
   h += "<label>รหัสลับประจำตู้ (device_secret)</label><input name=secret autocomplete=off placeholder='" +
        String(settings.secret.length() == 64 ? "ตั้งไว้แล้ว — เว้นว่าง = ใช้ค่าเดิม" : "64 ตัว จากหลังบ้าน") + "'>";
@@ -95,6 +100,7 @@ static void handleSave() {
   settings.wifiSsid = ssid;
   settings.wifiPass = server.arg("pass");
   if (url.length()) settings.url = url;
+  else if (!settings.url.length()) settings.url = DEFAULT_SERVER_URL;  // เว้นว่าง = ใช้เซิร์ฟเวอร์ตั้งต้น (ไม่งั้นตู้ค้างในโหมดตั้งค่าเพราะ URL ว่าง)
   if (box.length()) settings.boxId = box;
   if (secret.length()) settings.secret = secret;
   // บันทึกทันที — ต่อ Wi-Fi ไม่ผ่านก็ไม่ต้องกรอกรหัสตู้/รหัสลับซ้ำ

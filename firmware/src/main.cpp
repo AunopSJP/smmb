@@ -482,6 +482,7 @@ static void runCommand(String line) {
         "  camweb [sec]           the same page, temporarily (default 120 s)\n"
         "  portal                 start the Wi-Fi setup portal\n"
         "  forget                 forget Wi-Fi and restart\n"
+        "  factory                erase ALL saved settings (Wi-Fi, url, box, secret, camera, config) and restart as a new board\n"
         "  reboot");
   } else if (cmd == "status") {
     printStatus();
@@ -574,6 +575,15 @@ static void runCommand(String line) {
     if (runSetupPortal(PORTAL_TIMEOUT_MS)) ESP.restart();
   } else if (cmd == "forget") {
     settingsForgetWifi();
+    ESP.restart();
+  } else if (cmd == "factory") {
+    // คืนเป็นบอร์ดใหม่: ลบทุกอย่างที่จำไว้ (Wi-Fi · url · box · secret · ค่ากล้อง · config) แล้วเข้าโหมดตั้งค่า
+    Preferences wipe;
+    wipe.begin("smmb", false);
+    wipe.clear();
+    wipe.end();
+    Serial.println("[factory] all saved settings erased - restarting into setup mode");
+    delay(300);
     ESP.restart();
   } else if (cmd == "cam") {
     // cam size qvga|vga|svga|xga · cam xclk 10|20 · cam ae -2..2 — ปรับกล้องโดยไม่ต้องแฟลชใหม่ (มีผลหลังรีบูต)

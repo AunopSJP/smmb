@@ -1,7 +1,7 @@
 #pragma once
 // ขาและค่าคงที่ของบอร์ด ESP32-CAM (AI-Thinker) — แก้ที่นี่ที่เดียวถ้าต่อวงจรต่างไป
 
-#define FW_VERSION "0.2.2"
+#define FW_VERSION "0.2.4"
 
 // Buzzer (ผู้ใช้ต่อที่ GPIO13 · 2026-10-28)
 #define PIN_BUZZER 13

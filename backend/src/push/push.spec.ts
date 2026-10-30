@@ -66,3 +66,15 @@ describe('buildPayload', () => {
     expect(p.notification).not.toHaveProperty('requireInteraction');
   });
 });
+
+describe('vapidKeysMatch', () => {
+  it('accepts a generated pair and rejects a mismatched or malformed one', async () => {
+    const { default: webpush } = await import('web-push');
+    const a = webpush.generateVAPIDKeys();
+    const b = webpush.generateVAPIDKeys();
+    const { vapidKeysMatch } = await import('./push.sender.js');
+    expect(vapidKeysMatch(a.publicKey, a.privateKey)).toBe(true);
+    expect(vapidKeysMatch(a.publicKey, b.privateKey)).toBe(false);
+    expect(vapidKeysMatch('x', 'y')).toBe(false);
+  });
+});
