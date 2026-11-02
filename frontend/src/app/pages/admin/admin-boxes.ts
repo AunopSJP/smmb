@@ -84,41 +84,65 @@ type BoxFilter = 'all' | 'unbound' | 'offline' | 'low';
         </section>
       }
 
-      <form class="add" (submit)="$event.preventDefault(); register()">
-        <label class="field">
-          <span>{{ i18n.t({ th: 'ลงทะเบียนตู้ใหม่ (จำนวน)', en: 'Register new boxes (count)' }) }}</span>
-          <input type="number" min="1" max="50" inputmode="numeric" [value]="count()" (input)="count.set(+$any($event.target).value)" />
+      <div class="toolbar">
+        <label class="search-box">
+          <app-icon name="search" [size]="18" />
+          <input type="search" [placeholder]="i18n.t({ th: 'ค้นรหัสตู้ / บ้านเลขที่', en: 'Search box id / house no.' })" [value]="q()" (input)="q.set($any($event.target).value)" />
         </label>
-        <button type="submit" class="btn" [disabled]="busy() || count() < 1 || count() > 50">{{ i18n.t({ th: 'สร้าง', en: 'Create' }) }}</button>
-      </form>
-
-      <input class="search" type="search" [placeholder]="i18n.t({ th: 'ค้นรหัสตู้ / บ้านเลขที่', en: 'Search box id / house no.' })" [value]="q()" (input)="q.set($any($event.target).value)" />
-      <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'กรอง', en: 'Filter' })">
-        @for (f of filters; track f.v) {
-          <button type="button" [attr.aria-pressed]="filter() === f.v" (click)="filter.set(f.v)">{{ i18n.t(f.label) }}</button>
-        }
+        <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'กรอง', en: 'Filter' })">
+          @for (f of filters; track f.v) {
+            <button type="button" [attr.aria-pressed]="filter() === f.v" (click)="filter.set(f.v)">{{ i18n.t(f.label) }}</button>
+          }
+        </div>
+        <form class="add" (submit)="$event.preventDefault(); register()">
+          <label class="count">
+            <span class="muted small">{{ i18n.t({ th: 'ลงทะเบียนตู้ใหม่', en: 'Register boxes' }) }}</span>
+            <input type="number" min="1" max="50" inputmode="numeric" [value]="count()" (input)="count.set(+$any($event.target).value)" [attr.aria-label]="i18n.t({ th: 'จำนวนตู้', en: 'Count' })" />
+          </label>
+          <button type="submit" class="btn" [disabled]="busy() || count() < 1 || count() > 50">
+            <app-icon name="plus" [size]="18" />{{ i18n.t({ th: 'สร้าง', en: 'Create' }) }}
+          </button>
+        </form>
       </div>
-      <nav class="list">
+      <div class="list">
+        <div class="list-head cols desktop-only" aria-hidden="true">
+          <span>{{ i18n.t({ th: 'ตู้', en: 'Box' }) }}</span>
+          <span>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</span>
+          <span>{{ i18n.t({ th: 'แบตเตอรี่', en: 'Battery' }) }}</span>
+          <span>{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last seen' }) }}</span>
+          <span></span>
+        </div>
         @for (b of rows(); track b.id) {
           @let badge = boxBadge(b);
-          <a class="row" [routerLink]="url('D04')" [queryParams]="{ id: b.id }">
-            <span class="icon-bubble" [class.ok]="badge.tone === 'ok'" [class.warn]="badge.tone === 'warn'" [class.danger]="badge.tone === 'danger'">
-              <app-icon name="box" [size]="20" />
-            </span>
-            <span class="grow">
-              <strong>{{ b.id }}{{ b.house_no ? ' · ' + b.house_no : '' }}</strong>
-              <span class="muted small block">
-                {{ b.battery ? i18n.t({ th: 'แบต ', en: 'Battery ' }) + b.battery.pct + '% · ' : '' }}{{ i18n.t(seen(b.last_seen_at)) }}
+          <a class="row cols" [routerLink]="url('D04')" [queryParams]="{ id: b.id }">
+            <span class="who">
+              <span class="icon-bubble" [class.ok]="badge.tone === 'ok'" [class.warn]="badge.tone === 'warn'" [class.danger]="badge.tone === 'danger'">
+                <app-icon name="box" [size]="20" />
+              </span>
+              <span class="grow">
+                <strong>{{ b.id }}</strong>
+                <span class="muted small block">{{ b.house_no ?? i18n.t({ th: 'ยังไม่ผูกบ้าน', en: 'Not linked to a house' }) }}</span>
               </span>
             </span>
-            <span class="chip" [class.ok]="badge.tone === 'ok'" [class.warn]="badge.tone === 'warn'" [class.danger]="badge.tone === 'danger'">
-              {{ i18n.t(badge.label) }}
+            <span>
+              <span class="chip" [class.ok]="badge.tone === 'ok'" [class.warn]="badge.tone === 'warn'" [class.danger]="badge.tone === 'danger'">
+                {{ i18n.t(badge.label) }}
+              </span>
             </span>
+            <span class="batt" [class.low]="!!b.battery && b.battery.pct < lowPct">
+              @if (b.battery) {
+                <span class="bar" aria-hidden="true"><i [style.width.%]="b.battery.pct"></i></span>{{ b.battery.pct }}%
+              } @else {
+                <span class="muted">—</span>
+              }
+            </span>
+            <span class="muted small">{{ i18n.t(seen(b.last_seen_at)) }}</span>
+            <span class="go desktop-only"><app-icon name="chevronRight" [size]="18" /></span>
           </a>
         } @empty {
           <p class="row muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ไม่มีตู้ในกลุ่มนี้', en: 'No mailboxes here' }) }}</p>
         }
-      </nav>
+      </div>
       <p class="muted small">{{ i18n.t({ th: 'ทั้งหมด ' + total() + ' ตู้', en: total() + ' mailboxes' }) }}</p>
     </div>
   `,
@@ -150,27 +174,113 @@ type BoxFilter = 'all' | 'unbound' | 'offline' | 'low';
     .block {
       display: block;
     }
-    .add {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 10px;
-      align-items: end;
-      min-width: 0;
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 16px;
     }
-    .add > * {
-      min-width: 0;
-    }
-    .add .btn {
-      width: auto;
-    }
-    .search {
+    .search-box {
+      flex: 1 1 260px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
       min-height: 44px;
-      padding: 8px 12px;
+      padding: 0 12px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--line);
+      background: var(--surface);
+      color: var(--text-muted);
+    }
+    .search-box:focus-within {
+      border-color: var(--brand);
+    }
+    .search-box input {
+      flex: 1;
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+    }
+    .add {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+    .count {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .count input {
+      width: 64px;
+      min-height: 40px;
+      padding: 4px 8px;
       border-radius: var(--radius-sm);
       border: 1.5px solid var(--line);
       background: var(--surface);
       color: var(--text);
       font: inherit;
+      text-align: center;
+    }
+    .add .btn {
+      width: auto;
+    }
+    .who {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .batt {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-variant-numeric: tabular-nums;
+    }
+    .batt.low {
+      color: var(--warn);
+      font-weight: 700;
+    }
+    .bar {
+      width: 56px;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--icon-bg);
+      overflow: hidden;
+    }
+    .bar i {
+      display: block;
+      height: 100%;
+      background: var(--ok);
+    }
+    .low .bar i {
+      background: var(--orange-line);
+    }
+    .go {
+      color: var(--text-muted);
+      justify-self: end;
+    }
+    /* มือถือ: สองบรรทัด (ชื่อ+สถานะ / แบต+ติดต่อล่าสุด) · จอคอม: คอลัมน์แบบตาราง */
+    .cols {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 6px 12px;
+      align-items: center;
+    }
+    .cols > :nth-child(4) {
+      justify-self: end;
+    }
+    @media (min-width: 1024px) {
+      .cols {
+        display: grid;
+        grid-template-columns: minmax(0, 2.2fr) 140px 150px minmax(0, 1.4fr) 28px;
+        gap: 16px;
+        align-items: center;
+      }
     }
     .new {
       box-shadow: inset 0 0 0 2px var(--ok);
@@ -196,15 +306,17 @@ type BoxFilter = 'all' | 'unbound' | 'offline' | 'low';
     }
     @media (max-width: 420px) {
       .add {
-        grid-template-columns: minmax(0, 1fr);
+        width: 100%;
+        margin-left: 0;
       }
       .add .btn {
-        width: 100%;
+        flex: 1;
       }
     }
   `,
 })
 export class AdminBoxes implements OnInit {
+  protected readonly lowPct = LOW_BATTERY_PCT;
   protected readonly i18n = inject(I18n);
   private readonly api = inject(AdminApi);
   private readonly toast = inject(Toast);
@@ -560,6 +672,25 @@ export class AdminBoxes implements OnInit {
     }
   `,
   styles: `
+    /* จอคอม: การ์ดของตู้ไหลเป็นสองคอลัมน์ (หัวข้อติดกับการ์ดถัดไป ไม่ขาดจากกัน) */
+    @media (min-width: 1024px) {
+      .stack.grow {
+        display: block;
+        column-count: 2;
+        column-gap: 24px;
+      }
+      .stack.grow > * {
+        break-inside: avoid;
+        margin-bottom: 16px;
+      }
+      .stack.grow > .section-title {
+        break-after: avoid;
+        margin: 8px 0 8px;
+      }
+      .stack.grow > .btn {
+        display: inline-flex;
+      }
+    }
     /* ตั้งค่าเฉพาะตู้ (details) — ให้ช่องแต่ละช่องมีระยะห่างเหมือนการ์ดอื่น */
     .override {
       margin: 12px 0;

@@ -59,7 +59,10 @@ const MOCK_SCREENS = new Set<string>();
     <div class="frame" [class.admin-layout]="isAdmin" [style.--content-w]="contentWidth">
       @if (isAdmin) {
         <aside class="side" [attr.aria-label]="i18n.t({ th: 'เมนูแอดมิน', en: 'Admin menu' })">
-          <p class="brand">Smart Mailbox <span>{{ i18n.t({ th: 'แอดมิน', en: 'Admin' }) }}</span></p>
+          <p class="brand">
+            <span class="logo" aria-hidden="true">S</span>
+            <span class="name">Smart Mailbox<small>{{ i18n.t({ th: 'ศูนย์ควบคุมแอดมิน', en: 'Admin console' }) }}</small></span>
+          </p>
           @for (g of adminNav; track g.title.en) {
             <p class="group">{{ i18n.t(g.title) }}</p>
             @for (it of g.items; track it.code) {
@@ -69,7 +72,16 @@ const MOCK_SCREENS = new Set<string>();
               </a>
             }
           }
-          <button type="button" class="out" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
+          <div class="me">
+            <span class="avatar" aria-hidden="true">{{ initial() }}</span>
+            <span class="who">
+              <strong>{{ session.me()?.display_name ?? '' }}</strong>
+              <small>{{ i18n.t({ th: 'แอดมิน', en: 'Admin' }) }}</small>
+            </span>
+            <button type="button" class="out" (click)="signout()" [attr.aria-label]="i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' })" [attr.title]="i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' })">
+              <app-icon name="signout" [size]="18" />
+            </button>
+          </div>
         </aside>
       }
       @if (mock()) {
@@ -111,6 +123,9 @@ const MOCK_SCREENS = new Set<string>();
         grid-template-rows: auto 1fr;
         align-items: start;
       }
+      .admin-layout {
+        grid-template-columns: 264px minmax(0, 1fr);
+      }
       .admin-layout .side {
         display: flex;
         flex-direction: column;
@@ -120,14 +135,14 @@ const MOCK_SCREENS = new Set<string>();
         top: 0;
         height: 100dvh;
         overflow-y: auto;
-        padding: 20px 12px;
+        padding: 20px 14px 14px;
         background: var(--surface);
-        border-right: 1px solid var(--line);
+        border-right: 1px solid var(--line-strong, var(--line));
       }
       .admin-layout main {
-        max-width: 1280px;
+        max-width: 1360px;
         margin-inline: 0;
-        padding: 20px clamp(24px, 3vw, 48px) 48px;
+        padding: 12px clamp(28px, 3.2vw, 56px) 64px;
         grid-column: 2;
       }
       .admin-layout app-tab-bar {
@@ -138,50 +153,127 @@ const MOCK_SCREENS = new Set<string>();
       }
     }
     .brand {
-      font-weight: 800;
-      padding: 4px 12px 16px;
-      color: var(--brand);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 4px 8px 18px;
     }
-    .brand span {
-      display: block;
+    .logo {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 800;
+      font-size: 1.25rem;
+    }
+    .name {
+      display: flex;
+      flex-direction: column;
+      font-weight: 800;
+      line-height: 1.25;
+    }
+    .name small {
       font-size: 0.75rem;
-      font-weight: 600;
+      font-weight: 500;
       color: var(--text-muted);
     }
     .group {
-      font-size: 0.6875rem;
-      letter-spacing: 0.04em;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
       text-transform: uppercase;
       color: var(--text-muted);
-      padding: 14px 12px 4px;
+      padding: 18px 12px 6px;
     }
     .side a {
+      position: relative;
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 9px 12px;
-      border-radius: var(--radius-sm);
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
       color: var(--text);
       text-decoration: none;
       font-size: 0.9375rem;
     }
+    .side a app-icon {
+      color: var(--text-muted);
+    }
     .side a:hover {
-      background: var(--brand-light);
+      background: var(--icon-bg);
     }
     .side a.active {
       background: var(--brand-light);
       color: var(--brand-dark);
       font-weight: 700;
     }
-    .out {
-      margin-top: auto;
-      padding: 10px 12px;
-      border: 1.5px solid var(--line);
-      border-radius: var(--radius-sm);
-      background: transparent;
+    .side a.active app-icon {
       color: var(--brand);
-      font: inherit;
+    }
+    .side a.active::before {
+      content: '';
+      position: absolute;
+      left: -14px;
+      top: 8px;
+      bottom: 8px;
+      width: 4px;
+      border-radius: 0 4px 4px 0;
+      background: var(--brand);
+    }
+    .me {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 8px 4px;
+      border-top: 1px solid var(--line-strong, var(--line));
+    }
+    .avatar {
+      display: grid;
+      place-items: center;
+      flex: none;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--brand-light);
+      color: var(--brand-dark);
+      font-weight: 800;
+    }
+    .who {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.3;
+    }
+    .who strong {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.875rem;
+    }
+    .who small {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .out {
+      display: grid;
+      place-items: center;
+      flex: none;
+      width: 36px;
+      height: 36px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-muted);
       cursor: pointer;
+    }
+    .out:hover {
+      background: var(--danger-bg);
+      color: var(--sos);
     }
     .demo {
       display: block;
@@ -233,8 +325,9 @@ export class AreaShell {
   /** แอดมินใช้จอคอมเป็นหลัก → เต็มพื้นที่ (กำหนดใน CSS ≥1024px) · มือถือ/แท็บเล็ตยังเป็นเนื้อหาเดียวกว้าง 960 */
   protected readonly contentWidth = this.area === 'admin' || this.area === 'head' ? '960px' : '640px';
   protected readonly adminNav = ADMIN_NAV;
+  protected readonly session = inject(Session);
+  protected readonly initial = computed(() => (this.session.me()?.display_name ?? 'A').trim().charAt(0).toUpperCase());
   protected readonly url = screenUrl;
-  private readonly session = inject(Session);
   private readonly router = inject(Router);
   protected signout(): void {
     void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04')));

@@ -69,6 +69,35 @@ import { Icon } from './icon';
       line-height: 18px;
       text-align: center;
     }
+    /* แอดมินบนจอคอม: หัวหน้าจอใหญ่ขึ้น ปุ่มกลมเล็กลง เส้นคั่นใต้หัว */
+    @media (min-width: 1024px) {
+      :host-context(.admin-layout) header {
+        gap: 14px;
+        padding: 20px 0 16px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid var(--line-strong);
+      }
+      :host-context(.admin-layout) h1 {
+        font-size: 1.75rem;
+        letter-spacing: -0.01em;
+      }
+      :host-context(.admin-layout) .caption {
+        font-size: 0.875rem;
+      }
+      :host-context(.admin-layout) .circle {
+        width: 40px;
+        height: 40px;
+        border: 1px solid var(--line-strong);
+        box-shadow: none;
+      }
+      /* มีเมนูข้างแล้ว ไม่ต้องมีปุ่มย้อนกลับกลม */
+      :host-context(.admin-layout) a.circle:not(.bell) {
+        display: none;
+      }
+      :host-context(.admin-layout) .circle:hover {
+        background: var(--icon-bg);
+      }
+    }
     .circle {
       display: grid;
       place-items: center;

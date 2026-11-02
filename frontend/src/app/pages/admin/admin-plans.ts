@@ -347,6 +347,20 @@ export class UserPlan {
       grid-template-columns: 1fr 1fr;
       gap: 10px;
     }
+    @media (min-width: 1024px) {
+      .plan {
+        align-items: center;
+      }
+      .actions {
+        flex-direction: row;
+      }
+      .mini {
+        border-width: 1px;
+      }
+      .mini:hover:not([disabled]) {
+        background: var(--icon-bg);
+      }
+    }
   `,
 })
 export class AdminPlans implements OnInit {

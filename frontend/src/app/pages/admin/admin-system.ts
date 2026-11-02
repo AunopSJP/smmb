@@ -170,10 +170,13 @@ const LOG_TYPE: Record<AdminLogType, { label: Tr; icon: IconName; tone: '' | 'wa
       [bell]="url('D12')"
     />
     <div class="stack">
-      <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'ประเภท', en: 'Type' })">
-        @for (t of types; track t) {
-          <button type="button" [attr.aria-pressed]="picked().has(t)" (click)="toggle(t)">{{ i18n.t(meta[t].label) }}</button>
-        }
+      <div class="toolbar">
+        <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'ประเภท', en: 'Type' })">
+          @for (t of types; track t) {
+            <button type="button" [attr.aria-pressed]="picked().has(t)" (click)="toggle(t)">{{ i18n.t(meta[t].label) }}</button>
+          }
+        </div>
+        <button type="button" class="btn secondary csv" [disabled]="!rows().length" (click)="exportCsv()">{{ i18n.t({ th: 'ส่งออก CSV (ตามตัวกรอง)', en: 'Export CSV (filtered)' }) }}</button>
       </div>
       <ul class="list">
         @for (l of rows(); track l.id) {
@@ -196,7 +199,6 @@ const LOG_TYPE: Record<AdminLogType, { label: Tr; icon: IconName; tone: '' | 'wa
         <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดประวัติไม่ได้ · ลองใหม่', en: 'Could not load logs · try again' }) }}</p>
         <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองใหม่', en: 'Retry' }) }}</button>
       }
-      <button type="button" class="btn secondary" [disabled]="!rows().length" (click)="exportCsv()">{{ i18n.t({ th: 'ส่งออก CSV (ตามตัวกรอง)', en: 'Export CSV (filtered)' }) }}</button>
       <p class="muted small">{{ i18n.t({ th: 'บันทึกทุกการสแกน/พิมพ์รหัส แม้ไม่ผ่าน · ลบหรือแก้ไม่ได้', en: 'Every scan or typed code is logged, even failures · cannot be edited' }) }}</p>
     </div>
   `,
@@ -215,6 +217,33 @@ const LOG_TYPE: Record<AdminLogType, { label: Tr; icon: IconName; tone: '' | 'wa
     }
     .segmented {
       flex-wrap: wrap;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px 16px;
+    }
+    .csv {
+      width: 100%;
+    }
+    /* จอคอม: หัวข้อ + รายละเอียดอยู่บรรทัดเดียวกัน อ่านเป็นตาราง */
+    @media (min-width: 1024px) {
+      .csv {
+        width: auto;
+      }
+      .row .grow {
+        display: flex;
+        align-items: baseline;
+        gap: 24px;
+      }
+      .row .grow strong {
+        flex: 0 0 300px;
+      }
+      .row .grow .block {
+        display: inline;
+      }
     }
   `,
 })

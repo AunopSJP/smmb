@@ -840,3 +840,182 @@ app-area-shell main > :not(router-outlet) {
     display: none;
   }
 }
+
+// ── แอดมินบนจอคอม: ออกแบบใหม่ (≥1024px) ───────────────────────
+// ชิ้นส่วนร่วมของมือถือใช้ปุ่มเต็มความกว้าง/การ์ดลอย → บนจอคอมเปลี่ยนเป็นปุ่มพอดีตัว · การ์ดมีเส้นขอบ · รายการแบบตาราง
+@media (min-width: 1024px) {
+  .admin-layout {
+    --line-strong: color-mix(in srgb, var(--text-muted) 32%, transparent);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --gap: 20px;
+    --shadow: 0 1px 2px rgb(0 0 0 / 6%);
+
+    .stack {
+      gap: var(--gap);
+    }
+    .card,
+    .list,
+    .stat {
+      border: 1px solid var(--line-strong);
+      box-shadow: var(--shadow);
+    }
+    .card {
+      padding: 20px 24px;
+    }
+
+    .section-title {
+      margin: 8px 0 -4px;
+      font-size: 1.0625rem;
+    }
+
+    // ปุ่ม: พอดีตัว ไม่ยืดเต็มจอ
+    .btn {
+      width: auto;
+      min-height: 40px;
+      padding: 8px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 0.9375rem;
+      transition: background 0.12s, box-shadow 0.12s;
+
+      &:hover:not([disabled]) {
+        background: var(--brand-dark);
+      }
+      &.secondary {
+        box-shadow: inset 0 0 0 1px var(--line-strong);
+        &:hover:not([disabled]) {
+          background: var(--icon-bg);
+        }
+      }
+      &.big {
+        min-height: 48px;
+        font-size: 1rem;
+      }
+    }
+    .stack > .btn,
+    .card > .btn,
+    .card.stack > .btn {
+      align-self: flex-start;
+    }
+    // ปุ่มในตารางสองช่อง/แถวฟอร์มให้เต็มช่องของตัวเอง
+    .two > .btn,
+    .add > .btn {
+      width: 100%;
+    }
+
+    // ช่องกรอก
+    .field {
+      input,
+      textarea,
+      select {
+        min-height: 40px;
+        padding: 8px 12px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--line-strong);
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+        width: 100%;
+      }
+      > span {
+        font-size: 0.875rem;
+      }
+    }
+    input[type='search'],
+    input[type='text'],
+    input[type='number'],
+    input[type='date'],
+    input[type='time'],
+    select {
+      &:focus-visible {
+        outline: 2px solid var(--brand);
+        outline-offset: 1px;
+      }
+    }
+
+    // การ์ดตัวเลข
+    .stats {
+      gap: var(--gap);
+    }
+    .stat {
+      position: relative;
+      padding: 18px 20px 16px;
+      transition: border-color 0.12s, transform 0.12s;
+
+      .label {
+        font-size: 0.875rem;
+        font-weight: 600;
+      }
+      .value {
+        margin-top: 4px;
+        font-size: 2.125rem;
+        letter-spacing: -0.01em;
+      }
+      &.link:hover {
+        border-color: var(--brand);
+        transform: translateY(-1px);
+      }
+      .stat-icon {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+      }
+    }
+
+    // รายการ = ตาราง: แถวสูงพอดี มี hover
+    .list {
+      border-radius: var(--radius);
+    }
+    .row {
+      min-height: 56px;
+      padding: 12px 20px;
+    }
+    a.row,
+    button.row {
+      cursor: pointer;
+      transition: background 0.1s;
+      &:hover {
+        background: var(--brand-lighter);
+      }
+    }
+    .list > .row.muted,
+    .list > p.row {
+      justify-content: center;
+      padding: 40px 20px;
+    }
+    .list-head {
+      display: grid;
+      align-items: center;
+      padding: 10px 20px;
+      background: var(--icon-bg);
+      color: var(--text-muted);
+      font-size: 0.8125rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .segmented button {
+      transition: background 0.1s;
+    }
+    .segmented.chips button:hover {
+      background: var(--icon-bg);
+    }
+
+    // กล่องสรุปทั้งหน้า: หัวข้อ + เนื้อหา คั่นด้วยเส้นบาง
+    .info-box {
+      border-radius: var(--radius-sm);
+    }
+
+    // หน้าที่เป็นฟอร์ม/ขั้นตอน: จำกัดความกว้างให้อ่านและกรอกง่าย (ไม่ยืดเต็มจอ)
+    :is(app-admin-config, app-tech-checklist, app-tech-wifi, app-tech-lights, app-tech-wifi-failed, app-admin-plans, app-admin-qr-fake, app-admin-qr-damaged, app-admin-qr-swap, app-admin-qr-reissue, app-admin-qr-fixed) > :not(app-page-header) {
+      width: 100%;
+      max-width: 760px;
+    }
+  }
+}
+/* ชิ้นส่วนที่มีเฉพาะจอคอม (ทางลัด/หัวตาราง) — ต่ำกว่า 1024px ซ่อน */
+@media (max-width: 1023.98px) {
+  .desktop-only {
+    display: none !important;
+  }
+}

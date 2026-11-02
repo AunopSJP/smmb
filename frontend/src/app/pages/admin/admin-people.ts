@@ -22,7 +22,7 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
 
 @Component({
   selector: 'app-admin-agency-requests',
-  imports: [PageHeader],
+  imports: [PageHeader, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'หน่วยงานรออนุมัติ', en: 'Agency requests' })" [back]="url('D01')" />
@@ -60,7 +60,10 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
           }
         </section>
       } @empty {
-        <p class="muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ไม่มีหน่วยงานรออนุมัติ', en: 'No agencies waiting' }) }}</p>
+        <section class="card empty">
+          <app-icon name="check" [size]="28" />
+          <p class="muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ไม่มีหน่วยงานรออนุมัติ — จัดการครบแล้ว', en: 'No agencies waiting — all done' }) }}</p>
+        </section>
       }
     </div>
   `,
@@ -72,6 +75,25 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
     }
     .chip {
       margin-left: 6px;
+    }
+    .empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 40px 24px;
+      color: var(--text-muted);
+    }
+    @media (min-width: 1024px) {
+      .stack {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+        align-items: start;
+      }
+      .stack > .empty,
+      .stack > .ok-card {
+        grid-column: 1 / -1;
+      }
     }
     .ok-card {
       background: var(--ok-bg);
@@ -164,15 +186,21 @@ export class AdminAgencyRequests implements OnInit {
     <div class="stack">
       <a class="btn secondary" [routerLink]="url('D02')">{{ i18n.t({ th: 'ดูคำขอที่รออนุมัติ', en: 'See pending requests' }) }}</a>
       <div class="list">
+        <div class="list-head acols desktop-only" aria-hidden="true">
+          <span>{{ i18n.t({ th: 'หน่วยงาน', en: 'Agency' }) }}</span>
+          <span>{{ i18n.t({ th: 'หัวหน้า', en: 'Head' }) }}</span>
+          <span>{{ i18n.t({ th: 'รหัสกลุ่ม', en: 'Group code' }) }}</span>
+          <span>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</span>
+        </div>
         @for (a of rows(); track a.id) {
-          <div class="row">
+          <div class="row acols">
             <span class="grow">
               <strong>{{ a.name }}</strong>
-              <span class="muted small block">
-                {{ i18n.t(type(a.type)) }} · {{ i18n.t({ th: 'หัวหน้า ', en: 'Head ' }) }}{{ heads(a) }}{{ a.group_code ? ' · ' + code(a.group_code) : '' }}
-              </span>
+              <span class="muted small block">{{ i18n.t(type(a.type)) }}</span>
             </span>
-            <span class="chip" [class.ok]="a.status === 'approved'" [class.warn]="a.status === 'pending'">{{ i18n.t(status[a.status]) }}</span>
+            <span class="small">{{ heads(a) }}</span>
+            <span class="small code">{{ a.group_code ? code(a.group_code) : '—' }}</span>
+            <span><span class="chip" [class.ok]="a.status === 'approved'" [class.warn]="a.status === 'pending'">{{ i18n.t(status[a.status]) }}</span></span>
           </div>
         } @empty {
           <p class="row muted">{{ i18n.t({ th: 'ยังไม่มีหน่วยงาน', en: 'No agencies yet' }) }}</p>
@@ -187,6 +215,34 @@ export class AdminAgencyRequests implements OnInit {
     }
     .block {
       display: block;
+    }
+    .acols {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 4px 12px;
+      align-items: center;
+    }
+    .acols > :nth-child(2),
+    .acols > :nth-child(3) {
+      grid-column: 1;
+    }
+    .acols > :nth-child(4) {
+      grid-column: 2;
+      grid-row: 1;
+    }
+    .code {
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.03em;
+    }
+    @media (min-width: 1024px) {
+      .acols {
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr) 160px 130px;
+        gap: 16px;
+      }
+      .acols > :nth-child(n) {
+        grid-column: auto;
+        grid-row: auto;
+      }
     }
   `,
 })
@@ -233,10 +289,16 @@ const ROLE_LABEL: Record<string, Tr> = {
         <button type="submit" class="btn secondary">{{ i18n.t({ th: 'ค้น', en: 'Search' }) }}</button>
       </form>
 
+      <div class="split">
+      <aside class="detail">
       @if (selected(); as u) {
         <section class="card stack">
-          <div>
-            <strong>{{ u.name }}</strong> <span class="muted small">{{ u.phone }}</span>
+          <div class="who-head">
+            <span class="avatar" aria-hidden="true">{{ u.name.charAt(0) }}</span>
+            <div>
+              <strong>{{ u.name }}</strong>
+              <span class="muted small block">{{ u.phone }}</span>
+            </div>
           </div>
           <p class="small">
             @for (b of badges(u); track b) {
@@ -270,7 +332,13 @@ const ROLE_LABEL: Record<string, Tr> = {
         @if (badges(u).includes('owner')) {
           <app-user-plan [userId]="u.id" />
         }
+      } @else {
+        <section class="card empty desktop-only">
+          <app-icon name="user" [size]="28" />
+          <p class="muted">{{ i18n.t({ th: 'เลือกผู้ใช้จากรายการด้านซ้าย เพื่อรีเซ็ตรหัส ปิด/เปิดบัญชี หรือดูแพ็กเกจ', en: 'Pick a user on the left to reset the password, enable/disable the account or see the plan' }) }}</p>
+        </section>
       }
+      </aside>
 
       <nav class="list">
         @for (u of users(); track u.id) {
@@ -288,6 +356,7 @@ const ROLE_LABEL: Record<string, Tr> = {
           <p class="row muted">{{ i18n.t({ th: 'ไม่พบผู้ใช้', en: 'No users found' }) }}</p>
         }
       </nav>
+      </div>
     </div>
   `,
   styles: `
@@ -320,6 +389,62 @@ const ROLE_LABEL: Record<string, Tr> = {
     }
     .row.on {
       box-shadow: inset 3px 0 0 var(--brand);
+      background: var(--brand-lighter);
+    }
+    /* มือถือ: รายละเอียดอยู่เหนือรายการ · จอคอม: รายการซ้าย รายละเอียดขวา (ติดบนเมื่อเลื่อน) */
+    .split {
+      display: flex;
+      flex-direction: column;
+      gap: var(--gap);
+    }
+    .detail {
+      order: -1;
+      display: flex;
+      flex-direction: column;
+      gap: var(--gap);
+      min-width: 0;
+    }
+    @media (min-width: 1024px) {
+      .split {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 440px;
+        align-items: start;
+      }
+      .detail {
+        order: 0;
+        grid-column: 2;
+        grid-row: 1;
+        position: sticky;
+        top: 16px;
+      }
+      .split > .list {
+        grid-column: 1;
+        grid-row: 1;
+      }
+    }
+    .who-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .avatar {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--brand-light);
+      color: var(--brand-dark);
+      font-weight: 800;
+    }
+    .empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 40px 24px;
+      text-align: center;
+      color: var(--text-muted);
     }
     button.row {
       width: 100%;

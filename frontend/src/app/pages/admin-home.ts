@@ -26,23 +26,28 @@ import { PageHeader } from '../shared/page-header';
     <div class="stack dash">
       <div class="stats">
         <a class="stat link" [routerLink]="url('D03')">
+          <span class="icon-bubble ok stat-icon desktop-only"><app-icon name="wifi" [size]="20" /></span>
           <p class="label">{{ i18n.t({ th: 'ตู้ออนไลน์', en: 'Boxes online' }) }}</p>
           <p class="value ok">{{ online() }}/{{ totalBoxes() }}</p>
         </a>
         <a class="stat link" [routerLink]="url('D03')" [queryParams]="{ filter: 'low' }">
+          <span class="icon-bubble warn stat-icon desktop-only"><app-icon name="alert" [size]="20" /></span>
           <p class="label">{{ i18n.t({ th: 'แบตต่ำ', en: 'Low battery' }) }}</p>
           <p class="value warn">{{ lowCount() }}</p>
         </a>
         <a class="stat link" [routerLink]="url('D03')" [queryParams]="{ filter: 'unbound' }">
+          <span class="icon-bubble stat-icon desktop-only"><app-icon name="box" [size]="20" /></span>
           <p class="label">{{ i18n.t({ th: 'ตู้ยังไม่ผูก', en: 'Unbound boxes' }) }}</p>
           <p class="value">{{ unbound() }}</p>
         </a>
         <a class="stat link" [routerLink]="url('D02')">
+          <span class="icon-bubble stat-icon desktop-only" [class.danger]="pendingCount() > 0"><app-icon name="shield" [size]="20" /></span>
           <p class="label">{{ i18n.t({ th: 'หน่วยงานรอ', en: 'Agencies waiting' }) }}</p>
           <p class="value">{{ pendingCount() }}</p>
         </a>
       </div>
 
+      <div class="stack col">
       <h2 class="section-title">{{ i18n.t({ th: 'ต้องจัดการ', en: 'To do' }) }}</h2>
       <nav class="list">
         @for (t of todo(); track t.key) {
@@ -62,6 +67,21 @@ import { PageHeader } from '../shared/page-header';
           <p class="row muted">{{ i18n.t({ th: 'ไม่มีงานค้าง', en: 'Nothing to do' }) }}</p>
         }
       </nav>
+      </div>
+
+      <div class="stack col">
+      <h2 class="section-title desktop-only">{{ i18n.t({ th: 'ทางลัด', en: 'Shortcuts' }) }}</h2>
+      <div class="quick desktop-only">
+        @for (m of quick; track m.code) {
+          <a class="tile" [routerLink]="url(m.code)">
+            <span class="icon-bubble"><app-icon [name]="m.icon" [size]="20" /></span>
+            <span class="tile-text">
+              <strong>{{ i18n.t(m.label) }}</strong>
+              <span class="muted small">{{ i18n.t(m.hint) }}</span>
+            </span>
+          </a>
+        }
+      </div>
 
       <nav class="list mobile-only">
         @for (m of menu; track m.code) {
@@ -86,12 +106,43 @@ import { PageHeader } from '../shared/page-header';
         }
       </section>
       <button type="button" class="btn secondary signout mobile-only" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
+      </div>
     </div>
   `,
   styles: `
     .grow {
       flex: 1;
       min-width: 0;
+    }
+    .col {
+      min-width: 0;
+    }
+    .quick {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 12px;
+    }
+    .tile {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: inherit;
+      text-decoration: none;
+      transition: border-color 0.12s, background 0.12s;
+    }
+    .tile:hover {
+      border-color: var(--brand);
+      background: var(--brand-lighter);
+    }
+    .tile-text {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      line-height: 1.35;
     }
     .block {
       display: block;
@@ -214,6 +265,17 @@ export class AdminHome implements OnInit {
     pending: { th: 'รอ', en: 'Waiting' },
     box: { th: 'ตู้', en: 'Box' },
   };
+  /** ทางลัดบนจอคอม (มือถือใช้ลิสต์เมนูด้านล่าง) */
+  protected readonly quick: { code: string; icon: IconName; label: Tr; hint: Tr }[] = [
+    { code: 'D03', icon: 'box', label: { th: 'ตู้ทั้งหมด', en: 'All boxes' }, hint: { th: 'ลงทะเบียน · เฟิร์มแวร์ · ปลุกตู้', en: 'Register · firmware · wake' } },
+    { code: 'D09', icon: 'user', label: { th: 'ผู้ใช้', en: 'Users' }, hint: { th: 'รีเซ็ตรหัส · ปิดบัญชี', en: 'Reset · disable' } },
+    { code: 'D13', icon: 'shield', label: { th: 'หน่วยงาน', en: 'Agencies' }, hint: { th: 'อนุมัติ · ดูแลโซน', en: 'Approve · zones' } },
+    { code: 'D05', icon: 'scan', label: { th: 'จัดการ QR', en: 'QR cases' }, hint: { th: 'QR ปลอม · เสีย · ออกใหม่', en: 'Fake · damaged · reissue' } },
+    { code: 'D10', icon: 'target', label: { th: 'ค่าตั้งค่าตู้', en: 'Mailbox config' }, hint: { th: 'เวลาปลุก · รอบสแกน', en: 'Timing · scan rounds' } },
+    { code: 'T01', icon: 'settings', label: { th: 'งานช่าง', en: 'Technician' }, hint: { th: 'เช็กลิสต์ติดตั้ง', en: 'Install checklist' } },
+    { code: 'D14', icon: 'list', label: { th: 'แพ็กเกจ', en: 'Plans' }, hint: { th: 'จัดการรายการแพ็ก', en: 'Manage plans' } },
+    { code: 'D11', icon: 'list', label: { th: 'ประวัติระบบ', en: 'System log' }, hint: { th: 'Log ทุกเหตุการณ์ · CSV', en: 'All events · CSV' } },
+  ];
   protected readonly menu: { code: string; icon: IconName; label: Tr }[] = [
     { code: 'D09', icon: 'user', label: { th: 'ผู้ใช้', en: 'Users' } },
     { code: 'D10', icon: 'target', label: { th: 'ค่าตั้งค่าตู้', en: 'Mailbox config' } },
