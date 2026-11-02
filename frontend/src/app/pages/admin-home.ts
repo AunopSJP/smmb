@@ -34,12 +34,17 @@ interface Segment {
     />
 
     <div class="stack page">
+      <div class="asof">
+        <span class="muted small">{{ i18n.t({ th: 'ข้อมูล ณ ', en: 'As of ' }) }}{{ asOf() }}</span>
+        <button type="button" class="btn secondary small-btn" [disabled]="refreshing()" (click)="refresh()">{{ refreshing() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'รีเฟรช', en: 'Refresh' }) }}</button>
+      </div>
+
       <!-- 1) ตัวเลขสรุป -->
       <section class="kpis" [attr.aria-label]="i18n.t({ th: 'ตัวเลขสรุป', en: 'Key numbers' })">
         @for (k of kpis(); track k.key) {
           <a class="kpi" [routerLink]="k.path" [queryParams]="k.query">
             <span class="kpi-label">{{ i18n.t(k.label) }}</span>
-            <span class="kpi-value" [class.danger]="k.tone === 'danger' && k.n > 0" [class.warn]="k.tone === 'warn' && k.n > 0">{{ k.text }}</span>
+            <span class="kpi-value" [class.danger]="k.tone === 'danger' && k.n > 0" [class.warn]="k.tone === 'warn' && k.n > 0" [class.zero]="k.tone !== '' && k.n === 0">{{ k.text }}</span>
             <span class="kpi-hint">{{ i18n.t(k.hint) }}</span>
           </a>
         }
@@ -105,7 +110,7 @@ interface Segment {
 
       <!-- 3) งานที่ต้องทำ -->
       <section class="panel flush">
-        <header class="pad">
+        <header class="hpad">
           <h2>{{ i18n.t({ th: 'ต้องจัดการ', en: 'Needs action' }) }}</h2>
           <span class="muted small">{{ todo().length }} {{ i18n.t({ th: 'รายการ', en: 'items' }) }}</span>
         </header>
@@ -131,13 +136,13 @@ interface Segment {
             </tbody>
           </table>
         } @else {
-          <p class="empty pad">{{ i18n.t({ th: 'ไม่มีงานค้าง', en: 'Nothing waiting' }) }}</p>
+          <p class="empty hpad-empty">{{ i18n.t({ th: 'ไม่มีงานค้าง', en: 'Nothing waiting' }) }}</p>
         }
       </section>
 
       <div class="two-col">
         <section class="panel flush">
-          <header class="pad">
+          <header class="hpad">
             <h2>{{ i18n.t({ th: 'เจ้าของบ้านแยกตามแพ็กเกจ', en: 'Owners by plan' }) }}</h2>
             <a [routerLink]="url('D14')">{{ i18n.t({ th: 'จัดการแพ็กเกจ', en: 'Manage plans' }) }}</a>
           </header>
@@ -241,6 +246,17 @@ interface Segment {
     .kpi-value.danger {
       color: var(--sos);
     }
+    .kpi-value.zero {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .asof {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-bottom: -8px;
+    }
     .kpi-value.warn {
       color: var(--warn);
     }
@@ -292,7 +308,7 @@ interface Segment {
       justify-content: space-between;
       gap: 12px;
     }
-    .panel header.pad {
+    .panel header.hpad {
       padding: 14px 18px;
       border-bottom: 1px solid var(--line-strong, var(--line));
     }
@@ -317,7 +333,7 @@ interface Segment {
       color: var(--text-muted);
       padding: 8px 0;
     }
-    .empty.pad {
+    .empty.hpad-empty {
       padding: 28px 18px;
     }
 
@@ -504,6 +520,18 @@ export class AdminHome implements OnInit {
     return rows.map((r) => ({ ...r, pct: (r.n / max) * 100 }));
   });
 
+  protected readonly asOf = signal('');
+  protected readonly refreshing = signal(false);
+
+  protected async refresh(): Promise<void> {
+    this.refreshing.set(true);
+    try {
+      await this.ngOnInit();
+    } finally {
+      this.refreshing.set(false);
+    }
+  }
+
   async ngOnInit(): Promise<void> {
     const [overview, boxes, pending, support, technicianRequests] = await Promise.all([
       this.api.overview().catch(() => null),
@@ -517,6 +545,7 @@ export class AdminHome implements OnInit {
     this.pending.set(pending);
     this.support.set(support?.contact ?? null);
     this.technicianRequests.set(technicianRequests.length);
+    this.asOf.set(new Date().toLocaleTimeString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { hour: '2-digit', minute: '2-digit' }));
   }
 
   protected editSupport(): void {

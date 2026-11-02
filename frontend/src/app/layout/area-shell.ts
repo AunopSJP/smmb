@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
+import { AdminApi } from '../core/admin-api';
 import { I18n, type Tr } from '../core/i18n';
 import { ToastHost } from '../core/toast';
 import { AREA_LABEL, screen, TABS, type Area } from '../screens/registry';
@@ -67,7 +68,10 @@ const MOCK_SCREENS = new Set<string>();
             <p class="group">{{ i18n.t(g.title) }}</p>
             @for (it of g.items; track it.code) {
               <a [routerLink]="url(it.code)" routerLinkActive="active" [routerLinkActiveOptions]="{ paths: it.code === 'D01' ? 'exact' : 'subset', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }">
-                <span>{{ i18n.t(it.label) }}</span>
+                <span class="lbl">{{ i18n.t(it.label) }}</span>
+                @if (badges()[it.code]; as n) {
+                  <b class="count" [class.hot]="it.code === 'D03'" [attr.aria-label]="n + ' ' + i18n.t({ th: 'รายการรอจัดการ', en: 'items waiting' })">{{ n > 99 ? '99+' : n }}</b>
+                }
               </a>
             }
           }
@@ -180,12 +184,10 @@ const MOCK_SCREENS = new Set<string>();
       color: var(--text-muted);
     }
     .group {
-      font-size: 0.75rem;
+      font-size: 0.8125rem;
       font-weight: 700;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
       color: var(--text-muted);
-      padding: 18px 12px 6px;
+      padding: 20px 12px 6px;
     }
     .side a {
       position: relative;
@@ -197,6 +199,26 @@ const MOCK_SCREENS = new Set<string>();
       color: var(--text);
       text-decoration: none;
       font-size: 0.9375rem;
+    }
+    .lbl {
+      flex: 1;
+      min-width: 0;
+    }
+    .count {
+      flex: none;
+      min-width: 22px;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: var(--icon-bg);
+      color: var(--text);
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .count.hot {
+      background: var(--sos);
+      color: #fff;
     }
     .side a app-icon {
       color: var(--text-muted);
@@ -324,6 +346,9 @@ export class AreaShell {
   /** แอดมินใช้จอคอมเป็นหลัก → เต็มพื้นที่ (กำหนดใน CSS ≥1024px) · มือถือ/แท็บเล็ตยังเป็นเนื้อหาเดียวกว้าง 960 */
   protected readonly contentWidth = this.area === 'admin' || this.area === 'head' ? '960px' : '640px';
   protected readonly adminNav = ADMIN_NAV;
+  private readonly adminApi = inject(AdminApi);
+  /** ตัวเลขงานค้างข้างเมนู (ตู้ไม่ออนไลน์ · ปัญหา QR · คำขอ) — รีเฟรชทุกครั้งที่เปลี่ยนหน้า */
+  protected readonly badges = signal<Record<string, number>>({});
   protected readonly session = inject(Session);
   protected readonly initial = computed(() => (this.session.me()?.display_name ?? 'A').trim().charAt(0).toUpperCase());
   protected readonly url = screenUrl;
@@ -344,6 +369,21 @@ export class AreaShell {
       startWith(this.currentCode()),
     ),
   );
+  private readonly refreshBadges = effect(() => {
+    this.code();
+    if (!this.isAdmin) return;
+    this.adminApi
+      .overview()
+      .then((o) =>
+        this.badges.set({
+          D03: o.boxes.offline,
+          D05: o.qr_issues.total,
+          D13: o.agencies_pending,
+          D15: o.technician_requests_open,
+        }),
+      )
+      .catch(() => undefined);
+  });
   protected readonly fullscreen = computed(() => {
     const c = this.code();
     return c ? screen(c).fullscreen === true : false;

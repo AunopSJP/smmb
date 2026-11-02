@@ -301,6 +301,11 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       justify-self: end;
     }
     @media (min-width: 1024px) {
+      .cols > :nth-child(4) {
+        justify-self: start;
+      }
+    }
+    @media (min-width: 1024px) {
       .cols {
         display: grid;
         grid-template-columns: minmax(0, 2.2fr) 140px 150px minmax(0, 1.4fr) 28px;
