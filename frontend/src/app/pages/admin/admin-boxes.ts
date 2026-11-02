@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, signal, type OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { ApiConfig } from '../../core/api';
+import { ApiConfig, apiError } from '../../core/api';
 import { AdminApi, type AdminBoxDetail, type BoxConfigOverride, type AdminBoxRow, type FirmwareInfo, type RegisteredBox } from '../../core/admin-api';
 import { I18n, type Tr } from '../../core/i18n';
 import { minutesAgo, type BoxStatus } from '../../core/owner-api';
@@ -418,7 +418,11 @@ export class AdminBoxes implements OnInit {
               }
             </div>
           } @empty {
-            <p class="row muted">{{ i18n.t({ th: 'ยังไม่มีเฟิร์มแวร์ที่อัปโหลดไว้', en: 'No firmware uploaded yet' }) }}</p>
+            @if (fwLoadError(); as err) {
+              <p class="row danger-text" role="alert">{{ i18n.t({ th: 'โหลดรายการเฟิร์มแวร์ไม่ได้ (' + err + ') — ไม่ใช่ว่ายังไม่มีไฟล์ ลองโหลดหน้าใหม่', en: 'Could not load the firmware list (' + err + ') — this does not mean there are no files; reload the page' }) }}</p>
+            } @else {
+              <p class="row muted">{{ i18n.t({ th: 'ยังไม่มีเฟิร์มแวร์ที่อัปโหลดไว้', en: 'No firmware uploaded yet' }) }}</p>
+            }
           }
         </div>
 
@@ -695,6 +699,8 @@ export class AdminBox implements OnInit {
   protected readonly fwVersion = signal('');
   protected readonly fwFile = signal<File | null>(null);
   protected readonly uploadingFw = signal(false);
+  /** โหลดรายการไม่ได้ (รหัสสถานะ) — แยกจาก "ยังไม่มีไฟล์" */
+  protected readonly fwLoadError = signal<string | null>(null);
   /** ชื่อเวอร์ชันที่แนะนำ = เลขท้ายของเวอร์ชันล่าสุด + 1 (x.y.z → x.y.z+1) */
   protected readonly fwSuggest = computed(() => {
     const m = /^(.*?)(\d+)$/.exec(this.firmware()[0]?.version ?? '');
@@ -733,8 +739,11 @@ export class AdminBox implements OnInit {
   private async loadFirmware(): Promise<void> {
     try {
       this.firmware.set(await this.api.firmwareList());
-    } catch {
-      /* รายการเฟิร์มแวร์ไม่ขึ้น = ไม่กระทบหน้าอื่น */
+      this.fwLoadError.set(null);
+    } catch (e) {
+      // ไม่กระทบหน้าอื่น แต่ต้องบอกว่าโหลดไม่ได้ ไม่ใช่ปล่อยให้ดูเหมือนยังไม่มีไฟล์
+      const a = apiError(e);
+      this.fwLoadError.set(a.code ?? (a.status ? `HTTP ${a.status}` : 'network'));
     }
   }
 
@@ -754,10 +763,17 @@ export class AdminBox implements OnInit {
       await this.loadFirmware();
       this.toast.show({ th: 'อัปโหลดแล้ว', en: 'Uploaded' });
     } catch (e) {
-      const code = (e as { status?: number })?.status;
-      this.toast.show(code === 409
-        ? { th: 'มีเวอร์ชันนี้แล้ว · ใช้ชื่อเวอร์ชันใหม่', en: 'That version already exists · use a new version name' }
-        : { th: 'อัปโหลดไม่ได้ · ต้องเป็นไฟล์ firmware.bin ของ ESP32 ไม่เกิน 1.9 MB และชื่อเวอร์ชันไม่มีช่องว่าง', en: 'Upload failed · it must be an ESP32 firmware.bin up to 1.9 MB, and the version name must have no spaces' });
+      const a = apiError(e);
+      const why = a.code ?? (a.status ? `HTTP ${a.status}` : 'network');
+      this.toast.show(
+        a.status === 409
+          ? { th: 'มีเวอร์ชันนี้แล้ว · ใช้ชื่อเวอร์ชันใหม่', en: 'That version already exists · use a new version name' }
+          : a.status === 413
+            ? { th: 'ไฟล์ใหญ่เกินที่เซิร์ฟเวอร์รับ (413) — ตัวกลาง (nginx/gateway) จำกัดขนาด แจ้งผู้ดูแลเซิร์ฟเวอร์', en: 'The file is larger than the server accepts (413) — a proxy limits the size; tell the server admin' }
+            : a.status === 0
+              ? { th: 'ส่งไฟล์ไม่ถึงเซิร์ฟเวอร์ (เครือข่าย/ตัวกลางตัดการเชื่อมต่อ)', en: 'The file never reached the server (network or a proxy cut it off)' }
+              : { th: `อัปโหลดไม่ได้ (${why}) · ต้องเป็นไฟล์ firmware.bin ของ ESP32 ไม่เกิน 1.9 MB และชื่อเวอร์ชันไม่มีช่องว่าง`, en: `Upload failed (${why}) · it must be an ESP32 firmware.bin up to 1.9 MB, and the version name must have no spaces` },
+      );
     } finally {
       this.uploadingFw.set(false);
     }
