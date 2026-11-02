@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { DisplaySettings } from './core/display-settings';
+import { AppUpdate } from './core/app-update';
 import { PrefsSync } from './core/prefs-sync';
 
 @Component({
@@ -14,4 +15,6 @@ export class App {
   private readonly display = inject(DisplaySettings);
   /** ซิงก์ภาษา/ธีมกับบัญชี (PATCH /me) */
   private readonly prefsSync = inject(PrefsSync);
+  /** deploy ใหม่แล้วไฟล์เก่าค้าง cache → โหลดหน้าใหม่ให้เอง */
+  private readonly appUpdate = inject(AppUpdate);
 }
