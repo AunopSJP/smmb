@@ -207,7 +207,7 @@ deep link ทุกหน้าเปิดได้ · บัญชีจำล
     - proxy_read_timeout 75s;  (long-poll ถือ 50 วิ — ค่าเริ่มต้น 60s เฉียดเกินไป)
     - ห้าม rewrite/ตัด path — ตอนนี้ backend เห็น path เต็ม /smmb-api/v1/box/... และตู้เซ็น path นี้
       ถ้าเปลี่ยนวิธีส่ง path ทีหลัง ลายเซ็นของบอร์ดจะไม่ผ่านทั้งหมด (บอกผู้ใช้ก่อนเปลี่ยน)
-    - client_max_body_size ≥ 32k ก็พอ
+    - client_max_body_size ≥ 32k ก็พอ (ยกเว้น /smmb-api/api/v1/admin/firmware/ ต้อง 2m — ไฟล์เฟิร์มแวร์ ~1.2 MB · มี location แยกใน deploy/nginx-smmb.conf)
     - ไฟล์ manifest.webmanifest ตอบ content-type application/octet-stream → ควรเป็น
       application/manifest+json (เพิ่มใน mime.types / types { application/manifest+json webmanifest; })
 

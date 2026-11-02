@@ -182,7 +182,6 @@ static void handleCommand(JsonVariantConst cmd)
     Preferences otaPrefs;
     otaPrefs.begin("smmb", false);
     const bool already = otaPrefs.getString("otatry", "") == ver;
-    otaPrefs.putString("otatry", ver);
     otaPrefs.end();
     if (already)
     {
@@ -193,6 +192,11 @@ static void handleCommand(JsonVariantConst cmd)
     Serial.printf("[cmd] ota: %s -> %s (%u bytes)\n", FW_VERSION, ver.c_str(), (unsigned)(cmd["size"] | 0u));
     if (apiDownloadFirmware(ver, cmd["size"] | 0u, cmd["sha256"] | ""))
     {
+      // จำไว้ "หลังลงสำเร็จ" เท่านั้น — ถ้าบันทึกก่อนโหลด แล้วโหลดล้ม (เน็ต/ไฟตก) บูตรอบหน้าจะเข้าใจผิดว่าลงไปแล้วและข้ามตลอดไป
+      Preferences done;
+      done.begin("smmb", false);
+      done.putString("otatry", ver);
+      done.end();
       Serial.println("[cmd] ota: done — rebooting");
       delay(300);
       ESP.restart();
