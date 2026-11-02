@@ -504,6 +504,19 @@ export class AdminBoxes implements OnInit {
         }
       </div>
 
+      @if (b.wifi_reset.status === 'pending' || b.wifi_reset.status === 'expired') {
+        <div class="info-box" role="status">
+          @if (b.wifi_reset.status === 'pending') {
+            <strong>{{ i18n.t({ th: 'รอตู้รับคำสั่งลืม Wi-Fi', en: 'Waiting for the box to forget its Wi-Fi' }) }}</strong>
+            <span class="small block">{{ i18n.t({ th: 'ตู้ต้องออนไลน์ถึงจะรับ (หมดอายุใน 24 ชั่วโมง) · รับแล้วตู้จะเปิด Wi-Fi ', en: 'The box must be online to take it (expires in 24 h) · then it opens the Wi-Fi ' }) }}<code>{{ b.wifi_reset.ap_name }}</code></span>
+            <button type="button" class="btn secondary fw-act" [disabled]="resetBusy()" (click)="cancelWifiReset()">{{ i18n.t({ th: 'ยกเลิกคำสั่ง', en: 'Cancel the request' }) }}</button>
+          } @else {
+            <strong class="warn-text">{{ i18n.t({ th: 'คำสั่งลืม Wi-Fi หมดอายุ — ไม่มีตู้รับภายใน 24 ชั่วโมง', en: 'The Wi-Fi reset expired — the box did not take it within 24 h' }) }}</strong>
+            <button type="button" class="btn secondary fw-act" [disabled]="resetBusy()" (click)="requestWifiReset()">{{ i18n.t({ th: 'สั่งใหม่', en: 'Send again' }) }}</button>
+          }
+        </div>
+      }
+
       <div class="stack grow">
         @if (tab() === 'overview') {
         <section class="card">
@@ -599,19 +612,58 @@ export class AdminBoxes implements OnInit {
 
         }
         @if (tab() === 'danger') {
+        @if (returned(); as r) {
+          <section class="card stack done" role="status">
+            <h2 class="section-title">{{ i18n.t({ th: 'คืนตู้เป็นตู้ใหม่แล้ว — ทำต่อที่หน้างานตามนี้', en: 'The box is back to “new” — finish on site' }) }}</h2>
+            <ol class="checklist">
+              @if (r.wifi_reset) {
+                <li>{{ i18n.t({ th: 'รอให้ตู้ออนไลน์ แล้วตู้จะรับคำสั่งลืม Wi-Fi และเปิด Wi-Fi ', en: 'Wait for the box to be online — it takes the command and opens the Wi-Fi ' }) }}<code>{{ r.ap_name }}</code> <span class="muted small">({{ i18n.t({ th: 'ดูสถานะที่แถบด้านบน', en: 'status is shown at the top' }) }})</span></li>
+                <li>{{ i18n.t({ th: 'ต่อมือถือเข้า Wi-Fi นั้น แล้วตั้ง Wi-Fi บ้านใหม่ในหน้าตั้งค่าที่เด้งขึ้น', en: 'Join that Wi-Fi with a phone and set the new home Wi-Fi on the page that opens' }) }}</li>
+              } @else {
+                <li>{{ i18n.t({ th: 'ตู้ยังใช้ Wi-Fi เดิมอยู่ — ถ้าต้องเปลี่ยน ให้กด "สั่งตู้ลืม Wi-Fi" ด้านล่าง', en: 'The box keeps its old Wi-Fi — press “Make the box forget its Wi-Fi” below if it must change' }) }}</li>
+              }
+              <li>{{ i18n.t({ th: 'พิมพ์ QR เปิดใช้ตู้ใบใหม่ (แท็บ "QR และบอร์ด") ให้เจ้าของคนใหม่', en: 'Print the new activation QR (tab “QR & board”) for the new owner' }) }}</li>
+              <li>{{ i18n.t({ th: 'เจ้าของใหม่สมัคร/ล็อกอินแล้วสแกน QR เปิดใช้ตู้ และกรอกบ้านเลขที่', en: 'The new owner signs in, scans the activation QR and enters the house number' }) }}</li>
+            </ol>
+            <div class="actions">
+              <button type="button" class="btn" (click)="tab.set('qr'); returned.set(null)">{{ i18n.t({ th: 'ไปพิมพ์ QR เปิดใช้ตู้', en: 'Go print the activation QR' }) }}</button>
+              <button type="button" class="btn secondary" (click)="returned.set(null)">{{ i18n.t({ th: 'ปิด', en: 'Dismiss' }) }}</button>
+            </div>
+          </section>
+        }
+
         @if (b.bound) {
-          <h2 class="section-title">{{ i18n.t({ th: 'ยกเลิกการผูกตู้', en: 'Unlink the box' }) }}</h2>
+          <h2 class="section-title">{{ i18n.t({ th: 'คืนตู้เป็นตู้ใหม่ (ขายบ้าน / ย้ายออก)', en: 'Return the box as new (house sold / moved out)' }) }}</h2>
           <section class="card stack">
-            <p class="muted small">
-              {{ i18n.t({ th: 'ใช้เมื่อเจ้าของขายบ้าน/ย้ายออก — ตู้กลับเป็น "ยังไม่ผูก" ถอดออกจากทุกโซน และได้ QR เปิดใช้ตู้ใบใหม่ให้เจ้าของคนใหม่ (QR หน้าตู้ที่ติดอยู่ใช้ต่อได้) ประวัติเก่ายังอยู่', en: 'Use when the owner sold or moved out — the box becomes “not bound”, leaves every zone, and gets a new activation QR for the next owner (front QR stickers keep working). History is kept.' }) }}
-            </p>
+            <p class="small"><strong>{{ i18n.t({ th: 'กดแล้วเกิดอะไรขึ้น', en: 'What happens' }) }}</strong></p>
+            <ul class="effects">
+              <li>{{ i18n.t({ th: 'ตู้กลับเป็น "ยังไม่ผูก" — เจ้าของเดิมไม่เห็นตู้นี้อีกและได้รับแจ้งเตือน', en: 'The box becomes “not bound” — the old owner no longer sees it and is notified' }) }}</li>
+              <li>{{ i18n.t({ th: 'ถอดออกจากทุกโซน · ล้างบ้านเลขที่ ชื่อ ย่าน · ล้างค่าที่ตั้งเฉพาะตู้ (ใช้ค่ากลาง)', en: 'Removed from every zone · house, name and area cleared · per-box settings cleared (shared values)' }) }}</li>
+              <li>{{ i18n.t({ th: 'ออก QR เปิดใช้ตู้ใบใหม่ให้เจ้าของคนใหม่ (QR หน้าตู้ที่ติดอยู่ใช้ต่อได้) · ประวัติเก่ายังอยู่', en: 'A new activation QR is issued for the next owner (the front QR stickers keep working) · history is kept' }) }}</li>
+              <li [class.off]="!unbindResetWifi()">{{ i18n.t({ th: 'ตู้ลืม Wi-Fi และเปิดโหมดตั้งค่า (ตู้ต้องออนไลน์ถึงจะรับ · ยังจำรหัสตู้ ไม่ต้องต่อสาย)', en: 'The box forgets its Wi-Fi and opens setup mode (it must be online · it keeps its identity — no cable needed)' }) }}</li>
+            </ul>
             <label class="field">
               <span>{{ i18n.t({ th: 'เหตุผล', en: 'Reason' }) }}</span>
               <input maxlength="200" [placeholder]="i18n.t({ th: 'เช่น ขายบ้าน', en: 'e.g. house sold' })" [value]="unbindReason()" (input)="unbindReason.set($any($event.target).value)" />
             </label>
-            <button type="button" class="btn secondary danger-outline" [disabled]="unbinding() || !unbindReason().trim()" (click)="unbind()">
-              {{ i18n.t({ th: 'ยกเลิกการผูกตู้นี้', en: 'Unlink this box' }) }}
+            <label class="check">
+              <input type="checkbox" [checked]="unbindResetWifi()" (change)="unbindResetWifi.set($any($event.target).checked)" />
+              <span>{{ i18n.t({ th: 'ให้ตู้ลืม Wi-Fi ด้วย (แนะนำ — เจ้าของใหม่ใช้ Wi-Fi ของตัวเอง)', en: 'Also make the box forget its Wi-Fi (recommended — the new owner uses their own)' }) }}</span>
+            </label>
+            <button type="button" class="btn danger" [disabled]="unbinding() || !unbindReason().trim()" (click)="unbind()">
+              {{ unbinding() ? i18n.t({ th: 'กำลังดำเนินการ…', en: 'Working…' }) : i18n.t({ th: 'คืนตู้เป็นตู้ใหม่', en: 'Return the box as new' }) }}
             </button>
+          </section>
+        } @else {
+          <h2 class="section-title">{{ i18n.t({ th: 'ล้าง Wi-Fi ของตู้', en: 'Reset the box Wi-Fi' }) }}</h2>
+          <section class="card stack">
+            <p class="muted small">{{ i18n.t({ th: 'ตู้นี้ยังไม่ผูกเจ้าของ — สั่งให้ตู้ลืม Wi-Fi แล้วเปิดโหมดตั้งค่าได้ (ตู้ต้องออนไลน์ถึงจะรับ) ใช้เมื่อย้ายตู้ไปติดตั้งที่ใหม่', en: 'This box has no owner — make it forget its Wi-Fi and open setup mode (it must be online). Use it when moving the box to a new place.' }) }}</p>
+            <button type="button" class="btn secondary danger-outline" [disabled]="resetBusy() || b.wifi_reset.status === 'pending'" (click)="requestWifiReset()">
+              {{ i18n.t({ th: 'สั่งตู้ลืม Wi-Fi', en: 'Make the box forget its Wi-Fi' }) }}
+            </button>
+            @if (b.wifi_reset.status === 'done') {
+              <p class="small">{{ i18n.t({ th: 'ครั้งล่าสุด: ตู้ล้าง Wi-Fi แล้ว ', en: 'Last time: the box cleared its Wi-Fi ' }) }}{{ fwDate(b.wifi_reset.done_at!) }}</p>
+            }
           </section>
         }
 
@@ -808,6 +860,43 @@ export class AdminBoxes implements OnInit {
     }
   `,
   styles: `
+    .effects {
+      margin: 0;
+      padding-left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.9375rem;
+    }
+    .effects li.off {
+      opacity: 0.45;
+      text-decoration: line-through;
+    }
+    .check {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: pointer;
+    }
+    .check input {
+      margin-top: 4px;
+    }
+    .checklist {
+      margin: 0;
+      padding-left: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .done {
+      border-color: var(--ok);
+      border-width: 2px;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
     /* แถบสรุป */
     .kpis {
       display: grid;
@@ -860,6 +949,9 @@ export class AdminBoxes implements OnInit {
     .kpi-hint {
       font-size: 0.75rem;
       color: var(--text-muted);
+    }
+    .tabs + .info-box {
+      margin-bottom: 14px;
     }
     /* แท็บหมวด */
     .tabs {
@@ -1032,6 +1124,11 @@ export class AdminBox implements OnInit {
   protected readonly savingOverride = signal(false);
   private ovLoadedFor: string | null = null;
   protected readonly unbindReason = signal('');
+  /** ติ๊ก "ให้ตู้ลืม Wi-Fi ด้วย" (ค่าเริ่มต้น เปิด) */
+  protected readonly unbindResetWifi = signal(true);
+  /** ผลหลังกด "คืนตู้เป็นตู้ใหม่" → ขึ้นเช็กลิสต์ให้ไปทำต่อหน้างาน */
+  protected readonly returned = signal<{ wifi_reset: boolean; ap_name: string } | null>(null);
+  protected readonly resetBusy = signal(false);
   protected readonly unbinding = signal(false);
   protected readonly serviceReason = signal('');
   protected readonly serviceBusy = signal(false);
@@ -1168,15 +1265,16 @@ export class AdminBox implements OnInit {
     const reason = this.unbindReason().trim();
     if (!id || !reason || this.unbinding()) return;
     if (!window.confirm(this.i18n.t({
-      th: `ยกเลิกการผูก ${id} ใช่ไหม? เจ้าของเดิมจะไม่เห็นตู้นี้อีก และตู้ถูกถอดออกจากทุกโซน`,
-      en: `Unlink ${id}? The current owner will no longer see it and it leaves every zone.`,
+      th: `คืน ${id} เป็นตู้ใหม่ใช่ไหม? เจ้าของเดิมจะไม่เห็นตู้นี้อีก ตู้ถูกถอดออกจากทุกโซนและล้างค่าเฉพาะตู้${this.unbindResetWifi() ? ' · ตู้จะลืม Wi-Fi และต้องตั้งใหม่ที่หน้างาน' : ''}`,
+      en: `Return ${id} as new? The owner will no longer see it, it leaves every zone and its per-box settings are cleared${this.unbindResetWifi() ? ' · it forgets its Wi-Fi and must be set up on site' : ''}.`,
     }))) return;
     this.unbinding.set(true);
     try {
-      await this.api.unbind(id, reason);
+      const r = await this.api.unbind(id, reason, this.unbindResetWifi());
       this.unbindReason.set('');
       await this.reload();
-      this.toast.show({ th: 'ยกเลิกการผูกแล้ว · พิมพ์ QR เปิดใช้ตู้ใบใหม่ได้ที่หัวข้อ QR', en: 'Unlinked · print the new activation QR under QR' });
+      this.returned.set({ wifi_reset: r.wifi_reset, ap_name: r.ap_name });
+      this.toast.show({ th: 'คืนตู้เป็นตู้ใหม่แล้ว · ทำตามเช็กลิสต์ด้านบน', en: 'Box returned as new · follow the checklist above' });
     } catch (err) {
       const code = (err as { error?: { code?: string } })?.error?.code;
       this.toast.show(code === 'SOS_OPEN'
@@ -1184,6 +1282,40 @@ export class AdminBox implements OnInit {
         : { th: 'ยกเลิกการผูกไม่ได้', en: 'Could not unlink' });
     } finally {
       this.unbinding.set(false);
+    }
+  }
+
+  protected async requestWifiReset(): Promise<void> {
+    const id = this.id();
+    if (!id || this.resetBusy()) return;
+    if (!window.confirm(this.i18n.t({
+      th: `สั่ง ${id} ลืม Wi-Fi ใช่ไหม? ตู้จะหลุดจากเครือข่ายเดิมและต้องตั้งค่า Wi-Fi ใหม่ที่หน้างาน`,
+      en: `Make ${id} forget its Wi-Fi? It leaves the current network and must be set up again on site.`,
+    }))) return;
+    this.resetBusy.set(true);
+    try {
+      await this.api.requestWifiReset(id);
+      await this.reload();
+      this.toast.show({ th: 'ส่งคำสั่งแล้ว · รอตู้ออนไลน์เพื่อรับ', en: 'Request sent · waiting for the box to be online' });
+    } catch {
+      this.toast.show({ th: 'สั่งไม่ได้ ลองใหม่', en: 'Could not send — try again' });
+    } finally {
+      this.resetBusy.set(false);
+    }
+  }
+
+  protected async cancelWifiReset(): Promise<void> {
+    const id = this.id();
+    if (!id || this.resetBusy()) return;
+    this.resetBusy.set(true);
+    try {
+      await this.api.cancelWifiReset(id);
+      await this.reload();
+      this.toast.show({ th: 'ยกเลิกคำสั่งแล้ว', en: 'Request cancelled' });
+    } catch {
+      this.toast.show({ th: 'ยกเลิกไม่ได้ ลองใหม่', en: 'Could not cancel — try again' });
+    } finally {
+      this.resetBusy.set(false);
     }
   }
 

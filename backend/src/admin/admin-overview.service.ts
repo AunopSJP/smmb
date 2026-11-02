@@ -38,8 +38,24 @@ export class AdminOverviewService {
     private readonly qrIssues: QrIssueService,
   ) {}
 
+  /** กิจกรรม 7 วันล่าสุด (วันตามเวลาไทย รวมวันนี้) — ตรวจผ่าน · มีปัญหา · ส่งของ · SOS */
+  private async activity(): Promise<{ date: string; inspections: number; problems: number; deliveries: number; sos: number }[]> {
+    const { rows } = await this.pool.query<{ date: string; inspections: number; problems: number; deliveries: number; sos: number }>(
+      `WITH days AS (
+         SELECT d::date AS d FROM generate_series((now() AT TIME ZONE 'Asia/Bangkok')::date - 6, (now() AT TIME ZONE 'Asia/Bangkok')::date, interval '1 day') AS d
+       )
+       SELECT to_char(days.d, 'YYYY-MM-DD') AS date,
+         (SELECT count(*) FROM app.inspection_tb i WHERE i.status = 'passed' AND (i.created_date AT TIME ZONE 'Asia/Bangkok')::date = days.d)::int AS inspections,
+         (SELECT count(*) FROM app.inspection_tb i WHERE i.status IN ('failed', 'box_problem') AND (i.created_date AT TIME ZONE 'Asia/Bangkok')::date = days.d)::int AS problems,
+         (SELECT count(*) FROM app.delivery_tb l WHERE (l.created_date AT TIME ZONE 'Asia/Bangkok')::date = days.d)::int AS deliveries,
+         (SELECT count(*) FROM app.sos_case_tb s WHERE (s.created_date AT TIME ZONE 'Asia/Bangkok')::date = days.d)::int AS sos
+       FROM days ORDER BY days.d`,
+    );
+    return rows;
+  }
+
   async get() {
-    const [boxRows, agencyCount, qrIssues, sosCount, technicianCount, planRows] = await Promise.all([
+    const [boxRows, agencyCount, qrIssues, sosCount, technicianCount, planRows, activity] = await Promise.all([
       this.pool.query<OverviewBoxRow>(
         `SELECT box_id, owner_user_id, service_active, battery_pct, last_poll_date, last_seen_date, config_override
          FROM app.box_tb`,
@@ -55,6 +71,7 @@ export class AdminOverviewService {
          GROUP BY p.plan_code
          ORDER BY p.sort_order, p.plan_code`,
       ),
+      this.activity(),
     ]);
     const boxes = boxRows.rows;
     const statusByBox = await this.configs.statusOf(boxes);
@@ -73,6 +90,7 @@ export class AdminOverviewService {
       sos_open: sosCount.rows[0]?.count ?? 0,
       technician_requests_open: technicianCount.rows[0]?.count ?? 0,
       owners_by_plan: planRows.rows.map((row) => ({ plan_code: row.plan_code, owners_count: row.owners_count })),
+      activity_7d: activity,
     };
   }
 }

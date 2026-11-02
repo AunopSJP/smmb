@@ -39,6 +39,8 @@ export interface AdminBoxRow {
   fw_target: string | null;
   /** ตู้โหลดไฟล์แล้วแต่ยังรายงานเวอร์ชันเดิม */
   fw_stuck: boolean;
+  /** คำสั่งให้ตู้ลืม Wi-Fi แล้วกลับโหมดตั้งค่า */
+  wifi_reset: { status: 'pending' | 'expired' | 'done' | null; ap_name: string; requested_at: string | null; done_at: string | null };
 }
 
 export interface FirmwareInfo {
@@ -55,6 +57,8 @@ export interface AdminOverview {
   sos_open: number;
   technician_requests_open: number;
   owners_by_plan: { plan_code: string; owners_count: number }[];
+  /** 7 วันล่าสุด (เวลาไทย เก่า→ใหม่) */
+  activity_7d: { date: string; inspections: number; problems: number; deliveries: number; sos: number }[];
 }
 
 /** ค่าทับเฉพาะตู้ (ไม่ตั้ง = ใช้ค่ากลาง) */
@@ -264,8 +268,18 @@ export class AdminApi {
     return this.post(`/api/v1/admin/boxes/${encodeURIComponent(id)}/device-secret`);
   }
   /** ยกเลิกการผูกตู้ (ขายบ้าน/ย้ายออก) → ได้ QR เปิดใช้ตู้ใบใหม่ */
-  unbind(id: string, reason: string): Promise<{ box_id: string }> {
-    return firstValueFrom(this.http.post<{ box_id: string }>(`/api/v1/admin/boxes/${encodeURIComponent(id)}/unbind`, { reason }));
+  unbind(id: string, reason: string, resetWifi = false): Promise<{ box_id: string; wifi_reset: boolean; ap_name: string }> {
+    return firstValueFrom(
+      this.http.post<{ box_id: string; wifi_reset: boolean; ap_name: string }>(`/api/v1/admin/boxes/${encodeURIComponent(id)}/unbind`, { reason, reset_wifi: resetWifi }),
+    );
+  }
+  /** สั่งตู้ลืม Wi-Fi แล้วกลับโหมดตั้งค่า (ตู้ต้องออนไลน์ถึงจะรับ) */
+  requestWifiReset(id: string): Promise<{ ap_name: string }> {
+    return firstValueFrom(this.http.post<{ ap_name: string }>(`/api/v1/admin/boxes/${encodeURIComponent(id)}/wifi-reset`, {}));
+  }
+  /** ยกเลิกคำสั่งลืม Wi-Fi ที่ตู้ยังไม่ได้รับ */
+  cancelWifiReset(id: string): Promise<unknown> {
+    return firstValueFrom(this.http.delete(`/api/v1/admin/boxes/${encodeURIComponent(id)}/wifi-reset`));
   }
   /** เปิด/ปิดบริการตู้ (ปิดแล้วตรวจตู้ไม่ได้ · แจ้งเจ้าของบ้าน) */
   setService(id: string, active: boolean, reason?: string): Promise<{ box_id: string; service_active: boolean }> {

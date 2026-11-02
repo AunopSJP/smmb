@@ -677,6 +677,26 @@ describe('Boxes (e2e)', () => {
     });
   });
 
+  describe('admin overview activity (last 7 days)', () => {
+    it('lists 7 Bangkok days oldest→newest, counts today\'s deliveries, and only admins can read it', async () => {
+      const { b, owner } = await boundBox();
+      const before = (await as(admin.cookie).get('/api/v1/admin/overview').expect(200)).body.activity_7d as { date: string; deliveries: number }[];
+      expect(before).toHaveLength(7);
+      const days = before.map((d) => d.date);
+      expect([...days].sort()).toEqual(days);
+      const todayBkk = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
+      expect(days.at(-1)).toBe(todayBkk);
+      for (const d of before) expect(Object.keys(d).sort()).toEqual(['date', 'deliveries', 'inspections', 'problems', 'sos']);
+
+      const { rows } = await pool.query<{ box_qr_code_id: string }>(`SELECT box_qr_code_id FROM app.box_qr_code_tb WHERE box_id = $1 AND slot = '1' AND status = 'active'`, [b.box_id]);
+      await pool.query(`INSERT INTO app.delivery_tb (box_id, box_qr_code_id, method, ticket_id) VALUES ($1, $2, 'scan', $3)`, [b.box_id, rows[0]!.box_qr_code_id, `T-${run}-${seq++}`]);
+      const after = (await as(admin.cookie).get('/api/v1/admin/overview').expect(200)).body.activity_7d as { deliveries: number }[];
+      expect(after.at(-1)!.deliveries).toBe(before.at(-1)!.deliveries + 1);
+
+      await as(owner.cookie).get('/api/v1/admin/overview').expect(404);
+    });
+  });
+
   describe('admin opens / closes the service of a box', () => {
     const patchService = (id: string, body: object, cookie = admin.cookie) => http().patch(`/api/v1/admin/boxes/${id}/service`).set('Cookie', cookie).send(body);
 
@@ -753,6 +773,57 @@ describe('Boxes (e2e)', () => {
       // ประวัติแอดมินมีเหตุผล
       const log = await pool.query(`SELECT fields FROM app.data_access_log_tb WHERE subject_id = $1 AND 'box_unbound' = ANY(fields)`, [b.box_id]);
       expect(log.rows[0].fields).toContain('reason:ขายบ้าน');
+    });
+
+    it('"return as a new box": unbind + forget Wi-Fi in one step, clears per-box overrides, the box hears wifi_reset and the admin sees it done', async () => {
+      const { b, owner } = await boundBox('97/7');
+      await as(admin.cookie).put(`/api/v1/admin/boxes/${b.box_id}/config`, { scan_timeout_s: 30 }).expect(200);
+      await box(b, 'POST', '/v1/box/boot', { fw: '1.0', config_ver: 0 }).expect(200);
+      const detail = async () => (await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}`).expect(200)).body;
+      expect((await detail()).wifi_reset).toMatchObject({ status: null, requested_at: null });
+
+      const res = await unbind(b.box_id, { reason: 'ขายบ้าน', reset_wifi: true }).expect(200);
+      expect(res.body).toMatchObject({ box_id: b.box_id, wifi_reset: true, ap_name: expect.stringMatching(/^MAILBOX-\d{6}$/) });
+      const after = await detail();
+      expect(after).toMatchObject({ bound: false, house_no: null });
+      expect(after.config.override).toEqual({}); // ตู้ใหม่ = ใช้ค่ากลาง
+      expect(after.wifi_reset).toMatchObject({ status: 'pending', ap_name: res.body.ap_name });
+      expect(
+        (await pool.query(`SELECT 1 FROM app.data_access_log_tb WHERE subject_id = $1 AND 'wifi_reset_requested' = ANY(fields)`, [b.box_id])).rowCount,
+      ).toBe(1);
+
+      // ตู้ได้ยินคำสั่ง (ตอน report/boot) → ตอบรับ → เสร็จ · ไม่มีเจ้าของแล้วจึงไม่มีแจ้งเตือนใคร
+      const rep = await box(b, 'POST', '/v1/box/report', { fw: '1.0', config_ver: 0 }).expect(200);
+      expect(rep.body.command).toMatchObject({ type: 'wifi_reset' });
+      await box(b, 'POST', '/v1/box/events', { type: 'wifi_reset', command_id: rep.body.command.id }).expect(200);
+      expect((await detail()).wifi_reset).toMatchObject({ status: 'done', requested_at: null });
+      expect((await box(b, 'POST', '/v1/box/report', { fw: '1.0', config_ver: 0 }).expect(200)).body.command).toBeUndefined();
+      expect((await pool.query(`SELECT 1 FROM app.notification_tb WHERE user_id = $1 AND type = 'box_wifi_reset'`, [owner.id])).rowCount).toBe(0);
+    });
+
+    it('without reset_wifi nothing is sent to the box · a pending request can be cancelled by an admin only', async () => {
+      const { b, owner } = await boundBox('97/8');
+      await unbind(b.box_id, { reason: 'ย้ายออก' }).expect(200);
+      expect((await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}`).expect(200)).body.wifi_reset.status).toBeNull();
+
+      const again = await boundBox('97/9');
+      await unbind(again.b.box_id, { reason: 'ขายบ้าน', reset_wifi: true }).expect(200);
+      await http().delete(`/api/v1/admin/boxes/${again.b.box_id}/wifi-reset`).set('Cookie', owner.cookie).expect(404);
+      await http().delete(`/api/v1/admin/boxes/${again.b.box_id}/wifi-reset`).set('Cookie', admin.cookie).expect(204);
+      const d = (await as(admin.cookie).get(`/api/v1/admin/boxes/${again.b.box_id}`).expect(200)).body;
+      expect(d.wifi_reset.status).toBeNull();
+      expect((await box(again.b, 'POST', '/v1/box/report', { fw: '1.0', config_ver: 0 }).expect(200)).body.command).toBeUndefined();
+      await http().delete('/api/v1/admin/boxes/BX-99999/wifi-reset').set('Cookie', admin.cookie).expect(404);
+      await http().post(`/api/v1/admin/boxes/${again.b.box_id}/unbind`).set('Cookie', admin.cookie).send({ reason: 'x', reset_wifi: 'yes' }).expect(400);
+
+      // สั่งลืม Wi-Fi อย่างเดียว (ตู้ที่ยังไม่ผูกก็สั่งได้) · เฉพาะแอดมิน
+      const [free] = await register();
+      await http().post(`/api/v1/admin/boxes/${free.box_id}/wifi-reset`).set('Cookie', owner.cookie).expect(404);
+      await http().post('/api/v1/admin/boxes/BX-99999/wifi-reset').set('Cookie', admin.cookie).expect(404);
+      const ask = await http().post(`/api/v1/admin/boxes/${free.box_id}/wifi-reset`).set('Cookie', admin.cookie).expect(200);
+      expect(ask.body.ap_name).toMatch(/^MAILBOX-\d{6}$/);
+      expect((await as(admin.cookie).get(`/api/v1/admin/boxes/${free.box_id}`).expect(200)).body.wifi_reset.status).toBe('pending');
+      expect((await box(free, 'POST', '/v1/box/boot', { fw: '1.0', config_ver: 0 }).expect(200)).body.command).toMatchObject({ type: 'wifi_reset' });
     });
 
     it('refuses an unbound box, an open SOS, a missing reason, and non-admins', async () => {

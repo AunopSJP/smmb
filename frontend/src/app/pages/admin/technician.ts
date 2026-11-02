@@ -37,7 +37,7 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
   imports: [RouterLink, PageHeader, Steps, BoxTest, QrScanner, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'ช่าง · ', en: 'Technician · ' }) + (id() ?? '')" [title]="i18n.t({ th: 'ติดตั้งตู้', en: 'Install a mailbox' })" [back]="url('D01')" />
+    <app-page-header [caption]="i18n.t({ th: 'งานช่าง', en: 'Technician' }) + (id() ? ' · ' + id() : '')" [title]="i18n.t({ th: 'ติดตั้งตู้', en: 'Install a mailbox' })" [back]="url('D01')" />
 
     @if (!id()) {
       <div class="stack">

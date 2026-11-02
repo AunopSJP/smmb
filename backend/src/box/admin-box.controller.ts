@@ -49,6 +49,8 @@ class BoxConfigOverrideDto {
 class UnbindDto {
   /** เหตุผล (บันทึกไว้ในประวัติแอดมิน) เช่น "ขายบ้าน" */
   @IsString() @Length(1, 200) reason!: string;
+  /** true = สั่งตู้ลืม Wi-Fi แล้วกลับโหมดตั้งค่าด้วย (ตู้ต้องออนไลน์ถึงจะรับคำสั่ง · หมดอายุ 24 ชม.) */
+  @IsOptional() @IsBoolean() reset_wifi?: boolean;
 }
 
 class ReissueQrDto {
@@ -113,7 +115,21 @@ export class AdminBoxController {
   @Post('boxes/:box_id/unbind')
   @HttpCode(HttpStatus.OK)
   unbind(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Body() body: UnbindDto) {
-    return this.boxes.unbind(p.box_id, body.reason, auth.userId);
+    return this.boxes.unbind(p.box_id, body.reason, auth.userId, body.reset_wifi ?? false);
+  }
+
+  /** สั่งตู้ลืม Wi-Fi แล้วกลับโหมดตั้งค่า */
+  @Post('boxes/:box_id/wifi-reset')
+  @HttpCode(HttpStatus.OK)
+  requestWifiReset(@Auth() auth: AuthContext, @Param() p: BoxIdParam) {
+    return this.boxes.requestWifiReset(p.box_id, auth.userId);
+  }
+
+  /** ยกเลิกคำสั่งลืม Wi-Fi ที่ตู้ยังไม่ได้รับ */
+  @Delete('boxes/:box_id/wifi-reset')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async cancelWifiReset(@Auth() auth: AuthContext, @Param() p: BoxIdParam): Promise<void> {
+    await this.boxes.cancelWifiReset(p.box_id, auth.userId);
   }
 
   /** ตั้งค่าทับเฉพาะตู้ (แทนที่ทั้งชุด · ส่ง {} = ใช้ค่ากลางทั้งหมด) */

@@ -108,6 +108,36 @@ interface Segment {
         </section>
       </div>
 
+      <!-- 2.5) กิจกรรม 7 วัน -->
+      <section class="panel">
+        <header>
+          <h2>{{ i18n.t({ th: 'กิจกรรม 7 วันล่าสุด', en: 'Last 7 days' }) }}</h2>
+          <a [routerLink]="url('D11')">{{ i18n.t({ th: 'ดูประวัติ', en: 'Open the log' }) }}</a>
+        </header>
+        @if (activityTotal() > 0) {
+          <div class="chart" role="img" [attr.aria-label]="i18n.t({ th: 'กราฟแท่งกิจกรรมรายวัน', en: 'Daily activity bar chart' })">
+            @for (d of activity(); track d.date) {
+              <div class="day" [title]="d.label + ' · ' + i18n.t({ th: 'ตรวจผ่าน ', en: 'Passed ' }) + d.inspections + ' · ' + i18n.t({ th: 'มีปัญหา ', en: 'Problems ' }) + d.problems + ' · ' + i18n.t({ th: 'ส่งของ ', en: 'Deliveries ' }) + d.deliveries">
+                <div class="col">
+                  <span class="seg ok" [style.height.%]="d.hInspections"></span>
+                  <span class="seg bad" [style.height.%]="d.hProblems"></span>
+                  <span class="seg mid" [style.height.%]="d.hDeliveries"></span>
+                </div>
+                <span class="dlabel">{{ d.label }}</span>
+              </div>
+            }
+          </div>
+          <ul class="key">
+            <li><span class="swatch ok"></span>{{ i18n.t({ th: 'ตรวจผ่าน', en: 'Inspections passed' }) }} <strong>{{ activitySum().inspections }}</strong></li>
+            <li><span class="swatch bad"></span>{{ i18n.t({ th: 'ตรวจไม่ผ่าน/ตู้มีปัญหา', en: 'Failed / box problem' }) }} <strong>{{ activitySum().problems }}</strong></li>
+            <li><span class="swatch mid"></span>{{ i18n.t({ th: 'ส่งของ', en: 'Deliveries' }) }} <strong>{{ activitySum().deliveries }}</strong></li>
+            <li>{{ i18n.t({ th: 'SOS', en: 'SOS' }) }} <strong>{{ activitySum().sos }}</strong></li>
+          </ul>
+        } @else {
+          <p class="empty">{{ i18n.t({ th: 'ยังไม่มีกิจกรรมใน 7 วันที่ผ่านมา', en: 'No activity in the last 7 days' }) }}</p>
+        }
+      </section>
+
       <!-- 3) งานที่ต้องทำ -->
       <section class="panel flush">
         <header class="hpad">
@@ -249,6 +279,68 @@ interface Segment {
     .kpi-value.zero {
       color: var(--text-muted);
       font-weight: 600;
+    }
+    .chart {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 10px;
+      align-items: end;
+      height: 190px;
+      padding-top: 8px;
+    }
+    .day {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      height: 100%;
+    }
+    .col {
+      flex: 1;
+      width: 100%;
+      max-width: 44px;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 1px;
+      justify-content: flex-start;
+      border-bottom: 1px solid var(--line-strong, var(--line));
+    }
+    .seg {
+      display: block;
+      width: 100%;
+      min-height: 0;
+      border-radius: 3px;
+    }
+    .seg.ok,
+    .swatch.ok {
+      background: var(--ok);
+    }
+    .seg.bad,
+    .swatch.bad {
+      background: var(--sos);
+    }
+    .seg.mid,
+    .swatch.mid {
+      background: color-mix(in srgb, var(--text-muted) 70%, transparent);
+    }
+    .dlabel {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .key {
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 20px;
+      margin: 14px 0 0;
+      padding: 0;
+      font-size: 0.875rem;
+    }
+    .key strong {
+      margin-left: 4px;
+      font-variant-numeric: tabular-nums;
     }
     .asof {
       display: flex;
@@ -480,6 +572,30 @@ export class AdminHome implements OnInit {
   protected readonly pendingCount = computed(() => this.overview()?.agencies_pending ?? this.pending().length);
   protected readonly qrTotal = computed(() => this.overview()?.qr_issues.total ?? 0);
   protected readonly plans = computed(() => this.overview()?.owners_by_plan ?? []);
+
+  /** แท่งซ้อนต่อวัน: ความสูงเทียบวันที่มากที่สุดใน 7 วัน (ไม่นับ SOS ในแท่ง — แสดงเป็นตัวเลขใต้กราฟ) */
+  protected readonly activity = computed(() => {
+    const days = this.overview()?.activity_7d ?? [];
+    const max = Math.max(1, ...days.map((d) => d.inspections + d.problems + d.deliveries));
+    const lang = this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB';
+    return days.map((d) => ({
+      ...d,
+      label: new Date(`${d.date}T12:00:00+07:00`).toLocaleDateString(lang, { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' }),
+      hInspections: (d.inspections / max) * 100,
+      hProblems: (d.problems / max) * 100,
+      hDeliveries: (d.deliveries / max) * 100,
+    }));
+  });
+  protected readonly activitySum = computed(() =>
+    (this.overview()?.activity_7d ?? []).reduce(
+      (a, d) => ({ inspections: a.inspections + d.inspections, problems: a.problems + d.problems, deliveries: a.deliveries + d.deliveries, sos: a.sos + d.sos }),
+      { inspections: 0, problems: 0, deliveries: 0, sos: 0 },
+    ),
+  );
+  protected readonly activityTotal = computed(() => {
+    const s = this.activitySum();
+    return s.inspections + s.problems + s.deliveries + s.sos;
+  });
 
   /** ตัวเลขสรุปด้านบนสุด — ทุกใบกดไปหน้าที่จัดการต่อได้ */
   protected readonly kpis = computed(() => {

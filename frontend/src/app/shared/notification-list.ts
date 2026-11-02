@@ -58,7 +58,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
             <app-icon [name]="l.icon" [size]="20" />
           </span>
           <span class="grow">
-            <strong>{{ n.title }}</strong>
+            <strong>{{ plain(n.title) }}</strong>
             <span class="muted small block">{{ n.body }} · {{ when(n.created_at) }}</span>
           </span>
         </button>
@@ -95,6 +95,11 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
   `,
 })
 export class NotificationList implements OnInit {
+  /** ตัดอีโมจิหน้าข้อความ (ข้อความจากเซิร์ฟเวอร์มีไว้ให้ push) — ระดับความสำคัญแสดงด้วยไอคอนด้านซ้ายอยู่แล้ว */
+  protected plain(title: string): string {
+    return title.replace(/^[\p{Extended_Pictographic}️‍\s]+/u, '');
+  }
+
   protected readonly i18n = inject(I18n);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);

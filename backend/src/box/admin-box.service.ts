@@ -9,6 +9,8 @@ import { BoxConfigService } from './box-config.service.js';
 import { deviceSecret, frontQrToken, newActivateToken, newPrintCode, showPrintCode } from './box-crypto.js';
 import { BoxJobService, type JobDto } from './box-job.service.js';
 import { NotificationService } from '../push/notification.service.js';
+import { setupApName, WIFI_RESET_TTL_H } from './box-protocol.service.js';
+import { JobHub } from './job-hub.js';
 
 export type QrSlot = 1 | 2 | 'activate';
 const UNUSED_ACTIVATION_STATUS = 'active';
@@ -47,6 +49,8 @@ export interface AdminBoxRow {
   fw_target: string | null;
   /** ตู้โหลดไฟล์ของ fw_target ไปแล้วแต่ยังรายงานเวอร์ชันอื่น (ชื่อที่ตั้งตอนอัปโหลดไม่ตรงกับเลขในไฟล์ หรือลงไม่สำเร็จ) */
   fw_stuck: boolean;
+  /** คำสั่ง "ลืม Wi-Fi แล้วกลับโหมดตั้งค่า": pending = รอตู้รับ · expired = ไม่มีใครรับใน 24 ชม. · done = ตู้ทำแล้ว · null = ไม่เคย */
+  wifi_reset: { status: 'pending' | 'expired' | 'done' | null; ap_name: string; requested_at: string | null; done_at: string | null };
 }
 
 export type CameraDiagnosticState = 'started' | 'ready' | 'scan_result' | 'error';
@@ -95,6 +99,8 @@ interface BoxRow {
   fw: string | null;
   fw_target: string | null;
   fw_target_fetched_date: Date | null;
+  wifi_reset_requested_date: Date | null;
+  wifi_reset_done_date: Date | null;
   config_override: Record<string, unknown>;
   config_ver_seen: number | null;
   created_date: Date;
@@ -104,7 +110,7 @@ interface BoxRow {
 export const FW_INSTALL_GRACE_MS = 3 * 60_000;
 
 const BOX_COLS = `box_id, house_no, name, owner_user_id, service_active, service_reason, service_changed_date, battery_pct, charging, battery_date,
-  last_seen_date, last_poll_date, fw, fw_target, fw_target_fetched_date, config_override, config_ver_seen, created_date`;
+  last_seen_date, last_poll_date, fw, fw_target, fw_target_fetched_date, wifi_reset_requested_date, wifi_reset_done_date, config_override, config_ver_seen, created_date`;
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 const intField = (value: unknown, max: number): number | null =>
@@ -151,6 +157,7 @@ export class AdminBoxService {
     private readonly configs: BoxConfigService,
     private readonly jobs: BoxJobService,
     private readonly notifications: NotificationService,
+    private readonly hub: JobHub,
   ) {}
 
   /**
@@ -263,8 +270,15 @@ export class AdminBoxService {
    * ยกเลิกการผูกตู้ (ขายบ้าน / ย้ายออก) — ตู้ไม่ถูกลบ ประวัติเก่ายังอยู่ · ตู้กลับเป็น "ยังไม่ผูก":
    * ล้างเจ้าของ/บ้านเลขที่/ย่าน/ชื่อ · ถอดออกจากทุกโซน · ออก QR เปิดใช้ตู้ใบใหม่ให้เจ้าของคนใหม่ (QR หน้าตู้ที่ติดอยู่ใช้ต่อได้)
    * มี SOS ค้างอยู่ → 409 ต้องปิดเคสก่อน · บันทึกใน data_access_log_tb · แจ้งเจ้าของเดิม
+   * ล้างค่าที่แอดมินตั้งเฉพาะตู้ด้วย (ตู้ใหม่ = ใช้ค่ากลาง) · resetWifi = สั่งตู้ลืม Wi-Fi แล้วเปิดโหมดตั้งค่า (คำสั่ง wifi_reset เดียวกับที่เจ้าของบ้านกด)
+   * ตู้ยังจำรหัสตู้/รหัสลับ จึงกลับมาคุยกับเซิร์ฟเวอร์ได้เมื่อตั้ง Wi-Fi ใหม่ ไม่ต้องต่อสาย
    */
-  async unbind(boxId: string, reason: string, adminId: string): Promise<{ box_id: string; qr: ReissuedQr }> {
+  async unbind(
+    boxId: string,
+    reason: string,
+    adminId: string,
+    resetWifi = false,
+  ): Promise<{ box_id: string; qr: ReissuedQr; wifi_reset: boolean; ap_name: string }> {
     const out = await withTx(this.pool, async (db) => {
       const box = await this.load(db, boxId);
       if (!box.owner_user_id) throw new ConflictException({ code: 'BOX_NOT_BOUND', message: 'this box has no owner' });
@@ -272,9 +286,11 @@ export class AdminBoxService {
       if (sos.rowCount) throw new ConflictException({ code: 'SOS_OPEN', message: 'close the open SOS of this box first' });
       await db.query(
         `UPDATE app.box_tb SET owner_user_id = NULL, name = NULL, house_no = NULL, area = NULL, bound_date = NULL,
-           wifi_reset_requested_date = NULL, wifi_reset_requested_by = NULL, offline_notified_date = NULL
+           config_override = '{}'::jsonb, offline_notified_date = NULL,
+           wifi_reset_requested_date = CASE WHEN $2::boolean THEN now() ELSE NULL END,
+           wifi_reset_requested_by = CASE WHEN $2::boolean THEN $3 ELSE NULL END
          WHERE box_id = $1`,
-        [boxId],
+        [boxId, resetWifi, adminId],
       );
       await db.query(`DELETE FROM app.zone_box_tb WHERE box_id = $1`, [boxId]);
       // QR เปิดใช้ตู้ใบเก่าถูกใช้ไปแล้ว — ใบที่ยังไม่ใช้ (ถ้ามี) ยกเลิกก่อนออกใบใหม่
@@ -282,14 +298,43 @@ export class AdminBoxService {
       const qr = await this.issueQr(db, boxId, 'activate');
       await db.query(
         `INSERT INTO app.data_access_log_tb (actor_user_id, subject_kind, subject_id, fields) VALUES ($1, 'box', $2, $3)`,
-        [adminId, boxId, ['box_unbound', `reason:${reason.slice(0, 200)}`]],
+        [adminId, boxId, ['box_unbound', ...(resetWifi ? ['wifi_reset_requested'] : []), `reason:${reason.slice(0, 200)}`]],
       );
       return { qr, owner: box.owner_user_id, name: box.name };
     });
     await this.notifications
       .notify([out.owner], { type: 'box_unbound', data: { box_id: boxId, box_name: out.name }, link: '/home', tag: `unbound-${boxId}` })
       .catch(() => undefined);
-    return { box_id: boxId, qr: out.qr };
+    if (resetWifi) this.hub.wake(boxId);
+    return { box_id: boxId, qr: out.qr, wifi_reset: resetWifi, ap_name: setupApName(boxId) };
+  }
+
+  /** สั่งตู้ลืม Wi-Fi แล้วกลับโหมดตั้งค่า (ตู้ที่ยังไม่ผูก หรือผูกแล้วแต่ต้องแก้ Wi-Fi แทนเจ้าของ) — ตู้ต้องออนไลน์ถึงจะรับ · หมดอายุ 24 ชม. */
+  async requestWifiReset(boxId: string, adminId: string): Promise<{ ap_name: string }> {
+    const { rowCount } = await this.pool.query(
+      `UPDATE app.box_tb SET wifi_reset_requested_date = now(), wifi_reset_requested_by = $2 WHERE box_id = $1`,
+      [boxId, adminId],
+    );
+    if (!rowCount) throw new NotFoundException();
+    await this.pool.query(`INSERT INTO app.data_access_log_tb (actor_user_id, subject_kind, subject_id, fields) VALUES ($1, 'box', $2, '{wifi_reset_requested}')`, [adminId, boxId]);
+    this.hub.wake(boxId);
+    return { ap_name: setupApName(boxId) };
+  }
+
+  /** ยกเลิกคำสั่ง "ลืม Wi-Fi" ที่ตู้ยังไม่ได้รับ (กดผิด) — ตู้รับไปแล้วยกเลิกไม่ได้ */
+  async cancelWifiReset(boxId: string, adminId: string): Promise<void> {
+    const { rowCount } = await this.pool.query(
+      `UPDATE app.box_tb SET wifi_reset_requested_date = NULL, wifi_reset_requested_by = NULL WHERE box_id = $1 AND wifi_reset_requested_date IS NOT NULL`,
+      [boxId],
+    );
+    if (!rowCount) {
+      await this.load(this.pool, boxId); // ไม่มีตู้ = 404
+      return;
+    }
+    await this.pool.query(
+      `INSERT INTO app.data_access_log_tb (actor_user_id, subject_kind, subject_id, fields) VALUES ($1, 'box', $2, '{wifi_reset_cancelled}')`,
+      [adminId, boxId],
+    );
   }
 
   async remove(boxId: string, adminId: string): Promise<{ box_id: string; deleted: true }> {
@@ -434,6 +479,18 @@ export class AdminBoxService {
       // ตู้ต้องใช้เวลาเขียนไฟล์ + รีบูต + รายงานเวอร์ชันใหม่ → เตือนเมื่อโหลดไปแล้วเกิน FW_INSTALL_GRACE_MS ยังไม่เปลี่ยน
       fw_stuck:
         r.fw_target !== null && r.fw_target_fetched_date !== null && r.fw !== r.fw_target && Date.now() - r.fw_target_fetched_date.getTime() > FW_INSTALL_GRACE_MS,
+      wifi_reset: {
+        status: r.wifi_reset_requested_date
+          ? Date.now() - r.wifi_reset_requested_date.getTime() > WIFI_RESET_TTL_H * 3_600_000
+            ? 'expired'
+            : 'pending'
+          : r.wifi_reset_done_date
+            ? 'done'
+            : null,
+        ap_name: setupApName(r.box_id),
+        requested_at: r.wifi_reset_requested_date?.toISOString() ?? null,
+        done_at: r.wifi_reset_done_date?.toISOString() ?? null,
+      },
     };
   }
 

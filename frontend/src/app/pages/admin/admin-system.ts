@@ -172,6 +172,32 @@ const LOG_TYPE: Record<AdminLogType, { label: Tr; icon: IconName; tone: '' | 'wa
   terms: { label: { th: 'ยอมรับข้อตกลง', en: 'Terms accepted' }, icon: 'check', tone: '' },
 };
 
+/** คำที่ระบบบันทึกเป็นรหัส → ข้อความอ่านง่าย (ไม่รู้จัก = แสดงตามเดิม แต่ตัดเครื่องหมาย {} ของอาร์เรย์ออก) */
+const FRIENDLY: Record<string, Tr> = {
+  scan: { th: 'สแกน QR', en: 'scanned' },
+  typed: { th: 'พิมพ์รหัส', en: 'typed code' },
+  ok: { th: 'ปกติ', en: 'ok' },
+  passed: { th: 'ผ่าน', en: 'passed' },
+  failed: { th: 'ไม่ผ่าน', en: 'failed' },
+  retry: { th: 'ให้ลองใหม่', en: 'retry' },
+  delivered: { th: 'ส่งของแล้ว', en: 'delivered' },
+  closed: { th: 'ปิดงานแล้ว', en: 'closed' },
+  box: { th: 'ตู้', en: 'box' },
+  qr_reissue_1: { th: 'QR หน้าตู้ใหม่', en: 'new front QR' },
+  qr_reissue_2: { th: 'QR สำรองใหม่', en: 'new backup QR' },
+};
+function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
+  if (!v) return '';
+  return v
+    .replace(/^\{|\}$/g, '')
+    .split(',')
+    .map((part) => {
+      const k = part.trim();
+      return FRIENDLY[k]?.[lang] ?? k;
+    })
+    .join(', ');
+}
+
 @Component({
   selector: 'app-admin-logs',
   imports: [PageHeader],
@@ -306,22 +332,18 @@ export class AdminLogs {
 
   protected title(log: AdminLog): Tr {
     const place = log.house_no ?? log.box_id ?? log.result ?? log.type;
-    const date = new Date(log.created_at).toLocaleTimeString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Asia/Bangkok',
-    });
+    const lang = this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB';
+    const at = new Date(log.created_at);
+    const date = `${at.toLocaleDateString(lang, { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' })} ${at.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' })}`;
     return { th: `${LOG_TYPE[log.type].label.th} · ${place} · ${date}`, en: `${LOG_TYPE[log.type].label.en} · ${place} · ${date}` };
   }
 
   protected sub(log: AdminLog): Tr {
     const actor = log.actor_name ?? '—';
     const qr = log.qr_slot ? `QR ${log.qr_slot}` : '';
-    const method = log.method ?? '';
-    const result = log.result ?? '';
-    const extra = log.details ?? '';
-    const th = [actor, qr, method, result, extra].filter(Boolean).join(' · ');
-    return { th, en: th };
+    const mk = (lang: 'th' | 'en') =>
+      [actor, qr, friendly(log.method, lang), friendly(log.result, lang), friendly(log.details, lang)].filter(Boolean).join(' · ');
+    return { th: mk('th'), en: mk('en') };
   }
 
   /** ส่งออกแถวที่โหลดจาก GET /admin/logs และผ่านตัวกรองบนหน้าจอ */

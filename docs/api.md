@@ -616,7 +616,7 @@ interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus }
 
 | method | path | ตอบ |
 |---|---|---|
-| GET | `/admin/overview` | `D01`: `{ boxes: { total, online, offline, sleeping, service_closed, unbound, low_battery }, agencies_pending, qr_issues: { total, by_health: { damaged, suspicious, maybe_fake, expiring } }, sos_open, technician_requests_open, owners_by_plan: [{ plan_code, owners_count }] }` · `online` คือตู้ที่ถือ long-poll ภายใน `2 × longpoll_wait_s`, `sleeping` ติดต่อได้ใน 26 ชม. แต่ขณะนี้หลับตามตาราง, `low_battery` นับเฉพาะตู้ที่ผูกเจ้าของและแบตต่ำกว่า 20% · ยอดนับจากทั้งฐานข้อมูล ไม่ถูกจำกัดตามหน้า pagination |
+| GET | `/admin/overview` | `D01`: `{ boxes: { total, online, offline, sleeping, service_closed, unbound, low_battery }, agencies_pending, qr_issues: { total, by_health: { damaged, suspicious, maybe_fake, expiring } }, sos_open, technician_requests_open, owners_by_plan: [{ plan_code, owners_count }], activity_7d: [{ date, inspections, problems, deliveries, sos }] }` · `activity_7d` = 7 วันล่าสุดตามเวลาไทย (เก่า→ใหม่ รวมวันนี้) นับตรวจผ่าน / ตรวจไม่ผ่านหรือตู้มีปัญหา / ส่งของ / SOS ใหม่ต่อวัน · `online` คือตู้ที่ถือ long-poll ภายใน `2 × longpoll_wait_s`, `sleeping` ติดต่อได้ใน 26 ชม. แต่ขณะนี้หลับตามตาราง, `low_battery` นับเฉพาะตู้ที่ผูกเจ้าของและแบตต่ำกว่า 20% · ยอดนับจากทั้งฐานข้อมูล ไม่ถูกจำกัดตามหน้า pagination |
 
 ### 9.2 หน่วยงาน
 
@@ -661,13 +661,15 @@ interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus }
 | GET | `/admin/firmware` | — | `[{ version, sha256, size, uploaded_at }]` เฟิร์มแวร์ที่อัปโหลดไว้ (ล่าสุดก่อน ≤ 50) |
 | POST | `/admin/firmware/:version` | body = ไบต์ดิบของ `.bin` (≤ 1.9 MB ขึ้นต้น `E9`) | 201 `{ version, sha256, size, uploaded_at }` · เวอร์ชันซ้ำ 409 `FIRMWARE_EXISTS` · ไฟล์ไม่ใช่เฟิร์มแวร์ ESP32 / ขนาดไม่ถูก 400 |
 | PUT | `/admin/boxes/:box_id/firmware` | `{ version }` · `null` = ยกเลิก | 204 · ตู้ได้คำสั่ง `ota` ตอน long-poll/boot (โปรโตคอล §2.9) · `box.fw_target` ในรายละเอียดตู้ = เวอร์ชันที่รอตู้อัปเดต · `fw_stuck: true` = ตู้โหลดไฟล์นั้นไปแล้วแต่ยังรายงานเวอร์ชันอื่น (ชื่อที่อัปโหลดไม่ตรงกับ `FW_VERSION` ในไฟล์ หรือลงไม่สำเร็จ) → เซิร์ฟเวอร์เลิกเสนอ จนกว่าแอดมินกด PUT เดิมซ้ำ (ลองใหม่) |
-| POST | `/admin/boxes/:box_id/unbind` | `{ reason (1–200) }` | ✅ 2026-10-30 ยกเลิกการผูก (ขายบ้าน/ย้ายออก) → `{ box_id, qr }` (QR เปิดใช้ตู้ใบใหม่) · ล้างเจ้าของ/บ้านเลขที่/ย่าน/ชื่อ · ถอดออกจากทุกโซน · QR หน้าตู้ใช้ต่อ · ประวัติเก่าอยู่ · 409 `BOX_NOT_BOUND` · 409 `SOS_OPEN` · แจ้งเจ้าของเดิม (`box_unbound`) · บันทึกเหตุผลใน `data_access_log_tb` |
+| POST | `/admin/boxes/:box_id/unbind` | `{ reason (1–200), reset_wifi?: boolean }` | ✅ 2026-10-30 ยกเลิกการผูก (ขายบ้าน/ย้ายออก) → `{ box_id, qr, wifi_reset, ap_name }` (QR เปิดใช้ตู้ใบใหม่) · ล้างเจ้าของ/บ้านเลขที่/ย่าน/ชื่อ + **ค่าเฉพาะตู้ (`config_override`) กลับเป็นค่ากลาง** · ถอดออกจากทุกโซน · QR หน้าตู้ใช้ต่อ · ประวัติเก่าอยู่ · **`reset_wifi: true` (✅ 2026-11-02 "คืนตู้เป็นตู้ใหม่") = สั่ง `wifi_reset` ในธุรกรรมเดียวกัน → ตู้ลืม Wi-Fi แล้วเปิด AP `ap_name` รอตั้งค่า (ยังจำรหัสตู้/รหัสลับ ไม่ต้องต่อสาย) · ตู้ต้องออนไลน์รับภายใน 24 ชม.** · 409 `BOX_NOT_BOUND` · 409 `SOS_OPEN` · แจ้งเจ้าของเดิม (`box_unbound`) · บันทึกเหตุผลใน `data_access_log_tb` |
 | GET | `/admin/boxes/:box_id/qr` | — | `QrCode[]` ทุกใบทุกรุ่น (รวมใบที่ยกเลิกแล้ว) |
 | GET | `/admin/qr` | `?health=damaged,suspicious,maybe_fake,expiring` | `D05` QR ผิดปกติและเคสที่ยังดำเนินการอยู่ · เคสยังแสดงแม้ QR ใบเดิมถูก revoke แล้ว |
 | GET | `/admin/qr/:qr_id` | — | สถานะและขั้นตอนของเคส QR (`D06`–`D08`) |
 | POST | `/admin/qr/:qr_id/fix` | `{ fix: "swap" \| "reissue" \| "fake" }` | `D06-b` เลือกวิธีแก้ · `fake` ใช้ flow ส่งช่าง |
 | POST | `/admin/qr/:qr_id/request-backup-swap` | — | `D06-b` แจ้งเจ้าของบ้านให้นำ QR สำรองมาติด → เคส `owner_notified` |
 | POST | `/boxes/:box_id/qr-backup-placed` | `owner` · `{}` | เจ้าของยืนยันหลังติด QR สำรอง · revoke QR หน้าตู้เดิมและเลื่อน QR สำรองเป็นใบหน้าตู้ |
+| POST | `/admin/boxes/:box_id/wifi-reset` | — | ✅ 2026-11-02 สั่งตู้ลืม Wi-Fi แล้วกลับโหมดตั้งค่า (ตู้ที่ยังไม่ผูกก็สั่งได้) → `{ ap_name }` · 404 ถ้าไม่มีตู้ · บันทึกใน `data_access_log_tb` · สถานะดูที่ `wifi_reset: { status: pending\|expired\|done\|null, ap_name, requested_at, done_at }` ในรายละเอียด/รายการตู้ |
+| DELETE | `/admin/boxes/:box_id/wifi-reset` | — | ✅ ยกเลิกคำสั่งลืม Wi-Fi ที่ตู้ยังไม่รับ → 204 · 404 ถ้าไม่มีตู้ |
 | POST | `/admin/boxes/:box_id/qr/reissue` | `{ slots: (1 \| 2)[], request_id: UUID }` | `{ box_id, qr: ReissuedQr[] }` — ออกใบใหม่และ revoke ใบเดิมของ slot ที่ระบุใน transaction; QR หน้าตู้/สำรองใช้ version ถัดไปจากประวัติทั้งสอง slot เพื่อไม่สร้าง token ซ้ำเมื่อเลื่อนใบสำรองขึ้นหน้า; คำขอซ้ำ key+slots คืนผลเดิม; key เดิมแต่ slots ต่างตอบ 409 (`D07-b`) |
 | POST | `/admin/qr/:qr_id/reissue` | `{ slots: (1 \| 2)[], delivery_method?: "post" \| "technician" }` | บันทึกขั้นออก QR หลัง API reissue สร้าง active QR ตาม slot และเวลาของเคสครบแล้ว · swap ต้องมีการยืนยันเจ้าของก่อน |
 | POST | `/admin/qr/:qr_id/dispatch-technician` | — | บันทึก `technician_dispatched` และส่ง notification ไปยังแอดมิน/ช่าง |
