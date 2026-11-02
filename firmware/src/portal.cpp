@@ -9,7 +9,7 @@
 #include "buzzer.h"
 #include "settings.h"
 
-void cliPoll();  // main.cpp — คำสั่งทาง Serial ใช้ได้ระหว่างอยู่ในโหมดตั้งค่า
+void cliPoll(); // main.cpp — คำสั่งทาง Serial ใช้ได้ระหว่างอยู่ในโหมดตั้งค่า
 
 static WebServer server(80);
 static DNSServer dns;
@@ -17,28 +17,38 @@ static String networksHtml;
 static String lastError;
 static bool done = false;
 
-static String esc(const String& s) {
+static String esc(const String &s)
+{
   String o;
-  for (char c : s) {
-    if (c == '<') o += "&lt;";
-    else if (c == '>') o += "&gt;";
-    else if (c == '&') o += "&amp;";
-    else if (c == '"') o += "&quot;";
-    else o += c;
+  for (char c : s)
+  {
+    if (c == '<')
+      o += "&lt;";
+    else if (c == '>')
+      o += "&gt;";
+    else if (c == '&')
+      o += "&amp;";
+    else if (c == '"')
+      o += "&quot;";
+    else
+      o += c;
   }
   return o;
 }
 
-static void scanNetworks() {
+static void scanNetworks()
+{
   int n = WiFi.scanNetworks(false, false);
   networksHtml = "";
-  for (int i = 0; i < n && i < 20; i++) {
+  for (int i = 0; i < n && i < 20; i++)
+  {
     String ssid = WiFi.SSID(i);
-    if (!ssid.length() || networksHtml.indexOf(">" + esc(ssid) + "<") >= 0) continue;
+    if (!ssid.length() || networksHtml.indexOf(">" + esc(ssid) + "<") >= 0)
+      continue;
     int ch = WiFi.channel(i);
     networksHtml += "<option value=\"" + esc(ssid) + "\"" + (ssid == settings.wifiSsid ? " selected" : "") + ">" + esc(ssid) +
                     "</option>";
-    (void)ch;  // ESP32 รุ่นนี้เห็นเฉพาะ 2.4 GHz อยู่แล้ว
+    (void)ch; // ESP32 รุ่นนี้เห็นเฉพาะ 2.4 GHz อยู่แล้ว
   }
   WiFi.scanDelete();
 }
@@ -57,11 +67,13 @@ button{width:100%;margin-top:18px;padding:14px;font-size:1.05rem;font-weight:700
 .box{background:#fff;padding:14px;border-radius:12px;margin:12px 0}.muted{color:#777;font-size:.85rem}.err{color:#C81E1E;font-weight:700}
 details summary{font-weight:700;cursor:pointer}</style></head><body>)HTML";
 
-static void handleRoot() {
+static void handleRoot()
+{
   String h = PAGE_HEAD;
   h += "<h1>ตั้ง Wi-Fi ให้ตู้ " + esc(apName()) + "</h1>";
   h += "<p class=muted>หน้านี้มาจากตู้ ไม่ต้องใช้เน็ต · ตู้ใช้ได้เฉพาะ Wi-Fi 2.4 GHz</p>";
-  if (lastError.length()) h += "<p class=err>" + esc(lastError) + "</p>";
+  if (lastError.length())
+    h += "<p class=err>" + esc(lastError) + "</p>";
   h += "<form method=post action=/save><div class=box>";
   h += "<label>Wi-Fi บ้าน</label><select name=ssid>" + networksHtml + "<option value=''>— พิมพ์ชื่อเอง —</option></select>";
   h += "<label>หรือพิมพ์ชื่อ Wi-Fi</label><input name=ssid2 autocomplete=off placeholder='ถ้าไม่เห็นในรายการ'>";
@@ -76,7 +88,8 @@ static void handleRoot() {
   server.send(200, "text/html; charset=utf-8", h);
 }
 
-static void handleSave() {
+static void handleSave()
+{
   String ssid = server.arg("ssid2").length() ? server.arg("ssid2") : server.arg("ssid");
   ssid.trim();
   String url = server.arg("url"), box = server.arg("box"), secret = server.arg("secret");
@@ -85,13 +98,15 @@ static void handleSave() {
   box.toUpperCase();
   secret.trim();
   secret.toLowerCase();
-  if (!ssid.length()) {
+  if (!ssid.length())
+  {
     lastError = "เลือกหรือพิมพ์ชื่อ Wi-Fi ก่อน";
     server.sendHeader("Location", "/");
     server.send(302);
     return;
   }
-  if (secret.length() && secret.length() != 64) {
+  if (secret.length() && secret.length() != 64)
+  {
     lastError = "รหัสลับต้องยาว 64 ตัว";
     server.sendHeader("Location", "/");
     server.send(302);
@@ -99,10 +114,14 @@ static void handleSave() {
   }
   settings.wifiSsid = ssid;
   settings.wifiPass = server.arg("pass");
-  if (url.length()) settings.url = url;
-  else if (!settings.url.length()) settings.url = DEFAULT_SERVER_URL;  // เว้นว่าง = ใช้เซิร์ฟเวอร์ตั้งต้น (ไม่งั้นตู้ค้างในโหมดตั้งค่าเพราะ URL ว่าง)
-  if (box.length()) settings.boxId = box;
-  if (secret.length()) settings.secret = secret;
+  if (url.length())
+    settings.url = url;
+  else if (!settings.url.length())
+    settings.url = DEFAULT_SERVER_URL; // เว้นว่าง = ใช้เซิร์ฟเวอร์ตั้งต้น (ไม่งั้นตู้ค้างในโหมดตั้งค่าเพราะ URL ว่าง)
+  if (box.length())
+    settings.boxId = box;
+  if (secret.length())
+    settings.secret = secret;
   // บันทึกทันที — ต่อ Wi-Fi ไม่ผ่านก็ไม่ต้องกรอกรหัสตู้/รหัสลับซ้ำ
   settingsSave();
 
@@ -114,13 +133,17 @@ static void handleSave() {
   delay(300);
 
   Serial.printf("[portal] trying Wi-Fi \"%s\"\n", ssid.c_str());
-  wifiJoin([] { dns.processNextRequest(); });
-  if (WiFi.status() == WL_CONNECTED) {
+  wifiJoin([]
+           { dns.processNextRequest(); });
+  if (WiFi.status() == WL_CONNECTED)
+  {
     settingsSave();
     lastError = "";
     done = true;
     Serial.printf("[portal] connected, IP %s\n", WiFi.localIP().toString().c_str());
-  } else {
+  }
+  else
+  {
     uint8_t reason = wifiLastReason();
     lastError = String("ต่อ \"") + ssid + "\" ไม่ได้: " + wifiReasonText(reason) + " (รหัส " + String(reason) + ")";
     Serial.printf("[portal] connect failed (status %d, reason %u %s)\n", (int)WiFi.status(), reason, wifiReasonText(reason));
@@ -129,12 +152,14 @@ static void handleSave() {
   }
 }
 
-static void redirectHome() {
+static void redirectHome()
+{
   server.sendHeader("Location", String("http://") + WiFi.softAPIP().toString() + "/");
   server.send(302, "text/plain", "");
 }
 
-bool runSetupPortal(unsigned long timeoutMs) {
+bool runSetupPortal(unsigned long timeoutMs)
+{
   done = false;
   lastError = "";
   WiFi.disconnect(true);
@@ -155,8 +180,9 @@ bool runSetupPortal(unsigned long timeoutMs) {
   Serial.printf("[portal] setup mode: join Wi-Fi \"%s\" then open http://%s\n", ap.c_str(), WiFi.softAPIP().toString().c_str());
 
   unsigned long start = millis();
-  while (!done && millis() - start < timeoutMs) {
-    esp_task_wdt_reset();  // โหมดตั้งค่าอาจนานถึง 10 นาที (ถ้าลูปหลักเปิด watchdog อยู่)
+  while (!done && millis() - start < timeoutMs)
+  {
+    esp_task_wdt_reset(); // โหมดตั้งค่าอาจนานถึง 10 นาที (ถ้าลูปหลักเปิด watchdog อยู่)
     dns.processNextRequest();
     server.handleClient();
     cliPoll();

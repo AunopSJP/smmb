@@ -52,15 +52,21 @@ export class Session {
     return this.loaded;
   }
 
+  /**
+   * ถามเซิร์ฟเวอร์ว่าตอนนี้ใครล็อกอินอยู่ — เรียกหลังสมัคร / เพิ่มบทบาท / ขอเข้าหน่วยงาน (cookie เพิ่งถูกตั้ง)
+   * ต้องอัปเดต `loaded` ด้วย: ถ้า guard เคยเรียก ensure() ตอนยังไม่ล็อกอิน (เช่น เปิดลิงก์ที่ `/`) แล้ว
+   * ค่า "ไม่ได้ล็อกอิน" จะค้างอยู่ และ guard ทุกตัวจะเด้งผู้ใช้ที่เพิ่งสมัครไปหน้าเข้าสู่ระบบทั้งที่ล็อกอินอยู่แล้ว
+   */
   async refresh(): Promise<Me | null> {
+    let me: Me | null = null;
     try {
-      const me = await firstValueFrom(this.http.get<Me>('/api/v1/me'));
-      this.set(me);
-      return me;
+      me = await firstValueFrom(this.http.get<Me>('/api/v1/me'));
     } catch {
-      this.set(null);
-      return null;
+      me = null;
     }
+    this.set(me);
+    this.loaded = Promise.resolve(me);
+    return me;
   }
 
   /** คืน code ของ error ถ้าไม่ผ่าน (INVALID_CREDENTIALS / ACCOUNT_LOCKED / ACCOUNT_DISABLED / …) */

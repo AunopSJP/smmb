@@ -57,7 +57,7 @@ const caseTitle = (c: QrCase, i18n: I18n) => `${i18n.t({ th: 'ตู้ ', en: '
         <section class="print-card">
           <header><img src="icons/icon-96x96.png" width="28" height="28" alt="" /> Smart Mailbox</header>
           @let item = itemFor(s);
-          <div class="qr"><app-qr-image [text]="item?.url ?? ''" level="H" logo="icons/icon-128x128.png" [label]="i18n.t(slot[s])" /></div>
+          <div class="qr"><app-qr-image [text]="item?.url ?? ''" level="H" [label]="i18n.t(slot[s])" /></div>
           <p class="code">{{ item?.print_code ?? '' }}</p>
           <p class="slot">{{ s === 1 ? i18n.t({ th: 'QR หน้าตู้ — ติดด้านนอกตู้', en: 'Front QR — stick on the outside' }) : i18n.t({ th: 'QR สำรอง — เก็บไว้ในตู้', en: 'Backup QR — keep inside the box' }) }}</p>
           <p class="meta">{{ i18n.t({ th: 'ตู้ ', en: 'Box ' }) }}{{ boxId() }} · {{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ house() }}</p>

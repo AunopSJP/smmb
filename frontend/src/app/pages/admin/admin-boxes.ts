@@ -73,7 +73,7 @@ type BoxFilter = 'all' | 'unbound' | 'offline' | 'low';
               <div class="qr-grid">
                 @for (q of b.qr; track q.slot) {
                   <figure>
-                    <app-qr-image [text]="q.url" level="H" logo="icons/icon-128x128.png" [label]="i18n.t(slot(q.slot))" />
+                    <app-qr-image [text]="q.url" level="H" [label]="i18n.t(slot(q.slot))" />
                     <figcaption class="small">{{ i18n.t(slot(q.slot)) }}<br /><strong>{{ q.print_code }}</strong></figcaption>
                   </figure>
                 }
@@ -491,7 +491,7 @@ export class AdminBoxes implements OnInit {
         <div class="qr-grid">
           @for (q of activeQr(); track q.id) {
             <figure class="card">
-              <app-qr-image [text]="q.url" level="H" logo="icons/icon-128x128.png" [label]="i18n.t(slot(q.slot))" />
+              <app-qr-image [text]="q.url" level="H" [label]="i18n.t(slot(q.slot))" />
               <figcaption class="small">
                 <strong>{{ i18n.t(slot(q.slot)) }}</strong> v{{ q.version }}<br />
                 {{ q.print_code }}

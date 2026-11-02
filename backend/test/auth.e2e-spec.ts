@@ -335,4 +335,52 @@ describe('Auth (e2e)', () => {
       expect(me.body.roles).toEqual(['admin']);
     });
   });
+
+  describe('sign in right after sign up (what testers do on their phones)', () => {
+    it('the same account signs in whichever way the phone number is typed', async () => {
+      const a = await signupOwner();
+      const local = a.phone; // 0XXXXXXXXX
+      const forms = [
+        local,
+        `+66${local.slice(1)}`,
+        `66${local.slice(1)}`,
+        `${local.slice(0, 3)}-${local.slice(3, 6)}-${local.slice(6)}`,
+        ` ${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)} `,
+        local.replace(/\d/g, (d) => String.fromCharCode(0x0e50 + Number(d))), // เลขไทย
+        `​${local}`, // อักขระล่องหนที่ติดมาตอนคัดลอก
+      ];
+      for (const phone of forms) {
+        const res = await http().post('/api/v1/auth/signin').send({ phone, password: a.password });
+        expect([phone, res.status]).toEqual([phone, 200]);
+      }
+    });
+
+    it('a password with spaces or Thai letters is taken exactly as typed — at sign up and at sign in', async () => {
+      const a = await signupOwner(phone(), '  รหัส ผ่าน 123  ');
+      await http().post('/api/v1/auth/signin').send({ phone: a.phone, password: '  รหัส ผ่าน 123  ' }).expect(200);
+      await http().post('/api/v1/auth/signin').send({ phone: a.phone, password: 'รหัส ผ่าน 123' }).expect(401);
+    });
+
+    it('the session cookie is HttpOnly, SameSite=Lax and site-wide; sign in hands out a fresh one and the old one still works until sign out', async () => {
+      const a = await signupOwner();
+      const res = await http().post('/api/v1/auth/signin').send({ phone: a.phone, password: a.password }).expect(200);
+      const raw = ([] as string[]).concat(res.headers['set-cookie'] ?? []).find((c) => c.startsWith('sid='))!;
+      expect(raw).toMatch(/HttpOnly/i);
+      expect(raw).toMatch(/SameSite=Lax/i);
+      expect(raw).toMatch(/Path=\//i);
+      const second = raw.split(';')[0];
+      expect(second).not.toBe(a.cookie);
+      await http().get('/api/v1/me').set('Cookie', a.cookie).expect(200); // เครื่องเดิมยังอยู่
+      await http().get('/api/v1/me').set('Cookie', second).expect(200);
+    });
+
+    it('signing up with a phone that already has an account never logs the caller in as that account', async () => {
+      const a = await signupOwner();
+      const dup = await http()
+        .post('/api/v1/auth/signup/owner')
+        .send({ name: 'คนอื่น', phone: a.phone, password: 'another-pass-1', house_no: '9/9', terms_version: terms })
+        .expect(409);
+      expect(dup.headers['set-cookie']).toBeUndefined();
+    });
+  });
 });
