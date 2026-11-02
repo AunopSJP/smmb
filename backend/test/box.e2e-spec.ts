@@ -621,6 +621,10 @@ describe('Boxes (e2e)', () => {
       const boot = await box(b, 'POST', '/v1/box/boot', { fw: 'old', config_ver: 0 }).expect(200);
       expect(boot.body.command).toBeUndefined();
       await box(b, 'GET', '/v1/box/jobs?wait=0').expect(204);
+      // เพิ่งโหลดเสร็จ ตู้กำลังเขียนไฟล์/รีบูต → ยังไม่เตือน (ไม่ใช่ติด)
+      expect(await detail()).toMatchObject({ fw: 'old', fw_target: ver, fw_stuck: false });
+      // รอเกิน 3 นาทีแล้วยังรายงานเวอร์ชันเดิม = ติด
+      await pool.query(`UPDATE app.box_tb SET fw_target_fetched_date = now() - interval '4 minutes' WHERE box_id = $1`, [b.box_id]);
       expect(await detail()).toMatchObject({ fw: 'old', fw_target: ver, fw_stuck: true });
       expect((await as(admin.cookie).get('/api/v1/admin/boxes').expect(200)).body.data.find((x: { id: string }) => x.id === b.box_id)).toMatchObject({ fw_stuck: true });
 

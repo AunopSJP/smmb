@@ -10,7 +10,8 @@ bool cameraRunning();
 bool cameraAutoFlash(bool allowed);
 void flashOff();
 
-struct QrRead {
+struct QrRead
+{
   bool ok = false;
   String text;
   uint32_t ms = 0;
@@ -22,7 +23,7 @@ struct QrRead {
  * ส่งภาพสดออกไปดู (เฉพาะงานทดสอบ): ระหว่างสแกนจะเข้ารหัสเฟรมเป็น JPEG ทุก intervalMs แล้วเรียก sink · sink = nullptr ปิด
  * งานตรวจจริงของเจ้าหน้าที่ห้ามเปิด — ตู้แค่อ่าน QR แล้วส่งข้อความ ไม่ส่งภาพ
  */
-void cameraSetPreviewSink(void (*sink)(const uint8_t* jpeg, size_t len), uint32_t intervalMs);
+void cameraSetPreviewSink(void (*sink)(const uint8_t *jpeg, size_t len), uint32_t intervalMs);
 
 /** อ่าน QR ภายใน timeoutMs — ได้ข้อความแรกที่ถอดได้ */
 QrRead cameraScanQr(uint32_t timeoutMs);
@@ -31,7 +32,7 @@ QrRead cameraScanQr(uint32_t timeoutMs);
 void cameraDumpFrame();
 
 /** ภาพ JPEG 1 เฟรม (ไว้ดูว่ากล้องเห็นอะไร · ผู้เรียกต้อง free(*out)) */
-bool cameraSnapshotJpeg(uint8_t** out, size_t* len);
+bool cameraSnapshotJpeg(uint8_t **out, size_t *len);
 
 // ── ภาพตัวอย่างสำหรับหน้าดูกล้อง (debugview) ───────────────────────────────────
 /** ถือกล้องไว้ (cameraStop จะไม่ปิดกล้อง ปิดแค่ไฟแฟลช) — ใช้ตอนมีคนเปิดหน้าดูกล้องอยู่ */
@@ -49,6 +50,6 @@ void cameraPreviewDecode(bool on);
 /** จับ 1 เฟรมแล้วเก็บเป็นภาพตัวอย่าง (ตอนไม่ได้สแกน) — true = ได้ภาพ */
 bool cameraPreviewTick();
 /** JPEG ของภาพตัวอย่างล่าสุด (ผู้เรียกต้อง free(*out)) */
-bool cameraPreviewJpeg(uint8_t** out, size_t* len);
+bool cameraPreviewJpeg(uint8_t **out, size_t *len);
 /** สถานะล่าสุดเป็น JSON: ความสว่าง · fps · เห็นรูปร่าง QR · ถอดได้ · กรอบที่ใช้อ่าน */
 String cameraPreviewJson();

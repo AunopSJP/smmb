@@ -11,7 +11,17 @@ import { screenUrl } from '../screens/registry';
 import { Icon, type IconName } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
 
-/** D01 ภาพรวมแอดมิน — ใช้ยอดสรุปจาก backend และรายการจริงสำหรับงานค้าง */
+type Tone = 'danger' | 'warn' | '';
+
+interface Segment {
+  key: string;
+  label: Tr;
+  n: number;
+  tone: string;
+  query: Record<string, string> | null;
+}
+
+/** D01 ภาพรวมแอดมิน — ตัวเลขสรุปก่อน → สถานะรวม → รายการที่ต้องลงมือทำ (ทุกอย่างกดไปจัดการต่อได้) */
 @Component({
   selector: 'app-admin-home',
   imports: [RouterLink, PageHeader, Icon],
@@ -23,64 +33,150 @@ import { PageHeader } from '../shared/page-header';
       [bell]="url('D12')"
     />
 
-    <div class="stack dash">
-      <div class="stats">
-        <a class="stat link" [routerLink]="url('D03')">
-          <span class="icon-bubble ok stat-icon desktop-only"><app-icon name="wifi" [size]="20" /></span>
-          <p class="label">{{ i18n.t({ th: 'ตู้ออนไลน์', en: 'Boxes online' }) }}</p>
-          <p class="value ok">{{ online() }}/{{ totalBoxes() }}</p>
-        </a>
-        <a class="stat link" [routerLink]="url('D03')" [queryParams]="{ filter: 'low' }">
-          <span class="icon-bubble warn stat-icon desktop-only"><app-icon name="alert" [size]="20" /></span>
-          <p class="label">{{ i18n.t({ th: 'แบตต่ำ', en: 'Low battery' }) }}</p>
-          <p class="value warn">{{ lowCount() }}</p>
-        </a>
-        <a class="stat link" [routerLink]="url('D03')" [queryParams]="{ filter: 'unbound' }">
-          <span class="icon-bubble stat-icon desktop-only"><app-icon name="box" [size]="20" /></span>
-          <p class="label">{{ i18n.t({ th: 'ตู้ยังไม่ผูก', en: 'Unbound boxes' }) }}</p>
-          <p class="value">{{ unbound() }}</p>
-        </a>
-        <a class="stat link" [routerLink]="url('D02')">
-          <span class="icon-bubble stat-icon desktop-only" [class.danger]="pendingCount() > 0"><app-icon name="shield" [size]="20" /></span>
-          <p class="label">{{ i18n.t({ th: 'หน่วยงานรอ', en: 'Agencies waiting' }) }}</p>
-          <p class="value">{{ pendingCount() }}</p>
-        </a>
-      </div>
-
-      <div class="stack col">
-      <h2 class="section-title">{{ i18n.t({ th: 'ต้องจัดการ', en: 'To do' }) }}</h2>
-      <nav class="list">
-        @for (t of todo(); track t.key) {
-          <a class="row" [routerLink]="t.path" [queryParams]="t.query ?? null">
-            <span class="icon-bubble" [class.danger]="t.tag === 'urgent'" [class.warn]="t.tag === 'box'">
-              <app-icon [name]="t.icon" [size]="20" />
-            </span>
-            <span class="grow">
-              <strong>{{ i18n.t(t.title) }}</strong>
-              <span class="muted small block">{{ i18n.t(t.sub) }}</span>
-            </span>
-            <span class="chip" [class.danger]="t.tag === 'urgent'" [class.warn]="t.tag === 'box'">
-              {{ i18n.t(tagLabel[t.tag]) }}
-            </span>
-          </a>
-        } @empty {
-          <p class="row muted">{{ i18n.t({ th: 'ไม่มีงานค้าง', en: 'Nothing to do' }) }}</p>
-        }
-      </nav>
-      </div>
-
-      <div class="stack col">
-      <h2 class="section-title desktop-only">{{ i18n.t({ th: 'ทางลัด', en: 'Shortcuts' }) }}</h2>
-      <div class="quick desktop-only">
-        @for (m of quick; track m.code) {
-          <a class="tile" [routerLink]="url(m.code)">
-            <span class="icon-bubble"><app-icon [name]="m.icon" [size]="20" /></span>
-            <span class="tile-text">
-              <strong>{{ i18n.t(m.label) }}</strong>
-              <span class="muted small">{{ i18n.t(m.hint) }}</span>
-            </span>
+    <div class="stack page">
+      <!-- 1) ตัวเลขสรุป -->
+      <section class="kpis" [attr.aria-label]="i18n.t({ th: 'ตัวเลขสรุป', en: 'Key numbers' })">
+        @for (k of kpis(); track k.key) {
+          <a class="kpi" [routerLink]="k.path" [queryParams]="k.query">
+            <span class="kpi-label">{{ i18n.t(k.label) }}</span>
+            <span class="kpi-value" [class.danger]="k.tone === 'danger' && k.n > 0" [class.warn]="k.tone === 'warn' && k.n > 0">{{ k.text }}</span>
+            <span class="kpi-hint">{{ i18n.t(k.hint) }}</span>
           </a>
         }
+      </section>
+
+      <!-- 2) สถานะรวม -->
+      <div class="two-col">
+        <section class="panel">
+          <header>
+            <h2>{{ i18n.t({ th: 'สถานะตู้ทั้งหมด', en: 'Box status' }) }}</h2>
+            <a [routerLink]="url('D03')">{{ i18n.t({ th: 'ดูตารางตู้', en: 'Open box table' }) }}</a>
+          </header>
+          @if (totalBoxes() > 0) {
+            <div class="bar" role="img" [attr.aria-label]="i18n.t({ th: 'สัดส่วนสถานะตู้', en: 'Box status share' })">
+              @for (s of segments(); track s.key) {
+                @if (s.n > 0) {
+                  <span [style.flex-grow]="s.n" [style.background]="s.tone"></span>
+                }
+              }
+            </div>
+            <table class="legend">
+              <tbody>
+                @for (s of segments(); track s.key) {
+                  <tr>
+                    <td><span class="swatch" [style.background]="s.tone"></span>{{ i18n.t(s.label) }}</td>
+                    <td class="num">{{ s.n }}</td>
+                    <td class="act">
+                      @if (s.n > 0 && s.query) {
+                        <a [routerLink]="url('D03')" [queryParams]="s.query">{{ i18n.t({ th: 'ดู', en: 'View' }) }}</a>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <p class="empty">{{ i18n.t({ th: 'ยังไม่มีตู้ในระบบ — ลงทะเบียนที่หน้า "ตู้ทั้งหมด"', en: 'No boxes yet — register some on the boxes page' }) }}</p>
+          }
+        </section>
+
+        <section class="panel">
+          <header>
+            <h2>{{ i18n.t({ th: 'ปัญหา QR', en: 'QR issues' }) }}</h2>
+            <a [routerLink]="url('D05')">{{ i18n.t({ th: 'จัดการ QR', en: 'Manage QR' }) }}</a>
+          </header>
+          @if (qrTotal() > 0) {
+            <table class="legend">
+              <tbody>
+                @for (r of qrRows(); track r.key) {
+                  <tr>
+                    <td>{{ i18n.t(r.label) }}</td>
+                    <td class="meter"><span class="meter-fill" [style.width.%]="r.pct"></span></td>
+                    <td class="num">{{ r.n }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <p class="empty">{{ i18n.t({ th: 'QR ทุกใบปกติ', en: 'All QR codes are healthy' }) }}</p>
+          }
+        </section>
+      </div>
+
+      <!-- 3) งานที่ต้องทำ -->
+      <section class="panel flush">
+        <header class="pad">
+          <h2>{{ i18n.t({ th: 'ต้องจัดการ', en: 'Needs action' }) }}</h2>
+          <span class="muted small">{{ todo().length }} {{ i18n.t({ th: 'รายการ', en: 'items' }) }}</span>
+        </header>
+        @if (todo().length) {
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>{{ i18n.t({ th: 'เรื่อง', en: 'Item' }) }}</th>
+                <th class="hide-sm">{{ i18n.t({ th: 'รายละเอียด', en: 'Detail' }) }}</th>
+                <th>{{ i18n.t({ th: 'ระดับ', en: 'Level' }) }}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (t of todo(); track t.key) {
+                <tr>
+                  <td><strong>{{ i18n.t(t.title) }}</strong><span class="show-sm muted small">{{ i18n.t(t.sub) }}</span></td>
+                  <td class="hide-sm muted">{{ i18n.t(t.sub) }}</td>
+                  <td><span class="chip" [class.danger]="t.tone === 'danger'" [class.warn]="t.tone === 'warn'">{{ i18n.t(t.tone === 'danger' ? levelLabel.danger : levelLabel.warn) }}</span></td>
+                  <td class="act"><a class="btn secondary small-btn" [routerLink]="t.path" [queryParams]="t.query ?? null">{{ i18n.t({ th: 'จัดการ', en: 'Open' }) }}</a></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <p class="empty pad">{{ i18n.t({ th: 'ไม่มีงานค้าง', en: 'Nothing waiting' }) }}</p>
+        }
+      </section>
+
+      <div class="two-col">
+        <section class="panel flush">
+          <header class="pad">
+            <h2>{{ i18n.t({ th: 'เจ้าของบ้านแยกตามแพ็กเกจ', en: 'Owners by plan' }) }}</h2>
+            <a [routerLink]="url('D14')">{{ i18n.t({ th: 'จัดการแพ็กเกจ', en: 'Manage plans' }) }}</a>
+          </header>
+          <table class="tbl">
+            <tbody>
+              @for (p of plans(); track p.plan_code) {
+                <tr>
+                  <td>{{ p.plan_code }}</td>
+                  <td class="num">{{ p.owners_count }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td class="muted">{{ i18n.t({ th: 'ยังไม่มีข้อมูล', en: 'No data yet' }) }}</td>
+                  <td></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel support">
+          <header>
+            <h2>{{ i18n.t({ th: 'ช่องทางติดต่อผู้ดูแล', en: 'Admin contact' }) }}</h2>
+          </header>
+          <p class="muted small">{{ i18n.t({ th: 'แสดงให้ผู้ใช้เห็นตอนต้องติดต่อแอดมิน', en: 'Shown to users when they need the admin' }) }}</p>
+          @if (editingSupport()) {
+            <label class="field">
+              <span class="sr-only">{{ i18n.t({ th: 'ช่องทางติดต่อ', en: 'Contact' }) }}</span>
+              <input maxlength="500" [value]="supportDraft()" (input)="supportDraft.set($any($event.target).value)" />
+            </label>
+            <div class="row-actions">
+              <button type="button" class="btn secondary" (click)="editingSupport.set(false)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
+              <button type="button" class="btn" [disabled]="!supportDraft().trim()" (click)="saveSupport()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
+            </div>
+          } @else {
+            <strong class="contact">{{ support() ?? i18n.t({ th: 'ยังไม่ได้ตั้ง', en: 'Not set' }) }}</strong>
+            <button type="button" class="btn secondary" (click)="editSupport()">{{ i18n.t({ th: 'แก้ไข', en: 'Edit' }) }}</button>
+          }
+        </section>
       </div>
 
       <nav class="list mobile-only">
@@ -92,21 +188,7 @@ import { PageHeader } from '../shared/page-header';
           </a>
         }
       </nav>
-      <section class="card support">
-        <span class="muted small">{{ i18n.t({ th: 'ช่องทางติดต่อผู้ดูแล (แสดงให้ผู้ใช้เห็นตอนต้องติดต่อแอดมิน)', en: 'Admin contact (shown when users need the admin)' }) }}</span>
-        @if (editingSupport()) {
-          <input class="support-input" maxlength="500" [value]="supportDraft()" (input)="supportDraft.set($any($event.target).value)" />
-          <div class="two">
-            <button type="button" class="btn secondary" (click)="editingSupport.set(false)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
-            <button type="button" class="btn" [disabled]="!supportDraft().trim()" (click)="saveSupport()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
-          </div>
-        } @else {
-          <strong>{{ support() ?? i18n.t({ th: 'ยังไม่ได้ตั้ง', en: 'Not set' }) }}</strong>
-          <button type="button" class="btn secondary" (click)="editSupport()">{{ i18n.t({ th: 'แก้ไข', en: 'Edit' }) }}</button>
-        }
-      </section>
       <button type="button" class="btn secondary signout mobile-only" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
-      </div>
     </div>
   `,
   styles: `
@@ -114,70 +196,247 @@ import { PageHeader } from '../shared/page-header';
       flex: 1;
       min-width: 0;
     }
-    .col {
-      min-width: 0;
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
     }
-    .quick {
+    .page {
+      gap: 20px;
+    }
+
+    /* ตัวเลขสรุป */
+    .kpis {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 12px;
     }
-    .tile {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 14px 16px;
-      border: 1px solid var(--line-strong);
-      border-radius: var(--radius);
-      background: var(--surface);
-      color: inherit;
-      text-decoration: none;
-      transition: border-color 0.12s, background 0.12s;
-    }
-    .tile:hover {
-      border-color: var(--brand);
-      background: var(--brand-lighter);
-    }
-    .tile-text {
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-      line-height: 1.35;
-    }
-    .block {
-      display: block;
-    }
-    .link {
-      text-decoration: none;
-      color: inherit;
-    }
-    .plans {
+    .kpi {
       display: flex;
       flex-direction: column;
       gap: 2px;
+      padding: 14px 16px;
+      background: var(--surface);
+      border: 1px solid var(--line-strong, var(--line));
+      border-radius: 10px;
+      color: inherit;
+      text-decoration: none;
     }
-    .support {
+    .kpi:hover {
+      border-color: var(--text);
+    }
+    .kpi-label {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .kpi-value {
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1.15;
+      font-variant-numeric: tabular-nums;
+    }
+    .kpi-value.danger {
+      color: var(--sos);
+    }
+    .kpi-value.warn {
+      color: var(--warn);
+    }
+    .kpi-hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    @media (min-width: 700px) {
+      .kpis {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+    @media (min-width: 1200px) {
+      .kpis {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+      }
+    }
+
+    /* แผง */
+    .two-col {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+    @media (min-width: 1024px) {
+      .two-col {
+        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      }
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line-strong, var(--line));
+      border-radius: 10px;
+      padding: 16px 18px;
       display: flex;
       flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+    }
+    .panel.flush {
+      padding: 0;
+      gap: 0;
+      overflow: hidden;
+    }
+    .panel header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .panel header.pad {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line-strong, var(--line));
+    }
+    .panel h2 {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .panel header a,
+    .act a {
+      text-decoration: none;
+    }
+    .panel header a:hover,
+    .act a:hover {
+      text-decoration: underline;
+    }
+    .panel header a {
+      font-size: 0.875rem;
+      color: var(--brand);
+      font-weight: 600;
+    }
+    .empty {
+      color: var(--text-muted);
+      padding: 8px 0;
+    }
+    .empty.pad {
+      padding: 28px 18px;
+    }
+
+    /* แท่งสถานะ */
+    .bar {
+      display: flex;
+      height: 14px;
+      border-radius: 7px;
+      overflow: hidden;
+      background: var(--icon-bg);
+      gap: 2px;
+    }
+    .bar span {
+      min-width: 6px;
+    }
+    .legend {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .legend td {
+      padding: 7px 0;
+      border-top: 1px solid var(--line);
+      vertical-align: middle;
+    }
+    .legend tr:first-child td {
+      border-top: 0;
+    }
+    .swatch {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      margin-right: 8px;
+    }
+    .num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      width: 56px;
+    }
+    .act {
+      text-align: right;
+      width: 72px;
+    }
+    .act a {
+      color: var(--brand);
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+    .meter {
+      width: 45%;
+    }
+    .meter-fill {
+      display: block;
+      height: 8px;
+      border-radius: 4px;
+      background: var(--orange-line);
+      min-width: 4px;
+    }
+
+    /* ตาราง */
+    .tbl {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .tbl th {
+      text-align: left;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      padding: 10px 18px;
+      background: var(--icon-bg);
+    }
+    .tbl td {
+      padding: 12px 18px;
+      border-top: 1px solid var(--line-strong, var(--line));
+      vertical-align: middle;
+    }
+    .tbl tbody tr:hover {
+      background: var(--brand-lighter);
+    }
+    .tbl .num,
+    .tbl .act {
+      text-align: right;
+    }
+    .small-btn {
+      display: inline-flex;
+      width: auto;
+      min-height: 34px;
+      padding: 4px 14px;
+      font-size: 0.875rem;
+    }
+    .show-sm {
+      display: block;
+    }
+    @media (max-width: 719px) {
+      .hide-sm {
+        display: none;
+      }
+    }
+    @media (min-width: 720px) {
+      .show-sm {
+        display: none;
+      }
+    }
+
+    .support {
       gap: 8px;
     }
-    .support-input {
-      min-height: 48px;
-      padding: 8px 12px;
-      border-radius: var(--radius-sm);
-      border: 1.5px solid var(--line);
-      background: var(--surface);
-      color: var(--text);
-      font: inherit;
+    .contact {
+      font-size: 1rem;
+      overflow-wrap: anywhere;
     }
-    .two {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
+    .row-actions {
+      display: flex;
+      gap: 8px;
     }
     .signout {
       color: var(--brand);
-      box-shadow: inset 0 0 0 1.5px var(--line);
     }
   `,
 })
@@ -196,12 +455,54 @@ export class AdminHome implements OnInit {
   protected readonly overview = signal<AdminOverview | null>(null);
   protected readonly pending = signal<AdminAgency[]>([]);
   protected readonly technicianRequests = signal(0);
+
   protected readonly online = computed(() => this.overview()?.boxes.online ?? this.boxes().filter((b) => b.status === 'online' || b.status === 'sleeping').length);
   protected readonly totalBoxes = computed(() => this.overview()?.boxes.total ?? this.boxes().length);
+  protected readonly offline = computed(() => this.overview()?.boxes.offline ?? this.boxes().filter((b) => b.status === 'offline').length);
+  protected readonly low = computed(() => this.boxes().filter((b) => b.bound && b.battery && b.battery.pct < LOW_BATTERY_PCT));
   protected readonly lowCount = computed(() => this.overview()?.boxes.low_battery ?? this.low().length);
   protected readonly pendingCount = computed(() => this.overview()?.agencies_pending ?? this.pending().length);
-  protected readonly unbound = computed(() => this.overview()?.boxes.unbound ?? this.boxes().filter((b) => b.status === 'unbound').length);
-  protected readonly low = computed(() => this.boxes().filter((b) => b.bound && b.battery && b.battery.pct < LOW_BATTERY_PCT));
+  protected readonly qrTotal = computed(() => this.overview()?.qr_issues.total ?? 0);
+  protected readonly plans = computed(() => this.overview()?.owners_by_plan ?? []);
+
+  /** ตัวเลขสรุปด้านบนสุด — ทุกใบกดไปหน้าที่จัดการต่อได้ */
+  protected readonly kpis = computed(() => {
+    const requests = this.pendingCount() + this.technicianRequests();
+    return [
+      { key: 'online', label: { th: 'ตู้ออนไลน์', en: 'Boxes online' }, text: `${this.online()}/${this.totalBoxes()}`, n: 0, tone: '', hint: { th: 'รวมตู้ที่พักอยู่', en: 'incl. sleeping' }, path: screenUrl('D03'), query: null as Record<string, string> | null },
+      { key: 'offline', label: { th: 'ตู้ไม่ออนไลน์', en: 'Offline' }, text: String(this.offline()), n: this.offline(), tone: 'danger', hint: { th: 'ติดต่อไม่ได้', en: 'not reachable' }, path: screenUrl('D03'), query: { filter: 'offline' } },
+      { key: 'low', label: { th: 'แบตต่ำ', en: 'Low battery' }, text: String(this.lowCount()), n: this.lowCount(), tone: 'warn', hint: { th: `ต่ำกว่า ${LOW_BATTERY_PCT}%`, en: `below ${LOW_BATTERY_PCT}%` }, path: screenUrl('D03'), query: { filter: 'low' } },
+      { key: 'qr', label: { th: 'ปัญหา QR', en: 'QR issues' }, text: String(this.qrTotal()), n: this.qrTotal(), tone: 'warn', hint: { th: 'เสีย · น่าสงสัย · ใกล้หมดอายุ', en: 'damaged · suspicious · expiring' }, path: screenUrl('D05'), query: null },
+      { key: 'requests', label: { th: 'คำขอรอจัดการ', en: 'Requests waiting' }, text: String(requests), n: requests, tone: 'warn', hint: { th: 'หน่วยงาน + คำขอช่าง', en: 'agencies + technician' }, path: this.pendingCount() > 0 ? screenUrl('D02') : screenUrl('D15'), query: null },
+      { key: 'sos', label: { th: 'SOS ที่เปิดอยู่', en: 'Open SOS' }, text: String(this.overview()?.sos_open ?? 0), n: this.overview()?.sos_open ?? 0, tone: 'danger', hint: { th: 'ดูในประวัติระบบ', en: 'see the system log' }, path: screenUrl('D11'), query: null },
+    ];
+  });
+
+  /** แท่งสถานะตู้ — ไม่เกิน 5 ส่วน (ออนไลน์ · พัก · ไม่ออนไลน์ · ปิดบริการ · ยังไม่ผูก) */
+  protected readonly segments = computed<Segment[]>(() => {
+    const b = this.overview()?.boxes;
+    if (!b) return [];
+    return [
+      { key: 'online', label: { th: 'ออนไลน์', en: 'Online' }, n: b.online, tone: 'var(--ok)', query: null },
+      { key: 'sleeping', label: { th: 'พักอยู่', en: 'Sleeping' }, n: b.sleeping, tone: 'color-mix(in srgb, var(--text-muted) 70%, transparent)', query: null },
+      { key: 'offline', label: { th: 'ไม่ออนไลน์', en: 'Offline' }, n: b.offline, tone: 'var(--sos)', query: { filter: 'offline' } },
+      { key: 'closed', label: { th: 'ปิดบริการ', en: 'Service closed' }, n: b.service_closed, tone: 'var(--orange-line)', query: null },
+      { key: 'unbound', label: { th: 'ยังไม่ผูกเจ้าของ', en: 'Unbound' }, n: b.unbound, tone: 'var(--line-strong, #b8bec7)', query: { filter: 'unbound' } },
+    ];
+  });
+
+  protected readonly qrRows = computed(() => {
+    const by = this.overview()?.qr_issues.by_health;
+    if (!by) return [];
+    const rows: { key: string; label: Tr; n: number }[] = [
+      { key: 'damaged', label: { th: 'QR เสียหาย', en: 'Damaged' }, n: by.damaged },
+      { key: 'suspicious', label: { th: 'น่าสงสัย', en: 'Suspicious' }, n: by.suspicious },
+      { key: 'maybe_fake', label: { th: 'อาจเป็นของปลอม', en: 'Maybe fake' }, n: by.maybe_fake },
+      { key: 'expiring', label: { th: 'ใกล้หมดอายุ', en: 'Expiring' }, n: by.expiring },
+    ];
+    const max = Math.max(1, ...rows.map((r) => r.n));
+    return rows.map((r) => ({ ...r, pct: (r.n / max) * 100 }));
+  });
 
   async ngOnInit(): Promise<void> {
     const [overview, boxes, pending, support, technicianRequests] = await Promise.all([
@@ -241,41 +542,30 @@ export class AdminHome implements OnInit {
     void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04')));
   }
 
-  /** งานค้าง: หน่วยงานรออนุมัติ · ตู้ไม่ออนไลน์ · แบตต่ำ — หายไปเมื่อจัดการแล้ว */
+  /** งานค้างเรียงตามความเร่งด่วน: ตู้ไม่ออนไลน์ → แบตต่ำ → หน่วยงาน/คำขอช่างรออนุมัติ — หายไปเมื่อจัดการแล้ว */
   protected readonly todo = computed(() => {
-    const items: { key: string; icon: IconName; tag: 'urgent' | 'pending' | 'box'; title: Tr; sub: Tr; path: string; query?: Record<string, string> }[] = [];
-    for (const a of this.pending()) {
-      items.push({ key: a.id, icon: 'user', tag: 'pending', title: { th: 'หน่วยงานใหม่ · ' + a.name, en: 'New agency · ' + a.name }, sub: { th: 'รออนุมัติ', en: 'Waiting for approval' }, path: screenUrl('D02') });
-    }
-    if (this.technicianRequests() > 0) {
-      items.push({ key: 'technician-requests', icon: 'user', tag: 'pending', title: { th: 'มีคำขอช่างใหม่', en: 'New technician requests' }, sub: { th: `${this.technicianRequests()} รายการรอดำเนินการ`, en: `${this.technicianRequests()} requests waiting` }, path: screenUrl('D15') });
-    }
+    const items: { key: string; tone: Tone; title: Tr; sub: Tr; path: string; query?: Record<string, string> }[] = [];
     for (const b of this.boxes().filter((x) => x.status === 'offline')) {
       const seen = seenText(b.last_seen_at);
-      items.push({ key: b.id, icon: 'box', tag: 'box', title: { th: 'ตู้ ' + (b.house_no ?? b.id) + ' ไม่ออนไลน์', en: 'Box ' + (b.house_no ?? b.id) + ' offline' }, sub: { th: 'ติดต่อล่าสุด ' + seen.th, en: 'Last seen ' + seen.en }, path: screenUrl('D04'), query: { id: b.id } });
+      items.push({ key: b.id, tone: 'danger', title: { th: 'ตู้ ' + (b.house_no ?? b.id) + ' ไม่ออนไลน์', en: 'Box ' + (b.house_no ?? b.id) + ' offline' }, sub: { th: 'ติดต่อล่าสุด ' + seen.th, en: 'Last seen ' + seen.en }, path: screenUrl('D04'), query: { id: b.id } });
     }
     for (const b of this.low()) {
-      items.push({ key: 'low-' + b.id, icon: 'alert', tag: 'urgent', title: { th: 'แบตต่ำ · ' + (b.house_no ?? b.id), en: 'Low battery · ' + (b.house_no ?? b.id) }, sub: { th: b.battery!.pct + '%', en: b.battery!.pct + '%' }, path: screenUrl('D04'), query: { id: b.id } });
+      items.push({ key: 'low-' + b.id, tone: 'warn', title: { th: 'แบตต่ำ · ' + (b.house_no ?? b.id), en: 'Low battery · ' + (b.house_no ?? b.id) }, sub: { th: 'เหลือ ' + b.battery!.pct + '%', en: b.battery!.pct + '% left' }, path: screenUrl('D04'), query: { id: b.id } });
+    }
+    for (const a of this.pending()) {
+      items.push({ key: a.id, tone: 'warn', title: { th: 'หน่วยงานใหม่ · ' + a.name, en: 'New agency · ' + a.name }, sub: { th: 'รออนุมัติ', en: 'Waiting for approval' }, path: screenUrl('D02') });
+    }
+    if (this.technicianRequests() > 0) {
+      items.push({ key: 'technician-requests', tone: 'warn', title: { th: 'มีคำขอช่างใหม่', en: 'New technician requests' }, sub: { th: `${this.technicianRequests()} รายการรอดำเนินการ`, en: `${this.technicianRequests()} requests waiting` }, path: screenUrl('D15') });
     }
     return items;
   });
 
-  protected readonly tagLabel = {
-    urgent: { th: 'ด่วน', en: 'Urgent' },
-    pending: { th: 'รอ', en: 'Waiting' },
-    box: { th: 'ตู้', en: 'Box' },
+  protected readonly levelLabel = {
+    danger: { th: 'ด่วน', en: 'Urgent' } as Tr,
+    warn: { th: 'รอดำเนินการ', en: 'Pending' } as Tr,
   };
-  /** ทางลัดบนจอคอม (มือถือใช้ลิสต์เมนูด้านล่าง) */
-  protected readonly quick: { code: string; icon: IconName; label: Tr; hint: Tr }[] = [
-    { code: 'D03', icon: 'box', label: { th: 'ตู้ทั้งหมด', en: 'All boxes' }, hint: { th: 'ลงทะเบียน · เฟิร์มแวร์ · ปลุกตู้', en: 'Register · firmware · wake' } },
-    { code: 'D09', icon: 'user', label: { th: 'ผู้ใช้', en: 'Users' }, hint: { th: 'รีเซ็ตรหัส · ปิดบัญชี', en: 'Reset · disable' } },
-    { code: 'D13', icon: 'shield', label: { th: 'หน่วยงาน', en: 'Agencies' }, hint: { th: 'อนุมัติ · ดูแลโซน', en: 'Approve · zones' } },
-    { code: 'D05', icon: 'scan', label: { th: 'จัดการ QR', en: 'QR cases' }, hint: { th: 'QR ปลอม · เสีย · ออกใหม่', en: 'Fake · damaged · reissue' } },
-    { code: 'D10', icon: 'target', label: { th: 'ค่าตั้งค่าตู้', en: 'Mailbox config' }, hint: { th: 'เวลาปลุก · รอบสแกน', en: 'Timing · scan rounds' } },
-    { code: 'T01', icon: 'settings', label: { th: 'งานช่าง', en: 'Technician' }, hint: { th: 'เช็กลิสต์ติดตั้ง', en: 'Install checklist' } },
-    { code: 'D14', icon: 'list', label: { th: 'แพ็กเกจ', en: 'Plans' }, hint: { th: 'จัดการรายการแพ็ก', en: 'Manage plans' } },
-    { code: 'D11', icon: 'list', label: { th: 'ประวัติระบบ', en: 'System log' }, hint: { th: 'Log ทุกเหตุการณ์ · CSV', en: 'All events · CSV' } },
-  ];
+
   protected readonly menu: { code: string; icon: IconName; label: Tr }[] = [
     { code: 'D09', icon: 'user', label: { th: 'ผู้ใช้', en: 'Users' } },
     { code: 'D10', icon: 'target', label: { th: 'ค่าตั้งค่าตู้', en: 'Mailbox config' } },

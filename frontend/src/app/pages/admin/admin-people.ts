@@ -279,7 +279,7 @@ const ROLE_LABEL: Record<string, Tr> = {
 
 @Component({
   selector: 'app-admin-users',
-  imports: [PageHeader, Icon, UserPlan],
+  imports: [PageHeader, UserPlan],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'ผู้ใช้', en: 'Users' })" [back]="url('D01')" />
@@ -288,6 +288,12 @@ const ROLE_LABEL: Record<string, Tr> = {
         <input type="search" [placeholder]="i18n.t({ th: 'ค้นชื่อ / เบอร์', en: 'Search name / phone' })" [value]="q()" (input)="q.set($any($event.target).value)" />
         <button type="submit" class="btn secondary">{{ i18n.t({ th: 'ค้น', en: 'Search' }) }}</button>
       </form>
+
+      <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'กรองตามบทบาท', en: 'Filter by role' })">
+        @for (f of roleFilters; track f.v) {
+          <button type="button" [attr.aria-pressed]="roleFilter() === f.v" (click)="roleFilter.set(f.v)">{{ i18n.t(f.label) }} <span class="n">{{ roleCounts()[f.v] }}</span></button>
+        }
+      </div>
 
       <div class="split">
       <aside class="detail">
@@ -334,23 +340,22 @@ const ROLE_LABEL: Record<string, Tr> = {
         }
       } @else {
         <section class="card empty desktop-only">
-          <app-icon name="user" [size]="28" />
-          <p class="muted">{{ i18n.t({ th: 'เลือกผู้ใช้จากรายการด้านซ้าย เพื่อรีเซ็ตรหัส ปิด/เปิดบัญชี หรือดูแพ็กเกจ', en: 'Pick a user on the left to reset the password, enable/disable the account or see the plan' }) }}</p>
+          <p class="muted">{{ i18n.t({ th: 'เลือกผู้ใช้จากรายการ เพื่อรีเซ็ตรหัส ปิด/เปิดบัญชี หรือดูแพ็กเกจ', en: 'Pick a user from the list to reset the password, enable/disable the account or see the plan' }) }}</p>
         </section>
       }
       </aside>
 
       <nav class="list">
-        @for (u of users(); track u.id) {
-          <button type="button" class="row" [class.on]="u.id === selectedId()" (click)="select(u.id)">
-            <span class="grow">
-              <strong>{{ u.name }}</strong>
-              <span class="muted small block">{{ u.phone }} · {{ roles(u) }}</span>
-            </span>
-            @if (u.status === 'disabled') {
-              <span class="chip danger">{{ i18n.t({ th: 'ปิด', en: 'Off' }) }}</span>
-            }
-            <app-icon name="chevronRight" [size]="18" />
+        <div class="list-head ucols desktop-only" aria-hidden="true">
+          <span>{{ i18n.t({ th: 'ชื่อ', en: 'Name' }) }}</span>
+          <span>{{ i18n.t({ th: 'เบอร์โทร · บทบาท', en: 'Phone · roles' }) }}</span>
+          <span>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</span>
+        </div>
+        @for (u of shown(); track u.id) {
+          <button type="button" class="row ucols" [class.on]="u.id === selectedId()" (click)="select(u.id)">
+            <strong class="name">{{ u.name }}</strong>
+            <span class="info small"><span class="muted">{{ u.phone }}</span> · {{ roles(u) }}</span>
+            <span class="st"><span class="chip" [class.ok]="u.status === 'active'" [class.danger]="u.status === 'disabled'">{{ u.status === 'active' ? i18n.t({ th: 'ใช้งาน', en: 'Active' }) : i18n.t({ th: 'ปิด', en: 'Off' }) }}</span></span>
           </button>
         } @empty {
           <p class="row muted">{{ i18n.t({ th: 'ไม่พบผู้ใช้', en: 'No users found' }) }}</p>
@@ -404,10 +409,10 @@ const ROLE_LABEL: Record<string, Tr> = {
       gap: var(--gap);
       min-width: 0;
     }
-    @media (min-width: 1024px) {
+    @media (min-width: 1360px) {
       .split {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 440px;
+        grid-template-columns: minmax(0, 1fr) 400px;
         align-items: start;
       }
       .detail {
@@ -421,6 +426,45 @@ const ROLE_LABEL: Record<string, Tr> = {
         grid-column: 1;
         grid-row: 1;
       }
+    }
+    .ucols {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: 'name st' 'info st';
+      gap: 2px 12px;
+      align-items: center;
+      text-align: left;
+    }
+    .ucols .name {
+      grid-area: name;
+      overflow-wrap: anywhere;
+    }
+    .ucols .info {
+      grid-area: info;
+    }
+    .ucols .st {
+      grid-area: st;
+    }
+    .list-head.ucols > :nth-child(1) {
+      grid-area: name;
+    }
+    .list-head.ucols > :nth-child(2) {
+      grid-area: info;
+    }
+    .list-head.ucols > :nth-child(3) {
+      grid-area: st;
+    }
+    @media (min-width: 1024px) {
+      .ucols {
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) 84px;
+        grid-template-areas: 'name info st';
+        gap: 12px;
+      }
+    }
+    .n {
+      margin-left: 4px;
+      font-variant-numeric: tabular-nums;
+      opacity: 0.75;
     }
     .who-head {
       display: flex;
@@ -475,6 +519,22 @@ export class AdminUsers implements OnInit {
   protected readonly selectedId = linkedSignal<string | null>(() => this.id() ?? null);
   protected readonly q = signal('');
   protected readonly users = signal<AdminUser[]>([]);
+  protected readonly roleFilter = signal<'all' | 'owner' | 'officer' | 'head' | 'admin' | 'off'>('all');
+  protected readonly roleFilters: { v: 'all' | 'owner' | 'officer' | 'head' | 'admin' | 'off'; label: Tr }[] = [
+    { v: 'all', label: { th: 'ทั้งหมด', en: 'All' } },
+    { v: 'owner', label: { th: 'เจ้าของบ้าน', en: 'Owners' } },
+    { v: 'officer', label: { th: 'เจ้าหน้าที่', en: 'Officers' } },
+    { v: 'head', label: { th: 'หัวหน้า', en: 'Heads' } },
+    { v: 'admin', label: { th: 'แอดมิน', en: 'Admins' } },
+    { v: 'off', label: { th: 'ปิดบัญชี', en: 'Disabled' } },
+  ];
+  private readonly inFilter = (f: string, u: AdminUser): boolean => (f === 'all' ? true : f === 'off' ? u.status === 'disabled' : this.badges(u).includes(f));
+  protected readonly roleCounts = computed(() => {
+    const out: Record<string, number> = {};
+    for (const f of this.roleFilters) out[f.v] = this.users().filter((u) => this.inFilter(f.v, u)).length;
+    return out;
+  });
+  protected readonly shown = computed(() => this.users().filter((u) => this.inFilter(this.roleFilter(), u)));
   protected readonly selected = computed(() => this.users().find((u) => u.id === this.selectedId()) ?? null);
   protected readonly temp = signal<string | null>(null);
   protected readonly error = signal<Tr | null>(null);

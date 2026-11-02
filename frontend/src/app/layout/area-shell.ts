@@ -67,7 +67,6 @@ const MOCK_SCREENS = new Set<string>();
             <p class="group">{{ i18n.t(g.title) }}</p>
             @for (it of g.items; track it.code) {
               <a [routerLink]="url(it.code)" routerLinkActive="active" [routerLinkActiveOptions]="{ paths: it.code === 'D01' ? 'exact' : 'subset', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }">
-                <app-icon [name]="it.icon" [size]="20" />
                 <span>{{ i18n.t(it.label) }}</span>
               </a>
             }

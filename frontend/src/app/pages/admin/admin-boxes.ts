@@ -49,6 +49,9 @@ const SLOT_LABEL: Record<string, Tr> = {
 };
 
 type BoxFilter = 'all' | 'unbound' | 'offline' | 'low';
+type SortKey = 'id' | 'status' | 'battery' | 'seen';
+/** เรียงสถานะ: ที่ต้องดูแลขึ้นก่อน */
+const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1, unbound: 2, sleeping: 3, online: 4 };
 
 // ── D03 · ตู้ทั้งหมด ─────────────────────────────────────────
 
@@ -91,7 +94,7 @@ type BoxFilter = 'all' | 'unbound' | 'offline' | 'low';
         </label>
         <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'กรอง', en: 'Filter' })">
           @for (f of filters; track f.v) {
-            <button type="button" [attr.aria-pressed]="filter() === f.v" (click)="filter.set(f.v)">{{ i18n.t(f.label) }}</button>
+            <button type="button" [attr.aria-pressed]="filter() === f.v" (click)="filter.set(f.v)">{{ i18n.t(f.label) }} <span class="n">{{ counts()[f.v] }}</span></button>
           }
         </div>
         <form class="add" (submit)="$event.preventDefault(); register()">
@@ -105,20 +108,18 @@ type BoxFilter = 'all' | 'unbound' | 'offline' | 'low';
         </form>
       </div>
       <div class="list">
-        <div class="list-head cols desktop-only" aria-hidden="true">
-          <span>{{ i18n.t({ th: 'ตู้', en: 'Box' }) }}</span>
-          <span>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</span>
-          <span>{{ i18n.t({ th: 'แบตเตอรี่', en: 'Battery' }) }}</span>
-          <span>{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last seen' }) }}</span>
+        <div class="list-head cols desktop-only">
+          @for (h of heads; track h.key) {
+            <button type="button" class="th" [attr.aria-sort]="sortKey() === h.key ? (sortDir() === 'asc' ? 'ascending' : 'descending') : 'none'" (click)="sortBy(h.key)">
+              {{ i18n.t(h.label) }}<span class="arrow" aria-hidden="true">{{ sortKey() === h.key ? (sortDir() === 'asc' ? '▲' : '▼') : '' }}</span>
+            </button>
+          }
           <span></span>
         </div>
         @for (b of rows(); track b.id) {
           @let badge = boxBadge(b);
           <a class="row cols" [routerLink]="url('D04')" [queryParams]="{ id: b.id }">
             <span class="who">
-              <span class="icon-bubble" [class.ok]="badge.tone === 'ok'" [class.warn]="badge.tone === 'warn'" [class.danger]="badge.tone === 'danger'">
-                <app-icon name="box" [size]="20" />
-              </span>
               <span class="grow">
                 <strong>{{ b.id }}</strong>
                 <span class="muted small block">{{ b.house_no ?? i18n.t({ th: 'ยังไม่ผูกบ้าน', en: 'Not linked to a house' }) }}</span>
@@ -137,7 +138,7 @@ type BoxFilter = 'all' | 'unbound' | 'offline' | 'low';
               }
             </span>
             <span class="muted small">{{ i18n.t(seen(b.last_seen_at)) }}</span>
-            <span class="go desktop-only"><app-icon name="chevronRight" [size]="18" /></span>
+            <span class="go desktop-only">{{ i18n.t({ th: 'เปิด', en: 'Open' }) }}</span>
           </a>
         } @empty {
           <p class="row muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ไม่มีตู้ในกลุ่มนี้', en: 'No mailboxes here' }) }}</p>
@@ -261,8 +262,33 @@ type BoxFilter = 'all' | 'unbound' | 'offline' | 'low';
       background: var(--orange-line);
     }
     .go {
-      color: var(--text-muted);
+      color: var(--brand);
+      font-weight: 600;
       justify-self: end;
+    }
+    .n {
+      margin-left: 4px;
+      font-variant-numeric: tabular-nums;
+      opacity: 0.75;
+    }
+    .th {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: inherit;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: left;
+    }
+    .th:hover {
+      color: var(--text);
+    }
+    .arrow {
+      font-size: 0.625rem;
     }
     /* มือถือ: สองบรรทัด (ชื่อ+สถานะ / แบต+ติดต่อล่าสุด) · จอคอม: คอลัมน์แบบตาราง */
     .cols {
@@ -342,14 +368,60 @@ export class AdminBoxes implements OnInit {
   protected readonly busy = signal(false);
   protected readonly created = signal<RegisteredBox[]>([]);
 
+  private readonly matches = (f: BoxFilter, b: AdminBoxRow): boolean =>
+    f === 'unbound' ? b.status === 'unbound' : f === 'offline' ? b.status === 'offline' : f === 'low' ? !!b.battery && b.battery.pct < LOW_BATTERY_PCT : true;
+
+  /** จำนวนในแต่ละตัวกรอง (ไม่ขึ้นกับคำค้น) */
+  protected readonly counts = computed<Record<BoxFilter, number>>(() => {
+    const all = this.boxes();
+    return {
+      all: all.length,
+      unbound: all.filter((b) => this.matches('unbound', b)).length,
+      offline: all.filter((b) => this.matches('offline', b)).length,
+      low: all.filter((b) => this.matches('low', b)).length,
+    };
+  });
+
+  protected readonly heads: { key: SortKey; label: Tr }[] = [
+    { key: 'id', label: { th: 'ตู้', en: 'Box' } },
+    { key: 'status', label: { th: 'สถานะ', en: 'Status' } },
+    { key: 'battery', label: { th: 'แบตเตอรี่', en: 'Battery' } },
+    { key: 'seen', label: { th: 'ติดต่อล่าสุด', en: 'Last seen' } },
+  ];
+  /** ค่าเริ่มต้น: เรียงตามสถานะ ให้ตู้ที่มีปัญหาขึ้นก่อน */
+  protected readonly sortKey = signal<SortKey>('status');
+  protected readonly sortDir = signal<'asc' | 'desc'>('asc');
+
+  protected sortBy(k: SortKey): void {
+    if (this.sortKey() === k) this.sortDir.update((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      this.sortKey.set(k);
+      this.sortDir.set('asc');
+    }
+  }
+
   protected readonly rows = computed(() => {
     const f = this.filter();
     const q = this.q().trim().toLowerCase();
-    return this.boxes().filter(
-      (b) =>
-        (f === 'unbound' ? b.status === 'unbound' : f === 'offline' ? b.status === 'offline' : f === 'low' ? !!b.battery && b.battery.pct < LOW_BATTERY_PCT : true) &&
-        (!q || b.id.toLowerCase().includes(q) || (b.house_no ?? '').toLowerCase().includes(q)),
-    );
+    const list = this.boxes().filter((b) => this.matches(f, b) && (!q || b.id.toLowerCase().includes(q) || (b.house_no ?? '').toLowerCase().includes(q)));
+    const dir = this.sortDir() === 'asc' ? 1 : -1;
+    const value = (b: AdminBoxRow): string | number => {
+      switch (this.sortKey()) {
+        case 'id':
+          return b.id;
+        case 'status':
+          return STATUS_ORDER[b.status];
+        case 'battery':
+          return b.battery?.pct ?? 101; // ไม่มีข้อมูล = ท้ายสุดเมื่อเรียงน้อย→มาก
+        case 'seen':
+          return b.last_seen_at ? new Date(b.last_seen_at).getTime() : 0;
+      }
+    };
+    return [...list].sort((a, b) => {
+      const x = value(a);
+      const y = value(b);
+      return (x < y ? -1 : x > y ? 1 : a.id.localeCompare(b.id)) * dir;
+    });
   });
 
   ngOnInit(): void {

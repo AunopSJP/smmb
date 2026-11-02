@@ -849,7 +849,7 @@ app-area-shell main > :not(router-outlet) {
     --radius: 12px;
     --radius-sm: 8px;
     --gap: 20px;
-    --shadow: 0 1px 2px rgb(0 0 0 / 6%);
+    --shadow: none;
 
     .stack {
       gap: var(--gap);

@@ -100,6 +100,9 @@ interface BoxRow {
   created_date: Date;
 }
 
+/** ตู้โหลดไฟล์เฟิร์มแวร์แล้วต้องรายงานเวอร์ชันใหม่ภายในเวลานี้ ไม่งั้นถือว่าติด */
+export const FW_INSTALL_GRACE_MS = 3 * 60_000;
+
 const BOX_COLS = `box_id, house_no, name, owner_user_id, service_active, service_reason, service_changed_date, battery_pct, charging, battery_date,
   last_seen_date, last_poll_date, fw, fw_target, fw_target_fetched_date, config_override, config_ver_seen, created_date`;
 
@@ -428,7 +431,9 @@ export class AdminBoxService {
       last_poll_at: iso(r.last_poll_date),
       fw: r.fw,
       fw_target: r.fw_target,
-      fw_stuck: r.fw_target !== null && r.fw_target_fetched_date !== null && r.fw !== r.fw_target,
+      // ตู้ต้องใช้เวลาเขียนไฟล์ + รีบูต + รายงานเวอร์ชันใหม่ → เตือนเมื่อโหลดไปแล้วเกิน FW_INSTALL_GRACE_MS ยังไม่เปลี่ยน
+      fw_stuck:
+        r.fw_target !== null && r.fw_target_fetched_date !== null && r.fw !== r.fw_target && Date.now() - r.fw_target_fetched_date.getTime() > FW_INSTALL_GRACE_MS,
     };
   }
 
