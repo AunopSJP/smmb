@@ -27,6 +27,7 @@ const boxDetail = (inSync: boolean): AdminBoxDetail => ({
   last_poll_at: null,
   fw: 'test',
   fw_target: null,
+  fw_stuck: false,
   can_delete: false,
   service_active: true,
   registered_at: '2026-10-28T00:00:00.000Z',

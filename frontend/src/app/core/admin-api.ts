@@ -37,6 +37,8 @@ export interface AdminBoxRow {
   fw: string | null;
   /** เวอร์ชันเฟิร์มแวร์ที่สั่งให้ตู้อัปเดต (ตู้ยังไม่ได้รัน) */
   fw_target: string | null;
+  /** ตู้โหลดไฟล์แล้วแต่ยังรายงานเวอร์ชันเดิม */
+  fw_stuck: boolean;
 }
 
 export interface FirmwareInfo {

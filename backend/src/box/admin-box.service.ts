@@ -45,6 +45,8 @@ export interface AdminBoxRow {
   fw: string | null;
   /** เวอร์ชันเฟิร์มแวร์ที่สั่งให้ตู้อัปเดต (ตู้ยังไม่ได้รัน) */
   fw_target: string | null;
+  /** ตู้โหลดไฟล์ของ fw_target ไปแล้วแต่ยังรายงานเวอร์ชันอื่น (ชื่อที่ตั้งตอนอัปโหลดไม่ตรงกับเลขในไฟล์ หรือลงไม่สำเร็จ) */
+  fw_stuck: boolean;
 }
 
 export type CameraDiagnosticState = 'started' | 'ready' | 'scan_result' | 'error';
@@ -92,13 +94,14 @@ interface BoxRow {
   last_poll_date: Date | null;
   fw: string | null;
   fw_target: string | null;
+  fw_target_fetched_date: Date | null;
   config_override: Record<string, unknown>;
   config_ver_seen: number | null;
   created_date: Date;
 }
 
 const BOX_COLS = `box_id, house_no, name, owner_user_id, service_active, service_reason, service_changed_date, battery_pct, charging, battery_date,
-  last_seen_date, last_poll_date, fw, fw_target, config_override, config_ver_seen, created_date`;
+  last_seen_date, last_poll_date, fw, fw_target, fw_target_fetched_date, config_override, config_ver_seen, created_date`;
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 const intField = (value: unknown, max: number): number | null =>
@@ -425,6 +428,7 @@ export class AdminBoxService {
       last_poll_at: iso(r.last_poll_date),
       fw: r.fw,
       fw_target: r.fw_target,
+      fw_stuck: r.fw_target !== null && r.fw_target_fetched_date !== null && r.fw !== r.fw_target,
     };
   }
 

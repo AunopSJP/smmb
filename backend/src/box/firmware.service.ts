@@ -73,7 +73,8 @@ export class FirmwareService {
       if (!rowCount) throw new NotFoundException();
     }
     const { rowCount } = await this.pool.query(
-      `UPDATE app.box_tb SET fw_target = $2, fw_target_requested_by = CASE WHEN $2::text IS NULL THEN NULL ELSE $3 END WHERE box_id = $1`,
+      `UPDATE app.box_tb SET fw_target = $2, fw_target_requested_by = CASE WHEN $2::text IS NULL THEN NULL ELSE $3 END, fw_target_fetched_date = NULL
+       WHERE box_id = $1`,
       [boxId, version, userId],
     );
     if (!rowCount) throw new NotFoundException();
@@ -83,12 +84,13 @@ export class FirmwareService {
   /**
    * งานอัปเดตที่รอตู้: มี target + ตู้ยังไม่ได้รันเวอร์ชันนั้น (ตู้บูตแล้วรายงาน fw ตรงกัน → ล้าง target ทิ้ง)
    * ส่งให้ตู้ตอน boot/report/poll เหมือนคำสั่งอื่น
+   * ตู้โหลดไฟล์ไปแล้วแต่ยังรายงานเวอร์ชันเดิม → เลิกเสนอ (กันวนโหลดซ้ำ) จนกว่าแอดมินจะกดอัปเดตใหม่
    */
   async offerFor(boxId: string): Promise<FirmwareOffer | null> {
     const { rows } = await this.pool.query<{ version: string; sha256: string; size_bytes: number }>(
       `SELECT f.version, f.sha256, f.size_bytes
        FROM app.box_tb b JOIN app.firmware_tb f ON f.version = b.fw_target
-       WHERE b.box_id = $1 AND b.fw IS DISTINCT FROM b.fw_target`,
+       WHERE b.box_id = $1 AND b.fw IS DISTINCT FROM b.fw_target AND b.fw_target_fetched_date IS NULL`,
       [boxId],
     );
     return rows[0] ? { version: rows[0].version, size: rows[0].size_bytes, sha256: rows[0].sha256 } : null;
@@ -108,6 +110,7 @@ export class FirmwareService {
       [boxId, version],
     );
     if (!rows[0]) throw new NotFoundException();
+    await this.pool.query(`UPDATE app.box_tb SET fw_target_fetched_date = now() WHERE box_id = $1 AND fw_target = $2`, [boxId, version]);
     return rows[0];
   }
 }

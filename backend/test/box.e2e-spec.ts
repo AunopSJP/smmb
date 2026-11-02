@@ -605,6 +605,43 @@ describe('Boxes (e2e)', () => {
       expect((await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}`).expect(200)).body).toMatchObject({ fw: ver, fw_target: null });
     });
 
+    it('a box that downloaded the file but still reports another version is flagged and not offered again until the admin retries', async () => {
+      const [b] = await register();
+      const ver = `t${run}${seq++}`;
+      await upload(ver, image()).expect(201);
+      await box(b, 'POST', '/v1/box/boot', { fw: 'old', config_ver: 0 }).expect(200);
+      await as(admin.cookie).put(`/api/v1/admin/boxes/${b.box_id}/firmware`, { version: ver }).expect(204);
+      const detail = async () => (await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}`).expect(200)).body;
+
+      expect(await detail()).toMatchObject({ fw: 'old', fw_target: ver, fw_stuck: false }); // ยังไม่โหลด = ไม่ติด
+      expect((await box(b, 'POST', '/v1/box/report', { fw: 'old', config_ver: 0 }).expect(200)).body.command).toMatchObject({ type: 'ota', version: ver });
+
+      await box(b, 'GET', `/v1/box/firmware/${ver}`).expect(200);
+      // ตู้รีบูตแต่เลขในไฟล์ไม่ตรงกับชื่อที่อัปโหลด → ยังเป็น 'old' · ไม่เสนอซ้ำ ไม่วนโหลดไม่รู้จบ
+      const boot = await box(b, 'POST', '/v1/box/boot', { fw: 'old', config_ver: 0 }).expect(200);
+      expect(boot.body.command).toBeUndefined();
+      await box(b, 'GET', '/v1/box/jobs?wait=0').expect(204);
+      expect(await detail()).toMatchObject({ fw: 'old', fw_target: ver, fw_stuck: true });
+      expect((await as(admin.cookie).get('/api/v1/admin/boxes').expect(200)).body.data.find((x: { id: string }) => x.id === b.box_id)).toMatchObject({ fw_stuck: true });
+
+      // กดอัปเดตอีกครั้ง = ลองใหม่ (เสนอใหม่ · ธงหาย)
+      await as(admin.cookie).put(`/api/v1/admin/boxes/${b.box_id}/firmware`, { version: ver }).expect(204);
+      expect(await detail()).toMatchObject({ fw_stuck: false });
+      expect((await box(b, 'POST', '/v1/box/report', { fw: 'old', config_ver: 0 }).expect(200)).body.command).toMatchObject({ type: 'ota', version: ver });
+
+      // เปลี่ยนไปเวอร์ชันอื่นระหว่างติดอยู่ก็เสนอเวอร์ชันใหม่ได้
+      const ver2 = `t${run}${seq++}`;
+      await upload(ver2, image()).expect(201);
+      await box(b, 'GET', `/v1/box/firmware/${ver}`).expect(200);
+      await as(admin.cookie).put(`/api/v1/admin/boxes/${b.box_id}/firmware`, { version: ver2 }).expect(204);
+      expect((await box(b, 'POST', '/v1/box/report', { fw: 'old', config_ver: 0 }).expect(200)).body.command).toMatchObject({ type: 'ota', version: ver2 });
+
+      // ติดตั้งสำเร็จ = ธงหาย เป้าหมายถูกล้าง
+      await box(b, 'GET', `/v1/box/firmware/${ver2}`).expect(200);
+      await box(b, 'POST', '/v1/box/boot', { fw: ver2, config_ver: 0 }).expect(200);
+      expect(await detail()).toMatchObject({ fw: ver2, fw_target: null, fw_stuck: false });
+    });
+
     it('only admins upload/target · bad files are refused · a box can download only what is aimed at it', async () => {
       const [b, other] = await register(2);
       const owner = await signupOwner();
