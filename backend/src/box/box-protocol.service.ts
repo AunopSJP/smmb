@@ -26,14 +26,22 @@ export const nowS = () => Math.floor(Date.now() / 1000);
 
 /** คำสั่งจากเจ้าของบ้านที่รอตู้รับ — ตอนนี้มีอย่างเดียว: ตัด Wi-Fi เก่า แล้วกลับโหมดปล่อย Wi-Fi (โปรโตคอล §2.8) */
 export interface BoxCommand {
-  type: 'wifi_reset' | 'ota';
+  type: 'wifi_reset' | 'ota' | 'beep';
   /** ใช้ตอบรับ (event wifi_reset + command_id) — เปลี่ยนทุกครั้งที่เจ้าของกดใหม่ · ota: `U-<version>` */
   id: string;
   /** เฉพาะ ota: เวอร์ชัน/ขนาด/sha256 ของเฟิร์มแวร์ที่ตู้ต้องโหลดจาก `GET /v1/box/firmware/<version>` (โปรโตคอล §2.9) */
   version?: string;
   size?: number;
   sha256?: string;
+  /** เฉพาะ beep: รูปแบบเสียงที่ตู้ต้องส่ง (โปรโตคอล §2.5/§2.10) */
+  pattern?: BeepPattern;
 }
+
+/** รูปแบบเสียง buzzer ที่ทดสอบได้ — ตรงกับเสียงจริงของตู้ (โปรโตคอล §2.5) */
+export const BEEP_PATTERNS = ['ready', 'pass', 'retry', 'fail', 'error', 'wifi'] as const;
+export type BeepPattern = (typeof BEEP_PATTERNS)[number];
+/** คำสั่งทดสอบเสียงค้างเกินนี้ = หมดอายุ (ไม่ให้ตู้ที่เพิ่งออนไลน์ส่งเสียงเองทีหลังโดยไม่มีใครอยู่หน้างาน) */
+export const BEEP_TTL_S = 120;
 
 /** ค้างเกินนี้ = หมดอายุ (ตู้ออฟไลน์/ปิดอยู่) ไม่ส่งให้ตู้อีก · เจ้าของต้องกดใหม่ */
 export const WIFI_RESET_TTL_H = 24;
@@ -116,8 +124,27 @@ export class BoxProtocolService {
       [boxId, WIFI_RESET_TTL_H],
     );
     if (rows[0]) return { type: 'wifi_reset', id: `W-${rows[0].at}` };
+    const beep = await this.pool.query<{ at: string; pattern: BeepPattern }>(
+      `SELECT floor(extract(epoch FROM beep_requested_date))::bigint::text AS at, beep_pattern AS pattern
+       FROM app.box_tb
+       WHERE box_id = $1 AND beep_requested_date IS NOT NULL AND beep_pattern IS NOT NULL
+         AND beep_requested_date > now() - make_interval(secs => $2)`,
+      [boxId, BEEP_TTL_S],
+    );
+    if (beep.rows[0]) return { type: 'beep', id: `B-${beep.rows[0].at}`, pattern: beep.rows[0].pattern };
     const offer = await this.firmware.offerFor(boxId);
     return offer ? { type: 'ota', id: `U-${offer.version}`, ...offer } : null;
+  }
+
+  /** ตู้ตอบรับว่าส่งเสียงแล้ว (ack ก่อนส่งเสียง) · ตอบซ้ำ/คำสั่งเก่า/หมดอายุ = ไม่ทำอะไร */
+  private async completeBeep(boxId: string, commandId: unknown): Promise<void> {
+    if (typeof commandId !== 'string' || !/^B-\d+$/.test(commandId)) return;
+    await this.pool.query(
+      `UPDATE app.box_tb SET beep_requested_date = NULL, beep_done_date = now()
+       WHERE box_id = $1 AND beep_requested_date IS NOT NULL
+         AND 'B-' || floor(extract(epoch FROM beep_requested_date))::bigint::text = $2`,
+      [boxId, commandId],
+    );
   }
 
   /** ตู้ตอบรับว่ากำลังตัด Wi-Fi เก่า (ส่งก่อนตัด — ตัดแล้วส่งอะไรไม่ได้) · ตอบรับซ้ำ/คำสั่งเก่า/ถูกยกเลิกแล้ว = ไม่ทำอะไร */
@@ -149,6 +176,7 @@ export class BoxProtocolService {
     await this.pool.query(`INSERT INTO app.box_report_tb (box_id, kind, body) VALUES ($1, 'event', $2)`, [boxId, body]);
     await this.pool.query(`UPDATE app.box_tb SET last_seen_date = now() WHERE box_id = $1`, [boxId]);
     if (body.type === 'wifi_reset') await this.completeWifiReset(boxId, body.command_id);
+    if (body.type === 'beep') await this.completeBeep(boxId, body.command_id);
     return { server_time: nowS(), config_ver: (await this.configs.forBox(boxId)).ver };
   }
 

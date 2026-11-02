@@ -149,6 +149,14 @@ if (cmd === 'live') {
       await sleep(10_000);
       continue;
     }
+    // คำสั่งจากเว็บ (ตอบรับก่อนทำ เหมือนเฟิร์มแวร์): ทดสอบเสียง buzzer · ลืม Wi-Fi
+    if (status === 200 && json?.command?.type === 'beep') {
+      const a = await call('POST', '/v1/box/events', { type: 'beep', command_id: json.command.id });
+      if (a.status === 200) console.log(`\n🔔 [beep] ${json.command.pattern}`);
+    } else if (status === 200 && json?.command?.type === 'wifi_reset') {
+      const a = await call('POST', '/v1/box/events', { type: 'wifi_reset', command_id: json.command.id });
+      if (a.status === 200) console.log('\n📶 [wifi_reset] ลืม Wi-Fi แล้ว (ตู้จำลองไม่ได้รีสตาร์ท)');
+    }
     if (status !== 200 || !json?.job) continue;
     const job = json.job;
     console.log(`\n🔔 ปี๊บ — ได้งาน ${job.type} ${job.job_id} · เปิดกล้อง`);

@@ -9,7 +9,7 @@ import { BoxConfigService } from './box-config.service.js';
 import { deviceSecret, frontQrToken, newActivateToken, newPrintCode, showPrintCode } from './box-crypto.js';
 import { BoxJobService, type JobDto } from './box-job.service.js';
 import { NotificationService } from '../push/notification.service.js';
-import { setupApName, WIFI_RESET_TTL_H } from './box-protocol.service.js';
+import { BEEP_TTL_S, setupApName, WIFI_RESET_TTL_H, type BeepPattern } from './box-protocol.service.js';
 import { JobHub } from './job-hub.js';
 
 export type QrSlot = 1 | 2 | 'activate';
@@ -51,6 +51,8 @@ export interface AdminBoxRow {
   fw_stuck: boolean;
   /** คำสั่ง "ลืม Wi-Fi แล้วกลับโหมดตั้งค่า": pending = รอตู้รับ · expired = ไม่มีใครรับใน 24 ชม. · done = ตู้ทำแล้ว · null = ไม่เคย */
   wifi_reset: { status: 'pending' | 'expired' | 'done' | null; ap_name: string; requested_at: string | null; done_at: string | null };
+  /** ทดสอบเสียง buzzer: pending = รอตู้รับ (หมดอายุใน 2 นาที) · expired = ตู้ไม่รับ (ออฟไลน์?) · done = ตู้ส่งเสียงแล้ว */
+  buzzer: { status: 'pending' | 'expired' | 'done' | null; pattern: BeepPattern | null; requested_at: string | null; done_at: string | null };
 }
 
 export type CameraDiagnosticState = 'started' | 'ready' | 'scan_result' | 'error';
@@ -101,6 +103,9 @@ interface BoxRow {
   fw_target_fetched_date: Date | null;
   wifi_reset_requested_date: Date | null;
   wifi_reset_done_date: Date | null;
+  beep_pattern: BeepPattern | null;
+  beep_requested_date: Date | null;
+  beep_done_date: Date | null;
   config_override: Record<string, unknown>;
   config_ver_seen: number | null;
   created_date: Date;
@@ -110,7 +115,7 @@ interface BoxRow {
 export const FW_INSTALL_GRACE_MS = 3 * 60_000;
 
 const BOX_COLS = `box_id, house_no, name, owner_user_id, service_active, service_reason, service_changed_date, battery_pct, charging, battery_date,
-  last_seen_date, last_poll_date, fw, fw_target, fw_target_fetched_date, wifi_reset_requested_date, wifi_reset_done_date, config_override, config_ver_seen, created_date`;
+  last_seen_date, last_poll_date, fw, fw_target, fw_target_fetched_date, wifi_reset_requested_date, wifi_reset_done_date, beep_pattern, beep_requested_date, beep_done_date, config_override, config_ver_seen, created_date`;
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 const intField = (value: unknown, max: number): number | null =>
@@ -309,6 +314,17 @@ export class AdminBoxService {
     return { box_id: boxId, qr: out.qr, wifi_reset: resetWifi, ap_name: setupApName(boxId) };
   }
 
+  /** ทดสอบเสียง buzzer — ตู้ที่ออนไลน์รับทันที (ปลุก long-poll) · ไม่รับใน 2 นาที = หมดอายุ */
+  async requestBeep(boxId: string, pattern: BeepPattern, adminId: string): Promise<{ pattern: BeepPattern; expires_in_s: number }> {
+    const { rowCount } = await this.pool.query(
+      `UPDATE app.box_tb SET beep_pattern = $2, beep_requested_date = now(), beep_requested_by = $3 WHERE box_id = $1`,
+      [boxId, pattern, adminId],
+    );
+    if (!rowCount) throw new NotFoundException();
+    this.hub.wake(boxId);
+    return { pattern, expires_in_s: BEEP_TTL_S };
+  }
+
   /** สั่งตู้ลืม Wi-Fi แล้วกลับโหมดตั้งค่า (ตู้ที่ยังไม่ผูก หรือผูกแล้วแต่ต้องแก้ Wi-Fi แทนเจ้าของ) — ตู้ต้องออนไลน์ถึงจะรับ · หมดอายุ 24 ชม. */
   async requestWifiReset(boxId: string, adminId: string): Promise<{ ap_name: string }> {
     const { rowCount } = await this.pool.query(
@@ -490,6 +506,18 @@ export class AdminBoxService {
         ap_name: setupApName(r.box_id),
         requested_at: r.wifi_reset_requested_date?.toISOString() ?? null,
         done_at: r.wifi_reset_done_date?.toISOString() ?? null,
+      },
+      buzzer: {
+        status: r.beep_requested_date
+          ? Date.now() - r.beep_requested_date.getTime() > BEEP_TTL_S * 1000
+            ? 'expired'
+            : 'pending'
+          : r.beep_done_date
+            ? 'done'
+            : null,
+        pattern: r.beep_pattern,
+        requested_at: r.beep_requested_date?.toISOString() ?? null,
+        done_at: r.beep_done_date?.toISOString() ?? null,
       },
     };
   }

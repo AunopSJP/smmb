@@ -204,6 +204,29 @@ static void handleCommand(JsonVariantConst cmd)
     sendEvent("ota_failed");
     return;
   }
+  if (strcmp(type, "beep") == 0 && *id)
+  {
+    // ทดสอบเสียง buzzer จากเว็บ — ack ก่อน (ไม่สำเร็จ = ยังไม่ส่งเสียง รอรับใหม่) แล้วค่อยส่งเสียง ไม่ซ้ำรหัสเดิม
+    static String lastBeepId;
+    if (lastBeepId == id)
+      return;
+    const char *pattern = cmd["pattern"] | "";
+    JsonDocument ack;
+    ack["type"] = "beep";
+    ack["command_id"] = id;
+    String ackBody;
+    serializeJson(ack, ackBody);
+    if (apiCall("POST", "/v1/box/events", ackBody, 3000).status != 200)
+    {
+      Serial.println("[cmd] beep: ack failed — will retry on next poll");
+      return;
+    }
+    lastBeepId = id;
+    Serial.printf("[cmd] beep: %s\n", pattern);
+    if (!beepByName(pattern))
+      Serial.println("[cmd] beep: unknown pattern");
+    return;
+  }
   if (strcmp(type, "wifi_reset") != 0 || !*id)
     return;
 
@@ -578,6 +601,7 @@ static void runCommand(String line)
         "  selftest               check request signing against the guide's test vectors\n"
         "  boot                   send POST /v1/box/boot now\n"
         "  report                 send POST /v1/box/report now\n"
+        "  beep [ready|pass|retry|fail|error|wifi]  play a buzzer pattern (default ready)\n"
         "  scan [sec]             open the camera and try to read a QR (no server)\n"
         "  debugcam on|off        live camera page http://<box ip>/?k=<key> (test only, off by default)\n"
         "  camweb [sec]           the same page, temporarily (default 120 s)\n"
@@ -767,6 +791,13 @@ static void runCommand(String line)
       Serial.println("usage: cam size qvga|vga|svga|xga · cam xclk 10|20 · cam fmt jpeg|gray · cam q 4..30 · cam sharp -2..2 · cam ae -2..2");
     settingsSave();
     Serial.printf("cam size=%s xclk=%uMHz fmt=%s q=%u sharp=%d ae=%d — applies on next camera start\n", settings.camSize.c_str(), settings.camXclk, settings.camJpeg ? "jpeg" : "gray", settings.camQ, settings.camSharp, settings.camAe);
+  }
+  else if (cmd == "beep")
+  {
+    String name = arg.length() ? arg : "ready";
+    name.toLowerCase();
+    if (!beepByName(name.c_str()))
+      Serial.println("usage: beep [ready|pass|retry|fail|error|wifi]");
   }
   else if (cmd == "reboot")
   {

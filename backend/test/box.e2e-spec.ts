@@ -697,6 +697,58 @@ describe('Boxes (e2e)', () => {
     });
   });
 
+  describe('buzzer test (admin)', () => {
+    const beep = (id: string, body: object, cookie = admin.cookie) => http().post(`/api/v1/admin/boxes/${id}/beep`).set('Cookie', cookie).send(body);
+    const detail = async (id: string) => (await as(admin.cookie).get(`/api/v1/admin/boxes/${id}`).expect(200)).body;
+
+    it('wakes a waiting box at once with a beep command; the ack clears it and the admin sees "done"', async () => {
+      const [b] = await register();
+      await box(b, 'POST', '/v1/box/boot', { fw: '1.0', config_ver: 0 }).expect(200);
+      expect((await detail(b.box_id)).buzzer).toMatchObject({ status: null, pattern: null });
+
+      const poll = box(b, 'GET', '/v1/box/jobs?wait=10').then((r) => r);
+      await new Promise((r) => setTimeout(r, 300));
+      const res = await beep(b.box_id, { pattern: 'fail' }).expect(200);
+      expect(res.body).toMatchObject({ pattern: 'fail', expires_in_s: 120 });
+      const heard = await poll;
+      expect(heard.status).toBe(200);
+      expect(heard.body.command).toMatchObject({ type: 'beep', pattern: 'fail', id: expect.stringMatching(/^B-\d+$/) });
+      expect((await detail(b.box_id)).buzzer).toMatchObject({ status: 'pending', pattern: 'fail' });
+
+      // ack ผิดรหัส = ไม่เคลียร์ · ack ถูก = เสร็จ ไม่ส่งซ้ำ
+      await box(b, 'POST', '/v1/box/events', { type: 'beep', command_id: 'B-1' }).expect(200);
+      expect((await detail(b.box_id)).buzzer.status).toBe('pending');
+      await box(b, 'POST', '/v1/box/events', { type: 'beep', command_id: heard.body.command.id }).expect(200);
+      const done = (await detail(b.box_id)).buzzer;
+      expect(done).toMatchObject({ status: 'done', pattern: 'fail', requested_at: null });
+      expect(done.done_at).toEqual(expect.any(String));
+      await box(b, 'GET', '/v1/box/jobs?wait=0').expect(204);
+    });
+
+    it('a sleeping box hears it in boot/report · expires after 2 minutes · wifi reset goes first · bad input and scope are refused', async () => {
+      const [b] = await register();
+      await beep(b.box_id, { pattern: 'pass' }).expect(200);
+      expect((await box(b, 'POST', '/v1/box/report', { fw: '1.0', config_ver: 0 }).expect(200)).body.command).toMatchObject({ type: 'beep', pattern: 'pass' });
+
+      // wifi_reset มาก่อน beep
+      await as(admin.cookie).post(`/api/v1/admin/boxes/${b.box_id}/wifi-reset`).expect(200);
+      expect((await box(b, 'POST', '/v1/box/report', { fw: '1.0', config_ver: 0 }).expect(200)).body.command).toMatchObject({ type: 'wifi_reset' });
+      await as(admin.cookie).delete(`/api/v1/admin/boxes/${b.box_id}/wifi-reset`).expect(204);
+
+      // หมดอายุ (เกิน 2 นาที) → ตู้ไม่ได้ยินอีก · หน้าเว็บเห็น expired
+      await pool.query(`UPDATE app.box_tb SET beep_requested_date = now() - interval '3 minutes' WHERE box_id = $1`, [b.box_id]);
+      expect((await box(b, 'POST', '/v1/box/report', { fw: '1.0', config_ver: 0 }).expect(200)).body.command).toBeUndefined();
+      expect((await detail(b.box_id)).buzzer.status).toBe('expired');
+
+      const owner = await signupOwner();
+      await beep(b.box_id, { pattern: 'ready' }, owner.cookie).expect(404);
+      await beep(b.box_id, { pattern: 'siren' }).expect(400);
+      await beep(b.box_id, {}).expect(400);
+      await beep('BX-99999', { pattern: 'ready' }).expect(404);
+      await http().post(`/api/v1/admin/boxes/${b.box_id}/beep`).send({ pattern: 'ready' }).expect(401);
+    });
+  });
+
   describe('admin opens / closes the service of a box', () => {
     const patchService = (id: string, body: object, cookie = admin.cookie) => http().patch(`/api/v1/admin/boxes/${id}/service`).set('Cookie', cookie).send(body);
 

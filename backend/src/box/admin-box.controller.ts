@@ -9,6 +9,7 @@ import { BoxConfigService } from './box-config.service.js';
 import { AdminBoxService } from './admin-box.service.js';
 import { BoxPreviewService } from './box-preview.service.js';
 import { FirmwareService } from './firmware.service.js';
+import type { BeepPattern } from './box-protocol.service.js';
 
 class BoxIdParam {
   @Matches(/^BX-\d{5,10}$/) box_id!: string;
@@ -51,6 +52,11 @@ class UnbindDto {
   @IsString() @Length(1, 200) reason!: string;
   /** true = สั่งตู้ลืม Wi-Fi แล้วกลับโหมดตั้งค่าด้วย (ตู้ต้องออนไลน์ถึงจะรับคำสั่ง · หมดอายุ 24 ชม.) */
   @IsOptional() @IsBoolean() reset_wifi?: boolean;
+}
+
+class BeepDto {
+  /** รูปแบบเสียง: ready(สั้น1) pass(สั้น2) retry(ยาว1) fail(ยาว3) error(ยาว1+สั้น2) wifi(สั้น3) */
+  @IsIn(['ready', 'pass', 'retry', 'fail', 'error', 'wifi']) pattern!: BeepPattern;
 }
 
 class ReissueQrDto {
@@ -116,6 +122,13 @@ export class AdminBoxController {
   @HttpCode(HttpStatus.OK)
   unbind(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Body() body: UnbindDto) {
     return this.boxes.unbind(p.box_id, body.reason, auth.userId, body.reset_wifi ?? false);
+  }
+
+  /** ทดสอบเสียง buzzer ของตู้ */
+  @Post('boxes/:box_id/beep')
+  @HttpCode(HttpStatus.OK)
+  requestBeep(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Body() body: BeepDto) {
+    return this.boxes.requestBeep(p.box_id, body.pattern, auth.userId);
   }
 
   /** สั่งตู้ลืม Wi-Fi แล้วกลับโหมดตั้งค่า */

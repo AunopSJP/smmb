@@ -39,9 +39,13 @@ export interface AdminBoxRow {
   fw_target: string | null;
   /** ตู้โหลดไฟล์แล้วแต่ยังรายงานเวอร์ชันเดิม */
   fw_stuck: boolean;
+  /** ทดสอบเสียง buzzer */
+  buzzer: { status: 'pending' | 'expired' | 'done' | null; pattern: BeepPattern | null; requested_at: string | null; done_at: string | null };
   /** คำสั่งให้ตู้ลืม Wi-Fi แล้วกลับโหมดตั้งค่า */
   wifi_reset: { status: 'pending' | 'expired' | 'done' | null; ap_name: string; requested_at: string | null; done_at: string | null };
 }
+
+export type BeepPattern = 'ready' | 'pass' | 'retry' | 'fail' | 'error' | 'wifi';
 
 export interface FirmwareInfo {
   version: string;
@@ -272,6 +276,10 @@ export class AdminApi {
     return firstValueFrom(
       this.http.post<{ box_id: string; wifi_reset: boolean; ap_name: string }>(`/api/v1/admin/boxes/${encodeURIComponent(id)}/unbind`, { reason, reset_wifi: resetWifi }),
     );
+  }
+  /** ทดสอบเสียง buzzer ของตู้ (ตู้ต้องออนไลน์ · หมดอายุใน 2 นาที) */
+  requestBeep(id: string, pattern: BeepPattern): Promise<{ pattern: BeepPattern; expires_in_s: number }> {
+    return firstValueFrom(this.http.post<{ pattern: BeepPattern; expires_in_s: number }>(`/api/v1/admin/boxes/${encodeURIComponent(id)}/beep`, { pattern }));
   }
   /** สั่งตู้ลืม Wi-Fi แล้วกลับโหมดตั้งค่า (ตู้ต้องออนไลน์ถึงจะรับ) */
   requestWifiReset(id: string): Promise<{ ap_name: string }> {

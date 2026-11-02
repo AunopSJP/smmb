@@ -28,6 +28,7 @@ const boxDetail = (inSync: boolean): AdminBoxDetail => ({
   fw: 'test',
   fw_target: null,
   fw_stuck: false,
+  buzzer: { status: null, pattern: null, requested_at: null, done_at: null },
   wifi_reset: { status: null, ap_name: 'MAILBOX-000001', requested_at: null, done_at: null },
   can_delete: false,
   service_active: true,
