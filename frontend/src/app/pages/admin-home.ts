@@ -23,7 +23,7 @@ import { PageHeader } from '../shared/page-header';
       [bell]="url('D12')"
     />
 
-    <div class="stack">
+    <div class="stack dash">
       <div class="stats">
         <a class="stat link" [routerLink]="url('D03')">
           <p class="label">{{ i18n.t({ th: 'ตู้ออนไลน์', en: 'Boxes online' }) }}</p>
@@ -63,7 +63,7 @@ import { PageHeader } from '../shared/page-header';
         }
       </nav>
 
-      <nav class="list">
+      <nav class="list mobile-only">
         @for (m of menu; track m.code) {
           <a class="row" [routerLink]="url(m.code)" [queryParams]="m.code === 'A14' ? { from: 'D01' } : null">
             <span class="icon-bubble"><app-icon [name]="m.icon" [size]="20" /></span>
@@ -85,7 +85,7 @@ import { PageHeader } from '../shared/page-header';
           <button type="button" class="btn secondary" (click)="editSupport()">{{ i18n.t({ th: 'แก้ไข', en: 'Edit' }) }}</button>
         }
       </section>
-      <button type="button" class="btn secondary signout" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
+      <button type="button" class="btn secondary signout mobile-only" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
     </div>
   `,
   styles: `

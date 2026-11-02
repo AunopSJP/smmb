@@ -813,3 +813,30 @@ app-area-shell main > :not(router-outlet) {
     color: #000;
   }
 }
+
+/* แอดมินบนจอคอม: ใช้พื้นที่เต็ม — การ์ดสถิติแถวเดียว · หน้าภาพรวมแบ่งสองคอลัมน์ (.dash) */
+@media (min-width: 1024px) {
+  .admin-layout {
+    .stats {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .dash {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--gap);
+      align-items: start;
+      > * {
+        min-width: 0;
+      }
+      > .stats,
+      > .section-title {
+        grid-column: 1 / -1;
+      }
+    }
+  }
+}
+@media (min-width: 1024px) {
+  .admin-layout .mobile-only {
+    display: none;
+  }
+}

@@ -86,7 +86,7 @@ export interface AdminBoxDetail extends AdminBoxRow {
   auth_failures: { reason: string; at: string }[];
 }
 
-export type AdminLogType = 'inspection' | 'delivery' | 'sos' | 'box_problem' | 'scan' | 'data_access';
+export type AdminLogType = 'inspection' | 'delivery' | 'sos' | 'box_problem' | 'scan' | 'data_access' | 'terms';
 export interface AdminLog {
   id: string;
   type: AdminLogType;

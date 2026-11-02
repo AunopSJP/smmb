@@ -9,13 +9,14 @@ import { PageHeader } from '../../shared/page-header';
 // เจ้าของบ้าน: H12 ประวัติ (การตรวจ · ของมาส่ง) · H12-b / H12-c รายละเอียด · H12-d ตู้ไม่ออนไลน์ · H12-e ช่วงวันที่
 // ใช้ API จริง GET /boxes/:box_id/events (api.md §4.3)
 
-type Range = 'today' | '7d' | '30d' | 'all';
+type Range = 'today' | '7d' | '30d' | 'all' | 'custom';
 
 const RANGES: { v: Range; label: Tr; days: number | null }[] = [
   { v: 'today', label: { th: 'วันนี้', en: 'Today' }, days: 0 },
   { v: '7d', label: { th: '7 วัน', en: '7 days' }, days: 7 },
   { v: '30d', label: { th: '30 วัน', en: '30 days' }, days: 30 },
   { v: 'all', label: { th: 'ทั้งหมด', en: 'All' }, days: null },
+  { v: 'custom', label: { th: 'เลือกวันที่', en: 'Pick dates' }, days: null },
 ];
 
 const KIND: Record<BoxEvent['type'], { icon: IconName; tone: '' | 'warn'; title: Tr; detail: string }> = {
@@ -25,6 +26,9 @@ const KIND: Record<BoxEvent['type'], { icon: IconName; tone: '' | 'warn'; title:
 
 /** "วันนี้" ตามเวลาไทย */
 const bkkDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(d);
+
+/** ช่วงวันที่ (เวลาไทย) ของแต่ละปุ่ม — ส่งให้เซิร์ฟเวอร์กรอง · all/custom ไม่มีช่วงในตัว */
+const rangeOf = (days: number | null): { from?: string } => (days === null ? {} : { from: bkkDay(new Date(Date.now() - days * 86_400_000)) });
 
 /** เหตุการณ์ที่โหลดแล้ว — หน้ารายละเอียดหยิบจากที่นี่ (ไม่ต้องโหลดใหม่) */
 @Injectable({ providedIn: 'root' })
@@ -37,7 +41,11 @@ export class OwnerHistoryStore {
   readonly loading = signal(false);
   private page = 1;
 
-  async load(boxId?: string): Promise<void> {
+  /** ช่วงวันที่ที่กรองอยู่ (ว่าง = ทั้งหมด) */
+  readonly range = signal<{ from?: string; to?: string }>({});
+
+  async load(boxId?: string, range?: { from?: string; to?: string }): Promise<void> {
+    if (range) this.range.set(range);
     this.loading.set(true);
     try {
       if (!this.boxes().length) this.boxes.set(await this.api.boxes());
@@ -48,7 +56,7 @@ export class OwnerHistoryStore {
         this.events.set([]);
         return;
       }
-      const r = await this.api.events(id, 1);
+      const r = await this.api.events(id, 1, this.range());
       this.events.set(r.data);
       this.more.set(r.data.length === r.per_page);
     } finally {
@@ -60,7 +68,7 @@ export class OwnerHistoryStore {
     const id = this.boxId();
     if (!id) return;
     this.page++;
-    const r = await this.api.events(id, this.page);
+    const r = await this.api.events(id, this.page, this.range());
     this.events.update((e) => [...e, ...r.data]);
     this.more.set(r.data.length === r.per_page);
   }
@@ -92,9 +100,25 @@ const dateTime = (iso: string, lang: 'th' | 'en') =>
       }
       <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'ช่วงเวลา', en: 'Period' })">
         @for (r of ranges; track r.v) {
-          <button type="button" [attr.aria-pressed]="range() === r.v" (click)="range.set(r.v)">{{ i18n.t(r.label) }}</button>
+          <button type="button" [attr.aria-pressed]="range() === r.v" (click)="pick(r.v)">{{ i18n.t(r.label) }}</button>
         }
       </div>
+      @if (range() === 'custom') {
+        <form class="dates card" (submit)="$event.preventDefault(); applyCustom()">
+          <label class="field">
+            <span>{{ i18n.t({ th: 'ตั้งแต่วันที่', en: 'From' }) }}</span>
+            <input type="date" [max]="today" [value]="from()" (input)="from.set($any($event.target).value)" />
+          </label>
+          <label class="field">
+            <span>{{ i18n.t({ th: 'ถึงวันที่', en: 'To' }) }}</span>
+            <input type="date" [max]="today" [value]="to()" (input)="to.set($any($event.target).value)" />
+          </label>
+          @if (rangeError()) {
+            <p class="danger-text small" role="alert">{{ i18n.t(rangeError()!) }}</p>
+          }
+          <button type="submit" class="btn" [disabled]="!from() && !to()">{{ i18n.t({ th: 'ดูช่วงนี้', en: 'Show' }) }}</button>
+        </form>
+      }
 
       <nav class="list">
         @for (h of items(); track h.id) {
@@ -129,6 +153,11 @@ const dateTime = (iso: string, lang: 'th' | 'en') =>
     .segmented {
       flex-wrap: wrap;
     }
+    .dates {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
   `,
 })
 export class OwnerHistory {
@@ -142,16 +171,36 @@ export class OwnerHistory {
     const b = this.store.boxes().find((x) => x.id === this.store.boxId());
     return b ? this.i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + b.house_no : '';
   });
-  protected readonly items = computed(() => {
-    const days = RANGES.find((r) => r.v === this.range())!.days;
-    if (days === null) return this.store.events();
-    const today = bkkDay(new Date());
-    const from = Date.now() - days * 86_400_000;
-    return this.store.events().filter((e) => (days === 0 ? bkkDay(new Date(e.at)) === today : new Date(e.at).getTime() >= from));
-  });
+  /** รายการที่เซิร์ฟเวอร์กรองตามช่วงมาให้แล้ว */
+  protected readonly items = computed(() => this.store.events());
+  protected readonly today = bkkDay(new Date());
+  protected readonly from = signal('');
+  protected readonly to = signal('');
+  protected readonly rangeError = signal<Tr | null>(null);
+
+  /** เลือกปุ่มช่วงเวลา — ปุ่มสำเร็จรูปโหลดใหม่ทันที · "เลือกวันที่" รอให้กรอกก่อน */
+  protected pick(v: Range): void {
+    this.range.set(v);
+    this.rangeError.set(null);
+    if (v === 'custom') return;
+    const days = RANGES.find((r) => r.v === v)!.days;
+    void this.store.load(undefined, rangeOf(days));
+  }
+
+  protected applyCustom(): void {
+    const from = this.from();
+    const to = this.to();
+    if (from && to && from > to) {
+      this.rangeError.set({ th: 'วันที่เริ่มต้องไม่เกินวันที่สิ้นสุด', en: '“From” must not be after “To”' });
+      return;
+    }
+    this.rangeError.set(null);
+    void this.store.load(undefined, { ...(from ? { from } : {}), ...(to ? { to } : {}) });
+  }
 
   constructor() {
-    void this.store.load();
+    // เปิดหน้านี้ = ดู 7 วันล่าสุด (ตามปุ่มที่เลือกไว้เริ่มต้น)
+    void this.store.load(undefined, rangeOf(RANGES.find((r) => r.v === this.range())!.days));
   }
 
   protected sub(h: BoxEvent): string {

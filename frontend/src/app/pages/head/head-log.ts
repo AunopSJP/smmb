@@ -76,9 +76,55 @@ const RESULT_TEXT: Record<string, Tr> = {
     />
     <div class="stack">
       <div class="segmented chips" role="group">
-        <button type="button" [attr.aria-pressed]="!onlyProblems()" (click)="onlyProblems.set(false)">{{ i18n.t({ th: 'ทั้งหมด', en: 'All' }) }}</button>
-        <button type="button" [attr.aria-pressed]="onlyProblems()" (click)="onlyProblems.set(true)">{{ i18n.t({ th: 'เฉพาะที่มีปัญหา', en: 'Problems only' }) }}</button>
+        <button type="button" [attr.aria-pressed]="!onlyProblems()" (click)="setProblems(false)">{{ i18n.t({ th: 'ทั้งหมด', en: 'All' }) }}</button>
+        <button type="button" [attr.aria-pressed]="onlyProblems()" (click)="setProblems(true)">{{ i18n.t({ th: 'เฉพาะที่มีปัญหา', en: 'Problems only' }) }}</button>
       </div>
+      <details class="filters" [open]="filtersActive()">
+        <summary>
+          {{ i18n.t({ th: 'ตัวกรอง', en: 'Filters' }) }}
+          @if (filtersActive()) {
+            <span class="chip ok">{{ i18n.t({ th: 'กำลังกรอง', en: 'active' }) }}</span>
+          }
+        </summary>
+        <form class="fgrid" (submit)="$event.preventDefault(); apply()">
+          <label class="field">
+            <span>{{ i18n.t({ th: 'โซน', en: 'Zone' }) }}</span>
+            <select [value]="fZone()" (change)="fZone.set($any($event.target).value)">
+              <option value="">{{ i18n.t({ th: 'ทุกโซน', en: 'All zones' }) }}</option>
+              @for (z of zoneOptions(); track z.id) {
+                <option [value]="z.id">{{ z.name }}</option>
+              }
+            </select>
+          </label>
+          <label class="field">
+            <span>{{ i18n.t({ th: 'เจ้าหน้าที่', en: 'Officer' }) }}</span>
+            <select [value]="fOfficer()" (change)="fOfficer.set($any($event.target).value)">
+              <option value="">{{ i18n.t({ th: 'ทุกคน', en: 'Everyone' }) }}</option>
+              @for (m of officerOptions(); track m.id) {
+                <option [value]="m.id">{{ m.display_name }}</option>
+              }
+            </select>
+          </label>
+          <label class="field">
+            <span>{{ i18n.t({ th: 'บ้านเลขที่ / รหัสตู้', en: 'House no. / box id' }) }}</span>
+            <input maxlength="50" [value]="fQ()" (input)="fQ.set($any($event.target).value)" />
+          </label>
+          <div class="dates">
+            <label class="field">
+              <span>{{ i18n.t({ th: 'ตั้งแต่วันที่', en: 'From' }) }}</span>
+              <input type="date" [value]="fFrom()" (input)="fFrom.set($any($event.target).value)" />
+            </label>
+            <label class="field">
+              <span>{{ i18n.t({ th: 'ถึงวันที่', en: 'To' }) }}</span>
+              <input type="date" [value]="fTo()" (input)="fTo.set($any($event.target).value)" />
+            </label>
+          </div>
+          <div class="factions">
+            <button type="submit" class="btn">{{ i18n.t({ th: 'ใช้ตัวกรอง', en: 'Apply' }) }}</button>
+            <button type="button" class="btn secondary" (click)="clearFilters()">{{ i18n.t({ th: 'ล้าง', en: 'Clear' }) }}</button>
+          </div>
+        </form>
+      </details>
       <ul class="list">
         @for (l of rows(); track l.id) {
           @let ok = isOk(l);
@@ -99,7 +145,7 @@ const RESULT_TEXT: Record<string, Tr> = {
       }
       <div class="export">
         <label class="field">
-          <span>{{ i18n.t({ th: 'ส่งออกเป็นไฟล์ Excel (CSV)', en: 'Export as a spreadsheet (CSV)' }) }}</span>
+          <span>{{ i18n.t({ th: 'ส่งออกเป็นไฟล์ Excel (CSV) — ตามตัวกรองด้านบน', en: 'Export as a spreadsheet (CSV) — follows the filters above' }) }}</span>
           <select [value]="days()" (change)="days.set(+$any($event.target).value)">
             <option value="7">{{ i18n.t({ th: '7 วันล่าสุด', en: 'Last 7 days' }) }}</option>
             <option value="30">{{ i18n.t({ th: '30 วันล่าสุด', en: 'Last 30 days' }) }}</option>
@@ -127,6 +173,35 @@ const RESULT_TEXT: Record<string, Tr> = {
     .block {
       display: block;
     }
+    .filters {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px 16px;
+    }
+    .filters > summary {
+      cursor: pointer;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .fgrid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .dates {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .factions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
   `,
 })
 export class HeadLog implements OnInit {
@@ -140,19 +215,74 @@ export class HeadLog implements OnInit {
   protected readonly loading = signal(true);
   protected readonly more = signal(false);
   private page = 1;
-  protected readonly rows = computed(() => this.all().filter((l) => !this.onlyProblems() || !this.isOk(l)));
+  protected readonly rows = computed(() => this.all());
+
+  // ตัวกรอง (ส่งให้เซิร์ฟเวอร์กรอง — ไม่ใช่กรองเฉพาะ 30 แถวที่โหลดมา)
+  protected readonly fZone = signal('');
+  protected readonly fOfficer = signal('');
+  protected readonly fQ = signal('');
+  protected readonly fFrom = signal('');
+  protected readonly fTo = signal('');
+  protected readonly zoneOptions = signal<{ id: string; name: string }[]>([]);
+  protected readonly officerOptions = signal<{ id: string; display_name: string }[]>([]);
+  protected readonly filtersActive = computed(() => !!(this.fZone() || this.fOfficer() || this.fQ().trim() || this.fFrom() || this.fTo()));
 
   async ngOnInit(): Promise<void> {
     void this.api.loadAgency().catch(() => undefined);
+    void this.api.zones('all').then((z) => this.zoneOptions.set(z.map((x) => ({ id: x.id, name: x.name })))).catch(() => undefined);
+    // รวมคนที่ถูกปิดสิทธิ์แล้ว (ประวัติเดิมของเขายังต้องกรองดูได้)
+    void Promise.all([this.api.members('active'), this.api.members('disabled').catch(() => [])])
+      .then(([a, d]) => this.officerOptions.set([...a, ...d].map((x) => ({ id: x.id, display_name: x.display_name }))))
+      .catch(() => undefined);
     await this.fetch();
     this.loading.set(false);
   }
 
+  /** พารามิเตอร์ตัวกรองสำหรับรายการและ CSV */
+  private filterQuery(): URLSearchParams {
+    const p = new URLSearchParams();
+    if (this.fZone()) p.set('zone', this.fZone());
+    if (this.fOfficer()) p.set('officer', this.fOfficer());
+    if (this.fQ().trim()) p.set('q', this.fQ().trim());
+    if (this.fFrom()) p.set('from', this.fFrom());
+    if (this.fTo()) p.set('to', this.fTo());
+    if (this.onlyProblems()) p.set('problems', 'true');
+    return p;
+  }
+
   private async fetch(): Promise<void> {
-    const r = await firstValueFrom(this.http.get<{ data: LogRow[]; per_page: number }>(`/api/v1/agency/logs?page=${this.page}`)).catch(() => null);
+    const p = this.filterQuery();
+    p.set('page', String(this.page));
+    const r = await firstValueFrom(this.http.get<{ data: LogRow[]; per_page: number }>(`/api/v1/agency/logs?${p}`)).catch(() => null);
     if (!r) return;
     this.all.update((a) => [...a, ...r.data]);
     this.more.set(r.data.length === r.per_page);
+  }
+
+  protected async apply(): Promise<void> {
+    if (this.fFrom() && this.fTo() && this.fFrom() > this.fTo()) {
+      this.toast.show({ th: 'วันที่เริ่มต้องไม่เกินวันที่สิ้นสุด', en: '“From” must not be after “To”' });
+      return;
+    }
+    this.page = 1;
+    this.all.set([]);
+    this.loading.set(true);
+    await this.fetch();
+    this.loading.set(false);
+  }
+
+  protected setProblems(on: boolean): void {
+    this.onlyProblems.set(on);
+    void this.apply();
+  }
+
+  protected clearFilters(): void {
+    this.fZone.set('');
+    this.fOfficer.set('');
+    this.fQ.set('');
+    this.fFrom.set('');
+    this.fTo.set('');
+    void this.apply();
   }
 
   protected readonly days = signal(30);
@@ -163,7 +293,10 @@ export class HeadLog implements OnInit {
     if (this.exporting()) return;
     this.exporting.set(true);
     try {
-      const blob = await firstValueFrom(this.http.get(`/api/v1/agency/logs/export.csv?days=${this.days()}`, { responseType: 'blob' }));
+      const p = this.filterQuery();
+      // ระบุช่วงวันที่เองแล้วใช้ช่วงนั้น · ไม่ระบุใช้ "ย้อนหลังกี่วัน" ตามตัวเลือก
+      if (!this.fFrom() && !this.fTo()) p.set('days', String(this.days()));
+      const blob = await firstValueFrom(this.http.get(`/api/v1/agency/logs/export.csv?${p}`, { responseType: 'blob' }));
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

@@ -336,6 +336,9 @@ describe('Inspections (e2e)', () => {
     expect(today.zones).toHaveLength(1);
     expect(today.zones[0]).toMatchObject({ houses_total: 1, houses_checked: 1, is_mine: false });
     expect((await as(head).get('/api/v1/agency/today?zone=mine').expect(200)).body.zones).toHaveLength(0);
+    const zid = today.zones[0].id as string;
+    expect((await as(head).get(`/api/v1/agency/today?zone=${zid}`).expect(200)).body.zones).toHaveLength(1);
+    await as(head).get('/api/v1/agency/today?zone=00000000-0000-4000-8000-000000000000').expect(404);
 
     const logs = (await as(head).get('/api/v1/agency/logs').expect(200)).body.data as { qr_kind: string; result: string; officer: { id: string } }[];
     expect(logs.map((l) => `${l.qr_kind}:${l.result}`)).toEqual(['badge:ok', 'badge:bad_sig', 'front:ok']);

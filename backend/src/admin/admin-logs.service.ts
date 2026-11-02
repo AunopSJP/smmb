@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import pg from 'pg';
 import { PG_POOL } from '../db/db.module.js';
 
-export const ADMIN_LOG_TYPES = ['inspection', 'delivery', 'sos', 'box_problem', 'scan', 'data_access'] as const;
+export const ADMIN_LOG_TYPES = ['inspection', 'delivery', 'sos', 'box_problem', 'scan', 'data_access', 'terms'] as const;
 export type AdminLogType = (typeof ADMIN_LOG_TYPES)[number];
 
 export interface AdminLogRow {
@@ -78,6 +78,11 @@ export class AdminLogsService {
                   u.display_name, NULL::text, NULL::text, a.subject_kind, a.fields::text, a.created_date, false
            FROM app.data_access_log_tb a
            JOIN app.user_tb u ON u.user_id = a.actor_user_id
+           UNION ALL
+           SELECT 'terms:' || t.user_id || ':' || t.terms_version, 'terms', NULL::text, NULL::text,
+                  u.display_name, NULL::text, NULL::text, t.terms_version, NULL::text, t.created_date, false
+           FROM app.terms_acceptance_tb t
+           JOIN app.user_tb u ON u.user_id = t.user_id
          )
          SELECT id, type, box_id, house_no, actor_name, qr_slot, method, result, details, created_date, fail
          FROM log_event
@@ -93,6 +98,7 @@ export class AdminLogsService {
            UNION ALL SELECT 'delivery'::text FROM app.delivery_tb
            UNION ALL SELECT 'sos'::text FROM app.sos_case_tb
            UNION ALL SELECT 'data_access'::text FROM app.data_access_log_tb
+           UNION ALL SELECT 'terms'::text FROM app.terms_acceptance_tb
          )
          SELECT count(*)::int AS total FROM log_event WHERE ($1::text[] IS NULL OR type = ANY($1::text[]))`,
         [types],

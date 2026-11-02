@@ -1,5 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import pg from 'pg';
+import { likeContains } from './zone.service.js';
 import { toCsv } from '../common/csv.js';
 import { BOX_TZ } from '../box/box-config.js';
 import { BoxConfigService } from '../box/box-config.service.js';
@@ -39,6 +41,19 @@ export interface AgencyLogDto {
 }
 
 const LOG_PAGE = 30;
+
+/** ตัวกรองประวัติการสแกนของหัวหน้า (L08) — ว่าง = ไม่กรอง */
+export interface LogFilter {
+  zoneId?: string;
+  officerId?: string;
+  /** บ้านเลขที่ หรือรหัสตู้ (ตรงบางส่วน) */
+  q?: string;
+  /** YYYY-MM-DD ตามเวลาไทย (รวมวันนั้น) */
+  from?: string;
+  to?: string;
+  /** เฉพาะที่ไม่ผ่าน/มีปัญหา */
+  problems?: boolean;
+}
 /** ส่งออก CSV สูงสุดกี่แถว */
 export const CSV_MAX_ROWS = 10_000;
 
@@ -50,7 +65,7 @@ export class AgencyTodayService {
     private readonly boxConfigs: BoxConfigService,
   ) {}
 
-  async today(agencyId: string, userId: string, filter: 'mine' | 'all'): Promise<TodayDto> {
+  async today(agencyId: string, userId: string, filter: string): Promise<TodayDto> {
     // "วันนี้" = วันตามเวลาไทย
     const { rows: zones } = await this.pool.query<{
       zone_id: string;
@@ -70,7 +85,9 @@ export class AgencyTodayService {
        ORDER BY z.name`,
       [agencyId, userId],
     );
-    const visible = filter === 'mine' ? zones.filter((z) => z.is_mine) : zones;
+    const single = filter !== 'mine' && filter !== 'all' ? zones.find((z) => z.zone_id === filter.toLowerCase()) : null;
+    if (filter !== 'mine' && filter !== 'all' && !single) throw new NotFoundException();
+    const visible = single ? [single] : filter === 'mine' ? zones.filter((z) => z.is_mine) : zones;
     const zoneIds = visible.map((z) => z.zone_id);
 
     const { rows: houses } = await this.pool.query<{
@@ -126,24 +143,39 @@ export class AgencyTodayService {
   }
 
   /** สมาชิกทุกสถานะของหน่วยงาน (คนที่ถูกปิดไปแล้วก็ยังเห็นประวัติเดิม) · ใหม่สุดก่อน */
-  async logs(agencyId: string, page: number): Promise<{ data: AgencyLogDto[]; page: number; per_page: number }> {
-    const data = await this.logRows(agencyId, LOG_PAGE, (page - 1) * LOG_PAGE, null);
+  async logs(agencyId: string, page: number, filter: LogFilter = {}): Promise<{ data: AgencyLogDto[]; page: number; per_page: number }> {
+    await this.assertFilterScope(agencyId, filter);
+    const data = await this.logRows(agencyId, LOG_PAGE, (page - 1) * LOG_PAGE, null, filter);
     return { data, page, per_page: LOG_PAGE };
+  }
+
+  /** โซน/คนที่ใช้กรองต้องเป็นของหน่วยงานนี้ — ไม่ใช่ → 404 (กฎข้อ 9) */
+  private async assertFilterScope(agencyId: string, f: LogFilter): Promise<void> {
+    if (f.zoneId) {
+      const z = await this.pool.query(`SELECT 1 FROM app.zone_tb WHERE zone_id = $1 AND agency_id = $2 AND deleted_date IS NULL`, [f.zoneId, agencyId]);
+      if (!z.rowCount) throw new NotFoundException();
+    }
+    if (f.officerId) {
+      const m = await this.pool.query(`SELECT 1 FROM app.agency_member_tb WHERE user_id = $1 AND agency_id = $2`, [f.officerId, agencyId]);
+      if (!m.rowCount) throw new NotFoundException();
+    }
   }
 
   /**
    * ส่งออกประวัติการสแกนเป็น CSV (UTF-8 + BOM ให้ Excel อ่านภาษาไทยถูก) — ย้อนหลัง `days` วัน เรียงใหม่ → เก่า สูงสุด 10,000 แถว
    * ช่องที่ขึ้นต้นด้วย = + - @ ใส่ ' นำหน้า (กัน CSV injection) · เวลาเป็นเวลาไทย
    */
-  async logsCsv(agencyId: string, days: number): Promise<string> {
-    const rows = await this.logRows(agencyId, CSV_MAX_ROWS, 0, days);
+  async logsCsv(agencyId: string, days: number | null, filter: LogFilter = {}): Promise<string> {
+    await this.assertFilterScope(agencyId, filter);
+    const rows = await this.logRows(agencyId, CSV_MAX_ROWS, 0, days, filter);
     const head = ['time (Asia/Bangkok)', 'officer', 'house_no', 'box_id', 'qr_kind', 'qr_slot', 'method', 'result'];
     const fmt = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Bangkok', dateStyle: 'short', timeStyle: 'medium' });
     const body = rows.map((r) => [fmt.format(new Date(r.at)), r.officer?.display_name ?? '', r.house_no ?? '', r.box_id ?? '', r.qr_kind, r.qr_slot === null ? '' : String(r.qr_slot), r.method, r.result]);
     return toCsv([head, ...body]);
   }
 
-  private async logRows(agencyId: string, limit: number, offset: number, sinceDays: number | null): Promise<AgencyLogDto[]> {
+  private async logRows(agencyId: string, limit: number, offset: number, sinceDays: number | null, f: LogFilter = {}): Promise<AgencyLogDto[]> {
+    const like = f.q?.trim() ? likeContains(f.q.trim()) : null;
     const { rows } = await this.pool.query<{
       scan_log_id: string;
       created_date: Date;
@@ -167,9 +199,15 @@ export class AgencyTodayService {
        WHERE ((l.actor_kind = 'officer' AND EXISTS (SELECT 1 FROM app.agency_member_tb m WHERE m.user_id = l.user_id AND m.agency_id = $1))
           OR (l.actor_kind = 'box' AND i.agency_id = $1))
          AND ($4::int IS NULL OR l.created_date > now() - make_interval(days => $4))
+         AND ($5::uuid IS NULL OR EXISTS (SELECT 1 FROM app.zone_box_tb zb WHERE zb.box_id = l.box_id AND zb.zone_id = $5))
+         AND ($6::text IS NULL OR coalesce(l.user_id, i.officer_user_id) = $6)
+         AND ($7::text IS NULL OR b.house_no ILIKE $7 OR l.box_id ILIKE $7)
+         AND ($8::date IS NULL OR (l.created_date AT TIME ZONE 'Asia/Bangkok')::date >= $8::date)
+         AND ($9::date IS NULL OR (l.created_date AT TIME ZONE 'Asia/Bangkok')::date <= $9::date)
+         AND (NOT $10::boolean OR l.result NOT IN ('ok', 'pass', 'passed'))
        ORDER BY l.created_date DESC, l.scan_log_id DESC
        LIMIT $2 OFFSET $3`,
-      [agencyId, limit, offset, sinceDays],
+      [agencyId, limit, offset, sinceDays, f.zoneId ?? null, f.officerId ?? null, like, f.from ?? null, f.to ?? null, f.problems ?? false],
     );
     return rows.map((r) => ({
       id: String(r.scan_log_id),

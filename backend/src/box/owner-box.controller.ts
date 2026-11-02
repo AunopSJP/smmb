@@ -23,6 +23,10 @@ class ActivateDto {
 class EventsQuery {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page = 1;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) per_page = 20;
+  /** ช่วงวันที่ตามเวลาไทย YYYY-MM-DD (รวมวันนั้น) */
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) from?: string;
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) to?: string;
+  @IsOptional() @IsIn(['inspected', 'delivered']) type?: 'inspected' | 'delivered';
 }
 
 class UpdateBoxDto {
@@ -67,7 +71,7 @@ export class OwnerBoxController {
   /** ประวัติ (H12) */
   @Get(':box_id/events')
   events(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Query() q: EventsQuery) {
-    return this.boxes.events(auth.userId, p.box_id, q.page, q.per_page);
+    return this.boxes.events(auth.userId, p.box_id, q.page, q.per_page, { from: q.from, to: q.to, type: q.type });
   }
 
   /** ตั้งชื่อตู้ และ/หรือย่าน (ส่งอย่างน้อยหนึ่งอย่าง) */

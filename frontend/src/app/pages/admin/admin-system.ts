@@ -156,6 +156,7 @@ const LOG_TYPE: Record<AdminLogType, { label: Tr; icon: IconName; tone: '' | 'wa
   box_problem: { label: { th: 'ตู้มีปัญหา', en: 'Box problems' }, icon: 'info', tone: '' },
   scan: { label: { th: 'สแกน', en: 'Scans' }, icon: 'scan', tone: '' },
   data_access: { label: { th: 'เปิดดูข้อมูล', en: 'Data views' }, icon: 'user', tone: '' },
+  terms: { label: { th: 'ยอมรับข้อตกลง', en: 'Terms accepted' }, icon: 'check', tone: '' },
 };
 
 @Component({

@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, Min } from 'class-validator';
 import { AccessService } from '../auth/access.service.js';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
@@ -18,16 +18,30 @@ class AgencyContactDto {
 }
 
 class TodayQuery {
-  @IsOptional() @IsIn(['mine', 'all']) zone?: 'mine' | 'all';
+  /** mine = โซนที่ฉันอยู่ · all = ทุกโซน · <uuid> = เลือกโซนเดียว (ต้องเป็นโซนของหน่วยงานนี้ ไม่งั้น 404) */
+  @IsOptional() @Matches(/^(mine|all|[0-9a-fA-F-]{36})$/) zone?: string;
 }
 
-class LogsQuery {
+/** ตัวกรองประวัติการสแกน (L08) — ใช้ทั้งรายการและส่งออก CSV */
+class LogFilterQuery {
+  @IsOptional() @IsUUID() zone?: string;
+  @IsOptional() @Matches(/^U-\d{1,12}$/) officer?: string;
+  /** บ้านเลขที่ / รหัสตู้ */
+  @IsOptional() @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value)) @IsString() @Length(1, 50) q?: string;
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) from?: string;
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) to?: string;
+  @IsOptional() @Transform(({ value }: { value: unknown }) => value === true || value === 'true' || value === '1') @IsBoolean() problems?: boolean;
+}
+
+const toFilter = (q: LogFilterQuery) => ({ zoneId: q.zone, officerId: q.officer, q: q.q, from: q.from, to: q.to, problems: q.problems });
+
+class LogsQuery extends LogFilterQuery {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page: number = 1;
 }
 
-class ExportLogsQuery {
-  /** ย้อนหลังกี่วัน (1–365) */
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(365) days: number = 30;
+class ExportLogsQuery extends LogFilterQuery {
+  /** ย้อนหลังกี่วัน (1–365) — ไม่ส่งและไม่ระบุ from = 30 วัน · ระบุ from/to แล้วไม่ใช้ */
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(365) days?: number;
 }
 
 class SetActiveDto {
@@ -70,14 +84,15 @@ export class AgencyController {
   @RequireRole('head')
   @Get('logs')
   async logs(@Auth() auth: AuthContext, @Query() q: LogsQuery) {
-    return this.todays.logs(await this.agencyId(auth), q.page);
+    return this.todays.logs(await this.agencyId(auth), q.page, toFilter(q));
   }
 
   /** ส่งออกประวัติการสแกนเป็น CSV (L08) — `?days=1..365` (ค่าเริ่มต้น 30) · สูงสุด 10,000 แถว */
   @RequireRole('head')
   @Get('logs/export.csv')
   async exportLogs(@Auth() auth: AuthContext, @Query() q: ExportLogsQuery, @Res({ passthrough: true }) res: Response) {
-    const csv = await this.todays.logsCsv(await this.agencyId(auth), q.days);
+    const days = q.days ?? (q.from || q.to ? null : 30);
+    const csv = await this.todays.logsCsv(await this.agencyId(auth), days, toFilter(q));
     const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="smmb-scan-log-${day}.csv"`);

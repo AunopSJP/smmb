@@ -810,6 +810,39 @@ describe('Boxes (e2e)', () => {
     });
   });
 
+  describe('scan log filters (head)', () => {
+    it('filters by officer, problems, Bangkok date range, and rejects foreign zone/officer with 404', async () => {
+      const head = await readyHead();
+      const other = await readyHead();
+      const idOf = async (cookie: string) => (await as(cookie).get('/api/v1/me').expect(200)).body.id as string;
+      const [headId, otherId] = [await idOf(head.cookie), await idOf(other.cookie)];
+      const log = (userId: string, result: string, ago: string) =>
+        pool.query(
+          `INSERT INTO app.scan_log_tb (actor_kind, user_id, qr_kind, method, raw, result, created_date) VALUES ('officer', $1, 'front', 'scan', 'x', $2, now() - $3::interval)`,
+          [userId, result, ago],
+        );
+      await log(headId, 'ok', '1 hour');
+      await log(headId, 'filter_bad', '2 hours');
+      await log(headId, 'filter_old', '10 days');
+      const results = async (qs: string) => ((await as(head.cookie).get(`/api/v1/agency/logs?${qs}`).expect(200)).body.data as { result: string }[]).map((l) => l.result);
+
+      expect(await results('problems=true')).toEqual(['filter_bad', 'filter_old']);
+      expect(await results(`officer=${headId}`)).toContain('ok');
+      const day = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(d);
+      const old = day(new Date(Date.now() - 10 * 86_400_000));
+      expect(await results(`from=${old}&to=${old}`)).toEqual(['filter_old']);
+      expect(await results(`from=${day(new Date(Date.now() - 3 * 86_400_000))}`)).not.toContain('filter_old');
+      const csv = (await as(head.cookie).get(`/api/v1/agency/logs/export.csv?from=${old}&to=${old}`).buffer(true).expect(200)).text;
+      expect(csv).toContain('filter_old');
+      expect(csv).not.toContain('filter_bad');
+
+      await as(head.cookie).get(`/api/v1/agency/logs?officer=${otherId}`).expect(404);
+      await as(head.cookie).get('/api/v1/agency/logs?zone=00000000-0000-4000-8000-000000000000').expect(404);
+      await as(head.cookie).get('/api/v1/agency/logs?from=2026-13-99x').expect(400);
+      await as(head.cookie).get('/api/v1/agency/today?zone=00000000-0000-4000-8000-000000000000').expect(404);
+    });
+  });
+
   describe('account preferences (PATCH /me) — language of notifications', () => {
     it('saves the language and display choices to the account and returns the new Me', async () => {
       const owner = await signupOwner('94/1');

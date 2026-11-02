@@ -41,6 +41,17 @@ interface Today {
 
     <div class="stack">
       <app-zone-filter [(value)]="filter" />
+      @if (zoneOptions().length > 1) {
+        <label class="field">
+          <span>{{ i18n.t({ th: 'เลือกโซนเดียว', en: 'Pick one zone' }) }}</span>
+          <select [value]="zoneId()" (change)="pickZone($any($event.target).value)">
+            <option value="">{{ i18n.t({ th: '— ดูตามตัวกรองด้านบน —', en: '— follow the filter above —' }) }}</option>
+            @for (z of zoneOptions(); track z.id) {
+              <option [value]="z.id">{{ z.name }}</option>
+            }
+          </select>
+        </label>
+      }
       <div class="stats">
         <div class="stat">
           <p class="label">{{ i18n.t({ th: 'ตรวจแล้ว', en: 'Checked' }) }}</p>
@@ -131,6 +142,10 @@ export class HeadHome {
   private readonly http = inject(HttpClient);
   protected readonly url = screenUrl;
   protected readonly filter = signal<'mine' | 'all'>('all');
+  /** เลือกโซนเดียว ('' = ใช้ตัวกรอง โซนของฉัน/ทุกโซน) */
+  protected readonly zoneId = signal('');
+  /** รายชื่อโซนทั้งหมดไว้ให้เลือก (ไม่เปลี่ยนตามตัวกรอง) */
+  protected readonly zoneOptions = signal<{ id: string; name: string }[]>([]);
   protected readonly today = signal<Today | null>(null);
   protected readonly checked = computed(() => (this.today()?.zones ?? []).reduce((n, z) => n + z.houses_checked, 0));
   protected readonly total = computed(() => (this.today()?.zones ?? []).reduce((n, z) => n + z.houses_total, 0));
@@ -138,13 +153,18 @@ export class HeadHome {
 
   constructor() {
     void this.api.loadAgency().catch(() => undefined);
+    void this.api.zones('all').then((z) => this.zoneOptions.set(z.map((x) => ({ id: x.id, name: x.name })))).catch(() => undefined);
     effect(() => {
-      const f = this.filter();
+      const f = this.zoneId() || this.filter();
       untracked(() => void this.load(f));
     });
   }
 
-  private async load(f: 'mine' | 'all'): Promise<void> {
+  protected pickZone(id: string): void {
+    this.zoneId.set(id);
+  }
+
+  private async load(f: string): Promise<void> {
     this.today.set(await firstValueFrom(this.http.get<Today>(`/api/v1/agency/today?zone=${f}`)).catch(() => null));
   }
 

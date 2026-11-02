@@ -550,7 +550,7 @@ interface SosCard {
 |---|---|---|---|
 | GET | `/agency` | หัวหน้า (รวมหน่วยงานที่ยัง pending / rejected — ใช้แสดง `L02` / `L02-b` · ไม่ต้องเปิดแจ้งเตือน) | `{ id, name, type, status: "pending" \| "approved" \| "rejected", group_code: string \| null, reject_reason: string \| null, contact: string \| null, heads: {id, display_name}[] }` — `group_code` มีเมื่อ `approved` (`L03` แชร์ให้ลูกทีม) · ไม่ใช่หัวหน้า → 404 |
 | POST | `/agency/group-code/rotate` | `head` | `{ group_code }` ใหม่ — รหัสเก่าใช้สมัครไม่ได้ (คนที่สมัครไปแล้วไม่กระทบ) |
-| GET | `/agency/today` | `head` | `?zone=mine\|all` → ภาพรวมทีมวันนี้ (`L04`) ✅ 2026-10-28: `{ date, zones: [{ id, name, is_mine, windows, houses_total, houses_checked, houses_offline, officers: [{ id, display_name }] }], sos_today, sos_open, members_pending }` · "ตรวจแล้ววันนี้" = การตรวจที่ผ่านของหน่วยงานนี้ในวันนี้ตามเวลาไทย · บ้านที่อยู่หลายโซนนับในทุกโซน |
+| GET | `/agency/today` | `head` | `?zone=mine\|all\|<zone uuid>` (uuid = โซนเดียว · ไม่ใช่ของหน่วยงานนี้ → 404) → ภาพรวมทีมวันนี้ (`L04`) ✅ 2026-10-28: `{ date, zones: [{ id, name, is_mine, windows, houses_total, houses_checked, houses_offline, officers: [{ id, display_name }] }], sos_today, sos_open, members_pending }` · "ตรวจแล้ววันนี้" = การตรวจที่ผ่านของหน่วยงานนี้ในวันนี้ตามเวลาไทย · บ้านที่อยู่หลายโซนนับในทุกโซน |
 
 - ✅ (2026-10-27 เขียนแล้ว ทั้งหมด · `/agency/today` 2026-10-28) route ที่ติด `head` ต้อง**เปิดแจ้งเตือนก่อน** (403 `PUSH_REQUIRED` เหมือนเจ้าหน้าที่) · `rotate` ตอบ 200
 
@@ -605,8 +605,8 @@ interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus }
 
 | method | path | สิทธิ์ | query | ตอบ |
 |---|---|---|---|---|
-| GET | `/agency/logs` | `head` | `?page` (หน้าละ 30) | ✅ 2026-10-28 `{ data: [{ id, at, officer: { id, display_name }, box_id, house_no, qr_kind: "front"\|"badge", qr_slot, method, result }], page, per_page }` ใหม่สุดก่อน (`L08`) — การสแกน QR หน้าตู้ของคนในหน่วยงาน + ผลที่ตู้อ่าน QR ประจำตัวของการตรวจของหน่วยงานนี้ (รวมที่ไม่ผ่าน · กฎข้อ 6) · ตัวกรองโซน/วันที่/CSV 🔜 |
-| GET | `/agency/logs/export.csv` | `head` | `?days=1..365` (ค่าเริ่มต้น 30) | ✅ 2026-10-30 ไฟล์ CSV (UTF-8 + BOM ให้ Excel อ่านภาษาไทยถูก · เวลาไทย · ช่องที่ขึ้นต้น `= + - @` ใส่ `'` นำหน้ากันสูตร) · ประวัติการสแกนของหน่วยงานตัวเองเรียงใหม่→เก่า สูงสุด 10,000 แถว · คอลัมน์: time, officer, house_no, box_id, qr_kind, qr_slot, method, result |
+| GET | `/agency/logs` | `head` | `?page` (หน้าละ 30) + ตัวกรอง `zone=<uuid>` `officer=U-…` `q=<บ้านเลขที่/รหัสตู้>` `from`/`to`=`YYYY-MM-DD` (เวลาไทย รวมวันนั้น) `problems=true` (เฉพาะที่ไม่ผ่าน) · zone/officer ที่ไม่ใช่ของหน่วยงานนี้ → 404 · รูปแบบวันที่ผิด → 400 | ✅ 2026-10-28 `{ data: [{ id, at, officer: { id, display_name }, box_id, house_no, qr_kind: "front"\|"badge", qr_slot, method, result }], page, per_page }` ใหม่สุดก่อน (`L08`) — การสแกน QR หน้าตู้ของคนในหน่วยงาน + ผลที่ตู้อ่าน QR ประจำตัวของการตรวจของหน่วยงานนี้ (รวมที่ไม่ผ่าน · กฎข้อ 6) · ตัวกรองโซน/คน/บ้าน/วันที่ ✅ 2026-11-02 |
+| GET | `/agency/logs/export.csv` | `head` | `?days=1..365` (ค่าเริ่มต้น 30 ถ้าไม่ระบุ from/to) + ตัวกรองชุดเดียวกับ `/agency/logs` (ระบุ `from`/`to` แล้ว `days` ไม่ใช้) | ✅ 2026-10-30 ไฟล์ CSV (UTF-8 + BOM ให้ Excel อ่านภาษาไทยถูก · เวลาไทย · ช่องที่ขึ้นต้น `= + - @` ใส่ `'` นำหน้ากันสูตร) · ประวัติการสแกนของหน่วยงานตัวเองเรียงใหม่→เก่า สูงสุด 10,000 แถว · คอลัมน์: time, officer, house_no, box_id, qr_kind, qr_slot, method, result |
 
 ---
 
@@ -722,7 +722,7 @@ interface BoxConfigDefaults {
 
 | method | path | query | ตอบ |
 |---|---|---|---|
-| GET | `/admin/logs` | `?type=scan,delivery,inspection,box_problem,sos,data_access&page&per_page` | paginated (`D11`) จาก scan, inspection, delivery, SOS และ data access logs |
+| GET | `/admin/logs` | `?type=scan,delivery,inspection,box_problem,sos,data_access,terms&page&per_page` (`terms` = การยอมรับข้อตกลง ✅ 2026-11-02) | paginated (`D11`) จาก scan, inspection, delivery, SOS และ data access logs |
 
 ### 9.7 แพ็กเกจ (เพิ่ม 2026-10-27 — design §17)
 

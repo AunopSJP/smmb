@@ -129,8 +129,12 @@ export class OwnerApi {
   requestTechnician(id: string, reason: TechnicianRequest['reason'], note: string): Promise<TechnicianRequest> {
     return firstValueFrom(this.http.post<TechnicianRequest>(`/api/v1/boxes/${encodeURIComponent(id)}/technician-requests`, { reason, ...(note ? { note } : {}) }));
   }
-  events(id: string, page = 1): Promise<{ data: BoxEvent[]; page: number; per_page: number }> {
-    return firstValueFrom(this.http.get<{ data: BoxEvent[]; page: number; per_page: number }>(`/api/v1/boxes/${encodeURIComponent(id)}/events?page=${page}`));
+  /** from/to = YYYY-MM-DD ตามเวลาไทย (รวมวันนั้น) — เซิร์ฟเวอร์กรองให้ ไม่ใช่กรองเฉพาะหน้าที่โหลดมา */
+  events(id: string, page = 1, range: { from?: string; to?: string } = {}): Promise<{ data: BoxEvent[]; page: number; per_page: number }> {
+    const q = new URLSearchParams({ page: String(page) });
+    if (range.from) q.set('from', range.from);
+    if (range.to) q.set('to', range.to);
+    return firstValueFrom(this.http.get<{ data: BoxEvent[]; page: number; per_page: number }>(`/api/v1/boxes/${encodeURIComponent(id)}/events?${q}`));
   }
   /** 201 Sos · 200 { code: SOS_NO_COVERAGE } · 409 SOS_ALREADY_OPEN (body.sos) */
   startSos(boxId: string): Promise<Sos | { code: 'SOS_NO_COVERAGE'; call: string[] }> {

@@ -181,13 +181,24 @@ export class OwnerBoxService {
   }
 
   /** ประวัติ (H12) — การตรวจที่ผ่าน + การส่งของ · เฉพาะตั้งแต่ผูกตู้ (เจ้าของเก่าไม่เห็นของเจ้าของใหม่ และกลับกัน) */
-  async events(userId: string, boxId: string, page: number, perPage: number): Promise<{ data: BoxEventDto[]; page: number; per_page: number }> {
+  async events(
+    userId: string,
+    boxId: string,
+    page: number,
+    perPage: number,
+    filter: { from?: string; to?: string; type?: 'inspected' | 'delivered' } = {},
+  ): Promise<{ data: BoxEventDto[]; page: number; per_page: number }> {
     const [box] = await this.summaries(userId, boxId);
     if (!box) throw new NotFoundException();
-    return { data: await this.eventsOf(boxId, perPage, (page - 1) * perPage), page, per_page: perPage };
+    return { data: await this.eventsOf(boxId, perPage, (page - 1) * perPage, filter), page, per_page: perPage };
   }
 
-  private async eventsOf(boxId: string, limit: number, offset: number): Promise<BoxEventDto[]> {
+  private async eventsOf(
+    boxId: string,
+    limit: number,
+    offset: number,
+    filter: { from?: string; to?: string; type?: 'inspected' | 'delivered' } = {},
+  ): Promise<BoxEventDto[]> {
     const { rows } = await this.pool.query<{
       id: string;
       type: 'inspected' | 'delivered';
@@ -212,8 +223,12 @@ export class OwnerBoxService {
          FROM app.delivery_tb d JOIN app.box_qr_code_tb q ON q.box_qr_code_id = d.box_qr_code_id
          WHERE d.box_id = $1
            AND d.created_date >= coalesce((SELECT bound_date FROM app.box_tb WHERE box_id = $1), '-infinity')
-       ) e ORDER BY at DESC LIMIT $2 OFFSET $3`,
-      [boxId, limit, offset],
+       ) e
+       WHERE ($4::date IS NULL OR (e.at AT TIME ZONE 'Asia/Bangkok')::date >= $4::date)
+         AND ($5::date IS NULL OR (e.at AT TIME ZONE 'Asia/Bangkok')::date <= $5::date)
+         AND ($6::text IS NULL OR e.type = $6)
+       ORDER BY at DESC LIMIT $2 OFFSET $3`,
+      [boxId, limit, offset, filter.from ?? null, filter.to ?? null, filter.type ?? null],
     );
     return rows.map((e) => ({
       id: e.id,
