@@ -1019,3 +1019,42 @@ app-area-shell main > :not(router-outlet) {
     display: none !important;
   }
 }
+
+/* แผงเนื้อหา (หัวข้อ + ฟอร์ม/ตาราง) — ใช้ในหน้าตั้งค่าของแอดมิน */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: 10px;
+  padding: 16px 18px;
+  min-width: 0;
+
+  > h2 {
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  > .hint {
+    margin-top: -8px;
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+  }
+}
+/* แถบบันทึก: ติดล่างจอ เห็นตลอดเวลาแก้ฟอร์มยาว */
+.savebar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: 10px;
+}
+.savebar .btn {
+  width: auto;
+}

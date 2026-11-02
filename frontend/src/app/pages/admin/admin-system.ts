@@ -32,12 +32,17 @@ type NumKey = keyof typeof LIMITS;
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'ค่าตั้งค่าตู้', en: 'Mailbox config' })" [back]="url('D01')" />
     <form class="stack grow" (submit)="$event.preventDefault(); save()">
-      <label class="field">
-        <span>{{ i18n.t({ th: 'เวลารายงานสถานะรายวัน', en: 'Daily report time' }) }}</span>
-        <input type="time" required [value]="form().report_at" (input)="set('report_at', $any($event.target).value)" />
-        <small>{{ i18n.t({ th: 'ตู้ส่งสถานะ + แบตวันละครั้ง และดึงค่าใหม่ตอนนี้', en: 'The box reports status + battery once a day and picks up new settings then' }) }}</small>
-      </label>
+      <section class="panel">
+        <h2>{{ i18n.t({ th: 'การรายงานของตู้', en: 'Box reporting' }) }}</h2>
+        <label class="field">
+          <span>{{ i18n.t({ th: 'เวลารายงานสถานะรายวัน', en: 'Daily report time' }) }}</span>
+          <input type="time" required [value]="form().report_at" (input)="set('report_at', $any($event.target).value)" />
+          <small>{{ i18n.t({ th: 'ตู้ส่งสถานะ + แบตวันละครั้ง และดึงค่าใหม่ตอนนี้', en: 'The box reports status + battery once a day and picks up new settings then' }) }}</small>
+        </label>
+      </section>
 
+      <section class="panel">
+        <h2>{{ i18n.t({ th: 'การสแกน QR ประจำตัวเจ้าหน้าที่', en: 'Officer badge scanning' }) }}</h2>
       @for (f of numbers; track f.key) {
         <label class="field" [class.invalid]="!valid(f.key)">
           <span>{{ i18n.t(f.label) }}</span>
@@ -54,21 +59,26 @@ type NumKey = keyof typeof LIMITS;
         </p>
       }
 
-      <label class="row card switch-row">
+      <label class="switch-row">
         <span class="grow">
           <strong>{{ i18n.t({ th: 'เปิดไฟส่องกล้องเมื่อมืด', en: 'Camera light when dark' }) }}</strong>
           <span class="muted small block">{{ i18n.t({ th: 'ช่วยกล้องอ่าน QR ประจำตัวตอนกลางคืน', en: 'Helps the camera read the badge QR at night' }) }}</span>
         </span>
         <input type="checkbox" class="switch" [checked]="form().flash_when_dark" (change)="set('flash_when_dark', $any($event.target).checked)" />
       </label>
+      </section>
 
-      <p class="info-box muted">{{ i18n.t({ th: 'ช่วงเวลาตรวจไม่ได้ตั้งที่นี่ — มาจากโซนของแต่ละหน่วยงาน', en: 'Patrol hours are not set here — they come from each agency’s zones' }) }}</p>
-      <p class="muted small">
-        {{ i18n.t({ th: 'รุ่นปัจจุบัน v', en: 'Current version v' }) }}{{ ver() }}<br />
-        {{ i18n.t({ th: 'ตู้ดึงค่าใหม่ไปใช้ภายใน 1 วัน', en: 'Boxes pick up new settings within 1 day' }) }}
-      </p>
+      <p class="info-box muted">{{ i18n.t({ th: 'ช่วงเวลาตรวจไม่ได้ตั้งที่นี่ — มาจากโซนของแต่ละหน่วยงาน · ตั้งค่าเฉพาะตู้ทำได้ที่หน้ารายละเอียดตู้ แท็บ "ตั้งค่า"', en: 'Patrol hours are not set here — they come from each agency’s zones · per-box overrides are on the box page, “Settings” tab' }) }}</p>
 
-      <button type="submit" class="btn push-end" [disabled]="!allValid() || !changed() || busy()">{{ i18n.t({ th: 'บันทึกค่า', en: 'Save' }) }}</button>
+      <div class="savebar">
+        <span class="muted small">
+          {{ i18n.t({ th: 'รุ่นปัจจุบัน v', en: 'Current version v' }) }}{{ ver() }} · {{ i18n.t({ th: 'ตู้ดึงค่าใหม่ภายใน 1 วัน', en: 'boxes pick it up within 1 day' }) }}
+          @if (changed()) {
+            · <strong class="warn-text">{{ i18n.t({ th: 'มีการแก้ที่ยังไม่บันทึก', en: 'unsaved changes' }) }}</strong>
+          }
+        </span>
+        <button type="submit" class="btn" [disabled]="!allValid() || !changed() || busy()">{{ i18n.t({ th: 'บันทึกค่า', en: 'Save' }) }}</button>
+      </div>
     </form>
   `,
   styles: `
@@ -82,6 +92,9 @@ type NumKey = keyof typeof LIMITS;
       display: block;
     }
     .switch-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
       cursor: pointer;
     }
   `,
@@ -161,7 +174,7 @@ const LOG_TYPE: Record<AdminLogType, { label: Tr; icon: IconName; tone: '' | 'wa
 
 @Component({
   selector: 'app-admin-logs',
-  imports: [PageHeader, Icon],
+  imports: [PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
@@ -181,15 +194,17 @@ const LOG_TYPE: Record<AdminLogType, { label: Tr; icon: IconName; tone: '' | 'wa
       <ul class="list">
         @for (l of rows(); track l.id) {
           @let m = meta[l.type];
-          <li class="row">
-            <span class="icon-bubble" [class.warn]="m.tone === 'warn'" [class.danger]="m.tone === 'danger' || l.fail"><app-icon [name]="m.icon" [size]="20" /></span>
+          <li class="row lcols">
+            <span><span class="chip" [class.warn]="m.tone === 'warn'" [class.danger]="m.tone === 'danger' || l.fail">{{ i18n.t(m.label) }}</span></span>
             <span class="grow">
               <strong>{{ i18n.t(title(l)) }}</strong>
               <span class="muted small block">{{ i18n.t(sub(l)) }}</span>
             </span>
-            @if (l.fail) {
-              <span class="chip danger">{{ i18n.t({ th: 'ไม่ผ่าน', en: 'Failed' }) }}</span>
-            }
+            <span class="res">
+              @if (l.fail) {
+                <span class="chip danger">{{ i18n.t({ th: 'ไม่ผ่าน', en: 'Failed' }) }}</span>
+              }
+            </span>
           </li>
         } @empty {
           <li class="row muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ไม่มีรายการ', en: 'Nothing here' }) }}</li>
@@ -228,20 +243,29 @@ const LOG_TYPE: Record<AdminLogType, { label: Tr; icon: IconName; tone: '' | 'wa
     .csv {
       width: 100%;
     }
+    .lcols {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 6px 12px;
+      align-items: center;
+    }
     /* จอคอม: หัวข้อ + รายละเอียดอยู่บรรทัดเดียวกัน อ่านเป็นตาราง */
     @media (min-width: 1024px) {
       .csv {
         width: auto;
       }
-      .row .grow {
+      .lcols {
+        grid-template-columns: 130px minmax(0, 1fr) 80px;
+      }
+      .lcols .grow {
         display: flex;
         align-items: baseline;
         gap: 24px;
       }
-      .row .grow strong {
-        flex: 0 0 300px;
+      .lcols .grow strong {
+        flex: 0 0 min(300px, 38%);
       }
-      .row .grow .block {
+      .lcols .grow .block {
         display: inline;
       }
     }

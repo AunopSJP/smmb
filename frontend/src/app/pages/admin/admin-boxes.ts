@@ -465,7 +465,42 @@ export class AdminBoxes implements OnInit {
     <app-page-header [caption]="id() ?? ''" [title]="i18n.t({ th: 'ตู้ ', en: 'Mailbox ' }) + (box()?.house_no ?? id() ?? '')" [back]="url('D03')" />
     @if (box(); as b) {
       @let badge = boxBadge(b);
+      <section class="kpis" [attr.aria-label]="i18n.t({ th: 'สรุปตู้', en: 'Box summary' })">
+        <div class="kpi">
+          <span class="kpi-label">{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</span>
+          <span class="kpi-value"><span class="chip" [class.ok]="badge.tone === 'ok'" [class.warn]="badge.tone === 'warn'" [class.danger]="badge.tone === 'danger'">{{ i18n.t(badge.label) }}</span></span>
+          <span class="kpi-hint">{{ i18n.t(seen(b.last_seen_at)) }}</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">{{ i18n.t({ th: 'แบตเตอรี่', en: 'Battery' }) }}</span>
+          <span class="kpi-value" [class.warn]="!!b.battery && b.battery.pct < lowPct">{{ b.battery ? b.battery.pct + '%' : '—' }}</span>
+          <span class="kpi-hint">{{ b.battery?.charging ? i18n.t({ th: 'ชาร์จอยู่', en: 'charging' }) : i18n.t({ th: 'ไม่ได้ชาร์จ', en: 'not charging' }) }}</span>
+        </div>
+        <button type="button" class="kpi click" (click)="tab.set('settings')">
+          <span class="kpi-label">{{ i18n.t({ th: 'บริการ', en: 'Service' }) }}</span>
+          <span class="kpi-value" [class.danger]="!b.service_active">{{ b.service_active ? i18n.t({ th: 'เปิด', en: 'On' }) : i18n.t({ th: 'ปิด', en: 'Off' }) }}</span>
+          <span class="kpi-hint">{{ i18n.t({ th: 'กดเพื่อเปลี่ยน', en: 'tap to change' }) }}</span>
+        </button>
+        <button type="button" class="kpi click" (click)="tab.set('firmware')">
+          <span class="kpi-label">{{ i18n.t({ th: 'เฟิร์มแวร์', en: 'Firmware' }) }}</span>
+          <span class="kpi-value">{{ b.fw ?? '—' }}</span>
+          <span class="kpi-hint" [class.warn-text]="b.fw_stuck">{{ b.fw_stuck ? i18n.t({ th: 'อัปเดตค้าง · กดดู', en: 'update stuck · tap' }) : b.fw_target ? i18n.t({ th: 'รออัปเดตเป็น ', en: 'updating to ' }) + b.fw_target : i18n.t({ th: 'กดเพื่ออัปเดต', en: 'tap to update' }) }}</span>
+        </button>
+        <div class="kpi">
+          <span class="kpi-label">{{ i18n.t({ th: 'ค่าตั้งค่า', en: 'Config' }) }}</span>
+          <span class="kpi-value" [class.warn]="!b.config.in_sync">{{ b.config.in_sync ? i18n.t({ th: 'ล่าสุด', en: 'Current' }) : i18n.t({ th: 'รอดึงค่า', en: 'Pending' }) }}</span>
+          <span class="kpi-hint">{{ b.config.in_sync ? i18n.t({ th: 'ตู้มีค่าตั้งค่าล่าสุดแล้ว', en: 'the box has the latest settings' }) : i18n.t({ th: 'รอตู้ดึงค่าใหม่ตอนติดต่อรอบหน้า', en: 'it picks them up on its next contact' }) }}</span>
+        </div>
+      </section>
+
+      <div class="tabs" role="tablist" [attr.aria-label]="i18n.t({ th: 'หมวดของตู้', en: 'Box sections' })">
+        @for (t of tabs; track t.v) {
+          <button type="button" role="tab" [attr.aria-selected]="tab() === t.v" [class.on]="tab() === t.v" (click)="tab.set(t.v)">{{ i18n.t(t.label) }}</button>
+        }
+      </div>
+
       <div class="stack grow">
+        @if (tab() === 'overview') {
         <section class="card">
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt>
@@ -488,7 +523,11 @@ export class AdminBoxes implements OnInit {
             <dt>{{ i18n.t({ th: 'เวลาตรวจ', en: 'Patrol hours' }) }}</dt>
             <dd>{{ windows(b) }}</dd>
           </dl>
-          <details class="override">
+        </section>
+        }
+        @if (tab() === 'settings') {
+        <section class="card">
+          <details class="override" open>
             <summary>{{ i18n.t({ th: 'ตั้งค่าเฉพาะตู้นี้ (ทับค่ากลาง)', en: 'This box only (overrides the shared settings)' }) }}</summary>
             <p class="muted small">{{ i18n.t({ th: 'เว้นว่าง = ใช้ค่ากลาง · เช่น ตู้สัญญาณแย่ให้ long-poll สั้นลง', en: 'Leave blank to use the shared value · e.g. shorten long-poll for a weak-signal box' }) }}</p>
             <label class="field">
@@ -553,6 +592,8 @@ export class AdminBoxes implements OnInit {
           }
         </section>
 
+        }
+        @if (tab() === 'danger') {
         @if (b.bound) {
           <h2 class="section-title">{{ i18n.t({ th: 'ยกเลิกการผูกตู้', en: 'Unlink the box' }) }}</h2>
           <section class="card stack">
@@ -569,6 +610,8 @@ export class AdminBoxes implements OnInit {
           </section>
         }
 
+        }
+        @if (tab() === 'firmware') {
         <h2 class="section-title">{{ i18n.t({ th: 'อัปเดตเฟิร์มแวร์', en: 'Firmware update' }) }}</h2>
         <section class="card stack">
           <div class="fw-now">
@@ -633,6 +676,8 @@ export class AdminBoxes implements OnInit {
           </button>
         </section>
 
+        }
+        @if (tab() === 'test') {
         <h2 class="section-title">{{ i18n.t({ th: 'ทดสอบปลุกตู้', en: 'Wake test' }) }}</h2>
         <app-box-test [boxId]="b.id" (finished)="reload()" />
 
@@ -682,6 +727,8 @@ export class AdminBoxes implements OnInit {
           }
         </section>
 
+        }
+        @if (tab() === 'qr') {
         <h2 class="section-title">{{ i18n.t({ th: 'QR ของตู้ (พิมพ์ได้)', en: 'Box QR codes (printable)' }) }}</h2>
         <div class="qr-grid">
           @for (q of activeQr(); track q.id) {
@@ -716,6 +763,8 @@ export class AdminBoxes implements OnInit {
           <p class="muted small">{{ i18n.t({ th: 'ตู้ต้องเซ็นทุกคำขอด้วยรหัสนี้ (โปรโตคอล §1.1) · ห้ามส่งในแชต', en: 'The box signs every request with it (protocol §1.1) · never paste it in chat' }) }}</p>
         </section>
 
+        }
+        @if (tab() === 'overview') {
         <h2 class="section-title">{{ i18n.t({ th: 'รายงานจากตู้ล่าสุด', en: 'Latest box reports' }) }}</h2>
         <div class="list">
           @for (r of b.reports.slice(0, 8); track $index) {
@@ -738,6 +787,8 @@ export class AdminBoxes implements OnInit {
             }
           </div>
         }
+        }
+        @if (tab() === 'danger') {
         <a class="btn secondary" [routerLink]="url('T01')" [queryParams]="{ id: b.id }">{{ i18n.t({ th: 'เปิดเช็กลิสต์ติดตั้ง (ช่าง)', en: 'Open install checklist' }) }}</a>
         @if (b.can_delete) {
           <section class="card stack delete-box">
@@ -745,30 +796,94 @@ export class AdminBoxes implements OnInit {
             <button type="button" class="btn danger" (click)="deleteUnusedBox()">{{ i18n.t({ th: 'ลบตู้นี้', en: 'Delete this box' }) }}</button>
           </section>
         }
+        }
       </div>
     } @else {
       <p class="muted">{{ notFound() ? i18n.t({ th: 'ไม่พบตู้นี้', en: 'Mailbox not found' }) : i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
     }
   `,
   styles: `
-    /* จอคอม: การ์ดของตู้ไหลเป็นสองคอลัมน์ (หัวข้อติดกับการ์ดถัดไป ไม่ขาดจากกัน) */
-    @media (min-width: 1024px) {
-      .stack.grow {
-        display: block;
-        column-count: 2;
-        column-gap: 24px;
+    /* แถบสรุป */
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+    @media (min-width: 900px) {
+      .kpis {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
       }
-      .stack.grow > * {
-        break-inside: avoid;
-        margin-bottom: 16px;
-      }
-      .stack.grow > .section-title {
-        break-after: avoid;
-        margin: 8px 0 8px;
-      }
-      .stack.grow > .btn {
-        display: inline-flex;
-      }
+    }
+    .kpi {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      padding: 12px 14px;
+      background: var(--surface);
+      border: 1px solid var(--line-strong, var(--line));
+      border-radius: 10px;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      min-width: 0;
+    }
+    .kpi.click {
+      cursor: pointer;
+    }
+    .kpi.click:hover {
+      border-color: var(--text);
+    }
+    .kpi-label {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .kpi-value {
+      font-size: 1.375rem;
+      font-weight: 700;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+    .kpi-value.warn {
+      color: var(--warn);
+    }
+    .kpi-value.danger {
+      color: var(--sos);
+    }
+    .kpi-hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    /* แท็บหมวด */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      margin: 14px 0 12px;
+      border-bottom: 1px solid var(--line-strong, var(--line));
+    }
+    .tabs button {
+      flex: none;
+      padding: 10px 16px;
+      border: 0;
+      border-bottom: 3px solid transparent;
+      background: none;
+      color: var(--text-muted);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .tabs button:hover {
+      color: var(--text);
+    }
+    .tabs button.on {
+      color: var(--brand);
+      border-bottom-color: var(--brand);
+    }
+    .stack.grow {
+      max-width: 860px;
     }
     /* ตั้งค่าเฉพาะตู้ (details) — ให้ช่องแต่ละช่องมีระยะห่างเหมือนการ์ดอื่น */
     .override {
@@ -880,6 +995,16 @@ export class AdminBoxes implements OnInit {
   `,
 })
 export class AdminBox implements OnInit {
+  protected readonly lowPct = LOW_BATTERY_PCT;
+  protected readonly tab = signal<'overview' | 'test' | 'settings' | 'firmware' | 'qr' | 'danger'>('overview');
+  protected readonly tabs: { v: 'overview' | 'test' | 'settings' | 'firmware' | 'qr' | 'danger'; label: Tr }[] = [
+    { v: 'overview', label: { th: 'ภาพรวม', en: 'Overview' } },
+    { v: 'test', label: { th: 'ทดสอบ', en: 'Test' } },
+    { v: 'settings', label: { th: 'ตั้งค่า', en: 'Settings' } },
+    { v: 'firmware', label: { th: 'เฟิร์มแวร์', en: 'Firmware' } },
+    { v: 'qr', label: { th: 'QR และบอร์ด', en: 'QR & board' } },
+    { v: 'danger', label: { th: 'ขั้นสูง', en: 'Advanced' } },
+  ];
   protected readonly i18n = inject(I18n);
   private readonly router = inject(Router);
   private readonly api = inject(AdminApi);

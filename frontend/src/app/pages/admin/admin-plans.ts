@@ -241,21 +241,30 @@ export class UserPlan {
         </section>
       }
       <div class="list">
+        <div class="list-head pcols desktop-only" aria-hidden="true">
+          <span>{{ i18n.t({ th: 'แพ็กเกจ', en: 'Plan' }) }}</span>
+          <span>{{ i18n.t({ th: 'เจ้าของบ้าน', en: 'Owners' }) }}</span>
+          <span>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</span>
+          <span></span>
+        </div>
         @for (p of plans(); track p.code) {
-          <div class="row plan">
+          <div class="row plan pcols">
             <span class="grow">
               <strong>{{ i18n.t(name(p)) }}</strong> <span class="muted small">({{ p.code }})</span>
-              <span class="muted small block">
-                {{ p.owners_count }} {{ i18n.t({ th: 'คนใช้อยู่', en: 'owners' }) }}{{ p.price_note ? ' · ' + p.price_note : '' }}
-              </span>
-              <span class="chips">
-                @if (p.is_default) {
-                  <span class="chip ok">{{ i18n.t({ th: 'เริ่มต้น', en: 'Default' }) }}</span>
-                }
-                @if (!p.is_active) {
-                  <span class="chip">{{ i18n.t({ th: 'ปิดให้เลือก', en: 'Not offered' }) }}</span>
-                }
-              </span>
+              @if (p.price_note) {
+                <span class="muted small block">{{ p.price_note }}</span>
+              }
+            </span>
+            <span class="num">{{ p.owners_count }} <span class="muted small">{{ i18n.t({ th: 'คน', en: 'owners' }) }}</span></span>
+            <span class="chips">
+              @if (p.is_default) {
+                <span class="chip ok">{{ i18n.t({ th: 'เริ่มต้น', en: 'Default' }) }}</span>
+              }
+              @if (!p.is_active) {
+                <span class="chip">{{ i18n.t({ th: 'ปิดให้เลือก', en: 'Not offered' }) }}</span>
+              } @else if (!p.is_default) {
+                <span class="chip">{{ i18n.t({ th: 'เปิดให้เลือก', en: 'Offered' }) }}</span>
+              }
             </span>
             <span class="actions">
               @if (!p.is_default && p.is_active) {
@@ -347,7 +356,30 @@ export class UserPlan {
       grid-template-columns: 1fr 1fr;
       gap: 10px;
     }
+    .pcols {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 6px 12px;
+      align-items: center;
+    }
+    .pcols .actions {
+      grid-column: 1 / -1;
+      flex-direction: row;
+      justify-content: flex-start;
+    }
+    .num {
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+    }
     @media (min-width: 1024px) {
+      .pcols {
+        grid-template-columns: minmax(0, 2fr) 110px 190px minmax(0, 1.4fr);
+        gap: 16px;
+      }
+      .pcols .actions {
+        grid-column: auto;
+        justify-content: flex-end;
+      }
       .plan {
         align-items: center;
       }

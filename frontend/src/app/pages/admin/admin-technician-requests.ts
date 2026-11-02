@@ -3,13 +3,12 @@ import { DatePipe } from '@angular/common';
 import { AdminApi, type AdminTechnicianRequest } from '../../core/admin-api';
 import { I18n } from '../../core/i18n';
 import { Toast } from '../../core/toast';
-import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { screenUrl } from '../../screens/registry';
 
 @Component({
   selector: 'app-admin-technician-requests',
-  imports: [DatePipe, Icon, PageHeader],
+  imports: [DatePipe, PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน Smart Mailbox', en: 'Smart Mailbox admin' })" [title]="i18n.t({ th: 'คำขอช่าง', en: 'Technician requests' })" [back]="url('D01')" />
@@ -20,14 +19,16 @@ import { screenUrl } from '../../screens/registry';
         }
       </div>
       @if (error()) { <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดหรือบันทึกคำขอไม่สำเร็จ ลองใหม่อีกครั้ง', en: 'Could not load or save requests. Try again.' }) }}</p> }
-      <nav class="list">
+      <div class="reqs">
         @for (request of rows(); track request.id) {
-          <article class="row request">
-            <span class="icon-bubble" [class.warn]="request.status === 'open'" [class.ok]="request.status === 'scheduled'"><app-icon name="user" [size]="20" /></span>
+          <article class="panel request">
             <div class="grow">
-              <strong>{{ request.box_id }} · {{ request.house_no ?? i18n.t({ th: 'ยังไม่ระบุบ้าน', en: 'No house number' }) }}</strong>
+              <header class="rhead">
+                <strong>{{ request.box_id }} · {{ request.house_no ?? i18n.t({ th: 'ยังไม่ระบุบ้าน', en: 'No house number' }) }}</strong>
+                <span class="chip" [class.warn]="request.status === 'open'" [class.ok]="request.status === 'scheduled'">{{ i18n.t(statusLabel(request.status)) }}</span>
+              </header>
               <span class="muted small block">{{ request.owner_name }} · {{ request.owner_phone }}</span>
-              <span class="small block">{{ reasonLabel(request.reason) }} · {{ i18n.t(statusLabel(request.status)) }}</span>
+              <span class="small block">{{ reasonLabel(request.reason) }}</span>
               <span class="muted small block">{{ request.created_at | date:'d MMM yyyy HH:mm' }}</span>
               @if (request.note) { <p class="request-note">{{ request.note }}</p> }
               @if (request.status === 'open') {
@@ -49,15 +50,18 @@ import { screenUrl } from '../../screens/registry';
             </div>
           </article>
         } @empty {
-          <p class="row muted">{{ i18n.t({ th: 'ไม่มีคำขอช่างในสถานะนี้', en: 'No requests in this status' }) }}</p>
+          <section class="panel"><p class="muted">{{ i18n.t({ th: 'ไม่มีคำขอช่างในสถานะนี้', en: 'No requests in this status' }) }}</p></section>
         }
-      </nav>
+      </div>
     </div>
   `,
   styles: `
     .grow { flex: 1; min-width: 0; }
     .block { display: block; }
-    .request { align-items: flex-start; }
+    .reqs { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+    @media (min-width: 1100px) { .reqs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .reqs > .panel:only-child { grid-column: 1 / -1; }
+    .rhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
     .request-note { margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
     .field { display: grid; gap: 6px; margin: 10px 0; }
     .field input { min-width: 0; min-height: 40px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }

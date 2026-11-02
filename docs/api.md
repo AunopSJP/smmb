@@ -326,7 +326,7 @@ interface BoxEvent {
 
 | method | path | สิทธิ์ | body | ตอบ |
 |---|---|---|---|---|
-| POST | `/boxes/:box_id/qr/backup-placed` | `owner` | — | 200 — กด "ติดแล้ว" หลังเอา QR ใบ 2 ไปติดหน้าตู้ (แอดมินออกใบสำรองใหม่ต่อ §10.4) · 409 `NO_SWAP_REQUESTED` ถ้าไม่มีคำขอค้าง |
+| POST | `/boxes/:box_id/qr-backup-placed` | `owner` | — | 200 — กด "ติดแล้ว" หลังเอา QR ใบ 2 ไปติดหน้าตู้ (แอดมินออกใบสำรองใหม่ต่อ §10.4) · 409 `NO_SWAP_REQUESTED` ถ้าไม่มีคำขอค้าง |
 | POST | `/boxes/:box_id/technician-requests` | `owner` | `{ reason: "wifi_change" \| "repair" \| "other", note? }` | 201 → `H13-c` แสดงสถานะคำขอ · 409 ถ้ามีคำขอที่ยังไม่ปิด |
 | GET | `/boxes/:box_id/technician-requests` | `owner` | — | คำขอของตู้นี้ (สถานะ `open` / `scheduled` / `done`) |
 
