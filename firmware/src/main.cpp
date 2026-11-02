@@ -30,56 +30,70 @@
 SET_LOOP_TASK_STACK_SIZE(16 * 1024);
 
 // ── ค่าที่อยู่รอดตอนหลับลึก ───────────────────────────────────────────────
-RTC_DATA_ATTR static uint32_t awakeUntil = 0;   // ถือ long-poll ถึงเวลานี้ (UTC) แม้นอกเวลาตรวจ
-RTC_DATA_ATTR static uint32_t lastReportDay = 0;  // วันที่ (เวลาไทย นับจาก epoch) ที่รายงานแล้ว
+RTC_DATA_ATTR static uint32_t awakeUntil = 0;    // ถือ long-poll ถึงเวลานี้ (UTC) แม้นอกเวลาตรวจ
+RTC_DATA_ATTR static uint32_t lastReportDay = 0; // วันที่ (เวลาไทย นับจาก epoch) ที่รายงานแล้ว
 RTC_DATA_ATTR static uint32_t wakeCount = 0, jobsDone = 0, scanFail = 0, wifiFail = 0;
 
-static bool booted = false;  // ส่ง boot สำเร็จแล้วในรอบไฟนี้
+static bool booted = false; // ส่ง boot สำเร็จแล้วในรอบไฟนี้
 
 // ── เวลา ───────────────────────────────────────────────────────────────
 static uint32_t localDay(uint32_t utc) { return (utc + TZ_OFFSET_S) / 86400; }
 static uint16_t localMinute(uint32_t utc) { return ((utc + TZ_OFFSET_S) % 86400) / 60; }
 
-static bool inWindow(uint32_t utc) {
+static bool inWindow(uint32_t utc)
+{
   uint16_t m = localMinute(utc);
   for (uint8_t i = 0; i < boxConfig.windowCount; i++)
-    if (m >= boxConfig.winStart[i] && m < boxConfig.winEnd[i]) return true;
+    if (m >= boxConfig.winStart[i] && m < boxConfig.winEnd[i])
+      return true;
   return false;
 }
 
-static bool shouldListen() {
+static bool shouldListen()
+{
   // Bench/demo override: a persistent sleep-off setting keeps the board online for QR-triggered jobs.
-  if (!settings.sleep || settings.debugCam) return true;
+  if (!settings.sleep || settings.debugCam)
+    return true;
   uint32_t now = nowUtc();
-  if (!now) return false;
+  if (!now)
+    return false;
   return now < awakeUntil || inWindow(now);
 }
 
 /** วินาทีถึงเหตุการณ์ถัดไป (ต้นช่วงเวลาตรวจ − 60 วิ หรือ เวลารายงาน) */
-static uint32_t secondsToNextEvent(uint32_t now) {
+static uint32_t secondsToNextEvent(uint32_t now)
+{
   uint16_t m = localMinute(now);
   uint32_t secOfDay = (now + TZ_OFFSET_S) % 86400;
   uint32_t best = 24 * 3600;
-  auto consider = [&](uint16_t targetMin, int32_t earlyS) {
+  auto consider = [&](uint16_t targetMin, int32_t earlyS)
+  {
     int32_t target = (int32_t)targetMin * 60 - earlyS;
     int32_t diff = target - (int32_t)secOfDay;
-    if (diff <= 0) diff += 86400;
-    if ((uint32_t)diff < best) best = diff;
+    if (diff <= 0)
+      diff += 86400;
+    if ((uint32_t)diff < best)
+      best = diff;
   };
-  for (uint8_t i = 0; i < boxConfig.windowCount; i++) consider(boxConfig.winStart[i], WAKE_BEFORE_WINDOW_S);
+  for (uint8_t i = 0; i < boxConfig.windowCount; i++)
+    consider(boxConfig.winStart[i], WAKE_BEFORE_WINDOW_S);
   consider(boxConfig.reportAt, 0);
   (void)m;
   return max<uint32_t>(best, 30);
 }
 
 // ── Wi-Fi ──────────────────────────────────────────────────────────────
-static bool wifiConnect() {
-  if (WiFi.status() == WL_CONNECTED) return true;
-  if (!settingsHasWifi()) return false;
+static bool wifiConnect()
+{
+  if (WiFi.status() == WL_CONNECTED)
+    return true;
+  if (!settingsHasWifi())
+    return false;
   WiFi.mode(WIFI_STA);
   // ปิด modem sleep: ตู้ถือ long-poll ตลอดอยู่แล้ว และบน Wi-Fi อ่อนโหมดประหยัดไฟทำให้แพ็กเก็ตหายจน TLS ค้าง (ตู้หลุดออนไลน์)
   WiFi.setSleep(false);
-  if (wifiJoin(nullptr)) {
+  if (wifiJoin(nullptr))
+  {
     Serial.printf("[wifi] connected \"%s\" IP %s RSSI %d ch %d\n", settings.wifiSsid.c_str(), WiFi.localIP().toString().c_str(),
                   WiFi.RSSI(), WiFi.channel());
     return true;
@@ -90,58 +104,79 @@ static bool wifiConnect() {
 }
 
 // ── คำตอบที่มี config ─────────────────────────────────────────────────────
-static void absorbConfig(const String& body) {
+static void absorbConfig(const String &body)
+{
   JsonDocument doc;
-  if (deserializeJson(doc, body)) return;
+  if (deserializeJson(doc, body))
+    return;
   uint32_t ver = doc["config_ver"] | 0u;
-  if (!doc["config"].isNull()) {
+  if (!doc["config"].isNull())
+  {
     String cfg;
     serializeJson(doc["config"], cfg);
     if (configApplyJson(cfg, ver))
       Serial.printf("[config] v%u · %u window(s) · report %02u:%02u\n", ver, boxConfig.windowCount, boxConfig.reportAt / 60,
                     boxConfig.reportAt % 60);
-  } else if (ver) {
+  }
+  else if (ver)
+  {
     configSetVersionOnly(ver);
   }
   uint32_t awake = doc["awake_s"] | 0u;
-  if (awake && nowUtc()) awakeUntil = nowUtc() + awake;
+  if (awake && nowUtc())
+    awakeUntil = nowUtc() + awake;
 }
 
-static void onAuthFailed(const ApiResult& r) {
+static void onAuthFailed(const ApiResult &r)
+{
   JsonDocument doc;
   deserializeJson(doc, r.body);
-  Serial.printf("[auth] 401 reason=%s — check box_id / device_secret / URL\n", (const char*)(doc["reason"] | "?"));
+  Serial.printf("[auth] 401 reason=%s — check box_id / device_secret / URL\n", (const char *)(doc["reason"] | "?"));
   beepError();
 }
 
-static const char* resetReason() {
-  switch (esp_reset_reason()) {
-    case ESP_RST_POWERON: return "power_on";
-    case ESP_RST_DEEPSLEEP: return "deep_sleep";
-    case ESP_RST_BROWNOUT: return "brownout";
-    case ESP_RST_PANIC: return "panic";
-    case ESP_RST_INT_WDT:
-    case ESP_RST_TASK_WDT:
-    case ESP_RST_WDT: return "watchdog";
-    case ESP_RST_SW: return "software";
-    case ESP_RST_EXT: return "external";
-    default: return "other";
+static const char *resetReason()
+{
+  switch (esp_reset_reason())
+  {
+  case ESP_RST_POWERON:
+    return "power_on";
+  case ESP_RST_DEEPSLEEP:
+    return "deep_sleep";
+  case ESP_RST_BROWNOUT:
+    return "brownout";
+  case ESP_RST_PANIC:
+    return "panic";
+  case ESP_RST_INT_WDT:
+  case ESP_RST_TASK_WDT:
+  case ESP_RST_WDT:
+    return "watchdog";
+  case ESP_RST_SW:
+    return "software";
+  case ESP_RST_EXT:
+    return "external";
+  default:
+    return "other";
   }
 }
 
-static void sendEvent(const char* type, const char* jobId = nullptr);  // นิยามด้านล่าง
+static void sendEvent(const char *type, const char *jobId = nullptr); // นิยามด้านล่าง
 
 // ── คำสั่งจากเซิร์ฟเวอร์ (เจ้าของบ้านกด "เปลี่ยน Wi-Fi" ในเว็บ) ─────────────────────
 // ตอบรับ (ack) ก่อนลบ Wi-Fi เสมอ — ไม่งั้นเซิร์ฟเวอร์ไม่รู้ว่าตู้รับแล้ว · ack ไม่ผ่าน = ยังไม่ทำ รอรับใหม่รอบหน้า
-static void handleCommand(JsonVariantConst cmd) {
-  if (cmd.isNull()) return;
-  const char* type = cmd["type"] | "";
-  const char* id = cmd["id"] | "";
-  if (strcmp(type, "ota") == 0 && *id) {
+static void handleCommand(JsonVariantConst cmd)
+{
+  if (cmd.isNull())
+    return;
+  const char *type = cmd["type"] | "";
+  const char *id = cmd["id"] | "";
+  if (strcmp(type, "ota") == 0 && *id)
+  {
     // อัปเดตเฟิร์มแวร์จากเซิร์ฟเวอร์ — ลองครั้งเดียวต่อการเปิดเครื่อง (ล้มเหลวแล้วไม่วนโหลดซ้ำจนแบตหมด)
     static bool tried = false;
     const String ver = cmd["version"] | "";
-    if (tried || !ver.length() || ver == FW_VERSION) return;
+    if (tried || !ver.length() || ver == FW_VERSION)
+      return;
     tried = true;
     // เวอร์ชันที่เคยลงไปแล้วแต่ตู้ยังรายงานเป็นอย่างอื่น = ไฟล์ที่อัปโหลดมี FW_VERSION ไม่ตรงชื่อ → อย่าลงซ้ำวนไปเรื่อย ๆ
     Preferences otaPrefs;
@@ -149,13 +184,15 @@ static void handleCommand(JsonVariantConst cmd) {
     const bool already = otaPrefs.getString("otatry", "") == ver;
     otaPrefs.putString("otatry", ver);
     otaPrefs.end();
-    if (already) {
+    if (already)
+    {
       Serial.printf("[cmd] ota: %s was already installed once but the box still reports %s — name mismatch, skipping\n", ver.c_str(), FW_VERSION);
       sendEvent("ota_failed");
       return;
     }
     Serial.printf("[cmd] ota: %s -> %s (%u bytes)\n", FW_VERSION, ver.c_str(), (unsigned)(cmd["size"] | 0u));
-    if (apiDownloadFirmware(ver, cmd["size"] | 0u, cmd["sha256"] | "")) {
+    if (apiDownloadFirmware(ver, cmd["size"] | 0u, cmd["sha256"] | ""))
+    {
       Serial.println("[cmd] ota: done — rebooting");
       delay(300);
       ESP.restart();
@@ -163,7 +200,8 @@ static void handleCommand(JsonVariantConst cmd) {
     sendEvent("ota_failed");
     return;
   }
-  if (strcmp(type, "wifi_reset") != 0 || !*id) return;
+  if (strcmp(type, "wifi_reset") != 0 || !*id)
+    return;
 
   JsonDocument doc;
   doc["type"] = "wifi_reset";
@@ -171,11 +209,14 @@ static void handleCommand(JsonVariantConst cmd) {
   String body;
   serializeJson(doc, body);
   bool acked = false;
-  for (int i = 0; i < 3 && !acked; i++) {
-    if (i) delay(1000);
+  for (int i = 0; i < 3 && !acked; i++)
+  {
+    if (i)
+      delay(1000);
     acked = apiCall("POST", "/v1/box/events", body, 3000).status == 200;
   }
-  if (!acked) {
+  if (!acked)
+  {
     Serial.println("[cmd] wifi_reset: ack failed — will retry on next poll");
     return;
   }
@@ -183,16 +224,19 @@ static void handleCommand(JsonVariantConst cmd) {
   beepWifiReset();
   settingsStashWifi();
   delay(300);
-  ESP.restart();  // เปิดใหม่ → ไม่มี Wi-Fi → โหมดตั้งค่า (ปล่อย MAILBOX-xxxxxx)
+  ESP.restart(); // เปิดใหม่ → ไม่มี Wi-Fi → โหมดตั้งค่า (ปล่อย MAILBOX-xxxxxx)
 }
 
-static void handleCommandIn(const String& body) {
+static void handleCommandIn(const String &body)
+{
   JsonDocument doc;
-  if (!deserializeJson(doc, body)) handleCommand(doc["command"]);
+  if (!deserializeJson(doc, body))
+    handleCommand(doc["command"]);
 }
 
 // ── boot / report ──────────────────────────────────────────────────────
-static bool sendBoot() {
+static bool sendBoot()
+{
   JsonDocument doc;
   doc["fw"] = FW_VERSION;
   doc["config_ver"] = boxConfig.ver;
@@ -203,10 +247,13 @@ static bool sendBoot() {
   serializeJson(doc, body);
   // ต่อไม่ได้ → ลอง 3 ครั้ง ห่าง 5 / 15 / 45 วิ
   const uint32_t backoff[] = {0, 5000, 15000, 45000};
-  for (uint32_t wait : backoff) {
-    if (wait) delay(wait);
+  for (uint32_t wait : backoff)
+  {
+    if (wait)
+      delay(wait);
     ApiResult r = apiCall("POST", "/v1/box/boot", body);
-    if (r.status == 200) {
+    if (r.status == 200)
+    {
       absorbConfig(r.body);
       booted = true;
       Serial.printf("[boot] ok · awake until +%ds\n", (int)(awakeUntil > nowUtc() ? awakeUntil - nowUtc() : 0));
@@ -214,7 +261,8 @@ static bool sendBoot() {
       handleCommandIn(r.body);
       return true;
     }
-    if (r.status == 401) {
+    if (r.status == 401)
+    {
       onAuthFailed(r);
       return false;
     }
@@ -223,7 +271,8 @@ static bool sendBoot() {
   return false;
 }
 
-static bool sendReport() {
+static bool sendReport()
+{
   JsonDocument doc;
   doc["fw"] = FW_VERSION;
   doc["config_ver"] = boxConfig.ver;
@@ -237,17 +286,21 @@ static bool sendReport() {
   String body;
   serializeJson(doc, body);
   const uint32_t backoff[] = {0, 5000, 15000, 45000};
-  for (uint32_t wait : backoff) {
-    if (wait) delay(wait);
+  for (uint32_t wait : backoff)
+  {
+    if (wait)
+      delay(wait);
     ApiResult r = apiCall("POST", "/v1/box/report", body);
-    if (r.status == 200) {
+    if (r.status == 200)
+    {
       absorbConfig(r.body);
       lastReportDay = localDay(nowUtc());
       jobsDone = scanFail = wifiFail = 0;
       handleCommandIn(r.body);
       return true;
     }
-    if (r.status == 401) {
+    if (r.status == 401)
+    {
       onAuthFailed(r);
       return false;
     }
@@ -255,17 +308,21 @@ static bool sendReport() {
   return false;
 }
 
-static void sendEvent(const char* type, const char* jobId) {
+static void sendEvent(const char *type, const char *jobId)
+{
   JsonDocument doc;
   doc["type"] = type;
-  if (jobId) doc["job_id"] = jobId;
+  if (jobId)
+    doc["job_id"] = jobId;
   String body;
   serializeJson(doc, body);
   const ApiResult result = apiCall("POST", "/v1/box/events", body, 1500);
-  if (result.status != 200) Serial.printf("[diag] %s delivery failed (%d)\n", type, result.status);
+  if (result.status != 200)
+    Serial.printf("[diag] %s delivery failed (%d)\n", type, result.status);
 }
 
-static void sendCameraScanEvent(const String& jobId, uint8_t attempt, const QrRead& read) {
+static void sendCameraScanEvent(const String &jobId, uint8_t attempt, const QrRead &read)
+{
   JsonDocument doc;
   doc["type"] = "camera_scan_result";
   doc["job_id"] = jobId;
@@ -277,18 +334,22 @@ static void sendCameraScanEvent(const String& jobId, uint8_t attempt, const QrRe
   String body;
   serializeJson(doc, body);
   const ApiResult result = apiCall("POST", "/v1/box/events", body, 1500);
-  if (result.status != 200) Serial.printf("[diag] camera_scan_result delivery failed (%d)\n", result.status);
+  if (result.status != 200)
+    Serial.printf("[diag] camera_scan_result delivery failed (%d)\n", result.status);
 }
 
 // ── งานปลุกตู้ (ตรวจ / ทดสอบ) §8 ─────────────────────────────────────────
 // ภาพสดระหว่างงานทดสอบ → POST /v1/box/preview (base64 ใน JSON) · เซิร์ฟเวอร์รับเฉพาะงาน test
 static String previewJobId;
-static void previewSink(const uint8_t* jpeg, size_t len) {
+static void previewSink(const uint8_t *jpeg, size_t len)
+{
   const size_t outCap = ((len + 2) / 3) * 4 + 4;
-  char* b64 = (char*)malloc(outCap);
-  if (!b64) return;
+  char *b64 = (char *)malloc(outCap);
+  if (!b64)
+    return;
   size_t outLen = 0;
-  if (mbedtls_base64_encode((unsigned char*)b64, outCap, &outLen, jpeg, len) == 0) {
+  if (mbedtls_base64_encode((unsigned char *)b64, outCap, &outLen, jpeg, len) == 0)
+  {
     String body;
     body.reserve(outLen + 64);
     body = "{\"job_id\":\"" + previewJobId + "\",\"jpeg_b64\":\"";
@@ -299,20 +360,24 @@ static void previewSink(const uint8_t* jpeg, size_t len) {
   free(b64);
 }
 
-static void runJob(JsonObject job) {
+static void runJob(JsonObject job)
+{
   String jobId = job["job_id"] | "";
   String type = job["type"] | "";
   uint8_t attemptMax = job["attempt_max"] | boxConfig.maxAttempts;
   uint8_t scanTimeoutS = job["scan_timeout_s"] | boxConfig.scanTimeoutS;
-  if (!jobId.length()) return;
+  if (!jobId.length())
+    return;
   const bool cameraTest = type == "test";
   Serial.printf("[job] %s %s · %u tries × %us\n", type.c_str(), jobId.c_str(), attemptMax, scanTimeoutS);
   const unsigned long t0 = millis();
 
   previewJobId = jobId;
   cameraSetPreviewSink(cameraTest ? previewSink : nullptr, 2500);
-  if (cameraTest) sendEvent("camera_test_started", jobId.c_str());
-  if (!cameraStart()) {
+  if (cameraTest)
+    sendEvent("camera_test_started", jobId.c_str());
+  if (!cameraStart())
+  {
     sendEvent("camera_error", cameraTest ? jobId.c_str() : nullptr);
     beepError();
     return;
@@ -321,12 +386,15 @@ static void runJob(JsonObject job) {
   beepReady();
   ApiResult ready = apiCall("POST", "/v1/box/jobs/" + jobId + "/ready", flash ? "{\"flash\":true}" : "{\"flash\":false}");
   Serial.printf("[job] ready after %lu ms\n", millis() - t0);
-  if (ready.status != 200) {
+  if (ready.status != 200)
+  {
     cameraStop();
-    if (ready.status == 401) onAuthFailed(ready);
-    return;  // 410 = งานหมดอายุ / 404 = ไม่ใช่งานของตู้นี้ → กลับไปรอ
+    if (ready.status == 401)
+      onAuthFailed(ready);
+    return; // 410 = งานหมดอายุ / 404 = ไม่ใช่งานของตู้นี้ → กลับไปรอ
   }
-  if (cameraTest) {
+  if (cameraTest)
+  {
     JsonDocument diagnostic;
     diagnostic["type"] = "camera_ready";
     diagnostic["job_id"] = jobId;
@@ -335,38 +403,48 @@ static void runJob(JsonObject job) {
     String body;
     serializeJson(diagnostic, body);
     const ApiResult sent = apiCall("POST", "/v1/box/events", body, 1500);
-    if (sent.status != 200) Serial.printf("[diag] camera_ready delivery failed (%d)\n", sent.status);
+    if (sent.status != 200)
+      Serial.printf("[diag] camera_ready delivery failed (%d)\n", sent.status);
   }
 
-  for (uint8_t attempt = 1; attempt <= attemptMax; attempt++) {
+  for (uint8_t attempt = 1; attempt <= attemptMax; attempt++)
+  {
     QrRead q = cameraScanQr((uint32_t)scanTimeoutS * 1000);
     JsonDocument doc;
     doc["attempt"] = attempt;
     doc["read_ok"] = q.ok;
-    if (q.ok) doc["qr_text"] = q.text.substring(0, 1024);
-    else doc["qr_text"] = nullptr;
+    if (q.ok)
+      doc["qr_text"] = q.text.substring(0, 1024);
+    else
+      doc["qr_text"] = nullptr;
     doc["read_ms"] = q.ms;
     doc["flash"] = flash;
     String body;
     serializeJson(doc, body);
     ApiResult r = apiCall("POST", "/v1/box/jobs/" + jobId + "/result", body);
-    if (r.status != 200) {
+    if (r.status != 200)
+    {
       // ส่งผลไม่ได้ → ทิ้ง ไม่เก็บไว้ส่งทีหลัง (ไม่มีโหมดออฟไลน์)
       scanFail++;
-      if (r.status == 401) onAuthFailed(r);
-      else beepError();
+      if (r.status == 401)
+        onAuthFailed(r);
+      else
+        beepError();
       break;
     }
-    if (cameraTest) sendCameraScanEvent(jobId, attempt, q);
+    if (cameraTest)
+      sendCameraScanEvent(jobId, attempt, q);
     JsonDocument res;
     deserializeJson(res, r.body);
     String status = res["status"] | "";
-    if (status == "pass") {
+    if (status == "pass")
+    {
       beepPass();
       jobsDone++;
       break;
     }
-    if (status == "retry") {
+    if (status == "retry")
+    {
       beepRetry();
       continue;
     }
@@ -378,48 +456,63 @@ static void runJob(JsonObject job) {
 }
 
 /** ถือ long-poll 1 รอบ */
-static void pollOnce() {
+static void pollOnce()
+{
   uint8_t wait = boxConfig.longpollWaitS ? boxConfig.longpollWaitS : 50;
-  if (wait > 25) wait = 25;  // รอสั้นลง: คำขอที่ค้างนานบน Wi-Fi อ่อนมีโอกาสค้างสูง · เซิร์ฟเวอร์ถือว่าออนไลน์ถ้าถามภายใน 2×wait
+  if (wait > 25)
+    wait = 25; // รอสั้นลง: คำขอที่ค้างนานบน Wi-Fi อ่อนมีโอกาสค้างสูง · เซิร์ฟเวอร์ถือว่าออนไลน์ถ้าถามภายใน 2×wait
   // เปิดหน้าดูกล้องอยู่ → ถือ long-poll สั้น ๆ เพื่อให้เว็บเซิร์ฟเวอร์ของตู้ตอบทัน (ปกติถือ 50 วิ)
-  if (settings.debugCam) wait = min<uint8_t>(wait, 3);
+  if (settings.debugCam)
+    wait = min<uint8_t>(wait, 3);
   ApiResult r = apiCall("GET", "/v1/box/jobs?wait=" + String(wait) + "&config_ver=" + String(boxConfig.ver), "", (uint32_t)wait * 1000 + 10000);
   // จังหวะการทำงาน (ไว้ดูว่าตู้ยังถือ long-poll อยู่ไหม ไม่งั้น log เงียบทั้งที่ปกติ)
   Serial.printf("[poll] %d · heap %u · rssi %d · up %lus\n", r.status, (unsigned)ESP.getFreeHeap(), WiFi.RSSI(), millis() / 1000);
-  if (r.status == 204) return;
-  if (r.status == 200) {
+  if (r.status == 204)
+    return;
+  if (r.status == 200)
+  {
     JsonDocument doc;
-    if (deserializeJson(doc, r.body)) return;
+    if (deserializeJson(doc, r.body))
+      return;
     uint32_t ver = doc["config_ver"] | 0u;
-    if (!doc["config"].isNull()) absorbConfig(r.body);
+    if (!doc["config"].isNull())
+      absorbConfig(r.body);
     handleCommand(doc["command"]);
-    if (!doc["job"].isNull()) runJob(doc["job"].as<JsonObject>());
+    if (!doc["job"].isNull())
+      runJob(doc["job"].as<JsonObject>());
     // Backend รุ่นก่อนที่ยังไม่ส่ง config ทาง long-poll ให้ดึงผ่าน report ตามเดิม
-    if (ver && ver != boxConfig.ver) sendReport();
+    if (ver && ver != boxConfig.ver)
+      sendReport();
     return;
   }
-  if (r.status == 401) {
+  if (r.status == 401)
+  {
     onAuthFailed(r);
     delay(RETRY_IN_WINDOW_MS);
     return;
   }
   // ต่อไม่ได้ / 5xx → ลองใหม่ทุก 30 วิ
-  if (WiFi.status() != WL_CONNECTED) wifiConnect();
+  if (WiFi.status() != WL_CONNECTED)
+    wifiConnect();
   delay(RETRY_IN_WINDOW_MS);
 }
 
 // ── หลับลึก ────────────────────────────────────────────────────────────
-static void sleepUntilNextEvent() {
+static void sleepUntilNextEvent()
+{
   uint32_t now = nowUtc();
   uint32_t s = secondsToNextEvent(now);
-  if (!settings.sleep || settings.debugCam) {
+  if (!settings.sleep || settings.debugCam)
+  {
     static unsigned long lastMsg = 0;
-    if (millis() - lastMsg > 60000) {
+    if (millis() - lastMsg > 60000)
+    {
       Serial.printf("[sleep] (sleep off) next event in %u s — staying awake\n", s);
       lastMsg = millis();
     }
     unsigned long t = millis();
-    while (millis() - t < 1000) {
+    while (millis() - t < 1000)
+    {
       debugViewPoll();
       delay(10);
     }
@@ -439,10 +532,11 @@ static void sleepUntilNextEvent() {
 }
 
 // ── คำสั่งทาง Serial ─────────────────────────────────────────────────────
-void cliPoll();  // ประกาศล่วงหน้า (นิยามด้านล่าง)
+void cliPoll(); // ประกาศล่วงหน้า (นิยามด้านล่าง)
 static String cliLine;
 
-static void printStatus() {
+static void printStatus()
+{
   uint32_t now = nowUtc();
   Serial.printf("fw %s · box %s · url %s · secret %s · wifi \"%s\" (%s)\n", FW_VERSION, settings.boxId.c_str(), settings.url.c_str(),
                 settings.secret.length() == 64 ? "set" : "MISSING", settings.wifiSsid.c_str(),
@@ -456,16 +550,19 @@ static void printStatus() {
                   boxConfig.winEnd[i] % 60);
 }
 
-static void runCommand(String line) {
+static void runCommand(String line)
+{
   line.trim();
-  if (!line.length()) return;
+  if (!line.length())
+    return;
   int sp = line.indexOf(' ');
   String cmd = sp < 0 ? line : line.substring(0, sp);
   String arg = sp < 0 ? "" : line.substring(sp + 1);
   arg.trim();
   cmd.toLowerCase();
 
-  if (cmd == "help") {
+  if (cmd == "help")
+  {
     Serial.println(
         "commands:\n"
         "  status                 show settings / clock / config\n"
@@ -484,99 +581,152 @@ static void runCommand(String line) {
         "  forget                 forget Wi-Fi and restart\n"
         "  factory                erase ALL saved settings (Wi-Fi, url, box, secret, camera, config) and restart as a new board\n"
         "  reboot");
-  } else if (cmd == "status") {
+  }
+  else if (cmd == "status")
+  {
     printStatus();
-  } else if (cmd == "wifi") {
+  }
+  else if (cmd == "wifi")
+  {
     int s2 = arg.indexOf(' ');
     settings.wifiSsid = s2 < 0 ? arg : arg.substring(0, s2);
     settings.wifiPass = s2 < 0 ? "" : arg.substring(s2 + 1);
     settingsSave();
     Serial.printf("wifi set to \"%s\" — reboot to apply\n", settings.wifiSsid.c_str());
-  } else if (cmd == "url") {
-    while (arg.endsWith("/")) arg.remove(arg.length() - 1);
+  }
+  else if (cmd == "url")
+  {
+    while (arg.endsWith("/"))
+      arg.remove(arg.length() - 1);
     settings.url = arg;
     settingsSave();
     Serial.printf("url = %s\n", settings.url.c_str());
-  } else if (cmd == "box") {
+  }
+  else if (cmd == "box")
+  {
     arg.toUpperCase();
     settings.boxId = arg;
     settingsSave();
     Serial.printf("box = %s\n", settings.boxId.c_str());
-  } else if (cmd == "secret") {
+  }
+  else if (cmd == "secret")
+  {
     arg.toLowerCase();
-    if (arg.length() != 64) {
+    if (arg.length() != 64)
+    {
       Serial.println("secret must be 64 hex characters");
       return;
     }
     settings.secret = arg;
     settingsSave();
     Serial.println("secret saved");
-  } else if (cmd == "sleep") {
+  }
+  else if (cmd == "sleep")
+  {
     settings.sleep = arg != "off";
     settingsSave();
     Serial.printf("sleep %s\n", settings.sleep ? "on" : "off");
-  } else if (cmd == "selftest") {
+  }
+  else if (cmd == "selftest")
+  {
     Serial.println(signerSelfTest(true) ? "selftest PASS" : "selftest FAIL");
-  } else if (cmd == "boot") {
-    if (wifiConnect()) sendBoot();
-  } else if (cmd == "report") {
-    if (wifiConnect()) sendReport();
-  } else if (cmd == "scan") {
+  }
+  else if (cmd == "boot")
+  {
+    if (wifiConnect())
+      sendBoot();
+  }
+  else if (cmd == "report")
+  {
+    if (wifiConnect())
+      sendReport();
+  }
+  else if (cmd == "scan")
+  {
     uint32_t sec = arg.length() ? arg.toInt() : 20;
-    if (cameraStart()) {
+    if (cameraStart())
+    {
       cameraAutoFlash(boxConfig.flashWhenDark);
       QrRead q = cameraScanQr(sec * 1000);
       Serial.printf("scan: %s\n", q.ok ? q.text.c_str() : "(nothing)");
       cameraStop();
     }
-  } else if (cmd == "debugcam") {
+  }
+  else if (cmd == "debugcam")
+  {
     // หน้าเว็บดูภาพกล้องตอนทดสอบ — ปิดเป็นค่าเริ่มต้น (กล้องตู้มองถนน) · เก็บค่าถาวร
-    if (arg == "on" || arg == "off") {
+    if (arg == "on" || arg == "off")
+    {
       settings.debugCam = arg == "on";
       settingsSave();
-      if (settings.debugCam) {
-        if (WiFi.status() == WL_CONNECTED) debugViewStart();
-        else Serial.println("debugcam on — จะเปิดเมื่อต่อ Wi-Fi ได้");
-      } else {
+      if (settings.debugCam)
+      {
+        if (WiFi.status() == WL_CONNECTED)
+          debugViewStart();
+        else
+          Serial.println("debugcam on — จะเปิดเมื่อต่อ Wi-Fi ได้");
+      }
+      else
+      {
         debugViewStop();
         Serial.println("debugcam off");
       }
-    } else {
+    }
+    else
+    {
       Serial.printf("debugcam %s%s\n", settings.debugCam ? "on" : "off", debugViewRunning() ? (String(" · ") + debugViewUrl()).c_str() : "");
     }
-  } else if (cmd == "camweb") {
+  }
+  else if (cmd == "camweb")
+  {
     // ทางลัด: เปิดหน้าดูกล้องชั่วคราว N วินาที (ไม่เก็บค่า) — ปิดเองเมื่อครบเวลา
     // camweb [วินาที] [scan] — ค่าเริ่มต้น "ดูภาพอย่างเดียว": ไม่ถอดรหัส QR ไม่คุยกับเซิร์ฟเวอร์ · ใส่ scan = ให้หาและถอดรหัส QR ด้วย
     uint32_t sec = arg.toInt() > 0 ? arg.toInt() : 120;
     cameraPreviewDecode(arg.indexOf("scan") >= 0);
-    if (WiFi.status() != WL_CONNECTED) {
+    if (WiFi.status() != WL_CONNECTED)
+    {
       Serial.println("camweb: ยังไม่ต่อ Wi-Fi");
-    } else {
+    }
+    else
+    {
       const bool wasRunning = debugViewRunning();
       debugViewStart();
       Serial.printf("camweb: เปิด %s (%u วิ)\n", debugViewUrl().c_str(), sec);
       unsigned long t = millis();
-      while (millis() - t < sec * 1000UL) {
+      while (millis() - t < sec * 1000UL)
+      {
         debugViewPoll();
         debugViewIdleCheck();
         cliPoll();
         delay(5);
       }
-      if (!wasRunning && !settings.debugCam) debugViewStop();
+      if (!wasRunning && !settings.debugCam)
+        debugViewStop();
       cameraPreviewDecode(true);
       Serial.println("camweb: ปิดแล้ว");
     }
-  } else if (cmd == "camraw") {
-    rawViewRun(arg.toInt() > 0 ? arg.toInt() : 300);  // ภาพสดดิบ MJPEG ไม่ผ่านตัวกรอง/ถอดรหัส
-  } else if (cmd == "snap") {
-    cameraDumpFrame();  // ดูภาพที่กล้องเห็น (python แปลง hex เป็นรูป)
-  } else if (cmd == "portal") {
+  }
+  else if (cmd == "camraw")
+  {
+    rawViewRun(arg.toInt() > 0 ? arg.toInt() : 300); // ภาพสดดิบ MJPEG ไม่ผ่านตัวกรอง/ถอดรหัส
+  }
+  else if (cmd == "snap")
+  {
+    cameraDumpFrame(); // ดูภาพที่กล้องเห็น (python แปลง hex เป็นรูป)
+  }
+  else if (cmd == "portal")
+  {
     debugViewStop();
-    if (runSetupPortal(PORTAL_TIMEOUT_MS)) ESP.restart();
-  } else if (cmd == "forget") {
+    if (runSetupPortal(PORTAL_TIMEOUT_MS))
+      ESP.restart();
+  }
+  else if (cmd == "forget")
+  {
     settingsForgetWifi();
     ESP.restart();
-  } else if (cmd == "factory") {
+  }
+  else if (cmd == "factory")
+  {
     // คืนเป็นบอร์ดใหม่: ลบทุกอย่างที่จำไว้ (Wi-Fi · url · box · secret · ค่ากล้อง · config) แล้วเข้าโหมดตั้งค่า
     Preferences wipe;
     wipe.begin("smmb", false);
@@ -585,48 +735,71 @@ static void runCommand(String line) {
     Serial.println("[factory] all saved settings erased - restarting into setup mode");
     delay(300);
     ESP.restart();
-  } else if (cmd == "cam") {
+  }
+  else if (cmd == "cam")
+  {
     // cam size qvga|vga|svga|xga · cam xclk 10|20 · cam ae -2..2 — ปรับกล้องโดยไม่ต้องแฟลชใหม่ (มีผลหลังรีบูต)
     int sp2 = arg.indexOf(' ');
     String what = sp2 < 0 ? arg : arg.substring(0, sp2);
     String val = sp2 < 0 ? "" : arg.substring(sp2 + 1);
     val.trim();
-    if (what == "size" && (val == "qvga" || val == "vga" || val == "svga" || val == "xga")) settings.camSize = val;
-    else if (what == "xclk" && (val == "10" || val == "20")) settings.camXclk = val.toInt();
-    else if (what == "bench") cameraBench();
-    else if (what == "q" && val.toInt() >= 4 && val.toInt() <= 30) settings.camQ = val.toInt();
-    else if (what == "sharp" && val.toInt() >= -2 && val.toInt() <= 2) settings.camSharp = val.toInt();
-    else if (what == "flip" && val.toInt() >= 0 && val.toInt() <= 3) settings.camFlip = val.toInt();  // 0 ไม่กลับ · 1 บน-ล่าง · 2 ซ้าย-ขวา · 3 หมุน 180°
-    else if (what == "fmt" && (val == "jpeg" || val == "gray")) settings.camJpeg = val == "jpeg";
-    else if (what == "ae" && val.toInt() >= -2 && val.toInt() <= 2) settings.camAe = val.toInt();
-    else Serial.println("usage: cam size qvga|vga|svga|xga · cam xclk 10|20 · cam fmt jpeg|gray · cam q 4..30 · cam sharp -2..2 · cam ae -2..2");
+    if (what == "size" && (val == "qvga" || val == "vga" || val == "svga" || val == "xga"))
+      settings.camSize = val;
+    else if (what == "xclk" && (val == "10" || val == "20"))
+      settings.camXclk = val.toInt();
+    else if (what == "bench")
+      cameraBench();
+    else if (what == "q" && val.toInt() >= 4 && val.toInt() <= 30)
+      settings.camQ = val.toInt();
+    else if (what == "sharp" && val.toInt() >= -2 && val.toInt() <= 2)
+      settings.camSharp = val.toInt();
+    else if (what == "flip" && val.toInt() >= 0 && val.toInt() <= 3)
+      settings.camFlip = val.toInt(); // 0 ไม่กลับ · 1 บน-ล่าง · 2 ซ้าย-ขวา · 3 หมุน 180°
+    else if (what == "fmt" && (val == "jpeg" || val == "gray"))
+      settings.camJpeg = val == "jpeg";
+    else if (what == "ae" && val.toInt() >= -2 && val.toInt() <= 2)
+      settings.camAe = val.toInt();
+    else
+      Serial.println("usage: cam size qvga|vga|svga|xga · cam xclk 10|20 · cam fmt jpeg|gray · cam q 4..30 · cam sharp -2..2 · cam ae -2..2");
     settingsSave();
     Serial.printf("cam size=%s xclk=%uMHz fmt=%s q=%u sharp=%d ae=%d — applies on next camera start\n", settings.camSize.c_str(), settings.camXclk, settings.camJpeg ? "jpeg" : "gray", settings.camQ, settings.camSharp, settings.camAe);
-  } else if (cmd == "reboot") {
+  }
+  else if (cmd == "reboot")
+  {
     ESP.restart();
-  } else {
+  }
+  else
+  {
     Serial.println("unknown command — type help");
   }
 }
 
-void cliPoll() {
-  while (Serial.available()) {
+void cliPoll()
+{
+  while (Serial.available())
+  {
     char c = (char)Serial.read();
-    if (c == '\r') continue;
-    if (c == '\n') {
+    if (c == '\r')
+      continue;
+    if (c == '\n')
+    {
       String line = cliLine;
       cliLine = "";
       runCommand(line);
-    } else if (cliLine.length() < 200) {
+    }
+    else if (cliLine.length() < 200)
+    {
       cliLine += c;
     }
   }
 }
 
 /** รอคำสั่ง Serial ระหว่าง delay (ให้พิมพ์คำสั่งได้ตลอด) */
-static void waitWithCli(unsigned long ms) {
+static void waitWithCli(unsigned long ms)
+{
   unsigned long t = millis();
-  while (millis() - t < ms) {
+  while (millis() - t < ms)
+  {
     esp_task_wdt_reset();
     cliPoll();
     debugViewPoll();
@@ -635,7 +808,8 @@ static void waitWithCli(unsigned long ms) {
 }
 
 // ── setup / loop ───────────────────────────────────────────────────────
-void setup() {
+void setup()
+{
   Serial.begin(115200);
   rtc_gpio_hold_dis((gpio_num_t)PIN_FLASH_LED);
   pinMode(PIN_FLASH_LED, OUTPUT);
@@ -647,39 +821,49 @@ void setup() {
 
   settingsLoad();
   wifiDiagInit();
-  if (!signerSelfTest(false)) Serial.println("!! signer self-test FAILED — requests will be rejected");
+  if (!signerSelfTest(false))
+    Serial.println("!! signer self-test FAILED — requests will be rejected");
 
   const bool fromSleep = esp_reset_reason() == ESP_RST_DEEPSLEEP;
 
   // ให้เวลาพิมพ์คำสั่งตั้งค่าตอนเปิดเครื่อง (เช่น url / box / secret) ก่อนเริ่มทำงาน
-  if (!fromSleep) waitWithCli(1500);
+  if (!fromSleep)
+    waitWithCli(1500);
 
   // ยังไม่ได้ตั้ง → โหมดตั้งค่า (รอจนตั้งสำเร็จ)
-  while (!settingsHasWifi() || !settingsProvisioned()) {
-    if (!settingsProvisioned()) Serial.println("[setup] box not provisioned (url / box / secret) — use the portal or serial commands");
-    if (runSetupPortal(PORTAL_TIMEOUT_MS) && settingsProvisioned()) {
+  while (!settingsHasWifi() || !settingsProvisioned())
+  {
+    if (!settingsProvisioned())
+      Serial.println("[setup] box not provisioned (url / box / secret) — use the portal or serial commands");
+    if (runSetupPortal(PORTAL_TIMEOUT_MS) && settingsProvisioned())
+    {
       settingsClearStashedWifi();
       break;
     }
     // เจ้าของสั่งเปลี่ยน Wi-Fi แต่ตั้งใหม่ไม่ทันในเวลา → กลับไปใช้ Wi-Fi เดิม (กันตู้หลุดออนไลน์ถาวร)
-    if (settingsRestoreWifi()) {
+    if (settingsRestoreWifi())
+    {
       Serial.println("[setup] no new Wi-Fi in time — back to the previous Wi-Fi");
       break;
     }
   }
 
-  if (!wifiConnect()) {
+  if (!wifiConnect())
+  {
     beepError();
-    if (fromSleep) {
+    if (fromSleep)
+    {
       // ตื่นมาแล้วต่อไม่ได้ → หลับแล้วลองรอบถัดไป
       sleepUntilNextEvent();
       return;
     }
     // เปิดเครื่องแล้วต่อ Wi-Fi เดิมไม่ได้ → โหมดตั้งค่า (ระหว่างนั้นยังลองต่อ Wi-Fi เดิมได้จากหน้าเว็บ)
-    if (!runSetupPortal(PORTAL_TIMEOUT_MS)) ESP.restart();
+    if (!runSetupPortal(PORTAL_TIMEOUT_MS))
+      ESP.restart();
   }
 
-  if (!fromSleep || !clockSet()) sendBoot();
+  if (!fromSleep || !clockSet())
+    sendBoot();
 
   // กันค้างเงียบ: ถ้าลูปหลักไม่ขยับเกิน 180 วิ (เช่น TLS/Wi-Fi ค้าง) ให้รีเซ็ตตัวเอง แทนที่จะรอคนถอดไฟ
   // (รอบเดียวของลูปที่นานที่สุด = long-poll 55 วิ หรือสแกน 3 × 20 วิ จึงเผื่อไว้)
@@ -687,35 +871,43 @@ void setup() {
   esp_task_wdt_add(nullptr);
 }
 
-void loop() {
+void loop()
+{
   esp_task_wdt_reset();
   cliPoll();
-  if (otaBusy()) {
+  if (otaBusy())
+  {
     delay(50);
     return;
   }
   otaStart();
-  if (settings.debugCam && WiFi.status() == WL_CONNECTED) {
+  if (settings.debugCam && WiFi.status() == WL_CONNECTED)
+  {
     debugViewStart();
     debugViewPoll();
     debugViewIdleCheck();
   }
-  if (WiFi.status() != WL_CONNECTED && !wifiConnect()) {
+  if (WiFi.status() != WL_CONNECTED && !wifiConnect())
+  {
     beepError();
     waitWithCli(RETRY_IN_WINDOW_MS);
     return;
   }
-  if (!booted && !clockSet()) {
-    if (!sendBoot()) waitWithCli(RETRY_IN_WINDOW_MS);
+  if (!booted && !clockSet())
+  {
+    if (!sendBoot())
+      waitWithCli(RETRY_IN_WINDOW_MS);
     return;
   }
   uint32_t now = nowUtc();
   // รายงานรายวัน: ถึงเวลาแล้ววันนี้ยังไม่ได้รายงาน
-  if (now && localMinute(now) >= boxConfig.reportAt && lastReportDay != localDay(now)) {
+  if (now && localMinute(now) >= boxConfig.reportAt && lastReportDay != localDay(now))
+  {
     sendReport();
     return;
   }
-  if (shouldListen()) {
+  if (shouldListen())
+  {
     pollOnce();
     return;
   }
