@@ -184,6 +184,31 @@ sudo systemctl restart smmb-backend
 curl -fsS https://<โดเมน>/smmb-api/api/health
 ```
 
+### ตรวจอัตโนมัติหลังอัปเดตทุกครั้ง (ให้ Codex/สคริปต์รันต่อจากคำสั่งข้างบนได้เลย)
+
+ตั้ง `HUB` เป็นโดเมนจริงของเครื่องนั้น (ห้ามฮาร์ดโค้ดโดเมนในโค้ด — ที่นี่เป็นแค่ตัวแปรของคำสั่งตรวจ) · ทุกบรรทัดต้องได้ค่าตามคอลัมน์ "ต้องได้" ถ้าไม่ตรงให้หยุดและรายงาน อย่าไปแก้โค้ดแอปเอง
+
+```bash
+HUB=https://hub.sjp-dev.net
+curl -s -o /dev/null -w "health      %{http_code}
+" $HUB/smmb-api/api/health
+curl -s -o /dev/null -w "vapid-key   %{http_code}
+" $HUB/smmb-api/api/v1/me/push/vapid-key
+curl -s -o /dev/null -w "ngsw        %{http_code} %{content_type}
+" $HUB/smmb/ngsw-worker.js
+curl -s -o /dev/null -w "index       %{http_code}
+" $HUB/smmb/
+```
+
+| บรรทัด | ต้องได้ | ถ้าไม่ตรง |
+|---|---|---|
+| `health` | `200` | backend/Postgres/Redis มีปัญหา — `journalctl -u smmb-backend -n 100` |
+| `vapid-key` | `200` | `503` = ขาด `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` ใน `backend/.env` → แจ้งเตือนเปิดไม่ได้ (ปุ่มขึ้น "ทำไม่สำเร็จ") · ห้ามสร้างคีย์ใหม่ถ้ามีคนเปิดแจ้งเตือนไว้แล้ว (ทุกเครื่องต้องเปิดใหม่) |
+| `ngsw` | `200 application/javascript` (หรือ `text/javascript`) | `404` หรือ `text/html` = nginx ไม่ส่งไฟล์ service worker ใต้ `/smmb/` หรือ rsync ไม่ครบ → ล็อกอินไม่ไปหน้าถัดไป/แจ้งเตือนไม่ทำงาน |
+| `index` | `200` | ตรวจ nginx และโฟลเดอร์ `/var/www/smmb/` |
+
+เสร็จแล้วบนเบราว์เซอร์ (ถ้าเคยเปิดไซต์นี้มาก่อนและยังเห็นของเก่า): F12 → Application → Service Workers → Unregister แล้ว Clear site data ครั้งเดียว (เวอร์ชันหลัง 2 พ.ย. 2026 โหลดหน้าใหม่ให้เองเมื่อเจอเวอร์ชันใหม่)
+
 - migration เป็นไฟล์เพิ่มเท่านั้น ห้ามแก้ไฟล์ migration เดิม · ย้อนกลับ = กู้จากไฟล์สำรองก่อนอัปเดต (สำรองก่อนอัปเดตทุกครั้ง)
 - รหัส `device_secret` ของตู้ที่ติดตั้งแล้วไม่เปลี่ยนเมื่ออัปเดต (ตราบใดที่ `BOX_MASTER_KEY` เดิม)
 

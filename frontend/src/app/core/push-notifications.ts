@@ -47,6 +47,16 @@ export class PushNotifications {
     );
   }
 
+  /**
+   * subscription ปัจจุบันของเครื่องนี้ (ไม่มี = null)
+   * SwPush.subscription จะไม่ emit เลยถ้า service worker ไม่พร้อม/ไม่ทำงาน → firstValueFrom ค้างตลอดกาล
+   * (เคยทำให้ล็อกอินสำเร็จแต่ไม่ไปหน้าถัดไป) จึงต้องมีเพดานเวลา
+   */
+  private async current(): Promise<PushSubscription | null> {
+    if (!this.swPush.isEnabled) return null;
+    return Promise.race([firstValueFrom(this.swPush.subscription), new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000))]);
+  }
+
   /** A03 ขอ permission ก่อนล็อกอิน · สร้าง subscription ไว้ แต่ยังไม่ส่งข้อมูลให้ server */
   async requestPermission(): Promise<void> {
     const blocker = this.blocker();
@@ -59,7 +69,7 @@ export class PushNotifications {
 
   /** เรียกหลังล็อกอินเพื่อผูก subscription เดิมกับ session ปัจจุบัน · ไม่มี subscription ก็ข้าม */
   async syncExisting(deviceLabel?: string): Promise<void> {
-    const sub = await firstValueFrom(this.swPush.subscription);
+    const sub = await this.current();
     if (!sub) return;
     await firstValueFrom(
       this.http.post('/api/v1/me/push/subscriptions', { ...sub.toJSON(), device_label: deviceLabel }),
@@ -67,7 +77,7 @@ export class PushNotifications {
   }
 
   async disable(): Promise<void> {
-    const sub = await firstValueFrom(this.swPush.subscription);
+    const sub = await this.current();
     if (!sub) return;
     await firstValueFrom(
       this.http.delete('/api/v1/me/push/subscriptions', { body: { endpoint: sub.endpoint } }),
@@ -83,7 +93,7 @@ export class PushNotifications {
 
   private async subscription(): Promise<PushSubscription> {
     const { public_key } = await firstValueFrom(this.http.get<{ public_key: string }>('/api/v1/me/push/vapid-key'));
-    const existing = await firstValueFrom(this.swPush.subscription);
+    const existing = await this.current();
     if (existing) {
       // subscription เก่าที่สร้างด้วยกุญแจ VAPID ชุดอื่น (เซิร์ฟเวอร์เปลี่ยนกุญแจ / เคยใช้กับ dev) → push service ตอบ 403 → สมัครใหม่ด้วยกุญแจปัจจุบัน
       if (sameKey(existing.options?.applicationServerKey, public_key)) return existing;

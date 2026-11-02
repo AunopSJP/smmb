@@ -75,7 +75,8 @@ export class Session {
       const res = await firstValueFrom(this.http.post<{ ok: true; data: Me }>('/api/v1/auth/signin', { phone, password }));
       this.set(res.data);
       this.loaded = Promise.resolve(res.data);
-      await this.push.syncExisting().catch(() => undefined);
+      // ผูกแจ้งเตือนเดิมกับ session นี้ — ไม่รอ: ห้ามให้การล็อกอินค้างเพราะ service worker
+      void this.push.syncExisting().catch(() => undefined);
       return { ok: true, me: res.data };
     } catch (err) {
       const e = apiError(err);

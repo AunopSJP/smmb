@@ -1,5 +1,7 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { apiError } from '../core/api';
 import { I18n, type Tr } from '../core/i18n';
 import { PushBlockedError, PushNotifications, type PushBlocker } from '../core/push-notifications';
 import { Session } from '../core/session';
@@ -139,6 +141,19 @@ export class PushStatus {
     });
   }
 
+  /** บอกสาเหตุจริง (ตัดสินจาก code/สถานะ ไม่ดูข้อความ) — ไม่ใช่แค่ "ลองอีกครั้ง" */
+  private failureText(error: unknown): Tr {
+    const e = apiError(error);
+    const tail = (e.code ?? (e.status ? `HTTP ${e.status}` : ''));
+    if (e.code === 'PUSH_UNAVAILABLE') return { th: 'เซิร์ฟเวอร์ยังไม่ได้ตั้งค่าแจ้งเตือน (VAPID) — แจ้งผู้ดูแล', en: 'The server has no push keys configured (VAPID) — tell the admin' };
+    if (e.status === 0 && error instanceof HttpErrorResponse) return { th: 'ต่อเซิร์ฟเวอร์ไม่ได้ ตรวจเน็ตแล้วลองใหม่', en: 'Can’t reach the server — check your connection' };
+    if (e.status === 401) return { th: 'หมดเวลาเข้าสู่ระบบ — ล็อกอินใหม่แล้วลองอีกครั้ง', en: 'Your session expired — sign in again' };
+    if (e.status >= 400) return { th: `เซิร์ฟเวอร์ไม่รับ (${tail}) — ปิดแล้วเปิดใหม่ ถ้ายังไม่ได้แจ้งผู้ดูแล`, en: `The server refused it (${tail}) — turn it off and on; if it persists, tell the admin` };
+    // ไม่ใช่ error จากเซิร์ฟเวอร์ → มักเป็นฝั่งเบราว์เซอร์ (service worker ยังไม่พร้อม / push service ของเบราว์เซอร์ปฏิเสธ)
+    const name = error instanceof Error ? error.name : 'unknown';
+    return { th: `เบราว์เซอร์สมัครแจ้งเตือนไม่สำเร็จ (${name}) — โหลดหน้าใหม่ หรือล้างข้อมูลเว็บของไซต์นี้แล้วลองอีกครั้ง`, en: `The browser could not subscribe (${name}) — reload, or clear this site’s data, then try again` };
+  }
+
   private async run(fn: () => Promise<void>): Promise<void> {
     if (this.busy()) return;
     this.busy.set(true);
@@ -146,11 +161,7 @@ export class PushStatus {
       await fn();
       await this.session.refresh();
     } catch (error) {
-      this.toast.show(
-        error instanceof PushBlockedError
-          ? { th: 'เบราว์เซอร์นี้ยังเปิดแจ้งเตือนไม่ได้ — ดูคำอธิบายในกรอบ', en: 'Notifications are blocked here — see the box for help' }
-          : { th: 'ทำไม่สำเร็จ ลองอีกครั้ง', en: 'That did not work. Try again.' },
-      );
+      this.toast.show(error instanceof PushBlockedError ? { th: 'เบราว์เซอร์นี้ยังเปิดแจ้งเตือนไม่ได้ — ดูคำอธิบายในกรอบ', en: 'Notifications are blocked here — see the box for help' } : this.failureText(error));
     } finally {
       this.tick.update((n) => n + 1);
       this.busy.set(false);
