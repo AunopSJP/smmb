@@ -106,7 +106,7 @@ export class RiderApi {
     }
     h1 {
       font-size: 1.5rem;
-      margin-top: 12px;
+      margin-block-start: 12px;
     }
     .field input {
       font-size: 1.25rem;
@@ -216,7 +216,7 @@ export class RiderCode {
       }
     }
     .how {
-      margin-bottom: 10px;
+      margin-block-end: 10px;
       li {
         align-items: center;
       }
@@ -227,7 +227,7 @@ export class RiderCode {
       font-weight: 700;
       a {
         display: block;
-        margin-top: 4px;
+        margin-block-start: 4px;
         font-weight: 400;
       }
     }
@@ -303,7 +303,7 @@ export class RiderDeliver implements OnInit {
       flex: 1;
     }
     .mid {
-      margin-top: 18vh;
+      margin-block-start: 18vh;
     }
   `,
 })
@@ -331,7 +331,7 @@ export class RiderInvalid {
   `,
   styles: `
     .mid {
-      margin-top: 22vh;
+      margin-block-start: 22vh;
     }
   `,
 })
@@ -403,7 +403,7 @@ export class RiderLimited {
       color: #fff;
     }
     .mid {
-      margin-top: 20vh;
+      margin-block-start: 20vh;
     }
     .result h1 {
       font-size: 1.75rem;

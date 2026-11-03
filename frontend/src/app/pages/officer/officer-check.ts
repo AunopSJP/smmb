@@ -102,7 +102,7 @@ async function startInspection(api: InspectionApi, router: Router, body: Paramet
   styleUrl: './officer-scan.scss',
   styles: `
     .scanner {
-      width: min(80vw, 300px);
+      inline-size: min(80vw, 300px);
     }
     .checking {
       margin: 48px 0;
@@ -272,7 +272,7 @@ const CAMERA_NOTE: Record<string, Tr> = {
       font-size: 1.5rem;
       font-weight: 700;
       letter-spacing: 0.1em;
-      min-height: 60px;
+      min-block-size: 60px;
       padding: 8px 14px;
       border-radius: var(--radius-sm);
       border: 2px solid var(--line);
@@ -364,7 +364,7 @@ const CONDITIONS: { v: QrCondition; label: Tr; wide?: boolean }[] = [
       grid-template-columns: 1fr 1fr;
       gap: 10px;
       button {
-        min-height: 60px;
+        min-block-size: 60px;
         border-radius: var(--radius-sm);
         border: 1.5px solid var(--line);
         background: var(--surface);
@@ -565,14 +565,14 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
       color: var(--sos);
     }
     .waking {
-      padding-top: 48px;
+      padding-block-start: 48px;
     }
     .spinner {
       position: relative;
       display: grid;
       place-items: center;
-      width: 120px;
-      height: 120px;
+      inline-size: 120px;
+      block-size: 120px;
       margin: 16px 0;
       border-radius: 50%;
       background: var(--danger-bg);
@@ -585,8 +585,8 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
         inset: -6px;
         border-radius: 50%;
         border: 4px solid transparent;
-        border-top-color: var(--sos);
-        border-right-color: var(--sos);
+        border-block-start-color: var(--sos);
+        border-inline-end-color: var(--sos);
         animation: spin 1s linear infinite;
       }
     }
@@ -752,7 +752,7 @@ interface WakeLockSentinelLike {
     }
     .qr {
       align-self: center;
-      width: min(100%, 320px);
+      inline-size: min(100%, 320px);
       padding: 8px;
       border: 2px solid var(--text);
       border-radius: var(--radius);
@@ -760,8 +760,8 @@ interface WakeLockSentinelLike {
     }
     .copy-qr {
       display: block;
-      width: 100%;
-      margin-top: 6px;
+      inline-size: 100%;
+      margin-block-start: 6px;
       border: 0;
       background: none;
       color: #555;
@@ -778,8 +778,8 @@ interface WakeLockSentinelLike {
         display: grid;
         place-items: center;
         flex: none;
-        width: 40px;
-        height: 40px;
+        inline-size: 40px;
+        block-size: 40px;
         border-radius: 50%;
         border: 2px solid var(--line);
         font-weight: 700;
@@ -794,8 +794,8 @@ interface WakeLockSentinelLike {
       align-items: center;
       gap: 6px;
       span {
-        width: 32px;
-        height: 6px;
+        inline-size: 32px;
+        block-size: 6px;
         border-radius: 3px;
         background: var(--line);
       }
@@ -806,7 +806,7 @@ interface WakeLockSentinelLike {
         background: var(--brand);
       }
       small {
-        margin-left: 6px;
+        margin-inline-start: 6px;
       }
     }
   `,

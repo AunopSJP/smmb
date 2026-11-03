@@ -111,15 +111,15 @@ const MOCK_SCREENS = new Set<string>();
     .frame {
       display: flex;
       flex-direction: column;
-      min-height: 100dvh;
-      width: 100%;
-      min-width: 0;
+      min-block-size: 100dvh;
+      inline-size: 100%;
+      min-inline-size: 0;
       background: var(--bg);
     }
     .side {
       display: none;
     }
-    @media (min-width: 1024px) {
+    @media (min-inline-size: 1024px) {
       .admin-layout {
         display: grid;
         grid-template-columns: 240px minmax(0, 1fr);
@@ -135,15 +135,15 @@ const MOCK_SCREENS = new Set<string>();
         gap: 2px;
         grid-row: 1 / span 3;
         position: sticky;
-        top: 0;
-        height: 100dvh;
+        inset-block-start: 0;
+        block-size: 100dvh;
         overflow-y: auto;
         padding: 20px 14px 14px;
         background: var(--surface);
-        border-right: 1px solid var(--line-strong, var(--line));
+        border-inline-end: 1px solid var(--line-strong, var(--line));
       }
       .admin-layout main {
-        max-width: 1360px;
+        max-inline-size: 1360px;
         margin-inline: 0;
         padding: 12px clamp(28px, 3.2vw, 56px) 64px;
         grid-column: 2;
@@ -164,8 +164,8 @@ const MOCK_SCREENS = new Set<string>();
     .logo {
       display: grid;
       place-items: center;
-      width: 38px;
-      height: 38px;
+      inline-size: 38px;
+      block-size: 38px;
       border-radius: 10px;
       background: var(--brand);
       color: #fff;
@@ -202,11 +202,11 @@ const MOCK_SCREENS = new Set<string>();
     }
     .lbl {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .count {
       flex: none;
-      min-width: 22px;
+      min-inline-size: 22px;
       padding: 1px 7px;
       border-radius: 999px;
       background: var(--icon-bg);
@@ -237,27 +237,27 @@ const MOCK_SCREENS = new Set<string>();
     .side a.active::before {
       content: '';
       position: absolute;
-      left: -14px;
-      top: 8px;
-      bottom: 8px;
-      width: 4px;
+      inset-inline-start: -14px;
+      inset-block-start: 8px;
+      inset-block-end: 8px;
+      inline-size: 4px;
       border-radius: 0 4px 4px 0;
       background: var(--brand);
     }
     .me {
-      margin-top: auto;
+      margin-block-start: auto;
       display: flex;
       align-items: center;
       gap: 10px;
       padding: 12px 8px 4px;
-      border-top: 1px solid var(--line-strong, var(--line));
+      border-block-start: 1px solid var(--line-strong, var(--line));
     }
     .avatar {
       display: grid;
       place-items: center;
       flex: none;
-      width: 36px;
-      height: 36px;
+      inline-size: 36px;
+      block-size: 36px;
       border-radius: 50%;
       background: var(--brand-light);
       color: var(--brand-dark);
@@ -265,7 +265,7 @@ const MOCK_SCREENS = new Set<string>();
     }
     .who {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
       display: flex;
       flex-direction: column;
       line-height: 1.3;
@@ -284,8 +284,8 @@ const MOCK_SCREENS = new Set<string>();
       display: grid;
       place-items: center;
       flex: none;
-      width: 36px;
-      height: 36px;
+      inline-size: 36px;
+      block-size: 36px;
       border: 0;
       border-radius: 8px;
       background: transparent;
@@ -308,9 +308,9 @@ const MOCK_SCREENS = new Set<string>();
     /* จอใหญ่ (คอม/iPad): จำกัดความกว้างเนื้อหาให้อ่านง่าย กึ่งกลางจอ · มือถือเต็มจอเหมือนเดิม */
     main {
       flex: 1;
-      min-width: 0;
-      width: 100%;
-      max-width: var(--content-w, 640px);
+      min-inline-size: 0;
+      inline-size: 100%;
+      max-inline-size: var(--content-w, 640px);
       margin-inline: auto;
       padding: clamp(8px, 1.5vw, 24px) clamp(12px, 2vw, 32px) clamp(24px, 3vw, 40px);
       display: flex;
@@ -321,16 +321,16 @@ const MOCK_SCREENS = new Set<string>();
     }
     /* หน้าลูกเต็มความสูง: อยู่ใน styles.scss (สไตล์ของ component นี้ไปไม่ถึงหน้าลูก) */
     app-tab-bar {
-      width: 100%;
-      max-width: var(--content-w, 640px);
+      inline-size: 100%;
+      max-inline-size: var(--content-w, 640px);
       margin-inline: auto;
       border-radius: var(--radius) var(--radius) 0 0;
       overflow: hidden;
       position: sticky;
-      bottom: 0;
+      inset-block-end: 0;
       z-index: 2;
     }
-    @media (max-width: 480px) {
+    @media (max-inline-size: 480px) {
       main {
         padding-inline: 12px;
       }

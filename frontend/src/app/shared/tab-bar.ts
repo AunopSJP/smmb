@@ -35,8 +35,8 @@ import { Icon } from './icon';
     nav {
       display: flex;
       background: var(--surface);
-      border-top: 1px solid var(--line);
-      padding-bottom: env(safe-area-inset-bottom);
+      border-block-start: 1px solid var(--line);
+      padding-block-end: env(safe-area-inset-bottom);
     }
     a {
       flex: 1;
@@ -44,12 +44,12 @@ import { Icon } from './icon';
       flex-direction: column;
       align-items: center;
       gap: 2px;
-      min-width: 0;
+      min-inline-size: 0;
       padding: 10px 4px 12px;
       font-size: 0.8125rem;
       text-decoration: none;
       color: var(--text-muted);
-      min-height: 64px;
+      min-block-size: 64px;
       text-align: center;
       overflow-wrap: anywhere;
     }

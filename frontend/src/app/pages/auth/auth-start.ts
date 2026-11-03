@@ -26,7 +26,7 @@ import { PasswordField } from './auth-parts';
     <div class="stack grow">
       <div class="result">
         <span class="big-icon warn" aria-hidden="true">!</span>
-        <h1>{{ i18n.t({ th: 'เปิดในเบราว์เซอร์ก่อนนะ', en: 'Please open this in your browser' }) }}</h1>
+        <h1>{{ i18n.t({ th: 'กรุณาเปิดในเบราว์เซอร์', en: 'Please open this in your browser' }) }}</h1>
         <p class="muted small">
           {{ i18n.t({ th: 'ถ้าเปิดใน LINE จะไม่ได้รับแจ้งเตือน', en: 'Inside LINE you will not get notifications' }) }}<br />
           {{ i18n.t({ th: 'กดปุ่มด้านล่างเพื่อเปิดใน Safari / Chrome', en: 'Tap below to open it in Safari / Chrome' }) }}
@@ -135,8 +135,8 @@ export class AuthLine {
     }
     .pic {
       display: block;
-      width: 100%;
-      max-width: 260px;
+      inline-size: 100%;
+      max-inline-size: 260px;
       margin: 8px 0 4px;
       .screen {
         fill: var(--surface);
@@ -237,7 +237,7 @@ export class AuthInstall {
       flex: 1;
     }
     .result {
-      padding-top: 48px;
+      padding-block-start: 48px;
     }
   `,
 })
@@ -328,11 +328,11 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
       flex: 1;
     }
     .row .grow {
-      min-width: 0;
+      min-inline-size: 0;
     }
     h1 {
       font-size: 1.5rem;
-      margin-top: 8px;
+      margin-block-start: 8px;
     }
     .err {
       background: var(--danger-bg);
@@ -344,12 +344,12 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
       font-weight: 700;
     }
     .pick {
-      width: 100%;
+      inline-size: 100%;
       border: 0;
       background: none;
       font: inherit;
       color: inherit;
-      text-align: left;
+      text-align: start;
       cursor: pointer;
     }
   `,
@@ -478,11 +478,11 @@ export class AuthSignin implements OnInit {
       flex: 1;
     }
     .choice .grow {
-      min-width: 0;
+      min-inline-size: 0;
     }
     h1 {
       font-size: 1.5rem;
-      margin-top: 8px;
+      margin-block-start: 8px;
     }
     .choice {
       display: flex;
@@ -490,7 +490,7 @@ export class AuthSignin implements OnInit {
       gap: 12px;
       text-decoration: none;
       color: inherit;
-      min-height: 72px;
+      min-block-size: 72px;
     }
     .block {
       display: block;

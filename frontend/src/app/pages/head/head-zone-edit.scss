@@ -26,7 +26,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 40px;
+  min-block-size: 40px;
   padding: 6px 14px;
   border-radius: 999px;
   border: 1.5px solid var(--line);
@@ -60,9 +60,9 @@
 
   input {
     flex: 1;
-    min-width: 0;
+    min-inline-size: 0;
     font: inherit;
-    min-height: 44px;
+    min-block-size: 44px;
     padding: 6px 8px;
     border-radius: var(--radius-sm);
     border: 1.5px solid var(--line);
@@ -71,8 +71,8 @@
   }
 }
 .small-btn {
-  width: auto;
-  min-height: 44px;
+  inline-size: auto;
+  min-block-size: 44px;
   padding: 8px 14px;
 }
 .err {

@@ -100,18 +100,18 @@ const ADD_ROLE_ERROR: Record<string, Tr> = {
   styles: `
     .grow {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .block {
       display: block;
     }
     .as-button {
-      width: 100%;
+      inline-size: 100%;
       border: 0;
       background: none;
       font: inherit;
       color: inherit;
-      text-align: left;
+      text-align: start;
       cursor: pointer;
     }
   `,

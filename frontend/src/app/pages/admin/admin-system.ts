@@ -86,7 +86,7 @@ type NumKey = keyof typeof LIMITS;
       flex: 1;
     }
     .row .grow {
-      min-width: 0;
+      min-inline-size: 0;
     }
     .block {
       display: block;
@@ -251,7 +251,7 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
     }
     .grow {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .block {
       display: block;
@@ -267,7 +267,7 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
       gap: 12px 16px;
     }
     .csv {
-      width: 100%;
+      inline-size: 100%;
     }
     .lcols {
       display: grid;
@@ -276,9 +276,9 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
       align-items: center;
     }
     /* จอคอม: หัวข้อ + รายละเอียดอยู่บรรทัดเดียวกัน อ่านเป็นตาราง */
-    @media (min-width: 1024px) {
+    @media (min-inline-size: 1024px) {
       .csv {
-        width: auto;
+        inline-size: auto;
       }
       .lcols {
         grid-template-columns: 130px minmax(0, 1fr) 80px;

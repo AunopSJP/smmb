@@ -125,7 +125,7 @@ import { Icon } from '../../shared/icon';
       border-radius: var(--radius-sm);
       padding: 10px 12px;
       font-size: 0.875rem;
-      ol { margin: 4px 0 0; padding-left: 20px; }
+      ol { margin: 4px 0 0; padding-inline-start: 20px; }
     }
     .two {
       display: grid;

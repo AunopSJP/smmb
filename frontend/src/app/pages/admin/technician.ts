@@ -145,7 +145,7 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
   styles: `
     .grow {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .block {
       display: block;
@@ -177,13 +177,13 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
     .scanner {
       display: block;
       aspect-ratio: 3 / 4;
-      max-height: 60vh;
+      max-block-size: 60vh;
       border-radius: var(--radius);
       overflow: hidden;
     }
     ol {
       margin: 0;
-      padding-left: 20px;
+      padding-inline-start: 20px;
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -343,13 +343,13 @@ export class TechChecklist {
       flex: 1;
     }
     .row .grow {
-      min-width: 0;
+      min-inline-size: 0;
     }
     .block {
       display: block;
     }
     .demo-tools {
-      margin-bottom: 4px;
+      margin-block-end: 4px;
     }
     .joined {
       display: flex;
@@ -366,8 +366,8 @@ export class TechChecklist {
       flex-direction: column;
       gap: 8px;
       legend {
-        float: left;
-        width: 100%;
+        float: inline-start;
+        inline-size: 100%;
         padding: 0;
         margin: 0 4px 8px;
       }
@@ -493,7 +493,7 @@ export class TechLights {
     }
     ol {
       margin: 6px 0 0;
-      padding-left: 20px;
+      padding-inline-start: 20px;
       display: flex;
       flex-direction: column;
       gap: 4px;

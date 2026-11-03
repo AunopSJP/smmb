@@ -56,15 +56,15 @@ import { screenUrl } from '../../screens/registry';
     </div>
   `,
   styles: `
-    .grow { flex: 1; min-width: 0; }
+    .grow { flex: 1; min-inline-size: 0; }
     .block { display: block; }
     .reqs { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
-    @media (min-width: 1100px) { .reqs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (min-inline-size: 1100px) { .reqs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     .reqs > .panel:only-child { grid-column: 1 / -1; }
-    .rhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+    .rhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-block-end: 4px; }
     .request-note { margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
     .field { display: grid; gap: 6px; margin: 10px 0; }
-    .field input { min-width: 0; min-height: 40px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
+    .field input { min-inline-size: 0; min-block-size: 40px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
     .segmented { flex-wrap: wrap; }
   `,
 })

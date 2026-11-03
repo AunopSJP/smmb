@@ -41,7 +41,7 @@ import { Icon } from './icon';
     }
     .text {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .caption {
       font-size: 0.8125rem;
@@ -56,10 +56,10 @@ import { Icon } from './icon';
     }
     .badge {
       position: absolute;
-      top: 2px;
-      right: 2px;
-      min-width: 18px;
-      height: 18px;
+      inset-block-start: 2px;
+      inset-inline-end: 2px;
+      min-inline-size: 18px;
+      block-size: 18px;
       padding: 0 5px;
       border-radius: 9px;
       background: var(--sos);
@@ -70,12 +70,12 @@ import { Icon } from './icon';
       text-align: center;
     }
     /* แอดมินบนจอคอม: หัวหน้าจอใหญ่ขึ้น ปุ่มกลมเล็กลง เส้นคั่นใต้หัว */
-    @media (min-width: 1024px) {
+    @media (min-inline-size: 1024px) {
       :host-context(.admin-layout) header {
         gap: 14px;
         padding: 20px 0 16px;
-        margin-bottom: 20px;
-        border-bottom: 1px solid var(--line-strong);
+        margin-block-end: 20px;
+        border-block-end: 1px solid var(--line-strong);
       }
       :host-context(.admin-layout) h1 {
         font-size: 1.75rem;
@@ -85,8 +85,8 @@ import { Icon } from './icon';
         font-size: 0.875rem;
       }
       :host-context(.admin-layout) .circle {
-        width: 40px;
-        height: 40px;
+        inline-size: 40px;
+        block-size: 40px;
         border: 1px solid var(--line-strong);
         box-shadow: none;
       }
@@ -102,8 +102,8 @@ import { Icon } from './icon';
       display: grid;
       place-items: center;
       flex: none;
-      width: 48px;
-      height: 48px;
+      inline-size: 48px;
+      block-size: 48px;
       border-radius: 50%;
       background: var(--surface);
       box-shadow: var(--shadow);

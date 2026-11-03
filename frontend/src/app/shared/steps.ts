@@ -63,8 +63,8 @@ export interface Step {
       display: grid;
       place-items: center;
       flex: none;
-      width: 28px;
-      height: 28px;
+      inline-size: 28px;
+      block-size: 28px;
       border-radius: 50%;
       border: 1.5px solid currentColor;
       font-size: 0.8125rem;

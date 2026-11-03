@@ -178,7 +178,7 @@ export class AuthSignupOfficer {
       flex: 1;
     }
     .result {
-      padding-top: 40px;
+      padding-block-start: 40px;
     }
     .dots {
       letter-spacing: 0.1em;
@@ -264,7 +264,7 @@ export class AuthWaitingHead {
       flex: 1;
     }
     .result {
-      padding-top: 40px;
+      padding-block-start: 40px;
     }
     .info-box {
       display: flex;
@@ -331,7 +331,7 @@ export class AuthPushRequired {
     }
     .sec h2 {
       font-size: 1rem;
-      margin-bottom: 6px;
+      margin-block-end: 6px;
     }
     .sec.first {
       box-shadow: inset 0 0 0 2px var(--sos);
@@ -341,7 +341,7 @@ export class AuthPushRequired {
     }
     ul {
       margin: 0;
-      padding-left: 20px;
+      padding-inline-start: 20px;
       display: flex;
       flex-direction: column;
       gap: 4px;

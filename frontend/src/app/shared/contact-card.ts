@@ -42,7 +42,7 @@ export function prettyPhone(d: string): string {
       gap: 6px;
     }
     .btn {
-      margin-top: 4px;
+      margin-block-start: 4px;
     }
   `,
 })

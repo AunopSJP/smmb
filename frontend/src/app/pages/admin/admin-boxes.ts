@@ -170,7 +170,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
     }
     .grow {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .block {
       display: block;
@@ -186,7 +186,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       display: flex;
       align-items: center;
       gap: 8px;
-      min-height: 44px;
+      min-block-size: 44px;
       padding: 0 12px;
       border-radius: var(--radius-sm);
       border: 1.5px solid var(--line);
@@ -198,7 +198,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
     }
     .search-box input {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
       border: 0;
       outline: 0;
       background: transparent;
@@ -209,7 +209,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-left: auto;
+      margin-inline-start: auto;
     }
     .count {
       display: flex;
@@ -217,8 +217,8 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       gap: 8px;
     }
     .count input {
-      width: 64px;
-      min-height: 40px;
+      inline-size: 64px;
+      min-block-size: 40px;
       padding: 4px 8px;
       border-radius: var(--radius-sm);
       border: 1.5px solid var(--line);
@@ -228,13 +228,13 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       text-align: center;
     }
     .add .btn {
-      width: auto;
+      inline-size: auto;
     }
     .who {
       display: flex;
       align-items: center;
       gap: 12px;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .batt {
       display: inline-flex;
@@ -247,15 +247,15 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       font-weight: 700;
     }
     .bar {
-      width: 56px;
-      height: 6px;
+      inline-size: 56px;
+      block-size: 6px;
       border-radius: 3px;
       background: var(--icon-bg);
       overflow: hidden;
     }
     .bar i {
       display: block;
-      height: 100%;
+      block-size: 100%;
       background: var(--ok);
     }
     .low .bar i {
@@ -267,7 +267,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       justify-self: end;
     }
     .n {
-      margin-left: 4px;
+      margin-inline-start: 4px;
       font-variant-numeric: tabular-nums;
       opacity: 0.75;
     }
@@ -282,7 +282,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       font: inherit;
       font-weight: 700;
       cursor: pointer;
-      text-align: left;
+      text-align: start;
     }
     .th:hover {
       color: var(--text);
@@ -300,12 +300,12 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
     .cols > :nth-child(4) {
       justify-self: end;
     }
-    @media (min-width: 1024px) {
+    @media (min-inline-size: 1024px) {
       .cols > :nth-child(4) {
         justify-self: start;
       }
     }
-    @media (min-width: 1024px) {
+    @media (min-inline-size: 1024px) {
       .cols {
         display: grid;
         grid-template-columns: minmax(0, 2.2fr) 140px 150px minmax(0, 1.4fr) 28px;
@@ -335,10 +335,10 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
         background: #fff;
       }
     }
-    @media (max-width: 420px) {
+    @media (max-inline-size: 420px) {
       .add {
-        width: 100%;
-        margin-left: 0;
+        inline-size: 100%;
+        margin-inline-start: 0;
       }
       .add .btn {
         flex: 1;
@@ -887,7 +887,7 @@ export class AdminBoxes implements OnInit {
   styles: `
     .effects {
       margin: 0;
-      padding-left: 20px;
+      padding-inline-start: 20px;
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -904,11 +904,11 @@ export class AdminBoxes implements OnInit {
       cursor: pointer;
     }
     .check input {
-      margin-top: 4px;
+      margin-block-start: 4px;
     }
     .checklist {
       margin: 0;
-      padding-left: 22px;
+      padding-inline-start: 22px;
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -927,9 +927,9 @@ export class AdminBoxes implements OnInit {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
-      margin-top: 8px;
+      margin-block-start: 8px;
     }
-    @media (min-width: 900px) {
+    @media (min-inline-size: 900px) {
       .kpis {
         grid-template-columns: repeat(5, minmax(0, 1fr));
       }
@@ -945,8 +945,8 @@ export class AdminBoxes implements OnInit {
       border-radius: 10px;
       color: inherit;
       font: inherit;
-      text-align: left;
-      min-width: 0;
+      text-align: start;
+      min-inline-size: 0;
     }
     .kpi.click {
       cursor: pointer;
@@ -991,7 +991,7 @@ export class AdminBoxes implements OnInit {
       background: var(--surface);
       color: inherit;
       font: inherit;
-      text-align: left;
+      text-align: start;
       cursor: pointer;
       transition: border-color 0.12s, background 0.12s;
     }
@@ -1008,7 +1008,7 @@ export class AdminBoxes implements OnInit {
       cursor: wait;
     }
     .tabs + .info-box {
-      margin-bottom: 14px;
+      margin-block-end: 14px;
     }
     /* แท็บหมวด */
     .tabs {
@@ -1016,13 +1016,13 @@ export class AdminBoxes implements OnInit {
       gap: 4px;
       overflow-x: auto;
       margin: 14px 0 12px;
-      border-bottom: 1px solid var(--line-strong, var(--line));
+      border-block-end: 1px solid var(--line-strong, var(--line));
     }
     .tabs button {
       flex: none;
       padding: 10px 16px;
       border: 0;
-      border-bottom: 3px solid transparent;
+      border-block-end: 3px solid transparent;
       background: none;
       color: var(--text-muted);
       font: inherit;
@@ -1034,10 +1034,10 @@ export class AdminBoxes implements OnInit {
     }
     .tabs button.on {
       color: var(--brand);
-      border-bottom-color: var(--brand);
+      border-block-end-color: var(--brand);
     }
     .stack.grow {
-      max-width: 860px;
+      max-inline-size: 860px;
     }
     /* ตั้งค่าเฉพาะตู้ (details) — ให้ช่องแต่ละช่องมีระยะห่างเหมือนการ์ดอื่น */
     .override {
@@ -1054,7 +1054,7 @@ export class AdminBoxes implements OnInit {
       gap: 12px;
     }
     .override[open] > summary {
-      padding-bottom: 0;
+      padding-block-end: 0;
     }
     .fw-now {
       display: flex;
@@ -1076,8 +1076,8 @@ export class AdminBoxes implements OnInit {
       color: var(--warn);
     }
     .btn.fw-act {
-      width: auto;
-      min-height: 40px;
+      inline-size: auto;
+      min-block-size: 40px;
       padding: 6px 14px;
       font-size: 0.9375rem;
       flex: none;
@@ -1086,7 +1086,7 @@ export class AdminBoxes implements OnInit {
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 64px;
+      min-block-size: 64px;
       padding: 12px;
       border: 2px dashed color-mix(in srgb, var(--text-muted) 55%, transparent);
       border-radius: var(--radius-sm);
@@ -1102,8 +1102,8 @@ export class AdminBoxes implements OnInit {
     }
     .fw-drop input {
       position: absolute;
-      width: 1px;
-      height: 1px;
+      inline-size: 1px;
+      block-size: 1px;
       opacity: 0;
     }
     .fw-drop:focus-within {
@@ -1112,7 +1112,7 @@ export class AdminBoxes implements OnInit {
     }
     .grow {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .block {
       display: block;
@@ -1121,9 +1121,9 @@ export class AdminBoxes implements OnInit {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
       gap: 8px;
-      min-width: 0;
+      min-inline-size: 0;
       > * {
-        min-width: 0;
+        min-inline-size: 0;
       }
       figure {
         margin: 0;

@@ -18,8 +18,8 @@ const N = 25; // ขนาดตาราง
   styles: `
     svg {
       display: block;
-      width: 100%;
-      height: auto;
+      inline-size: 100%;
+      block-size: auto;
       shape-rendering: crispEdges;
     }
   `,

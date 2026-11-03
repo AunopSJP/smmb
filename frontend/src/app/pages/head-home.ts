@@ -1,3 +1,5 @@
+
+
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
@@ -118,13 +120,13 @@ interface Today {
   styles: `
     .grow {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .block {
       display: block;
     }
     .mine {
-      margin-left: 6px;
+      margin-inline-start: 6px;
       font-size: 0.6875rem;
     }
     .link {

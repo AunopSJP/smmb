@@ -150,7 +150,7 @@ const dateTime = (iso: string, lang: 'th' | 'en') =>
   styles: `
     .grow {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .block {
       display: block;
@@ -340,7 +340,7 @@ export class OwnerDelivery {
   styles: `
     ol {
       margin: 6px 0 0;
-      padding-left: 20px;
+      padding-inline-start: 20px;
     }
   `,
 })

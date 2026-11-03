@@ -87,7 +87,7 @@ const go = (router: Router, code: string, id?: string) =>
     }
     .grow {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .block {
       display: block;

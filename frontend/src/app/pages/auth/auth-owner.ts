@@ -230,7 +230,7 @@ const ACTIVATE_STEPS: Step[] = [
       flex: 1;
     }
     app-qr-scanner {
-      width: min(100%, 300px);
+      inline-size: min(100%, 300px);
       align-self: center;
     }
   `,

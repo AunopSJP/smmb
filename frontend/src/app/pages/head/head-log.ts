@@ -168,7 +168,7 @@ const RESULT_TEXT: Record<string, Tr> = {
     }
     .grow {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .block {
       display: block;
@@ -190,7 +190,7 @@ const RESULT_TEXT: Record<string, Tr> = {
       display: flex;
       flex-direction: column;
       gap: 12px;
-      margin-top: 12px;
+      margin-block-start: 12px;
     }
     .dates {
       display: grid;

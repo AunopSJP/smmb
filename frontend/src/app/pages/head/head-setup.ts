@@ -85,7 +85,7 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
         font-weight: 700;
         font-size: 0.9375rem;
         padding: 0;
-        margin-bottom: 6px;
+        margin-block-end: 6px;
       }
     }
     a {
@@ -202,7 +202,7 @@ export class HeadSignup {
       flex: 1;
     }
     .result {
-      padding-top: 40px;
+      padding-block-start: 40px;
     }
     .dots {
       letter-spacing: 0.1em;
@@ -323,7 +323,7 @@ const NEXT_STEPS: Step[] = [
       gap: 8px;
     }
     .contact-input {
-      min-height: 48px;
+      min-block-size: 48px;
       padding: 8px 12px;
       border-radius: var(--radius-sm);
       border: 1.5px solid var(--line);

@@ -89,7 +89,7 @@ const STATE: Record<Job['status'] | 'starting', { label: Tr; tone: '' | 'ok' | '
       color: var(--danger, var(--sos));
     }
     .qr {
-      width: min(72vw, 280px);
+      inline-size: min(72vw, 280px);
       margin: 0 auto;
       background: #fff;
       padding: 8px;
@@ -103,24 +103,24 @@ const STATE: Record<Job['status'] | 'starting', { label: Tr; tone: '' | 'ok' | '
       margin: 0;
       img {
         display: block;
-        width: 100%;
+        inline-size: 100%;
         border-radius: var(--radius-sm);
         background: #000;
       }
       /* กรอบกลางภาพที่ตู้ใช้อ่านรอบปกติ (75% × 83%) — นอกกรอบอ่านได้เฉพาะเฟรมเต็มที่สุ่มสแกนบางครั้ง */
       .guide {
         position: absolute;
-        left: 12.5%;
-        top: 8.5%;
-        width: 75%;
-        height: 83%;
+        inset-inline-start: 12.5%;
+        inset-block-start: 8.5%;
+        inline-size: 75%;
+        block-size: 83%;
         border: 3px solid var(--brand);
         border-radius: 8px;
         pointer-events: none;
         box-shadow: 0 0 0 1px #fff8;
       }
       figcaption {
-        margin-top: 6px;
+        margin-block-start: 6px;
         text-align: center;
       }
     }

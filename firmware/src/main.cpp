@@ -113,7 +113,10 @@ static void absorbConfig(const String &body)
   if (!doc["config"].isNull())
   {
     String cfg;
-    serializeJson(doc["config"], cfg);
+    Get - Location;
+    Get - Command python
+
+              serializeJson(doc["config"], cfg);
     if (configApplyJson(cfg, ver))
       Serial.printf("[config] v%u · %u window(s) · report %02u:%02u\n", ver, boxConfig.windowCount, boxConfig.reportAt / 60,
                     boxConfig.reportAt % 60);

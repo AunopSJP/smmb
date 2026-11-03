@@ -107,14 +107,14 @@ import { AccountActions } from '../auth/auth-account';
   styles: `
     .grow {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .block {
       display: block;
     }
     .name-input {
-      width: 100%;
-      min-height: 40px;
+      inline-size: 100%;
+      min-block-size: 40px;
       padding: 6px 10px;
       border-radius: var(--radius-sm);
       border: 1.5px solid var(--line);
@@ -125,7 +125,7 @@ import { AccountActions } from '../auth/auth-account';
     .rename-actions {
       display: flex;
       gap: 12px;
-      margin-top: 4px;
+      margin-block-start: 4px;
     }
     .link {
       border: 0;
@@ -139,7 +139,7 @@ import { AccountActions } from '../auth/auth-account';
       font-weight: 700;
     }
     .signout {
-      margin-top: auto;
+      margin-block-start: auto;
       color: var(--brand);
       box-shadow: inset 0 0 0 1.5px var(--line);
     }
@@ -347,8 +347,8 @@ export class OwnerSettings {
       display: grid;
       place-items: center;
       flex: none;
-      width: 28px;
-      height: 28px;
+      inline-size: 28px;
+      block-size: 28px;
       border-radius: 50%;
       background: var(--brand);
       color: #fff;
@@ -356,7 +356,7 @@ export class OwnerSettings {
       font-weight: 700;
     }
     .actions {
-      margin-top: auto;
+      margin-block-start: auto;
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -503,9 +503,9 @@ export class OwnerWifi {
       align-self: center;
       display: grid;
       place-items: center;
-      width: 64px;
-      height: 64px;
-      margin-top: 32px;
+      inline-size: 64px;
+      block-size: 64px;
+      margin-block-start: 32px;
       border-radius: 50%;
       background: var(--ok-bg);
       color: var(--ok);
@@ -517,10 +517,10 @@ export class OwnerWifi {
       text-align: center;
     }
     .end {
-      margin-top: auto;
+      margin-block-start: auto;
     }
     .field { display: flex; flex-direction: column; gap: 8px; }
-    .field select, .field textarea { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text); background: var(--surface); font: inherit; }
+    .field select, .field textarea { inline-size: 100%; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text); background: var(--surface); font: inherit; }
     .choice { display: flex; align-items: center; gap: 10px; }
     button:disabled { opacity: 0.6; }
   `,
@@ -663,7 +663,7 @@ export class OwnerTechnician {
       font-size: 1rem;
     }
     .t {
-      width: 20px;
+      inline-size: 20px;
       text-align: center;
       font-weight: 700;
     }

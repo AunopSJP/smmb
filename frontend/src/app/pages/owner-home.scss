@@ -1,5 +1,5 @@
 .page {
-  padding-bottom: 104px; /* เผื่อปุ่ม SOS ที่ลอยอยู่ */
+  padding-block-end: 104px; /* เผื่อปุ่ม SOS ที่ลอยอยู่ */
 }
 .status {
   display: flex;
@@ -12,8 +12,8 @@
   &.big {
     font-size: 1.75rem;
     .dot {
-      width: 16px;
-      height: 16px;
+      inline-size: 16px;
+      block-size: 16px;
     }
   }
 }
@@ -45,13 +45,13 @@
   font-size: 1.375rem;
 }
 .bar {
-  height: 6px;
+  block-size: 6px;
   border-radius: 3px;
   background: var(--line);
   overflow: hidden;
   span {
     display: block;
-    height: 100%;
+    block-size: 100%;
     background: var(--ok);
   }
 }
@@ -68,7 +68,7 @@
 }
 .grow {
   flex: 1;
-  min-width: 0;
+  min-inline-size: 0;
 }
 .block {
   display: block;
@@ -76,8 +76,8 @@
 
 .sos-bar {
   position: sticky;
-  bottom: 76px;
-  margin-top: auto;
+  inset-block-end: 76px;
+  margin-block-start: auto;
   z-index: 1;
 }
 .sos {
@@ -89,7 +89,7 @@
   touch-action: none;
 
   &.simple-sos {
-    min-height: 96px;
+    min-block-size: 96px;
     font-size: 1.5rem;
   }
 }
@@ -126,8 +126,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 176px;
-  height: 176px;
+  inline-size: 176px;
+  block-size: 176px;
   border-radius: 50%;
   background: conic-gradient(#fff calc(var(--p) * 1turn), rgb(255 255 255 / 25%) 0);
   position: relative;

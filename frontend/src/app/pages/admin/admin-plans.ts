@@ -113,7 +113,7 @@ function todayInBangkok(): string {
     summary {
       cursor: pointer;
       font-weight: 700;
-      min-height: 32px;
+      min-block-size: 32px;
     }
     .history {
       list-style: none;
@@ -319,7 +319,7 @@ export class UserPlan {
   styles: `
     .grow {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .block {
       display: block;
@@ -330,7 +330,7 @@ export class UserPlan {
     .chips {
       display: flex;
       gap: 4px;
-      margin-top: 4px;
+      margin-block-start: 4px;
     }
     .actions {
       display: flex;
@@ -339,7 +339,7 @@ export class UserPlan {
       align-items: flex-end;
     }
     .mini {
-      min-height: 36px;
+      min-block-size: 36px;
       padding: 4px 10px;
       border-radius: 999px;
       border: 1.5px solid var(--line);
@@ -371,7 +371,7 @@ export class UserPlan {
       font-variant-numeric: tabular-nums;
       font-weight: 700;
     }
-    @media (min-width: 1024px) {
+    @media (min-inline-size: 1024px) {
       .pcols {
         grid-template-columns: minmax(0, 2fr) 110px 190px minmax(0, 1.4fr);
         gap: 16px;

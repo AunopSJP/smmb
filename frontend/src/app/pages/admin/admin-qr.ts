@@ -111,7 +111,7 @@ const fmtDate = (iso: string, lang: 'th' | 'en') => new Date(iso).toLocaleString
       font-weight: 700;
     }
     .qr {
-      width: 55mm;
+      inline-size: 55mm;
       margin: 4mm auto;
     }
     .code {
@@ -207,8 +207,8 @@ export class QrPrintSheet {
       display: flex;
     }
     .search-box input {
-      width: 100%;
-      min-height: 44px;
+      inline-size: 100%;
+      min-block-size: 44px;
       padding: 0 12px;
       border-radius: var(--radius-sm);
       border: 1.5px solid var(--line);
@@ -220,7 +220,7 @@ export class QrPrintSheet {
       display: block;
     }
     .n {
-      margin-left: 4px;
+      margin-inline-start: 4px;
       font-variant-numeric: tabular-nums;
       opacity: 0.75;
     }
@@ -244,7 +244,7 @@ export class QrPrintSheet {
     .qcols > :nth-child(5) {
       grid-column: 1 / -1;
     }
-    @media (min-width: 1024px) {
+    @media (min-inline-size: 1024px) {
       .qcols {
         grid-template-columns: minmax(0, 1.2fr) 110px minmax(0, 1.6fr) minmax(0, 1.4fr) 110px 70px;
         gap: 16px;
@@ -514,7 +514,7 @@ const REISSUE_STEPS: FlowStep[] = [
     }
     .crumb {
       display: inline-block;
-      margin-top: 8px;
+      margin-block-start: 8px;
       color: var(--brand);
       font-weight: 600;
       text-decoration: none;
@@ -525,21 +525,21 @@ const REISSUE_STEPS: FlowStep[] = [
       gap: 16px;
       align-items: start;
     }
-    @media (min-width: 1024px) {
+    @media (min-inline-size: 1024px) {
       .case {
         grid-template-columns: minmax(0, 1fr) 340px;
         gap: 24px;
       }
       .facts {
         position: sticky;
-        top: 16px;
+        inset-block-start: 16px;
       }
     }
     .main {
       display: flex;
       flex-direction: column;
       gap: 16px;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .panel {
       display: flex;
@@ -589,7 +589,7 @@ const REISSUE_STEPS: FlowStep[] = [
     }
     .options legend {
       font-weight: 700;
-      margin-bottom: 6px;
+      margin-block-end: 6px;
     }
     .options label {
       display: flex;
@@ -609,7 +609,7 @@ const REISSUE_STEPS: FlowStep[] = [
       cursor: not-allowed;
     }
     .options input {
-      margin-top: 4px;
+      margin-block-start: 4px;
     }
     .options span {
       display: flex;
@@ -622,7 +622,7 @@ const REISSUE_STEPS: FlowStep[] = [
     }
     .plain {
       margin: 0;
-      padding-left: 20px;
+      padding-inline-start: 20px;
     }
     .steps {
       list-style: none;
@@ -646,8 +646,8 @@ const REISSUE_STEPS: FlowStep[] = [
       display: grid;
       place-items: center;
       flex: none;
-      width: 26px;
-      height: 26px;
+      inline-size: 26px;
+      block-size: 26px;
       border-radius: 50%;
       border: 1.5px solid var(--line-strong, var(--line));
       font-size: 0.8125rem;
@@ -670,8 +670,8 @@ const REISSUE_STEPS: FlowStep[] = [
     }
     .sr-only {
       position: absolute;
-      width: 1px;
-      height: 1px;
+      inline-size: 1px;
+      block-size: 1px;
       overflow: hidden;
       clip: rect(0 0 0 0);
     }

@@ -57,10 +57,10 @@ import { PushStatus } from '../../shared/push-status';
     </div>
   `,
   styles: `
-    .grow { flex: 1; min-width: 0; }
+    .grow { flex: 1; min-inline-size: 0; }
     .block { display: block; }
     .icon-bubble.ok { background: var(--ok-bg); color: var(--ok); }
-    .push-toggle { min-height: 40px; padding: 6px 12px; }
+    .push-toggle { min-block-size: 40px; padding: 6px 12px; }
     .signout { color: var(--brand); box-shadow: inset 0 0 0 1.5px var(--line); }
   `,
 })

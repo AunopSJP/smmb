@@ -74,7 +74,7 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
       gap: 10px;
     }
     .chip {
-      margin-left: 6px;
+      margin-inline-start: 6px;
     }
     .empty {
       display: flex;
@@ -84,7 +84,7 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
       padding: 40px 24px;
       color: var(--text-muted);
     }
-    @media (min-width: 1024px) {
+    @media (min-inline-size: 1024px) {
       .stack {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
@@ -211,7 +211,7 @@ export class AdminAgencyRequests implements OnInit {
   styles: `
     .grow {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .block {
       display: block;
@@ -234,7 +234,7 @@ export class AdminAgencyRequests implements OnInit {
       font-variant-numeric: tabular-nums;
       letter-spacing: 0.03em;
     }
-    @media (min-width: 1024px) {
+    @media (min-inline-size: 1024px) {
       .acols {
         grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr) 160px 130px;
         gap: 16px;
@@ -367,8 +367,8 @@ const ROLE_LABEL: Record<string, Tr> = {
   styles: `
     .grow {
       flex: 1;
-      min-width: 0;
-      text-align: left;
+      min-inline-size: 0;
+      text-align: start;
     }
     .block {
       display: block;
@@ -378,7 +378,7 @@ const ROLE_LABEL: Record<string, Tr> = {
       grid-template-columns: 1fr auto;
       gap: 10px;
       input {
-        min-height: 44px;
+        min-block-size: 44px;
         padding: 8px 12px;
         border-radius: var(--radius-sm);
         border: 1.5px solid var(--line);
@@ -407,9 +407,9 @@ const ROLE_LABEL: Record<string, Tr> = {
       display: flex;
       flex-direction: column;
       gap: var(--gap);
-      min-width: 0;
+      min-inline-size: 0;
     }
-    @media (min-width: 1360px) {
+    @media (min-inline-size: 1360px) {
       .split {
         display: grid;
         grid-template-columns: minmax(0, 1fr) 400px;
@@ -420,7 +420,7 @@ const ROLE_LABEL: Record<string, Tr> = {
         grid-column: 2;
         grid-row: 1;
         position: sticky;
-        top: 16px;
+        inset-block-start: 16px;
       }
       .split > .list {
         grid-column: 1;
@@ -433,7 +433,7 @@ const ROLE_LABEL: Record<string, Tr> = {
       grid-template-areas: 'name st' 'info st';
       gap: 2px 12px;
       align-items: center;
-      text-align: left;
+      text-align: start;
     }
     .ucols .name {
       grid-area: name;
@@ -454,7 +454,7 @@ const ROLE_LABEL: Record<string, Tr> = {
     .list-head.ucols > :nth-child(3) {
       grid-area: st;
     }
-    @media (min-width: 1024px) {
+    @media (min-inline-size: 1024px) {
       .ucols {
         grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) 84px;
         grid-template-areas: 'name info st';
@@ -462,7 +462,7 @@ const ROLE_LABEL: Record<string, Tr> = {
       }
     }
     .n {
-      margin-left: 4px;
+      margin-inline-start: 4px;
       font-variant-numeric: tabular-nums;
       opacity: 0.75;
     }
@@ -474,8 +474,8 @@ const ROLE_LABEL: Record<string, Tr> = {
     .avatar {
       display: grid;
       place-items: center;
-      width: 44px;
-      height: 44px;
+      inline-size: 44px;
+      block-size: 44px;
       border-radius: 50%;
       background: var(--brand-light);
       color: var(--brand-dark);
@@ -491,7 +491,7 @@ const ROLE_LABEL: Record<string, Tr> = {
       color: var(--text-muted);
     }
     button.row {
-      width: 100%;
+      inline-size: 100%;
       border: 0;
       background: none;
       font: inherit;
@@ -504,7 +504,7 @@ const ROLE_LABEL: Record<string, Tr> = {
       letter-spacing: 0.06em;
     }
     .chip {
-      margin-right: 4px;
+      margin-inline-end: 4px;
     }
   `,
 })

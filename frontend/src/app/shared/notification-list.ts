@@ -1,3 +1,4 @@
+
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal, type OnInit } from '@angular/core';
 import { Router } from '@angular/router';
@@ -70,14 +71,14 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
   styles: `
     .grow {
       flex: 1;
-      min-width: 0;
-      text-align: left;
+      min-inline-size: 0;
+      text-align: start;
     }
     .block {
       display: block;
     }
     button.row {
-      width: 100%;
+      inline-size: 100%;
       border: 0;
       background: none;
       font: inherit;

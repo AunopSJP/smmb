@@ -70,7 +70,7 @@ import { Icon, type IconName } from '../shared/icon';
   `,
   styles: `
     main {
-      max-width: 480px;
+      max-inline-size: 480px;
       margin: 0 auto;
       padding: 24px 16px 40px;
       display: flex;
@@ -82,12 +82,12 @@ import { Icon, type IconName } from '../shared/icon';
       font-size: 1.75rem;
     }
     button.row {
-      width: 100%;
+      inline-size: 100%;
       border: 0;
       background: none;
       font: inherit;
       color: inherit;
-      text-align: left;
+      text-align: start;
       cursor: pointer;
     }
     button:disabled {
@@ -116,7 +116,7 @@ import { Icon, type IconName } from '../shared/icon';
       border: 1px solid var(--line);
       background: var(--bg);
       color: var(--text);
-      min-height: 44px;
+      min-block-size: 44px;
     }
   `,
 })

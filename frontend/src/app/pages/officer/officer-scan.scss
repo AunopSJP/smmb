@@ -21,8 +21,8 @@
 .round {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  inline-size: 40px;
+  block-size: 40px;
   border: 0;
   border-radius: 50%;
   background: rgb(255 255 255 / 12%);
@@ -30,34 +30,55 @@
   cursor: pointer;
 }
 .aim {
-  margin-top: 24px;
+  margin-block-start: 24px;
   font-weight: 700;
 }
 .frame {
   position: relative;
-  width: min(72vw, 260px);
+  inline-size: min(72vw, 260px);
   aspect-ratio: 1;
   border-radius: 16px;
   background: rgb(255 255 255 / 6%);
   outline: 3px solid #fff;
   outline-offset: -3px;
-  clip-path: polygon(0 0, 30% 0, 30% 3px, 70% 3px, 70% 0, 100% 0, 100% 30%, calc(100% - 3px) 30%, calc(100% - 3px) 70%, 100% 70%, 100% 100%, 70% 100%, 70% calc(100% - 3px), 30% calc(100% - 3px), 30% 100%, 0 100%, 0 70%, 3px 70%, 3px 30%, 0 30%);
+  clip-path: polygon(
+    0 0,
+    30% 0,
+    30% 3px,
+    70% 3px,
+    70% 0,
+    100% 0,
+    100% 30%,
+    calc(100% - 3px) 30%,
+    calc(100% - 3px) 70%,
+    100% 70%,
+    100% 100%,
+    70% 100%,
+    70% calc(100% - 3px),
+    30% calc(100% - 3px),
+    30% 100%,
+    0 100%,
+    0 70%,
+    3px 70%,
+    3px 30%,
+    0 30%
+  );
 }
 .line {
   position: absolute;
-  left: 8%;
-  right: 8%;
-  top: 50%;
-  height: 2px;
+  inset-inline-start: 8%;
+  inset-inline-end: 8%;
+  inset-block-start: 50%;
+  block-size: 2px;
   background: #f87171;
   animation: scan 2s ease-in-out infinite alternate;
 }
 @keyframes scan {
   from {
-    top: 15%;
+    inset-block-start: 15%;
   }
   to {
-    top: 85%;
+    inset-block-start: 85%;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -88,7 +109,7 @@
   color: #fff;
 }
 .sheet {
-  margin-top: auto;
+  margin-block-start: auto;
   align-self: stretch;
   margin-inline: -16px;
   color: var(--text);
@@ -97,7 +118,7 @@
   background: #1f2937;
 }
 .faded {
-  margin-top: 64px;
+  margin-block-start: 64px;
   text-align: center;
   opacity: 0.55;
   h1 {

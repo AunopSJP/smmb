@@ -152,8 +152,8 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       display: grid;
       place-items: center;
       flex: none;
-      width: 26px;
-      height: 26px;
+      inline-size: 26px;
+      block-size: 26px;
       border-radius: 50%;
       border: 1.5px solid currentColor;
       font-size: 0.8125rem;
@@ -354,8 +354,8 @@ export class SosCancel {
     .check {
       display: grid;
       place-items: center;
-      width: 56px;
-      height: 56px;
+      inline-size: 56px;
+      block-size: 56px;
       border-radius: 50%;
       background: #fff;
       color: #157347;
@@ -438,9 +438,9 @@ export class SosAccepted {
       align-self: center;
       display: grid;
       place-items: center;
-      width: 64px;
-      height: 64px;
-      margin-top: 24px;
+      inline-size: 64px;
+      block-size: 64px;
+      margin-block-start: 24px;
       border-radius: 50%;
       background: var(--ok-bg);
       color: var(--ok);
@@ -452,7 +452,7 @@ export class SosAccepted {
       text-align: center;
     }
     .divider {
-      height: 1px;
+      block-size: 1px;
       background: var(--line);
     }
   `,

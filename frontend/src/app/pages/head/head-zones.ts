@@ -76,7 +76,7 @@ const ZONE_ERROR: Record<string, Tr> = {
       }
     }
     .push {
-      margin-left: auto;
+      margin-inline-start: auto;
     }
     .warn-text {
       color: var(--orange);
@@ -283,18 +283,18 @@ export class HeadZones implements OnInit {
       align-items: center;
       gap: 10px;
       padding: 6px 0;
-      border-top: 1px solid var(--line);
+      border-block-start: 1px solid var(--line);
     }
     .officer input {
-      width: 22px;
-      height: 22px;
+      inline-size: 22px;
+      block-size: 22px;
     }
     .block {
       display: block;
     }
     .grow {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .danger-outline {
       color: var(--sos);

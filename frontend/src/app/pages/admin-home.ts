@@ -229,12 +229,12 @@ interface Segment {
   styles: `
     .grow {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .sr-only {
       position: absolute;
-      width: 1px;
-      height: 1px;
+      inline-size: 1px;
+      block-size: 1px;
       overflow: hidden;
       clip: rect(0 0 0 0);
     }
@@ -285,8 +285,8 @@ interface Segment {
       grid-template-columns: repeat(7, minmax(0, 1fr));
       gap: 10px;
       align-items: end;
-      height: 190px;
-      padding-top: 8px;
+      block-size: 190px;
+      padding-block-start: 8px;
     }
     .day {
       display: flex;
@@ -294,22 +294,22 @@ interface Segment {
       align-items: center;
       justify-content: flex-end;
       gap: 6px;
-      height: 100%;
+      block-size: 100%;
     }
     .col {
       flex: 1;
-      width: 100%;
-      max-width: 44px;
+      inline-size: 100%;
+      max-inline-size: 44px;
       display: flex;
       flex-direction: column-reverse;
       gap: 1px;
       justify-content: flex-start;
-      border-bottom: 1px solid var(--line-strong, var(--line));
+      border-block-end: 1px solid var(--line-strong, var(--line));
     }
     .seg {
       display: block;
-      width: 100%;
-      min-height: 0;
+      inline-size: 100%;
+      min-block-size: 0;
       border-radius: 3px;
     }
     .seg.ok,
@@ -339,7 +339,7 @@ interface Segment {
       font-size: 0.875rem;
     }
     .key strong {
-      margin-left: 4px;
+      margin-inline-start: 4px;
       font-variant-numeric: tabular-nums;
     }
     .asof {
@@ -347,7 +347,7 @@ interface Segment {
       align-items: center;
       justify-content: flex-end;
       gap: 12px;
-      margin-bottom: -8px;
+      margin-block-end: -8px;
     }
     .kpi-value.warn {
       color: var(--warn);
@@ -356,12 +356,12 @@ interface Segment {
       font-size: 0.75rem;
       color: var(--text-muted);
     }
-    @media (min-width: 700px) {
+    @media (min-inline-size: 700px) {
       .kpis {
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
     }
-    @media (min-width: 1200px) {
+    @media (min-inline-size: 1200px) {
       .kpis {
         grid-template-columns: repeat(6, minmax(0, 1fr));
       }
@@ -374,7 +374,7 @@ interface Segment {
       gap: 20px;
       align-items: start;
     }
-    @media (min-width: 1024px) {
+    @media (min-inline-size: 1024px) {
       .two-col {
         grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
       }
@@ -387,7 +387,7 @@ interface Segment {
       display: flex;
       flex-direction: column;
       gap: 12px;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .panel.flush {
       padding: 0;
@@ -402,7 +402,7 @@ interface Segment {
     }
     .panel header.hpad {
       padding: 14px 18px;
-      border-bottom: 1px solid var(--line-strong, var(--line));
+      border-block-end: 1px solid var(--line-strong, var(--line));
     }
     .panel h2 {
       font-size: 1rem;
@@ -432,43 +432,43 @@ interface Segment {
     /* แท่งสถานะ */
     .bar {
       display: flex;
-      height: 14px;
+      block-size: 14px;
       border-radius: 7px;
       overflow: hidden;
       background: var(--icon-bg);
       gap: 2px;
     }
     .bar span {
-      min-width: 6px;
+      min-inline-size: 6px;
     }
     .legend {
-      width: 100%;
+      inline-size: 100%;
       border-collapse: collapse;
     }
     .legend td {
       padding: 7px 0;
-      border-top: 1px solid var(--line);
+      border-block-start: 1px solid var(--line);
       vertical-align: middle;
     }
     .legend tr:first-child td {
-      border-top: 0;
+      border-block-start: 0;
     }
     .swatch {
       display: inline-block;
-      width: 10px;
-      height: 10px;
+      inline-size: 10px;
+      block-size: 10px;
       border-radius: 2px;
-      margin-right: 8px;
+      margin-inline-end: 8px;
     }
     .num {
-      text-align: right;
+      text-align: end;
       font-variant-numeric: tabular-nums;
       font-weight: 700;
-      width: 56px;
+      inline-size: 56px;
     }
     .act {
-      text-align: right;
-      width: 72px;
+      text-align: end;
+      inline-size: 72px;
     }
     .act a {
       color: var(--brand);
@@ -476,23 +476,23 @@ interface Segment {
       font-size: 0.875rem;
     }
     .meter {
-      width: 45%;
+      inline-size: 45%;
     }
     .meter-fill {
       display: block;
-      height: 8px;
+      block-size: 8px;
       border-radius: 4px;
       background: var(--orange-line);
-      min-width: 4px;
+      min-inline-size: 4px;
     }
 
     /* ตาราง */
     .tbl {
-      width: 100%;
+      inline-size: 100%;
       border-collapse: collapse;
     }
     .tbl th {
-      text-align: left;
+      text-align: start;
       font-size: 0.8125rem;
       font-weight: 600;
       color: var(--text-muted);
@@ -501,7 +501,7 @@ interface Segment {
     }
     .tbl td {
       padding: 12px 18px;
-      border-top: 1px solid var(--line-strong, var(--line));
+      border-block-start: 1px solid var(--line-strong, var(--line));
       vertical-align: middle;
     }
     .tbl tbody tr:hover {
@@ -509,24 +509,24 @@ interface Segment {
     }
     .tbl .num,
     .tbl .act {
-      text-align: right;
+      text-align: end;
     }
     .small-btn {
       display: inline-flex;
-      width: auto;
-      min-height: 34px;
+      inline-size: auto;
+      min-block-size: 34px;
       padding: 4px 14px;
       font-size: 0.875rem;
     }
     .show-sm {
       display: block;
     }
-    @media (max-width: 719px) {
+    @media (max-inline-size: 719px) {
       .hide-sm {
         display: none;
       }
     }
-    @media (min-width: 720px) {
+    @media (min-inline-size: 720px) {
       .show-sm {
         display: none;
       }

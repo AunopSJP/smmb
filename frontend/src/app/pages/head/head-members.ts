@@ -80,7 +80,7 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
   styles: `
     .grow {
       flex: 1;
-      min-width: 0;
+      min-inline-size: 0;
     }
     .block {
       display: block;
@@ -89,7 +89,7 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
-      margin-top: 8px;
+      margin-block-start: 8px;
     }
     .pending {
       box-shadow: inset 0 0 0 2px var(--brand);

@@ -80,7 +80,7 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
-      margin-top: 4px;
+      margin-block-start: 4px;
     }
   `,
 })

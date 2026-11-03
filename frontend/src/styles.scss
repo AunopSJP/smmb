@@ -65,13 +65,13 @@
 
 html {
   font-size: calc(16px * var(--text-scale));
-  width: 100%;
+  inline-size: 100%;
 }
 
 body {
   margin: 0;
-  min-height: 100dvh;
-  width: 100%;
+  min-block-size: 100dvh;
+  inline-size: 100%;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
@@ -129,14 +129,14 @@ img,
 canvas,
 video,
 svg {
-  max-width: 100%;
+  max-inline-size: 100%;
 }
 
 input,
 select,
 textarea,
 button {
-  max-width: 100%;
+  max-inline-size: 100%;
 }
 
 .card {
@@ -154,7 +154,7 @@ button {
   overflow: hidden;
 
   > * + * {
-    border-top: 1px solid var(--line);
+    border-block-start: 1px solid var(--line);
   }
 }
 .row {
@@ -162,8 +162,8 @@ button {
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  min-height: 56px;
-  min-width: 0;
+  min-block-size: 56px;
+  min-inline-size: 0;
   text-decoration: none;
   color: inherit;
 }
@@ -189,8 +189,8 @@ button.row:active {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  width: 100%;
-  min-height: 52px;
+  inline-size: 100%;
+  min-block-size: 52px;
   padding: 12px 16px;
   border: 0;
   border-radius: var(--radius-sm);
@@ -211,7 +211,7 @@ button.row:active {
     box-shadow: inset 0 0 0 1.5px var(--text);
   }
   &.big {
-    min-height: 68px;
+    min-block-size: 68px;
     font-size: 1.25rem;
     border-radius: var(--radius);
   }
@@ -247,8 +247,8 @@ button.row:active {
   display: grid;
   place-items: center;
   flex: none;
-  width: 40px;
-  height: 40px;
+  inline-size: 40px;
+  block-size: 40px;
   border-radius: 50%;
   background: var(--icon-bg);
   color: var(--text-muted);
@@ -306,8 +306,8 @@ button.row:active {
 
 .dot {
   display: inline-block;
-  width: 10px;
-  height: 10px;
+  inline-size: 10px;
+  block-size: 10px;
   border-radius: 50%;
   background: var(--ok);
   flex: none;
@@ -334,7 +334,7 @@ app-area-shell main > :not(router-outlet) {
   }
   dd {
     margin: 0;
-    text-align: right;
+    text-align: end;
     font-weight: 700;
     overflow-wrap: anywhere;
   }
@@ -350,7 +350,7 @@ app-area-shell main > :not(router-outlet) {
 
   button {
     flex: 1;
-    min-height: 44px;
+    min-block-size: 44px;
     padding: 8px 10px;
     border-radius: var(--radius-sm);
     border: 1.5px solid var(--line);
@@ -367,7 +367,7 @@ app-area-shell main > :not(router-outlet) {
   }
   &.chips button {
     flex: none;
-    min-height: 36px;
+    min-block-size: 36px;
     padding: 4px 14px;
     border-radius: 999px;
     font-size: 0.875rem;
@@ -381,8 +381,8 @@ app-area-shell main > :not(router-outlet) {
 .switch {
   appearance: none;
   flex: none;
-  width: 52px;
-  height: 32px;
+  inline-size: 52px;
+  block-size: 32px;
   border-radius: 16px;
   background: var(--line);
   position: relative;
@@ -393,10 +393,10 @@ app-area-shell main > :not(router-outlet) {
   &::after {
     content: '';
     position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 26px;
-    height: 26px;
+    inset-block-start: 3px;
+    inset-inline-start: 3px;
+    inline-size: 26px;
+    block-size: 26px;
     border-radius: 50%;
     background: #fff;
     box-shadow: 0 1px 3px rgb(0 0 0 / 30%);
@@ -501,7 +501,7 @@ app-area-shell main > :not(router-outlet) {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  min-height: 56px;
+  min-block-size: 56px;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
   background: #111827;
@@ -514,10 +514,10 @@ app-area-shell main > :not(router-outlet) {
   span {
     font-size: 0.75rem;
     line-height: 1.3;
-    text-align: left;
+    text-align: start;
   }
   .calls.big & {
-    min-height: 76px;
+    min-block-size: 76px;
     strong {
       font-size: 2rem;
     }
@@ -562,7 +562,7 @@ app-area-shell main > :not(router-outlet) {
   padding: 16px;
 }
 .push-end {
-  margin-top: auto;
+  margin-block-start: auto;
 }
 .center {
   text-align: center;
@@ -575,7 +575,7 @@ app-area-shell main > :not(router-outlet) {
   align-items: center;
   gap: 8px;
   text-align: center;
-  padding-top: 24px;
+  padding-block-start: 24px;
 
   h1 {
     font-size: 1.375rem;
@@ -585,8 +585,8 @@ app-area-shell main > :not(router-outlet) {
 .big-icon {
   display: grid;
   place-items: center;
-  width: 72px;
-  height: 72px;
+  inline-size: 72px;
+  block-size: 72px;
   border-radius: 50%;
   font-size: 2rem;
   font-weight: 700;
@@ -622,14 +622,14 @@ app-area-shell main > :not(router-outlet) {
 
   legend {
     font-weight: 700;
-    margin-bottom: 8px;
+    margin-block-end: 8px;
     padding: 0;
   }
   label {
     display: flex;
     align-items: center;
     gap: 10px;
-    min-height: 52px;
+    min-block-size: 52px;
     padding: 10px 14px;
     border-radius: var(--radius-sm);
     border: 1.5px solid var(--line);
@@ -643,8 +643,8 @@ app-area-shell main > :not(router-outlet) {
   }
   input {
     accent-color: var(--brand);
-    width: 18px;
-    height: 18px;
+    inline-size: 18px;
+    block-size: 18px;
     margin: 0;
   }
 }
@@ -682,7 +682,7 @@ app-area-shell main > :not(router-outlet) {
   border-radius: var(--radius-sm);
   padding: 10px 12px;
   font-size: 0.875rem;
-  text-align: left;
+  text-align: start;
 }
 .ok-text {
   color: var(--ok);
@@ -700,8 +700,8 @@ app-area-shell main > :not(router-outlet) {
   }
   input,
   textarea {
-    width: 100%;
-    min-height: 52px;
+    inline-size: 100%;
+    min-block-size: 52px;
     padding: 10px 14px;
     border-radius: var(--radius-sm);
     border: 1.5px solid color-mix(in srgb, var(--text-muted) 55%, transparent);
@@ -710,7 +710,7 @@ app-area-shell main > :not(router-outlet) {
     font: inherit;
   }
   textarea {
-    min-height: 88px;
+    min-block-size: 88px;
     resize: vertical;
   }
   input:focus-visible,
@@ -734,7 +734,7 @@ app-area-shell main > :not(router-outlet) {
 
   input {
     flex: 1;
-    min-width: 0;
+    min-inline-size: 0;
   }
   > span {
     flex: none;
@@ -769,8 +769,8 @@ app-area-shell main > :not(router-outlet) {
     display: grid;
     place-items: center;
     flex: none;
-    width: 30px;
-    height: 30px;
+    inline-size: 30px;
+    block-size: 30px;
     border-radius: 50%;
     background: var(--text);
     color: var(--surface);
@@ -806,9 +806,9 @@ app-area-shell main > :not(router-outlet) {
     grid-template-columns: 1fr 1fr;
     gap: 10mm;
     position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
+    inset-inline-start: 0;
+    inset-block-start: 0;
+    inline-size: 100%;
     background: #fff;
     color: #000;
   }
@@ -826,7 +826,7 @@ app-area-shell main > :not(router-outlet) {
       gap: var(--gap);
       align-items: start;
       > * {
-        min-width: 0;
+        min-inline-size: 0;
       }
       > .stats,
       > .section-title {
@@ -871,12 +871,14 @@ app-area-shell main > :not(router-outlet) {
 
     // ปุ่ม: พอดีตัว ไม่ยืดเต็มจอ
     .btn {
-      width: auto;
-      min-height: 40px;
+      inline-size: auto;
+      min-block-size: 40px;
       padding: 8px 20px;
       border-radius: var(--radius-sm);
       font-size: 0.9375rem;
-      transition: background 0.12s, box-shadow 0.12s;
+      transition:
+        background 0.12s,
+        box-shadow 0.12s;
 
       &:hover:not([disabled]) {
         background: var(--brand-dark);
@@ -888,7 +890,7 @@ app-area-shell main > :not(router-outlet) {
         }
       }
       &.big {
-        min-height: 48px;
+        min-block-size: 48px;
         font-size: 1rem;
       }
     }
@@ -900,7 +902,7 @@ app-area-shell main > :not(router-outlet) {
     // ปุ่มในตารางสองช่อง/แถวฟอร์มให้เต็มช่องของตัวเอง
     .two > .btn,
     .add > .btn {
-      width: 100%;
+      inline-size: 100%;
     }
 
     // ช่องกรอก
@@ -908,14 +910,14 @@ app-area-shell main > :not(router-outlet) {
       input,
       textarea,
       select {
-        min-height: 40px;
+        min-block-size: 40px;
         padding: 8px 12px;
         border-radius: var(--radius-sm);
         border: 1px solid var(--line-strong);
         background: var(--surface);
         color: var(--text);
         font: inherit;
-        width: 100%;
+        inline-size: 100%;
       }
       > span {
         font-size: 0.875rem;
@@ -940,14 +942,16 @@ app-area-shell main > :not(router-outlet) {
     .stat {
       position: relative;
       padding: 18px 20px 16px;
-      transition: border-color 0.12s, transform 0.12s;
+      transition:
+        border-color 0.12s,
+        transform 0.12s;
 
       .label {
         font-size: 0.875rem;
         font-weight: 600;
       }
       .value {
-        margin-top: 4px;
+        margin-block-start: 4px;
         font-size: 2.125rem;
         letter-spacing: -0.01em;
       }
@@ -957,8 +961,8 @@ app-area-shell main > :not(router-outlet) {
       }
       .stat-icon {
         position: absolute;
-        top: 16px;
-        right: 16px;
+        inset-block-start: 16px;
+        inset-inline-end: 16px;
       }
     }
 
@@ -967,7 +971,7 @@ app-area-shell main > :not(router-outlet) {
       border-radius: var(--radius);
     }
     .row {
-      min-height: 56px;
+      min-block-size: 56px;
       padding: 12px 20px;
     }
     a.row,
@@ -1007,9 +1011,22 @@ app-area-shell main > :not(router-outlet) {
     }
 
     // หน้าที่เป็นฟอร์ม/ขั้นตอน: จำกัดความกว้างให้อ่านและกรอกง่าย (ไม่ยืดเต็มจอ)
-    :is(app-admin-config, app-tech-checklist, app-tech-wifi, app-tech-lights, app-tech-wifi-failed, app-admin-plans, app-admin-qr-fake, app-admin-qr-damaged, app-admin-qr-swap, app-admin-qr-reissue, app-admin-qr-fixed) > :not(app-page-header) {
-      width: 100%;
-      max-width: 760px;
+    :is(
+        app-admin-config,
+        app-tech-checklist,
+        app-tech-wifi,
+        app-tech-lights,
+        app-tech-wifi-failed,
+        app-admin-plans,
+        app-admin-qr-fake,
+        app-admin-qr-damaged,
+        app-admin-qr-swap,
+        app-admin-qr-reissue,
+        app-admin-qr-fixed
+      )
+      > :not(app-page-header) {
+      inline-size: 100%;
+      max-inline-size: 760px;
     }
   }
 }
@@ -1029,14 +1046,14 @@ app-area-shell main > :not(router-outlet) {
   border: 1px solid var(--line-strong, var(--line));
   border-radius: 10px;
   padding: 16px 18px;
-  min-width: 0;
+  min-inline-size: 0;
 
   > h2 {
     font-size: 1rem;
     font-weight: 700;
   }
   > .hint {
-    margin-top: -8px;
+    margin-block-start: -8px;
     color: var(--text-muted);
     font-size: 0.8125rem;
   }
@@ -1044,7 +1061,7 @@ app-area-shell main > :not(router-outlet) {
 /* แถบบันทึก: ติดล่างจอ เห็นตลอดเวลาแก้ฟอร์มยาว */
 .savebar {
   position: sticky;
-  bottom: 0;
+  inset-block-end: 0;
   z-index: 2;
   display: flex;
   align-items: center;
@@ -1056,7 +1073,7 @@ app-area-shell main > :not(router-outlet) {
   border-radius: 10px;
 }
 .savebar .btn {
-  width: auto;
+  inline-size: auto;
 }
 
 // ═══ แอดมิน: ระบบดีไซน์ (เรียบ คอนทราสต์สูง พื้นขาว/เทาอ่อน — ใช้สีเฉพาะที่สื่อความหมาย) ═══════════════
@@ -1119,7 +1136,11 @@ app-area-shell main > :not(router-outlet) {
     font-weight: 600;
     letter-spacing: 0.005em;
     box-shadow: 0 1px 2px rgb(16 24 40 / 10%);
-    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.05s;
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      box-shadow 0.15s,
+      transform 0.05s;
 
     &:active:not([disabled]) {
       transform: translateY(1px);
@@ -1131,7 +1152,9 @@ app-area-shell main > :not(router-outlet) {
     &.secondary {
       background: var(--surface);
       color: var(--text);
-      box-shadow: inset 0 0 0 1px var(--line-strong), 0 1px 2px rgb(16 24 40 / 5%);
+      box-shadow:
+        inset 0 0 0 1px var(--line-strong),
+        0 1px 2px rgb(16 24 40 / 5%);
     }
     &.secondary:hover:not([disabled]) {
       background: var(--icon-bg);
@@ -1153,7 +1176,9 @@ app-area-shell main > :not(router-outlet) {
     border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--text);
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
 
     &:hover {
       border-color: color-mix(in srgb, var(--text-muted) 55%, transparent);
@@ -1184,8 +1209,8 @@ app-area-shell main > :not(router-outlet) {
   .chip.warn::before,
   .chip.danger::before {
     content: '';
-    width: 6px;
-    height: 6px;
+    inline-size: 6px;
+    block-size: 6px;
     border-radius: 50%;
     background: currentColor;
   }
@@ -1205,7 +1230,10 @@ app-area-shell main > :not(router-outlet) {
     background: var(--surface);
     font-weight: 600;
     color: var(--text-muted);
-    transition: background 0.12s, border-color 0.12s, color 0.12s;
+    transition:
+      background 0.12s,
+      border-color 0.12s,
+      color 0.12s;
   }
   .segmented.chips button:hover {
     color: var(--text);
@@ -1224,11 +1252,11 @@ app-area-shell main > :not(router-outlet) {
     border-radius: var(--radius);
   }
   .list > * + * {
-    border-top: 1px solid var(--line);
+    border-block-start: 1px solid var(--line);
   }
   .list-head {
     background: color-mix(in srgb, var(--icon-bg) 70%, var(--surface));
-    border-bottom: 1px solid var(--line-strong);
+    border-block-end: 1px solid var(--line-strong);
     color: var(--text-muted);
     font-size: 0.8125rem;
     font-weight: 600;
@@ -1282,7 +1310,7 @@ app-area-shell main > :not(router-outlet) {
 }
 
 .admin-layout .with-unit > span:last-child {
-  min-width: 56px;
+  min-inline-size: 56px;
   color: var(--text-muted);
   font-weight: 600;
 }

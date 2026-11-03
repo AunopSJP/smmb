@@ -35,7 +35,7 @@ import { screenUrl } from '../../screens/registry';
   styles: `
     .toggle {
       flex: none;
-      min-height: 52px;
+      min-block-size: 52px;
       padding: 0 14px;
       border-radius: var(--radius-sm);
       border: 1.5px solid var(--line);
@@ -81,12 +81,12 @@ export class PasswordField {
       display: flex;
       align-items: center;
       gap: 10px;
-      min-height: 44px;
+      min-block-size: 44px;
       cursor: pointer;
     }
     input {
-      width: 24px;
-      height: 24px;
+      inline-size: 24px;
+      block-size: 24px;
       margin: 0;
       accent-color: var(--brand);
       flex: none;
