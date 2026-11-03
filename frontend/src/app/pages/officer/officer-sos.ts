@@ -8,6 +8,7 @@ import { Session } from '../../core/session';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
+import { liveRefresh } from '../../core/live-refresh';
 
 /** หน้ารับเรื่อง / รายการ SOS ถามสถานะทุกกี่วินาที */
 const POLL_MS = 2000;
@@ -118,8 +119,7 @@ export class OfficerSosList {
       if (closed) this.closed.set(closed);
     };
     void load();
-    const t = setInterval(() => void load(), POLL_MS * 2);
-    inject(DestroyRef).onDestroy(() => clearInterval(t));
+    liveRefresh(load, POLL_MS * 2);
   }
 
   protected day(iso: string): string {
@@ -140,7 +140,7 @@ export class OfficerSosList {
         <div class="result">
           <span class="big-icon danger"><app-icon name="check" [size]="30" /></span>
           <h1>{{ i18n.t({ th: 'มีเจ้าหน้าที่รับเรื่องแล้ว', en: 'Another officer accepted' }) }}</h1>
-          <p class="muted small">{{ i18n.t({ th: 'คุณไม่ต้องไป ทำงานต่อได้เลย', en: 'You don’t need to go — carry on' }) }}</p>
+          <p class="muted small">{{ i18n.t({ th: 'คุณไม่ต้องเข้าไป ทำงานต่อได้ตามปกติ', en: 'You don’t need to go — carry on' }) }}</p>
         </div>
         <section class="card">
           <dl class="kv">
@@ -186,7 +186,7 @@ export class OfficerSosList {
           </dl>
         </section>
         @if (failed()) {
-          <p class="card on-red danger-text" role="alert">{{ i18n.t({ th: 'รับเรื่องไม่ได้ ลองใหม่อีกครั้ง', en: 'Couldn’t accept — try again' }) }}</p>
+          <p class="card on-red danger-text" role="alert">{{ i18n.t({ th: 'รับเรื่องไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t accept — try again' }) }}</p>
         }
         <div class="stack push-end">
           <button type="button" class="btn on-color big" [disabled]="busy()" (click)="accept()">{{ i18n.t({ th: 'รับเรื่อง', en: 'Accept' }) }}</button>
@@ -292,7 +292,7 @@ export class OfficerSosCase implements OnInit {
     </header>
     <div class="pad">
       @if (c?.status === 'cancelled') {
-        <p class="card" role="alert">{{ i18n.t({ th: 'เจ้าของบ้านยกเลิก SOS แล้ว — ไม่ต้องไปแล้ว', en: 'The owner cancelled the SOS — no need to go' }) }}</p>
+        <p class="card" role="alert">{{ i18n.t({ th: 'เจ้าของบ้านยกเลิก SOS แล้ว — ไม่ต้องเข้าไป', en: 'The owner cancelled the SOS — no need to go' }) }}</p>
         <a class="btn push-end" [routerLink]="url('O01')">{{ i18n.t({ th: 'กลับหน้าสรุป', en: 'Back to summary' }) }}</a>
       } @else {
         <section class="card">
@@ -375,7 +375,7 @@ const OUTCOMES: { v: string; label: Tr }[] = [
         <textarea rows="4" maxlength="480" [value]="note()" (input)="note.set($any($event.target).value)" [placeholder]="i18n.t({ th: 'เช่น ตรวจรอบบ้านแล้ว ไม่พบสิ่งผิดปกติ', en: 'e.g. Checked around the house, nothing unusual' })"></textarea>
       </label>
       @if (failed()) {
-        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ปิดเรื่องไม่ได้ ลองใหม่อีกครั้ง', en: 'Couldn’t close — try again' }) }}</p>
+        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ปิดเรื่องไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t close — try again' }) }}</p>
       }
       <button type="submit" class="btn green big push-end" [disabled]="busy()">{{ i18n.t({ th: 'ยืนยันปิดเรื่อง', en: 'Confirm and close' }) }}</button>
     </form>

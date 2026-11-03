@@ -19,7 +19,7 @@ import { seenText } from './admin-boxes';
 const INSTALL_STEPS: Step[] = [
   { title: { th: 'ติดตู้ + แผงโซลาร์', en: 'Mount the box + solar panel' }, sub: { th: 'รับแดด ไม่มีเงาบัง · ติด QR หน้าตู้ · เก็บ QR สำรอง + QR เปิดใช้ตู้ไว้ในตู้', en: 'Full sun, no shade · front QR outside · backup + activation QR inside' } },
   { title: { th: 'ตั้ง Wi-Fi (2.4 GHz)', en: 'Set up Wi-Fi (2.4 GHz)' }, sub: { th: 'ต่อ Wi-Fi ของตู้ แล้วเปิด 192.168.4.1 · ต่อได้แล้วตู้ปี๊บ + ขึ้นที่นี่เอง', en: 'Join the box Wi-Fi, open 192.168.4.1 · once online the box beeps and shows up here' } },
-  { title: { th: 'สแกนทดสอบ QR หน้าตู้ + QR สำรอง', en: 'Test-scan the front + backup QR' }, sub: { th: 'ด้วยกล้องมือถือ — เช็กว่าเป็น QR ของตู้นี้', en: 'With the phone camera — checks they belong to this box' } },
+  { title: { th: 'สแกนทดสอบ QR หน้าตู้ + QR สำรอง', en: 'Test-scan the front + backup QR' }, sub: { th: 'ด้วยกล้องมือถือ — ตรวจสอบว่าเป็น QR ของตู้นี้', en: 'With the phone camera — checks they belong to this box' } },
   { title: { th: 'ทดสอบปลุกตู้ + กล้อง', en: 'Test wake + camera' }, sub: { th: 'ตู้ปี๊บ เปิดกล้อง แล้วอ่าน QR บนจอมือถือ', en: 'The box beeps, opens its camera and reads the QR on the phone' } },
   { title: { th: 'ส่งต่อเจ้าของบ้าน', en: 'Hand over to the owner' }, sub: { th: 'สมัคร + ผูกตู้ต่อหน้าช่าง', en: 'They sign up + bind the box with you there' } },
 ];
@@ -64,7 +64,7 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
 
         <p class="status" [class.ok]="online()" role="status">
           @if (online()) {
-            {{ i18n.t({ th: 'ตู้ต่อเน็ตแล้ว', en: 'Box is online' }) }}
+            {{ i18n.t({ th: 'ตู้เชื่อมต่ออินเทอร์เน็ตแล้ว', en: 'Box is online' }) }}
             · {{ i18n.t(seen(b.last_seen_at)) }}
             @if (b.battery) {
               · {{ i18n.t({ th: 'แบต ', en: 'battery ' }) }}{{ b.battery.pct }}%{{ b.battery.charging ? i18n.t({ th: ' ชาร์จอยู่', en: ' charging' }) : '' }}
@@ -73,7 +73,7 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
               · Wi-Fi {{ rssi() }} dBm
             }
           } @else {
-            {{ i18n.t({ th: 'ตู้ยังไม่ต่อเน็ต', en: 'The box is not online yet' }) }}
+            {{ i18n.t({ th: 'ตู้ยังไม่เชื่อมต่ออินเทอร์เน็ต', en: 'The box is not online yet' }) }}
           }
         </p>
         @if (online() && rssi() !== null && rssi()! < -80) {
@@ -89,12 +89,12 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
               <div class="info-box">
                 <ol>
                   <li>{{ i18n.t({ th: 'ต่อไฟตู้ — ตู้ยังไม่รู้จัก Wi-Fi บ้าน จะปล่อยสัญญาณชื่อ', en: 'Power the box — with no home Wi-Fi it broadcasts' }) }} <strong>{{ ap() }}</strong></li>
-                  <li>{{ i18n.t({ th: 'มือถือต่อ Wi-Fi นั้น → หน้าตั้งค่าเด้งเอง (ไม่เด้ง: ปิดเน็ตมือถือ แล้วเปิด 192.168.4.1)', en: 'Join it on the phone → the setup page opens (if not: turn off mobile data, open 192.168.4.1)' }) }}</li>
+                  <li>{{ i18n.t({ th: 'มือถือต่อ Wi-Fi นั้น → หน้าตั้งค่าเด้งเอง (ไม่เด้ง: ปิดอินเทอร์เน็ตมือถือ แล้วเปิด 192.168.4.1)', en: 'Join it on the phone → the setup page opens (if not: turn off mobile data, open 192.168.4.1)' }) }}</li>
                   <li>{{ i18n.t({ th: 'เลือก Wi-Fi บ้าน (2.4 GHz) → ใส่รหัส → เชื่อมต่อ', en: 'Pick the home Wi-Fi (2.4 GHz) → password → connect' }) }}</li>
-                  <li>{{ i18n.t({ th: 'มือถือกลับมาใช้เน็ตปกติ แล้วรอหน้านี้ขึ้น "ตู้ต่อเน็ตแล้ว" (ตู้ปี๊บ 1 ครั้ง)', en: 'Switch the phone back to normal internet and wait for “Box is online” (the box beeps once)' }) }}</li>
+                  <li>{{ i18n.t({ th: 'มือถือกลับมาใช้อินเทอร์เน็ตตามปกติ แล้วรอหน้านี้ขึ้น "ตู้เชื่อมต่ออินเทอร์เน็ตแล้ว" (ตู้ปี๊บ 1 ครั้ง)', en: 'Switch the phone back to normal internet and wait for “Box is online” (the box beeps once)' }) }}</li>
                 </ol>
               </div>
-              <p class="muted small center" role="status">{{ i18n.t({ th: 'กำลังรอตู้ต่อเน็ต… (เช็กทุก 3 วิ)', en: 'Waiting for the box… (checking every 3 s)' }) }}</p>
+              <p class="muted small center" role="status">{{ i18n.t({ th: 'กำลังรอตู้เชื่อมต่ออินเทอร์เน็ต… (ตรวจทุก 3 วินาที)', en: 'Waiting for the box… (checking every 3 s)' }) }}</p>
               <div class="two">
                 <a class="btn secondary" [routerLink]="url('T02')" [queryParams]="{ id: b.id, from: from() }">{{ i18n.t({ th: 'หน้าตั้งค่าในตู้หน้าตาแบบนี้', en: 'What the box page looks like' }) }}</a>
                 <a class="btn secondary" [routerLink]="url('T02-c')" [queryParams]="{ id: b.id, from: from() }">{{ i18n.t({ th: 'ตู้ต่อไม่ได้', en: 'It won’t connect' }) }}</a>
@@ -120,7 +120,7 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
             }
             @case (3) {
               <app-box-test [boxId]="b.id" (finished)="wakeDone($event.status === 'passed')" />
-              <p class="muted small center">{{ i18n.t({ th: 'ไม่ผ่าน: เช็กเลนส์ / ระยะ 15–30 ซม. / แสง · ยังไม่ได้แจ้งทีมฮาร์ดแวร์', en: 'Failing: check the lens / 15–30 cm / light · still failing: tell the hardware team' }) }}</p>
+              <p class="muted small center">{{ i18n.t({ th: 'ไม่ผ่าน: ตรวจสอบเลนส์ / ระยะ 15–30 ซม. / แสง · ยังไม่ได้แจ้งทีมฮาร์ดแวร์', en: 'Failing: check the lens / 15–30 cm / light · still failing: tell the hardware team' }) }}</p>
             }
             @case (4) {
               <p class="info-box muted">
@@ -310,7 +310,7 @@ export class TechChecklist {
     <form class="stack grow" (submit)="$event.preventDefault(); connect()">
       <p class="card joined">
         <strong>{{ i18n.t({ th: 'มือถือต่อ ', en: 'Phone is on ' }) }}{{ ap() }}{{ i18n.t({ th: ' อยู่', en: '' }) }}</strong>
-        <span class="small">{{ i18n.t({ th: 'หน้านี้มาจากตู้ ไม่ต้องใช้เน็ต', en: 'This page comes from the box — no internet needed' }) }}</span>
+        <span class="small">{{ i18n.t({ th: 'หน้านี้มาจากตู้ ไม่ต้องใช้อินเทอร์เน็ต', en: 'This page comes from the box — no internet needed' }) }}</span>
       </p>
       <fieldset class="nets">
         <legend class="section-title">{{ i18n.t({ th: 'เลือก Wi-Fi บ้าน', en: 'Pick the home Wi-Fi' }) }}</legend>
@@ -429,10 +429,10 @@ export class TechWifi {
         <p class="muted">{{ i18n.t({ th: 'ตู้ไม่มีไฟสถานะ ใช้เสียงปี๊บบอก', en: 'The box has no status light — it beeps' }) }}</p>
       </div>
       <div class="info-box">
-        <p>🔔 {{ i18n.t({ th: 'ปี๊บสั้น 1 ครั้ง = ต่อเน็ตได้ / พร้อมสแกน', en: '1 short beep = online / ready to scan' }) }}</p>
+        <p>🔔 {{ i18n.t({ th: 'ปี๊บสั้น 1 ครั้ง = เชื่อมต่ออินเทอร์เน็ตได้ / พร้อมสแกน', en: '1 short beep = online / ready to scan' }) }}</p>
         <p>🔔🔔 {{ i18n.t({ th: 'ปี๊บสั้น 2 ครั้ง = อ่าน QR ผ่าน', en: '2 short beeps = QR passed' }) }}</p>
-        <p>🔔— {{ i18n.t({ th: 'ปี๊บยาว 1 ครั้ง = อ่านไม่ผ่าน ลองใหม่', en: '1 long beep = not read, try again' }) }}</p>
-        <p>—🔔🔔 {{ i18n.t({ th: 'ปี๊บยาว 1 + สั้น 2 = ต่อเน็ต/เซิร์ฟเวอร์ไม่ได้', en: 'long + 2 short = no network / server' }) }}</p>
+        <p>🔔— {{ i18n.t({ th: 'ปี๊บยาว 1 ครั้ง = อ่านไม่ผ่าน ให้ลองอีกครั้ง', en: '1 long beep = not read, try again' }) }}</p>
+        <p>—🔔🔔 {{ i18n.t({ th: 'ปี๊บยาว 1 + สั้น 2 = เชื่อมต่ออินเทอร์เน็ต/เซิร์ฟเวอร์ไม่ได้', en: 'long + 2 short = no network / server' }) }}</p>
       </div>
       <div class="stack push-end">
         <a class="btn" [routerLink]="url('T01')">{{ i18n.t({ th: 'กลับเช็กลิสต์', en: 'Back to checklist' }) }}</a>
@@ -469,7 +469,7 @@ export class TechLights {
         <h1>{{ i18n.t({ th: 'ตู้ต่อ Wi-Fi ไม่ได้', en: 'The box could not join Wi-Fi' }) }}</h1>
       </div>
       <div class="info-box">
-        <strong>{{ i18n.t({ th: 'เช็กทีละข้อ', en: 'Check one by one' }) }}</strong>
+        <strong>{{ i18n.t({ th: 'ตรวจทีละข้อ', en: 'Check one by one' }) }}</strong>
         <ol>
           <li>{{ i18n.t({ th: 'รหัส Wi-Fi ถูกไหม (ตัวพิมพ์เล็ก/ใหญ่)', en: 'Is the password right? (upper/lower case)' }) }}</li>
           <li>{{ i18n.t({ th: 'เป็น Wi-Fi 2.4 GHz ไหม (5 GHz ใช้ไม่ได้)', en: 'Is it 2.4 GHz Wi-Fi? (5 GHz will not work)' }) }}</li>

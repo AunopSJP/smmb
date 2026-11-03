@@ -25,6 +25,7 @@
     "db:up": "docker compose -f ../docker-compose.yml up -d --wait",
     "seed:dev": "nest build && node --env-file-if-exists=.env dist/db/seed-dev-cli.js",
     "admin:create": "nest build && node --env-file-if-exists=.env dist/db/create-admin-cli.js",
+    "testers:create": "nest build && node --env-file-if-exists=.env dist/db/create-testers-cli.js",
     "box:sim": "node scripts/box-sim.mjs",
     "dev:mock": "nest build && node --env-file-if-exists=.env scripts/dev-mock.mjs"
   },

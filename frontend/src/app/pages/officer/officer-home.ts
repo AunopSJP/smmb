@@ -7,9 +7,11 @@ import { Session } from '../../core/session';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
+import { liveRefresh } from '../../core/live-refresh';
 
 /** รีเฟรชหน้าสรุปทุกกี่วินาที (เพื่อนในโซนตรวจบ้านไป / ถึงเวลาตรวจ) */
-const REFRESH_MS = 30_000;
+/** SOS ต้องขึ้นเร็ว — ดึงใหม่ทุก 5 วิ (และทันทีเมื่อมีแจ้งเตือนเข้า/กลับมาที่แอป) */
+const REFRESH_MS = 5_000;
 
 /** O01 หน้าสรุปเจ้าหน้าที่ (api.md §6.1) · O01-d นอกเวลาตรวจ · O01-e ตรวจครบแล้ว — ข้อมูลจริง */
 @Component({
@@ -22,8 +24,8 @@ const REFRESH_MS = 30_000;
     <div class="stack">
       @if (error()) {
         <p class="card err" role="alert">
-          {{ i18n.t({ th: 'โหลดข้อมูลไม่ได้ ลองใหม่อีกครั้ง', en: 'Couldn’t load — try again' }) }}
-          <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองใหม่', en: 'Retry' }) }}</button>
+          {{ i18n.t({ th: 'โหลดข้อมูลไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t load — try again' }) }}
+          <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button>
         </p>
       }
       @if (s(); as s) {
@@ -147,8 +149,7 @@ export class OfficerHome {
 
   constructor() {
     void this.load();
-    const t = setInterval(() => void this.load(), REFRESH_MS);
-    inject(DestroyRef).onDestroy(() => clearInterval(t));
+    liveRefresh(() => this.load(), REFRESH_MS);
   }
 
   async load(): Promise<void> {

@@ -50,7 +50,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       @if (st === 'call_yourself') {
         <header class="sos-head">
           <span class="pill">{{ i18n.t({ th: 'ยังไม่มีคนรับ', en: 'No one has accepted yet' }) }} · {{ time() }}</span>
-          <h1>{{ i18n.t({ th: 'กรุณาโทรแจ้งเหตุทันที', en: 'Please call for help now' }) }}</h1>
+          <h1>{{ i18n.t({ th: 'โปรดโทรแจ้งเหตุทันที', en: 'Please call for help now' }) }}</h1>
           <p>{{ i18n.t({ th: 'SOS ยังเปิดอยู่ ถ้ามีเจ้าหน้าที่รับจะแจ้งให้ทราบทันที', en: 'Your SOS is still open — we will tell you as soon as an officer accepts' }) }}</p>
         </header>
         <div class="sos-body">
@@ -272,7 +272,7 @@ export class SosNoOfficer {
           <app-icon name="alert" [size]="20" />{{ i18n.t({ th: 'กดผิด', en: 'Pressed by mistake' }) }}
         </button>
         @if (failed()) {
-          <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ยกเลิกไม่ได้ ลองใหม่อีกครั้ง', en: 'Couldn’t cancel — try again' }) }}</p>
+          <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ยกเลิกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t cancel — try again' }) }}</p>
         }
         <a class="btn" [routerLink]="url('H09')" [queryParams]="{ id: id() }">{{ i18n.t({ th: 'ไม่ยกเลิก รอเจ้าหน้าที่ต่อ', en: 'Keep waiting for an officer' }) }}</a>
       </section>

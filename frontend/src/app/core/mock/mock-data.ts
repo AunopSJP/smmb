@@ -68,7 +68,7 @@ export const MOCK_OWNER_NOTIFICATIONS: {
 }[] = [
   { id: 'n1', kind: 'inspected', title: 'ตำรวจ สภ.เมือง มาตรวจ', title_en: 'Mueang police checked', body: 'ส.ต.ต. สมชาย · 22:15', body_en: 'Pol. L/Cpl. Somchai · 22:15', open: 'H12-b', history_id: 'h1' },
   { id: 'n2', kind: 'delivered', title: 'มีของมาส่ง', title_en: 'Delivery', body: 'ไรเดอร์แจ้งว่าใส่ของในตู้แล้ว · 14:02', body_en: 'A rider left a parcel · 14:02', open: 'H12-c', history_id: 'h2' },
-  { id: 'n3', kind: 'swap_backup_qr', title: 'กรุณาเอา QR สำรองไปติดแทน', title_en: 'Put up the backup QR', body: 'QR หน้าตู้ชำรุด · เมื่อวาน', body_en: 'Front QR damaged · yesterday', open: 'H03' },
+  { id: 'n3', kind: 'swap_backup_qr', title: 'โปรดนำ QR สำรองไปติดแทน', title_en: 'Put up the backup QR', body: 'QR หน้าตู้ชำรุด · เมื่อวาน', body_en: 'Front QR damaged · yesterday', open: 'H03' },
   { id: 'n4', kind: 'box_offline', title: 'ตู้ไม่ออนไลน์', title_en: 'Mailbox offline', body: 'ถึงเวลาตรวจแล้วตู้ยังไม่เชื่อมต่อ · 17:05', body_en: 'Offline during patrol hours · 17:05', open: 'H12-d', history_id: 'h4' },
   { id: 'n5', kind: 'low_battery', title: 'แบตตู้ต่ำกว่า 20%', title_en: 'Battery below 20%', body: 'ดูว่าแผงโซลาร์โดนแดดไหม · 23 ต.ค.', body_en: 'Check the solar panel gets sun · 23 Oct', open: 'H13' },
   { id: 'n6', kind: 'sos_closed', title: 'SOS ปิดเรื่องแล้ว', title_en: 'SOS closed', body: 'ส.ต.ต. สมชาย เขียนหมายเหตุ · 24 ต.ค.', body_en: 'Pol. L/Cpl. Somchai left a note · 24 Oct', open: 'H11-b' },

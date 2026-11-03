@@ -6,6 +6,7 @@ import { I18n, type Tr } from '../../core/i18n';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
+import { liveRefresh } from '../../core/live-refresh';
 
 // หัวหน้า: L06 โซนทั้งหมด · L07 แก้โซน (ชื่อ · เวลาตรวจ · บ้าน · เจ้าหน้าที่) — ใช้ API จริง (api.md §8.3)
 // บ้านหลังเดียวอยู่ในโซนของหลายหน่วยงานได้ · ตู้รับเวลาตรวจใหม่ตอน boot / รายงานรายวัน
@@ -91,6 +92,9 @@ export class HeadZones implements OnInit {
   protected readonly zones = signal<Zone[]>([]);
   protected readonly loading = signal(true);
 
+  /** หัวหน้าคนอื่นแก้โซน → ขึ้นเองโดยไม่ต้องรีเฟรช */
+  private readonly _live = liveRefresh(async () => this.zones.set(await this.api.zones('all').catch(() => this.zones())), 15_000);
+
   async ngOnInit(): Promise<void> {
     void this.api.loadAgency().catch(() => undefined);
     try {
@@ -131,7 +135,7 @@ export class HeadZones implements OnInit {
         </div>
         <div class="chips">
           @for (w of windows(); track $index) {
-            <button type="button" class="pill" (click)="removeWindow($index)" [attr.aria-label]="i18n.t({ th: 'เอาออก ', en: 'Remove ' }) + w.join('–')">{{ w[0] }}–{{ w[1] }} <span aria-hidden="true">×</span></button>
+            <button type="button" class="pill" (click)="removeWindow($index)" [attr.aria-label]="i18n.t({ th: 'นำออก ', en: 'Remove ' }) + w.join('–')">{{ w[0] }}–{{ w[1] }} <span aria-hidden="true">×</span></button>
           } @empty {
             <span class="warn-text small">{{ i18n.t({ th: 'ยังไม่มีเวลาตรวจ — ตู้จะไม่รับงานตรวจ', en: 'No patrol hours — boxes won’t take inspections' }) }}</span>
           }
@@ -163,7 +167,7 @@ export class HeadZones implements OnInit {
           </div>
           <div class="chips">
             @for (h of z.houses; track h.box_id) {
-              <button type="button" class="pill" (click)="removeHouse(h.box_id)" [attr.aria-label]="i18n.t({ th: 'เอาออก ', en: 'Remove ' }) + (h.house_no ?? h.box_id)">
+              <button type="button" class="pill" (click)="removeHouse(h.box_id)" [attr.aria-label]="i18n.t({ th: 'นำออก ', en: 'Remove ' }) + (h.house_no ?? h.box_id)">
                 {{ h.house_no ?? h.box_id }}{{ h.area ? ' · ' + h.area : '' }} <span aria-hidden="true">×</span>
               </button>
             } @empty {
@@ -180,7 +184,7 @@ export class HeadZones implements OnInit {
           @if (searched()) {
             <p class="muted small">
               {{ mode() === 'browse'
-                ? i18n.t({ th: 'บ้านที่เจ้าของผูกตู้แล้ว แต่ยังไม่อยู่ในโซนของหน่วยงานไหนเลย', en: 'Houses with a bound box that no agency covers yet' })
+                ? i18n.t({ th: 'บ้านที่เจ้าของผูกตู้แล้ว แต่ยังไม่อยู่ในโซนของหน่วยงานใด', en: 'Houses with a bound box that no agency covers yet' })
                 : i18n.t({ th: 'ผลค้น "' + searchedFor() + '" (สูงสุด 20 หลัง)', en: 'Results for "' + searchedFor() + '" (max 20)' }) }}
             </p>
           }
@@ -215,7 +219,7 @@ export class HeadZones implements OnInit {
             <p class="muted small">
               {{ mode() === 'browse'
                 ? i18n.t({ th: 'ไม่มีบ้านที่รอเพิ่มแล้ว — ทุกหลังที่เจ้าของผูกตู้แล้วมีหน่วยงานดูแลอยู่', en: 'Nothing waiting — every bound house is already covered' })
-                : i18n.t({ th: 'ไม่พบ — ค้นได้เฉพาะตู้ที่เจ้าของบ้านผูกแล้ว (เช็กว่าเจ้าของผูกตู้แล้ว และพิมพ์บ้านเลขที่ตรงกับที่เจ้าของกรอก)', en: 'Nothing found — only boxes already bound by an owner (check the owner has bound it and the number matches what they entered)' }) }}
+                : i18n.t({ th: 'ไม่พบ — ค้นได้เฉพาะตู้ที่เจ้าของบ้านผูกแล้ว (ตรวจสอบว่าเจ้าของผูกตู้แล้ว และพิมพ์บ้านเลขที่ตรงกับที่เจ้าของกรอก)', en: 'Nothing found — only boxes already bound by an owner (check the owner has bound it and the number matches what they entered)' }) }}
             </p>
           }
           <p class="muted small">{{ i18n.t({ th: 'เพิ่มบ้านได้เมื่อเจ้าของผูกตู้แล้ว · บ้านเดียวอยู่ได้หลายหน่วยงาน · ตู้จะรับเวลาตรวจใหม่ตอนรายงานครั้งถัดไป', en: 'A house can be added once its owner has bound the box · one house may be in several agencies · the box gets the new hours at its next report' }) }}</p>
@@ -336,9 +340,10 @@ export class HeadZoneEdit {
   }
 
   private async load(id: string | undefined): Promise<void> {
-    this.zone.set(null);
+    // โหลดซ้ำโซนเดิม (หลังบันทึก) ไม่ล้างจอ — ล้างเฉพาะตอนเปลี่ยนโซน ไม่งั้นจอว่างชั่วครู่และปุ่มที่กดระหว่างนั้นหาย
+    if (this.zone()?.id !== id) this.zone.set(null);
     this.error.set(null);
-    this.members.set(await this.api.members('active').catch(() => []));
+    this.members.set(await this.api.members('active').catch(() => this.members()));
     if (!id || id === 'new') {
       this.name.set('');
       this.windows.set([]);
@@ -425,49 +430,79 @@ export class HeadZoneEdit {
     return h.zones.map((z) => (z.mine ? z.zone_name + this.i18n.t({ th: ' (ของเรา)', en: ' (ours)' }) : `${z.agency_name} / ${z.zone_name}`)).join(', ');
   }
 
+  /** ชุดบ้านล่าสุดที่กดไว้ (ก่อนโหลดใหม่เสร็จ) + คิวบันทึก — กดเพิ่ม/เอาออกหลายหลังติดกันต้องไม่หาย */
+  private houseIds: string[] | null = null;
+  private houseSave: Promise<void> = Promise.resolve();
+  private currentHouses(): string[] {
+    return this.houseIds ?? this.zone()?.houses.map((h) => h.box_id) ?? [];
+  }
+
   protected addHouse(boxId: string): Promise<void> {
-    return this.setHouses([...(this.zone()?.houses.map((h) => h.box_id) ?? []), boxId]);
+    return this.setHouses([...this.currentHouses().filter((x) => x !== boxId), boxId]);
   }
 
   protected addAll(): Promise<void> {
-    const have = this.zone()?.houses.map((h) => h.box_id) ?? [];
-    return this.setHouses([...have, ...this.addable().map((h) => h.box_id)]);
+    const have = this.currentHouses();
+    return this.setHouses([...have, ...this.addable().map((h) => h.box_id).filter((x) => !have.includes(x))]);
   }
 
   protected removeHouse(boxId: string): Promise<void> {
-    return this.setHouses((this.zone()?.houses.map((h) => h.box_id) ?? []).filter((id) => id !== boxId));
+    return this.setHouses(this.currentHouses().filter((id) => id !== boxId));
   }
 
-  /** PUT /agency/zones/:id/houses — แทนที่ทั้งชุด */
-  private async setHouses(ids: string[]): Promise<void> {
+  /** PUT /agency/zones/:id/houses — แทนที่ทั้งชุด (ทีละคำขอ ใช้ชุดล่าสุดเสมอ) */
+  private setHouses(ids: string[]): Promise<void> {
     const z = this.zone();
-    if (!z) return;
-    try {
-      await this.api.setHouses(z.id, ids);
-      await this.load(z.id);
-      if (this.searched()) await (this.mode() === 'browse' ? this.browse() : this.search());
-    } catch (err) {
-      const e = apiError(err);
-      this.toast.show(ZONE_ERROR[e.code ?? ''] ?? { th: 'บันทึกไม่ได้', en: 'Couldn’t save' });
-    }
+    if (!z) return Promise.resolve();
+    this.houseIds = ids;
+    this.houseSave = this.houseSave.then(async () => {
+      if (this.houseIds !== ids) return; // มีการกดใหม่กว่า — รอบนั้นบันทึกชุดล่าสุดเอง
+      try {
+        await this.api.setHouses(z.id, ids);
+        if (this.houseIds !== ids) return;
+        this.houseIds = null;
+        await this.load(z.id);
+        if (this.searched()) await (this.mode() === 'browse' ? this.browse() : this.search());
+      } catch (err) {
+        this.houseIds = null;
+        await this.load(z.id).catch(() => undefined);
+        const e = apiError(err);
+        this.toast.show(ZONE_ERROR[e.code ?? ''] ?? { th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save — try again' });
+      }
+    });
+    return this.houseSave;
   }
 
   protected inOfficers(id: string): boolean {
     return !!this.zone()?.officers.some((o) => o.id === id);
   }
 
+  /** ชุดเจ้าหน้าที่ล่าสุดที่ติ๊กไว้ (ก่อนโหลดใหม่เสร็จ) + คิวบันทึก — ติ๊กหลายคนติดกันต้องไม่หายคนใดคนหนึ่ง */
+  private officerIds: string[] | null = null;
+  private officerSave: Promise<void> = Promise.resolve();
+
   /** PUT /agency/zones/:id/officers — แทนที่ทั้งชุด */
-  protected async toggleOfficer(id: string, on: boolean): Promise<void> {
+  protected toggleOfficer(id: string, on: boolean): Promise<void> {
     const z = this.zone();
-    if (!z) return;
-    const ids = z.officers.map((o) => o.id).filter((x) => x !== id);
+    if (!z) return Promise.resolve();
+    const ids = (this.officerIds ?? z.officers.map((o) => o.id)).filter((x) => x !== id);
     if (on) ids.push(id);
-    try {
-      await this.api.setOfficers(z.id, ids);
-      await this.load(z.id);
-    } catch {
-      this.toast.show({ th: 'บันทึกไม่ได้', en: 'Couldn’t save' });
-    }
+    this.officerIds = ids;
+    this.officerSave = this.officerSave.then(async () => {
+      if (this.officerIds !== ids) return; // มีการติ๊กใหม่กว่า — รอบนั้นบันทึกชุดล่าสุดเอง
+      try {
+        await this.api.setOfficers(z.id, ids);
+        if (this.officerIds === ids) {
+          this.officerIds = null;
+          await this.load(z.id);
+        }
+      } catch {
+        this.officerIds = null;
+        await this.load(z.id).catch(() => undefined);
+        this.toast.show({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save — try again' });
+      }
+    });
+    return this.officerSave;
   }
 
   protected async remove(): Promise<void> {

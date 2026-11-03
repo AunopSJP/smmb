@@ -6,6 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { I18n } from '../core/i18n';
 import { UnreadCount } from '../core/unread';
 import { Icon, type IconName } from './icon';
+import { liveRefresh } from '../core/live-refresh';
 
 /** api.md §3 `GET /me/notifications` — หัวข้อ/เนื้อความแปลที่ server ตาม prefs.lang แล้ว */
 interface Notification {
@@ -108,6 +109,9 @@ export class NotificationList implements OnInit {
   protected readonly items = signal<Notification[]>([]);
   protected readonly loading = signal(true);
 
+  /** แจ้งเตือนใหม่ขึ้นเองโดยไม่ต้องรีเฟรช */
+  private readonly _live = liveRefresh(() => this.ngOnInit(), 15_000);
+
   async ngOnInit(): Promise<void> {
     try {
       const r = await firstValueFrom(this.http.get<{ data: Notification[] }>('/api/v1/me/notifications?per_page=50'));
@@ -129,6 +133,9 @@ export class NotificationList implements OnInit {
 
   protected open(n: Notification): void {
     if (!n.read_at) {
+      // อ่านแล้วทันทีบนจอ ไม่ต้องรอโหลดใหม่
+      const at = new Date().toISOString();
+      this.items.update((list) => list.map((x) => (x.id === n.id ? { ...x, read_at: at } : x)));
       void firstValueFrom(this.http.post('/api/v1/me/notifications/read', { ids: [n.id] }))
         .then(() => this.unread.refresh())
         .catch(() => undefined);

@@ -3,6 +3,7 @@ import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
 import { AdminApi } from './admin-api';
 import { OfficerSosApi } from './owner-api';
+import { LiveRefresh } from './live-refresh';
 
 const BADGE_REFRESH_MS = 10_000;
 const ADMIN_ROUTE_PREFIX = '/admin';
@@ -22,8 +23,10 @@ export class TabBadges {
   constructor() {
     const subscription = this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe(() => void this.refresh());
     const timer = setInterval(() => void this.refresh(), BADGE_REFRESH_MS);
+    const live = inject(LiveRefresh).ticks.subscribe(() => void this.refresh());
     this.destroy.onDestroy(() => {
       subscription.unsubscribe();
+      live.unsubscribe();
       clearInterval(timer);
     });
     void this.refresh();

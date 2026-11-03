@@ -26,7 +26,7 @@ import { PasswordField } from './auth-parts';
     <div class="stack grow">
       <div class="result">
         <span class="big-icon warn" aria-hidden="true">!</span>
-        <h1>{{ i18n.t({ th: 'กรุณาเปิดในเบราว์เซอร์', en: 'Please open this in your browser' }) }}</h1>
+        <h1>{{ i18n.t({ th: 'โปรดเปิดในเบราว์เซอร์', en: 'Please open this in your browser' }) }}</h1>
         <p class="muted small">
           {{ i18n.t({ th: 'ถ้าเปิดใน LINE จะไม่ได้รับแจ้งเตือน', en: 'Inside LINE you will not get notifications' }) }}<br />
           {{ i18n.t({ th: 'กดปุ่มด้านล่างเพื่อเปิดใน Safari / Chrome', en: 'Tap below to open it in Safari / Chrome' }) }}
@@ -72,7 +72,7 @@ export class AuthLine {
     <div class="stack grow">
       <div>
         <h1>{{ i18n.t({ th: 'ติดตั้งเป็นแอป', en: 'Install the app' }) }}</h1>
-        <p class="muted small">{{ i18n.t({ th: 'ทำครั้งเดียว แล้วเปิดจากไอคอนได้เลย', en: 'Do this once, then open it from the icon' }) }}</p>
+        <p class="muted small">{{ i18n.t({ th: 'ทำครั้งเดียว จากนั้นเปิดจากไอคอนได้ทันที', en: 'Do this once, then open it from the icon' }) }}</p>
       </div>
       <ol class="card how">
         <li><span><strong>{{ i18n.t({ th: 'กดปุ่มแชร์', en: 'Tap Share' }) }}</strong><small>{{ i18n.t({ th: 'อยู่ด้านล่างของ Safari', en: 'At the bottom of Safari' }) }}</small>
@@ -224,7 +224,7 @@ export class AuthInstall {
       </div>
       <p class="info-box">
         <span class="muted small">{{ i18n.t({ th: 'อนุญาตบนเครื่องนี้ก่อน · ระบบจะผูกกับบัญชีหลังเข้าสู่ระบบ', en: 'Allow on this device · the subscription is linked to your account after sign-in' }) }}</span><br />
-        <strong class="danger-text small">{{ i18n.t({ th: 'เจ้าหน้าที่ต้องเปิด ไม่งั้นจะไม่ได้รับ SOS', en: 'Officers must turn this on or they will miss SOS alerts' }) }}</strong>
+        <strong class="danger-text small">{{ i18n.t({ th: 'เจ้าหน้าที่ต้องเปิดไว้ จึงจะได้รับ SOS', en: 'Officers must turn this on or they will miss SOS alerts' }) }}</strong>
       </p>
       <div class="stack push-end">
         <button type="button" class="btn" (click)="allow()">{{ i18n.t({ th: 'อนุญาตแจ้งเตือน', en: 'Allow notifications' }) }}</button>
@@ -425,17 +425,17 @@ export class AuthSignin implements OnInit {
   private errorText(code: string | null, status: number): { title: Tr; sub: Tr } {
     switch (code) {
       case 'ACCOUNT_LOCKED':
-        return { title: { th: 'ลองผิดหลายครั้ง พักไว้ 15 นาที', en: 'Too many tries — locked for 15 minutes' }, sub: { th: 'ลืมรหัส ติดต่อหัวหน้าหรือผู้ดูแลให้รีเซ็ต', en: 'Forgot it? Ask your head or the admin to reset it' } };
+        return { title: { th: 'กรอกผิดหลายครั้ง พักไว้ 15 นาที', en: 'Too many tries — locked for 15 minutes' }, sub: { th: 'ลืมรหัส ติดต่อหัวหน้าหรือผู้ดูแลให้รีเซ็ต', en: 'Forgot it? Ask your head or the admin to reset it' } };
       case 'ACCOUNT_DISABLED':
         return { title: { th: 'บัญชีนี้ถูกปิด', en: 'This account is disabled' }, sub: { th: 'ติดต่อผู้ดูแล', en: 'Contact the admin' } };
       case 'RATE_LIMITED':
-        return { title: { th: 'ลองบ่อยเกินไป', en: 'Too many attempts' }, sub: { th: 'รอ 1 นาทีแล้วลองใหม่', en: 'Wait a minute and try again' } };
+        return { title: { th: 'ลองบ่อยเกินไป', en: 'Too many attempts' }, sub: { th: 'รอ 1 นาทีแล้วลองอีกครั้ง', en: 'Wait a minute and try again' } };
       case 'INVALID_CREDENTIALS':
         return { title: { th: 'เบอร์หรือรหัสผ่านไม่ถูกต้อง', en: 'Wrong phone number or password' }, sub: { th: 'ผิด 5 ครั้งจะถูกพักบัญชี 15 นาที', en: '5 wrong tries locks the account for 15 minutes' } };
       default:
         return status === 0
-          ? { title: { th: 'ต่อเซิร์ฟเวอร์ไม่ได้', en: 'Can’t reach the server' }, sub: { th: 'ตรวจเน็ตแล้วลองใหม่', en: 'Check your connection and retry' } }
-          : { title: { th: 'เข้าสู่ระบบไม่ได้', en: 'Couldn’t sign in' }, sub: { th: 'ลองใหม่อีกครั้ง', en: 'Please try again' } };
+          ? { title: { th: 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้', en: 'Can’t reach the server' }, sub: { th: 'ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Check your connection and retry' } }
+          : { title: { th: 'เข้าสู่ระบบไม่ได้', en: 'Couldn’t sign in' }, sub: { th: 'โปรดลองอีกครั้ง', en: 'Please try again' } };
     }
   }
 

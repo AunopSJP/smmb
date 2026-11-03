@@ -453,7 +453,7 @@ export class AdminBoxes implements OnInit {
       this.toast.show({ th: 'ลงทะเบียนตู้แล้ว', en: 'Boxes registered' });
       await this.load();
     } catch {
-      this.toast.show({ th: 'สร้างไม่ได้ ลองใหม่', en: 'Couldn’t create — try again' });
+      this.toast.show({ th: 'สร้างไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t create — try again' });
     } finally {
       this.busy.set(false);
     }
@@ -651,7 +651,7 @@ export class AdminBoxes implements OnInit {
               <span>{{ i18n.t({ th: 'ให้ตู้ลืม Wi-Fi ด้วย (แนะนำ — เจ้าของใหม่ใช้ Wi-Fi ของตัวเอง)', en: 'Also make the box forget its Wi-Fi (recommended — the new owner uses their own)' }) }}</span>
             </label>
             <button type="button" class="btn danger" [disabled]="unbinding() || !unbindReason().trim()" (click)="unbind()">
-              {{ unbinding() ? i18n.t({ th: 'กำลังดำเนินการ…', en: 'Working…' }) : i18n.t({ th: 'คืนตู้เป็นตู้ใหม่', en: 'Return the box as new' }) }}
+              {{ unbinding() ? i18n.t({ th: 'กำลังทำรายการ…', en: 'Working…' }) : i18n.t({ th: 'คืนตู้เป็นตู้ใหม่', en: 'Return the box as new' }) }}
             </button>
           </section>
         } @else {
@@ -678,8 +678,8 @@ export class AdminBoxes implements OnInit {
           @if (b.fw_target && b.fw_stuck) {
             <div class="info-box" role="alert">
               <strong class="warn-text">{{ i18n.t({ th: 'ตู้โหลดไฟล์ ' + b.fw_target + ' ไปแล้ว แต่ยังรายงานเป็น ' + (b.fw ?? '—'), en: 'The box downloaded ' + b.fw_target + ' but still reports ' + (b.fw ?? '—') }) }}</strong>
-              <p class="small">{{ i18n.t({ th: 'มักเกิดจากชื่อเวอร์ชันที่ตั้งตอนอัปโหลดไม่ตรงกับเลขที่ฝังในไฟล์ (FW_VERSION) หรือบอร์ดลงไฟล์ไม่สำเร็จ · ให้อัปโหลดไฟล์ด้วยชื่อที่ตรงกับเลขในไฟล์ แล้วกดอัปเดตใหม่ หรือกด "ลองใหม่" เพื่อให้ตู้โหลดอีกครั้ง', en: 'Usually the version name given at upload differs from the number built into the file (FW_VERSION), or the board could not install it · upload the file under the matching name and update again, or press "Retry" to let the box download once more' }) }}</p>
-              <button type="button" class="btn secondary fw-act" (click)="setTarget(b.fw_target)">{{ i18n.t({ th: 'ลองใหม่', en: 'Retry' }) }}</button>
+              <p class="small">{{ i18n.t({ th: 'มักเกิดจากชื่อเวอร์ชันที่ตั้งตอนอัปโหลดไม่ตรงกับเลขที่ฝังในไฟล์ (FW_VERSION) หรือบอร์ดลงไฟล์ไม่สำเร็จ · ให้อัปโหลดไฟล์ด้วยชื่อที่ตรงกับเลขในไฟล์ แล้วกดอัปเดตใหม่ หรือกด "ลองอีกครั้ง" เพื่อให้ตู้โหลดอีกครั้ง', en: 'Usually the version name given at upload differs from the number built into the file (FW_VERSION), or the board could not install it · upload the file under the matching name and update again, or press "Retry" to let the box download once more' }) }}</p>
+              <button type="button" class="btn secondary fw-act" (click)="setTarget(b.fw_target)">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button>
             </div>
           }
           @if (b.fw_target) {
@@ -740,7 +740,7 @@ export class AdminBoxes implements OnInit {
 
         <h2 class="section-title">{{ i18n.t({ th: 'ทดสอบเสียง Buzzer', en: 'Buzzer test' }) }}</h2>
         <section class="card stack">
-          <p class="muted small">{{ i18n.t({ th: 'กดแล้วตู้ที่ออนไลน์จะส่งเสียงตามรูปแบบนั้นทันที (ต้องยืนอยู่ใกล้ตู้) · ใช้เช็กว่าลำโพง/ขาต่อทำงาน และให้ช่างรู้จักความหมายของเสียงแต่ละแบบ', en: 'The online box plays that pattern right away (stand near it) · checks the buzzer wiring and teaches what each sound means' }) }}</p>
+          <p class="muted small">{{ i18n.t({ th: 'กดแล้วตู้ที่ออนไลน์จะส่งเสียงตามรูปแบบนั้นทันที (ต้องยืนอยู่ใกล้ตู้) · ใช้ตรวจสอบว่าลำโพง/ขาต่อทำงาน และให้ช่างรู้จักความหมายของเสียงแต่ละแบบ', en: 'The online box plays that pattern right away (stand near it) · checks the buzzer wiring and teaches what each sound means' }) }}</p>
           <div class="beeps">
             @for (p of beepPatterns; track p.v) {
               <button type="button" class="beep" [class.on]="b.buzzer.pattern === p.v && b.buzzer.status === 'pending'" [disabled]="beepBusy()" (click)="testBeep(p.v)">
@@ -755,7 +755,7 @@ export class AdminBoxes implements OnInit {
             }
             @case ('done') {
               <p class="status ok" role="status">{{ i18n.t({ th: 'ตู้ส่งเสียง "', en: 'The box played “' }) }}{{ i18n.t(beepName(b.buzzer.pattern)) }}{{ i18n.t({ th: '" แล้ว · ', en: '” · ' }) }}{{ i18n.t(seen(b.buzzer.done_at)) }}</p>
-              <p class="muted small">{{ i18n.t({ th: 'ไม่ได้ยินเสียง? เช็กสายลำโพง/Buzzer ที่ขา GPIO ของบอร์ด และกระแสไฟ (ดูรูปแบบเสียงในคู่มือ §2.5)', en: 'No sound? Check the buzzer wiring on the board and the power supply (patterns: protocol §2.5)' }) }}</p>
+              <p class="muted small">{{ i18n.t({ th: 'ไม่ได้ยินเสียง? ตรวจสอบสายลำโพง/Buzzer ที่ขา GPIO ของบอร์ด และกระแสไฟ (ดูรูปแบบเสียงในคู่มือ §2.5)', en: 'No sound? Check the buzzer wiring on the board and the power supply (patterns: protocol §2.5)' }) }}</p>
             }
             @case ('expired') {
               <p class="status danger" role="alert">{{ i18n.t({ th: 'ตู้ไม่รับคำสั่งภายใน 2 นาที — ตู้ออนไลน์อยู่ไหม? หรือยังเป็นเฟิร์มแวร์เก่า (ต้อง 0.2.8 ขึ้นไป)', en: 'The box did not take it within 2 min — is it online? Or it runs old firmware (needs 0.2.8+)' }) }}</p>
@@ -1191,7 +1191,7 @@ export class AdminBox implements OnInit {
   protected readonly beepPatterns: { v: BeepPattern; label: Tr; sound: Tr }[] = [
     { v: 'ready', label: { th: 'พร้อม / ได้งาน', en: 'Ready' }, sound: { th: 'สั้น 1 ครั้ง', en: 'short ×1' } },
     { v: 'pass', label: { th: 'ผ่าน', en: 'Pass' }, sound: { th: 'สั้น 2 ครั้ง', en: 'short ×2' } },
-    { v: 'retry', label: { th: 'ลองใหม่', en: 'Retry' }, sound: { th: 'ยาว 1 ครั้ง', en: 'long ×1' } },
+    { v: 'retry', label: { th: 'ลองอีกครั้ง', en: 'Retry' }, sound: { th: 'ยาว 1 ครั้ง', en: 'long ×1' } },
     { v: 'fail', label: { th: 'ไม่ผ่าน', en: 'Fail' }, sound: { th: 'ยาว 3 ครั้ง', en: 'long ×3' } },
     { v: 'error', label: { th: 'ผิดพลาด', en: 'Error' }, sound: { th: 'ยาว 1 + สั้น 2', en: 'long ×1 + short ×2' } },
     { v: 'wifi', label: { th: 'รับคำสั่ง Wi-Fi', en: 'Wi-Fi command' }, sound: { th: 'สั้น 3 ถี่ ๆ', en: 'short ×3 fast' } },
@@ -1208,7 +1208,7 @@ export class AdminBox implements OnInit {
       await this.api.requestBeep(id, pattern);
       await this.reload();
     } catch {
-      this.toast.show({ th: 'สั่งทดสอบเสียงไม่ได้ ลองใหม่', en: 'Could not start the buzzer test — try again' });
+      this.toast.show({ th: 'สั่งทดสอบเสียงไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not start the buzzer test — try again' });
     } finally {
       this.beepBusy.set(false);
     }
@@ -1362,7 +1362,7 @@ export class AdminBox implements OnInit {
     } catch (err) {
       const code = (err as { error?: { code?: string } })?.error?.code;
       this.toast.show(code === 'SOS_OPEN'
-        ? { th: 'มี SOS ค้างอยู่ — ปิดเคสก่อนแล้วค่อยยกเลิกการผูก', en: 'An SOS is open — close it first' }
+        ? { th: 'มี SOS ค้างอยู่ — ปิดเคสก่อน จึงจะยกเลิกการผูกได้', en: 'An SOS is open — close it first' }
         : { th: 'ยกเลิกการผูกไม่ได้', en: 'Could not unlink' });
     } finally {
       this.unbinding.set(false);
@@ -1382,7 +1382,7 @@ export class AdminBox implements OnInit {
       await this.reload();
       this.toast.show({ th: 'ส่งคำสั่งแล้ว · รอตู้ออนไลน์เพื่อรับ', en: 'Request sent · waiting for the box to be online' });
     } catch {
-      this.toast.show({ th: 'สั่งไม่ได้ ลองใหม่', en: 'Could not send — try again' });
+      this.toast.show({ th: 'สั่งไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not send — try again' });
     } finally {
       this.resetBusy.set(false);
     }
@@ -1397,7 +1397,7 @@ export class AdminBox implements OnInit {
       await this.reload();
       this.toast.show({ th: 'ยกเลิกคำสั่งแล้ว', en: 'Request cancelled' });
     } catch {
-      this.toast.show({ th: 'ยกเลิกไม่ได้ ลองใหม่', en: 'Could not cancel — try again' });
+      this.toast.show({ th: 'ยกเลิกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not cancel — try again' });
     } finally {
       this.resetBusy.set(false);
     }

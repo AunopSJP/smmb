@@ -18,7 +18,7 @@ import { screenUrl } from '../../screens/registry';
           <button type="button" [attr.aria-pressed]="filter() === option.value" (click)="filter.set(option.value); load()">{{ i18n.t(option.label) }}</button>
         }
       </div>
-      @if (error()) { <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดหรือบันทึกคำขอไม่สำเร็จ ลองใหม่อีกครั้ง', en: 'Could not load or save requests. Try again.' }) }}</p> }
+      @if (error()) { <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดหรือบันทึกคำขอไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not load or save requests. Try again.' }) }}</p> }
       <div class="reqs">
         @for (request of rows(); track request.id) {
           <article class="panel request">
@@ -80,7 +80,7 @@ export class AdminTechnicianRequests implements OnInit {
   protected readonly saving = signal<string | null>(null);
   protected readonly error = signal(false);
   protected readonly filters = [
-    { value: 'open' as const, label: { th: 'รอดำเนินการ', en: 'Open' } },
+    { value: 'open' as const, label: { th: 'รอจัดการ', en: 'Open' } },
     { value: 'scheduled' as const, label: { th: 'นัดแล้ว', en: 'Scheduled' } },
     { value: 'done' as const, label: { th: 'เสร็จแล้ว', en: 'Done' } },
   ];
@@ -101,7 +101,7 @@ export class AdminTechnicianRequests implements OnInit {
   }
 
   protected statusLabel(status: AdminTechnicianRequest['status']) {
-    return { open: { th: 'รอดำเนินการ', en: 'Open' }, scheduled: { th: 'นัดแล้ว', en: 'Scheduled' }, done: { th: 'เสร็จแล้ว', en: 'Done' } }[status];
+    return { open: { th: 'รอจัดการ', en: 'Open' }, scheduled: { th: 'นัดแล้ว', en: 'Scheduled' }, done: { th: 'เสร็จแล้ว', en: 'Done' } }[status];
   }
 
   protected scheduleValue(id: string): string { return this.schedules()[id] ?? ''; }

@@ -7,6 +7,7 @@ import { Session } from '../../core/session';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
+import { liveRefresh } from '../../core/live-refresh';
 
 // หัวหน้า: L05 สมาชิก (คำขอรอยืนยันอยู่บนสุด) · L05-b รายละเอียดสมาชิก — ใช้ API จริง (api.md §8.2)
 
@@ -121,6 +122,9 @@ export class HeadMembers implements OnInit {
     return c.length === 8 ? `${c.slice(0, 4)}-${c.slice(4)}` : c;
   });
 
+  /** คำขอเข้าทีมใหม่ขึ้นเองโดยไม่ต้องรีเฟรช */
+  private readonly _live = liveRefresh(() => this.load(), 15_000);
+
   async ngOnInit(): Promise<void> {
     void this.api.loadAgency().catch(() => undefined);
     await this.load();
@@ -146,7 +150,7 @@ export class HeadMembers implements OnInit {
       this.toast.show(ok ? { th: 'อนุมัติ ' + m.display_name + ' แล้ว — ใส่เข้าโซนต่อได้', en: 'Approved ' + m.display_name + ' — add them to a zone' } : { th: 'ปฏิเสธแล้ว', en: 'Declined' });
       await this.load();
     } catch (err) {
-      this.toast.show(MEMBER_ERROR[apiError(err).code ?? ''] ?? { th: 'ทำไม่ได้ ลองใหม่', en: 'Couldn’t do it — try again' });
+      this.toast.show(MEMBER_ERROR[apiError(err).code ?? ''] ?? { th: 'ทำรายการไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t do it — try again' });
     } finally {
       this.busy.set(false);
     }
@@ -267,7 +271,7 @@ export class HeadMember {
       else this.toast.show({ th: 'บันทึกแล้ว', en: 'Saved' });
       await this.load(m.id);
     } catch (err) {
-      this.toast.show(MEMBER_ERROR[apiError(err).code ?? ''] ?? { th: 'ทำไม่ได้ ลองใหม่', en: 'Couldn’t do it — try again' });
+      this.toast.show(MEMBER_ERROR[apiError(err).code ?? ''] ?? { th: 'ทำรายการไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t do it — try again' });
     } finally {
       this.busy.set(false);
     }

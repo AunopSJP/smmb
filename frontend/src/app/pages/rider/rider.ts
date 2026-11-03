@@ -92,10 +92,10 @@ export class RiderApi {
       </label>
       @if (locked()) {
         <p class="danger-text small" role="alert">
-          {{ i18n.t({ th: 'พิมพ์ผิดหลายครั้ง รอสักครู่แล้วลองใหม่', en: 'Too many wrong codes — wait a moment and try again' }) }}
+          {{ i18n.t({ th: 'พิมพ์ผิดหลายครั้ง รอสักครู่แล้วลองอีกครั้ง', en: 'Too many wrong codes — wait a moment and try again' }) }}
         </p>
       } @else if (offline()) {
-        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ต่อเน็ตไม่ได้ ลองใหม่อีกครั้ง', en: 'No connection — try again' }) }}</p>
+        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ โปรดลองอีกครั้ง', en: 'No connection — try again' }) }}</p>
       }
       <button type="submit" class="btn dark push-end" [disabled]="!ready() || busy()">{{ i18n.t({ th: 'ไปหน้าส่งของ', en: 'Continue' }) }}</button>
     </form>
@@ -181,9 +181,9 @@ export class RiderCode {
             <app-icon name="box" [size]="24" />
             {{ i18n.t({ th: 'ส่งของ', en: 'Delivered' }) }}
           </button>
-          <p class="muted small center">{{ i18n.t({ th: 'เจ้าหน้าที่ กรุณาสแกนผ่านแอป Smart Mailbox', en: 'Officers: please scan with the Smart Mailbox app' }) }}</p>
+          <p class="muted small center">{{ i18n.t({ th: 'เจ้าหน้าที่โปรดสแกนผ่านแอป Smart Mailbox', en: 'Officers: please scan with the Smart Mailbox app' }) }}</p>
           @if (failed()) {
-            <p class="danger-text small center" role="alert">{{ i18n.t({ th: 'ส่งไม่ได้ ลองใหม่อีกครั้ง', en: 'Couldn’t send — try again' }) }}</p>
+            <p class="danger-text small center" role="alert">{{ i18n.t({ th: 'ส่งไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t send — try again' }) }}</p>
           }
         </div>
       </div>
@@ -325,7 +325,7 @@ export class RiderInvalid {
       <h1>{{ i18n.t({ th: 'ตู้นี้ปิดให้บริการ', en: 'This mailbox is not in service' }) }}</h1>
       <p class="muted small">
         {{ i18n.t({ th: 'ส่งของผ่านตู้นี้ไม่ได้ตอนนี้', en: 'Deliveries through this box are paused' }) }}<br />
-        {{ i18n.t({ th: 'กรุณาติดต่อผู้รับโดยตรง', en: 'Please contact the recipient directly' }) }}
+        {{ i18n.t({ th: 'โปรดติดต่อผู้รับโดยตรง', en: 'Please contact the recipient directly' }) }}
       </p>
     </div>
   `,
@@ -357,10 +357,10 @@ export class RiderClosed {
         </p>
       </div>
       <p class="info-box tip">
-        <strong>{{ i18n.t({ th: 'ถ้าส่งของจริง ใส่ของไว้ในตู้ได้เลย', en: 'Real delivery? Just leave it in the box' }) }}</strong><br />
+        <strong>{{ i18n.t({ th: 'นำของใส่ไว้ในตู้ได้', en: 'Real delivery? Just leave it in the box' }) }}</strong><br />
         <span class="muted small">{{ i18n.t({ th: 'เจ้าของบ้านจะเห็นตอนเปิดตู้', en: 'The owner will find it when they open the box' }) }}</span>
       </p>
-      <a class="btn secondary push-end" [routerLink]="url('R02')">{{ i18n.t({ th: 'ลองใหม่ภายหลัง', en: 'Try again later' }) }}</a>
+      <a class="btn secondary push-end" [routerLink]="url('R02')">{{ i18n.t({ th: 'โปรดลองอีกครั้งภายหลัง', en: 'Try again later' }) }}</a>
     </div>
   `,
   styles: `
@@ -392,7 +392,7 @@ export class RiderLimited {
         <p class="house">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ house() }}</p>
         <p class="small">
           {{ i18n.t({ th: 'แจ้งเจ้าของบ้านแล้ว ', en: 'Owner notified at ' }) }}{{ at() ?? '' }}<br />
-          {{ i18n.t({ th: 'ปิดหน้านี้ได้เลย ขอบคุณครับ', en: 'You can close this page. Thank you!' }) }}
+          {{ i18n.t({ th: 'ปิดหน้านี้ได้ ขอบคุณที่ใช้บริการ', en: 'You can close this page. Thank you!' }) }}
         </p>
       </div>
     </div>

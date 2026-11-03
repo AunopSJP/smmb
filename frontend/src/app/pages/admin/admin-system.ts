@@ -12,7 +12,7 @@ import { NotificationList } from '../../shared/notification-list';
 import { PageHeader } from '../../shared/page-header';
 import { caseUrl } from './admin-qr';
 
-// ── D10 · ค่าตั้งค่าตู้ ──────────────────────────────────────
+// ── D10 · ตั้งค่าตู้ ──────────────────────────────────────
 
 /** ช่วงที่ยอมให้ตั้ง (✅ 2026-10-27 — server ตรวจซ้ำด้วยช่วงเดียวกัน) */
 const LIMITS = {
@@ -30,7 +30,7 @@ type NumKey = keyof typeof LIMITS;
   imports: [PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'ค่าตั้งค่าตู้', en: 'Mailbox config' })" [back]="url('D01')" />
+    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'ตั้งค่าตู้', en: 'Mailbox config' })" [back]="url('D01')" />
     <form class="stack grow" (submit)="$event.preventDefault(); save()">
       <section class="panel">
         <h2>{{ i18n.t({ th: 'การรายงานของตู้', en: 'Box reporting' }) }}</h2>
@@ -179,7 +179,7 @@ const FRIENDLY: Record<string, Tr> = {
   ok: { th: 'ปกติ', en: 'ok' },
   passed: { th: 'ผ่าน', en: 'passed' },
   failed: { th: 'ไม่ผ่าน', en: 'failed' },
-  retry: { th: 'ให้ลองใหม่', en: 'retry' },
+  retry: { th: 'ให้ลองอีกครั้ง', en: 'retry' },
   delivered: { th: 'ส่งของแล้ว', en: 'delivered' },
   closed: { th: 'ปิดงานแล้ว', en: 'closed' },
   box: { th: 'ตู้', en: 'box' },
@@ -237,8 +237,8 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
         }
       </ul>
       @if (error()) {
-        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดประวัติไม่ได้ · ลองใหม่', en: 'Could not load logs · try again' }) }}</p>
-        <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองใหม่', en: 'Retry' }) }}</button>
+        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดประวัติไม่สำเร็จ · โปรดลองอีกครั้ง', en: 'Could not load logs · try again' }) }}</p>
+        <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button>
       }
       <p class="muted small">{{ i18n.t({ th: 'บันทึกทุกการสแกน/พิมพ์รหัส แม้ไม่ผ่าน · ลบหรือแก้ไม่ได้', en: 'Every scan or typed code is logged, even failures · cannot be edited' }) }}</p>
     </div>

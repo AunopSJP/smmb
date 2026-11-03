@@ -75,7 +75,7 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
     en: (d) => ({ title: '🔋 Low battery', body: `${box(d, 'en')} battery at ${s(d.battery_pct)}%` }),
   },
   swap_backup_qr: {
-    th: () => ({ title: '📮 เปลี่ยน QR หน้าตู้', body: 'กรุณาเอา QR สำรองในตู้ไปติดแทนใบเดิม' }),
+    th: () => ({ title: '📮 เปลี่ยน QR หน้าตู้', body: 'โปรดนำ QR สำรองในตู้ไปติดแทนใบเดิม' }),
     en: () => ({ title: '📮 Replace the front QR', body: 'Please put the backup QR from inside the box on the front' }),
   },
   box_problem: {
@@ -120,7 +120,7 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
     en: (d) => ({ title: 'New agency to review', body: s(d.agency_name) }),
   },
   agency_approved: {
-    th: (d) => ({ title: 'อนุมัติหน่วยงานแล้ว', body: `${s(d.agency_name)} ใช้งานได้แล้ว แชร์รหัสกลุ่มให้ลูกทีมได้เลย` }),
+    th: (d) => ({ title: 'อนุมัติหน่วยงานแล้ว', body: `${s(d.agency_name)} ใช้งานได้แล้ว แชร์รหัสกลุ่มให้ลูกทีมได้ทันที` }),
     en: (d) => ({ title: 'Agency approved', body: `${s(d.agency_name)} is ready — share the group code with your team` }),
   },
   agency_rejected: {
@@ -170,11 +170,11 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
     en: (d) => ({ title: 'Technician scheduled', body: `Mailbox ${s(d.box_id)} · ${hhmm(d.scheduled_at)}${s(d.note) ? ` · ${s(d.note)}` : ''}` }),
   },
   technician_done: {
-    th: (d) => ({ title: 'ช่างดำเนินการแล้ว', body: `ตู้ ${s(d.box_id)}${s(d.note) ? ` · ${s(d.note)}` : ''}` }),
+    th: (d) => ({ title: 'ช่างแก้ไขแล้ว', body: `ตู้ ${s(d.box_id)}${s(d.note) ? ` · ${s(d.note)}` : ''}` }),
     en: (d) => ({ title: 'Technician visit completed', body: `Mailbox ${s(d.box_id)}${s(d.note) ? ` · ${s(d.note)}` : ''}` }),
   },
   qr_technician_dispatch: {
-    th: (d) => ({ title: '🔧 งาน QR ต้องให้ช่างดำเนินการ', body: `ตู้ ${s(d.box_id)} · ตรวจ/ติด QR ใหม่` }),
+    th: (d) => ({ title: '🔧 งาน QR รอช่างแก้ไข', body: `ตู้ ${s(d.box_id)} · ตรวจ/ติด QR ใหม่` }),
     en: (d) => ({ title: '🔧 QR technician task', body: `Mailbox ${s(d.box_id)} · inspect and replace the QR` }),
   },
   plan_expiring: {

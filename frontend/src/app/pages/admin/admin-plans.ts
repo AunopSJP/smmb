@@ -237,7 +237,7 @@ export class UserPlan {
       } @else if (loadFailed()) {
         <section class="card stack" role="alert">
           <p>{{ i18n.t({ th: 'โหลดแพ็กเกจไม่ได้', en: 'Could not load plans' }) }}</p>
-          <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองใหม่', en: 'Try again' }) }}</button>
+          <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Try again' }) }}</button>
         </section>
       }
       <div class="list">
@@ -451,7 +451,7 @@ export class AdminPlans implements OnInit {
       this.toast.show({ th: 'เพิ่มแพ็กเกจแล้ว', en: 'Plan added' });
     } catch (err) {
       const code = apiError(err).code;
-      this.error.set(code === 'PLAN_CODE_TAKEN' ? PLAN_ERROR.CODE_TAKEN : code === 'PLAN_CODE_INVALID' ? PLAN_ERROR.CODE_INVALID : code === 'PLAN_NAME_REQUIRED' ? PLAN_ERROR.NAME_REQUIRED : { th: 'เพิ่มแพ็กเกจไม่ได้ · ตรวจข้อมูลแล้วลองใหม่', en: 'Could not add the plan · check the details and try again' });
+      this.error.set(code === 'PLAN_CODE_TAKEN' ? PLAN_ERROR.CODE_TAKEN : code === 'PLAN_CODE_INVALID' ? PLAN_ERROR.CODE_INVALID : code === 'PLAN_NAME_REQUIRED' ? PLAN_ERROR.NAME_REQUIRED : { th: 'เพิ่มแพ็กเกจไม่สำเร็จ · ตรวจสอบข้อมูลแล้วลองอีกครั้ง', en: 'Could not add the plan · check the details and try again' });
     } finally {
       this.busy.set(null);
     }

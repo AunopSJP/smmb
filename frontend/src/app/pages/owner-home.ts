@@ -9,11 +9,12 @@ import { screenUrl } from '../screens/registry';
 import { Icon } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
 import { Toast } from '../core/toast';
+import { liveRefresh } from '../core/live-refresh';
 
 /** ต้องกดค้างกี่วินาทีถึงส่ง SOS (กันกดโดนโดยไม่ตั้งใจ ✅) */
 const HOLD_SEC = 3;
 /** รีเฟรชหน้าหลักทุกกี่วินาที */
-const REFRESH_MS = 20_000;
+const REFRESH_MS = 10_000;
 
 /** H03 หน้าหลักเจ้าของบ้าน (api.md §4.2) · H03-L แบบเรียบง่าย · H03-e กดค้าง SOS — ข้อมูลจริง */
 @Component({
@@ -131,7 +132,7 @@ const REFRESH_MS = 20_000;
           </ul>
         }
         @if (error()) {
-          <p class="muted small center">{{ i18n.t({ th: 'อัปเดตไม่ได้ · กำลังลองใหม่', en: 'Couldn’t refresh · retrying' }) }}</p>
+          <p class="muted small center">{{ i18n.t({ th: 'อัปเดตไม่สำเร็จ · กำลังลองอีกครั้ง', en: 'Couldn’t refresh · retrying' }) }}</p>
         }
       </div>
 
@@ -185,7 +186,7 @@ const REFRESH_MS = 20_000;
     } @else if (error()) {
       <div class="stack page">
         <p class="card err" role="alert">{{ i18n.t({ th: 'โหลดข้อมูลไม่ได้', en: 'Couldn’t load' }) }}</p>
-        <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองใหม่', en: 'Retry' }) }}</button>
+        <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button>
       </div>
     } @else {
       <p class="muted center page">{{ i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
@@ -246,8 +247,7 @@ export class OwnerHome implements OnDestroy {
 
   constructor() {
     void this.load();
-    const t = setInterval(() => void this.load(), REFRESH_MS);
-    inject(DestroyRef).onDestroy(() => clearInterval(t));
+    liveRefresh(() => this.load(), REFRESH_MS);
   }
 
   async load(): Promise<void> {

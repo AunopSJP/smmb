@@ -708,7 +708,7 @@ export class AdminHome implements OnInit {
 
   protected readonly levelLabel = {
     danger: { th: 'ด่วน', en: 'Urgent' } as Tr,
-    warn: { th: 'รอดำเนินการ', en: 'Pending' } as Tr,
+    warn: { th: 'รอจัดการ', en: 'Pending' } as Tr,
   };
 
   protected readonly menu: { code: string; icon: IconName; label: Tr }[] = [

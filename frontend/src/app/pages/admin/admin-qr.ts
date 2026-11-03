@@ -320,7 +320,7 @@ interface FlowStep {
 }
 
 const SWAP_STEPS: FlowStep[] = [
-  { title: { th: 'แจ้งเจ้าของบ้าน', en: 'Notify the owner' }, hint: { th: 'ขอให้เอา QR สำรองไปติดแทน', en: 'Ask them to put the backup QR up' } },
+  { title: { th: 'แจ้งเจ้าของบ้าน', en: 'Notify the owner' }, hint: { th: 'ขอให้นำ QR สำรองไปติดแทน', en: 'Ask them to put the backup QR up' } },
   { title: { th: 'เจ้าของบ้านติดใบสำรอง', en: 'Owner puts the backup up' }, hint: { th: 'รอเจ้าของกด "ติดแล้ว" · ใบเก่าถูกปิดรหัสอัตโนมัติ', en: 'Waiting for “Done” · the old QR is cancelled automatically' } },
   { title: { th: 'ออก QR สำรองใบใหม่', en: 'Issue a new backup QR' }, hint: { th: 'ส่งให้เจ้าของทางไปรษณีย์หรือช่างนำไป', en: 'By post or via a technician' } },
   { title: { th: 'ปิดเคส', en: 'Close the case' }, hint: { th: 'เก็บประวัติการเปลี่ยน', en: 'Keeps a change history' } },
@@ -371,7 +371,7 @@ const REISSUE_STEPS: FlowStep[] = [
                 <h2>{{ i18n.t({ th: 'อาจมีคนติด QR ปลอม — ส่งช่างไปลอกออกและติดใบใหม่', en: 'A fake QR may be up — send a technician to replace it' }) }}</h2>
                 <p class="muted">{{ i18n.t({ th: 'ระบบจะออก QR ใหม่ 2 ใบ ปิดรหัสใบเก่าทันที แล้วแจ้งช่าง', en: 'Two new QRs are issued, the old ones stop working at once, then a technician is notified' }) }}</p>
                 <button type="button" class="btn" [disabled]="busy()" (click)="issueAll(c, true)">
-                  {{ busy() ? i18n.t({ th: 'กำลังดำเนินการ…', en: 'Working…' }) : i18n.t({ th: 'ออก QR ใหม่ 2 ใบและส่งช่าง', en: 'Issue 2 new QRs and dispatch' }) }}
+                  {{ busy() ? i18n.t({ th: 'กำลังทำรายการ…', en: 'Working…' }) : i18n.t({ th: 'ออก QR ใหม่ 2 ใบและส่งช่าง', en: 'Issue 2 new QRs and dispatch' }) }}
                 </button>
               } @else {
                 <h2>{{ i18n.t({ th: 'เลือกวิธีแก้', en: 'Choose how to fix it' }) }}</h2>
@@ -381,7 +381,7 @@ const REISSUE_STEPS: FlowStep[] = [
                     <input type="radio" name="fix" value="swap" [checked]="fixPick() === 'swap'" [disabled]="c.backup_used" (change)="fixPick.set('swap')" />
                     <span>
                       {{ i18n.t({ th: 'ใช้ QR สำรองที่อยู่ในตู้', en: 'Use the backup QR inside the box' }) }}
-                      <small>{{ c.backup_used ? i18n.t({ th: 'ใช้ไม่ได้ — ใบสำรองถูกสแกนไปแล้ว', en: 'Not possible — the backup was already scanned' }) : i18n.t({ th: 'แจ้งเตือนเจ้าของบ้านให้เอาไปติดแทน แล้วออกใบสำรองใหม่ให้', en: 'The owner is notified to put it up; a new backup is issued afterwards' }) }}</small>
+                      <small>{{ c.backup_used ? i18n.t({ th: 'ใช้ไม่ได้ — ใบสำรองถูกสแกนไปแล้ว', en: 'Not possible — the backup was already scanned' }) : i18n.t({ th: 'แจ้งเตือนเจ้าของบ้านให้นำไปติดแทน แล้วออกใบสำรองใหม่ให้', en: 'The owner is notified to put it up; a new backup is issued afterwards' }) }}</small>
                     </span>
                   </label>
                   <label>
@@ -402,7 +402,7 @@ const REISSUE_STEPS: FlowStep[] = [
             } @else if (c.fix === 'swap') {
               @switch (c.status) {
                 @case ('owner_notified') {
-                  <h2>{{ i18n.t({ th: 'รอเจ้าของบ้านเอา QR สำรองไปติด', en: 'Waiting for the owner to put the backup up' }) }}</h2>
+                  <h2>{{ i18n.t({ th: 'รอเจ้าของบ้านนำ QR สำรองไปติด', en: 'Waiting for the owner to put the backup up' }) }}</h2>
                   <p class="muted">{{ i18n.t({ th: 'ส่งแจ้งเตือนให้เจ้าของแล้ว · หน้านี้รีเฟรชเองทุก 3 วินาทีและจะขึ้นขั้นต่อไปเมื่อเจ้าของกด "ติดแล้ว"', en: 'The owner was notified · this page refreshes every 3 s and moves on once they tap “Done”' }) }}</p>
                 }
                 @case ('owner_confirmed') {
@@ -805,7 +805,7 @@ export class AdminQrCase {
         this.toast.show({ th: 'แจ้งเจ้าของบ้านแล้ว', en: 'Owner notified' });
       } else {
         await this.state.chooseFix(c.id, 'reissue');
-        this.toast.show({ th: 'บันทึกเคสแล้ว · ออก QR ได้เลย', en: 'Case saved · you can issue the QRs now' });
+        this.toast.show({ th: 'บันทึกเคสแล้ว · ออก QR ได้ทันที', en: 'Case saved · you can issue the QRs now' });
       }
     });
   }

@@ -176,7 +176,7 @@ const ACTIVATE_STEPS: Step[] = [
             <h1>{{ i18n.t({ th: 'ตู้นี้ถูกผูกแล้ว', en: 'This mailbox is already bound' }) }}</h1>
             <p class="muted small">
               {{ i18n.t({ th: 'ตู้นี้มีเจ้าของอยู่แล้ว', en: 'It already has an owner.' }) }}<br />
-              {{ i18n.t({ th: 'กรุณาติดต่อผู้ดูแลระบบ พร้อมรหัสใต้ QR', en: 'Contact the admin with the code under the QR' }) }}
+              {{ i18n.t({ th: 'โปรดติดต่อผู้ดูแลระบบ พร้อมรหัสใต้ QR', en: 'Contact the admin with the code under the QR' }) }}
             </p>
           </div>
           <app-contact-card [label]="{ th: 'ติดต่อผู้ดูแลระบบ', en: 'Contact the admin' }" [contact]="support()" />
@@ -196,7 +196,7 @@ const ACTIVATE_STEPS: Step[] = [
               <a [routerLink]="url('A06')">{{ i18n.t({ th: 'สมัครเจ้าของบ้าน', en: 'Sign up' }) }}</a>
             </p>
           } @else if (qr()) {
-            <p class="info-box ok-text"><strong>{{ i18n.t({ th: 'เปิดจากลิงก์ QR เปิดใช้ตู้แล้ว — กดผูกตู้ได้เลย', en: 'Opened from the activation QR link — tap to bind' }) }}</strong></p>
+            <p class="info-box ok-text"><strong>{{ i18n.t({ th: 'เปิดจากลิงก์ QR เปิดใช้ตู้แล้ว — กดผูกตู้ได้ทันที', en: 'Opened from the activation QR link — tap to bind' }) }}</strong></p>
           } @else if (scanning()) {
             <app-qr-scanner (scanned)="send({ qr_text: $event.text })" (failed)="scanning.set(false); typing.set(true)" />
           }
@@ -305,12 +305,12 @@ export class AuthActivate implements OnInit {
       if (e.code === 'BOX_ALREADY_OWNED' || e.code === 'QR_INVALID') {
         void this.router.navigate([screenUrl('A07')], { queryParams: { state: e.code === 'BOX_ALREADY_OWNED' ? 'taken' : 'invalid', from: this.from() }, replaceUrl: true });
       } else if (e.code === 'CODE_ATTEMPTS_EXCEEDED') {
-        this.message.set({ th: 'พิมพ์ผิดหลายครั้ง รอสักครู่แล้วลองใหม่', en: 'Too many wrong codes — wait a moment and retry' });
+        this.message.set({ th: 'พิมพ์ผิดหลายครั้ง รอสักครู่แล้วลองอีกครั้ง', en: 'Too many wrong codes — wait a moment and retry' });
       } else if (e.status === 404 || e.status === 401) {
         // ยังไม่มีบทบาทเจ้าของบ้าน / ยังไม่ล็อกอิน
         this.message.set({ th: 'บัญชีนี้ยังไม่ใช่เจ้าของบ้าน — เพิ่มบทบาทเจ้าของบ้านก่อน', en: 'This account isn’t a homeowner yet — add the homeowner role first' });
       } else {
-        this.message.set({ th: 'ผูกตู้ไม่ได้ ลองใหม่อีกครั้ง', en: 'Couldn’t bind the box — try again' });
+        this.message.set({ th: 'ผูกตู้ไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t bind the box — try again' });
       }
     } finally {
       this.busy.set(false);
@@ -343,7 +343,7 @@ export class AuthActivate implements OnInit {
         }
       </div>
       @if (failed()) {
-        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'บันทึกไม่ได้ ลองใหม่อีกครั้ง', en: 'Couldn’t save — try again' }) }}</p>
+        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save — try again' }) }}</p>
       }
       <button type="submit" class="btn push-end" [disabled]="!valid()">{{ i18n.t({ th: 'บันทึกชื่อตู้', en: 'Save name' }) }}</button>
     </form>

@@ -52,11 +52,11 @@ async function startInspection(api: InspectionApi, router: Router, body: Paramet
           : (go(router, 'O04-b', { reason: 'invalid' }), null);
       case 'CODE_ATTEMPTS_EXCEEDED':
       case 'RATE_LIMITED':
-        return { th: 'ลองผิดหลายครั้ง รอสักครู่แล้วลองใหม่', en: 'Too many tries — wait a moment and try again' };
+        return { th: 'กรอกผิดหลายครั้ง รอสักครู่แล้วลองอีกครั้ง', en: 'Too many tries — wait a moment and try again' };
       default:
         return isOffline(e)
-          ? { th: 'ต่อเน็ตไม่ได้ ตรวจสัญญาณแล้วลองใหม่ (ไม่บันทึกแบบออฟไลน์)', en: 'No connection — check your signal and retry (nothing is saved offline)' }
-          : { th: 'มีข้อผิดพลาด ลองใหม่อีกครั้ง', en: 'Something went wrong — try again' };
+          ? { th: 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ ตรวจสอบสัญญาณแล้วลองอีกครั้ง (ไม่บันทึกแบบออฟไลน์)', en: 'No connection — check your signal and retry (nothing is saved offline)' }
+          : { th: 'เกิดข้อผิดพลาด โปรดลองอีกครั้ง', en: 'Something went wrong — try again' };
     }
   }
 }
@@ -338,7 +338,7 @@ const CONDITIONS: { v: QrCondition; label: Tr; wide?: boolean }[] = [
     <div class="pad">
       <p class="ok-text small strong">{{ i18n.t({ th: 'รหัสถูกต้อง · บ้านเลขที่ ', en: 'Code OK · house ' }) }}{{ ins()?.box?.house_no }}</p>
       <h1>{{ i18n.t({ th: 'QR หน้าตู้ดูเป็นยังไง?', en: 'How does the mailbox QR look?' }) }}</h1>
-      <p class="muted small">{{ i18n.t({ th: 'ช่วยบอกหน่อย ระบบจะแจ้งให้เปลี่ยนให้', en: 'Tell us and we will arrange a replacement' }) }}</p>
+      <p class="muted small">{{ i18n.t({ th: 'เลือกสภาพ QR แล้วระบบจะแจ้งให้เปลี่ยนใบใหม่', en: 'Tell us and we will arrange a replacement' }) }}</p>
       <div class="grid" role="radiogroup" [attr.aria-label]="i18n.t({ th: 'สภาพ QR', en: 'QR condition' })">
         @for (c of conditions; track c.v) {
           <button type="button" role="radio" [attr.aria-checked]="picked() === c.v" [class.wide]="c.wide" (click)="picked.set(c.v)">
@@ -461,7 +461,7 @@ const DENIED: Record<string, { title: Tr; body: Tr }> = {
   },
   offline: {
     title: { th: 'ตู้ไม่ออนไลน์', en: 'The mailbox is offline' },
-    body: { th: 'ตู้ไม่ได้ต่อเน็ตอยู่ตอนนี้ ปลุกตู้ไม่ได้ · ไม่ได้บันทึกการตรวจ', en: 'The box isn’t connected right now, so it can’t be woken · not recorded' },
+    body: { th: 'ตู้ไม่ได้เชื่อมต่ออินเทอร์เน็ตอยู่ตอนนี้ ปลุกตู้ไม่ได้ · ไม่ได้บันทึกการตรวจ', en: 'The box isn’t connected right now, so it can’t be woken · not recorded' },
   },
   invalid: {
     title: { th: 'QR นี้ใช้ไม่ได้แล้ว', en: 'This QR is no longer valid' },
@@ -504,7 +504,7 @@ export class OfficerDenied {
 // ── O05 · กำลังปลุกตู้ / O05-b ตู้ไม่ตอบ ─────────────────────────
 
 const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
-  { v: 'no_response', label: { th: 'ไม่มีเสียงจากตู้เลย', en: 'No sound from the box at all' } },
+  { v: 'no_response', label: { th: 'ไม่มีเสียงจากตู้', en: 'No sound from the box at all' } },
   { v: 'no_scan', label: { th: 'ตู้มีเสียง แต่ไม่สแกน', en: 'The box beeped, but isn’t scanning' } },
   { v: 'scan_failed_3', label: { th: 'ตู้สแกนไม่ผ่าน 3 ครั้ง', en: 'The box failed to scan 3 times' } },
   { v: 'damaged', label: { th: 'ตู้เสียหาย / ถูกงัด', en: 'Damaged / forced open' } },
@@ -536,7 +536,7 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
           }
         </fieldset>
         @if (failed()) {
-          <p class="err small" role="alert">{{ i18n.t({ th: 'ส่งไม่ได้ ลองใหม่อีกครั้ง', en: 'Couldn’t send — try again' }) }}</p>
+          <p class="err small" role="alert">{{ i18n.t({ th: 'ส่งไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t send — try again' }) }}</p>
         }
         <p class="muted small">{{ i18n.t({ th: 'ระบบจะแจ้งเจ้าของบ้านและแอดมินให้', en: 'We will tell the owner and the admin' }) }}</p>
         <div class="stack push-end">

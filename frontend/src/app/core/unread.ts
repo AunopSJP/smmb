@@ -2,11 +2,12 @@ import { HttpClient } from '@angular/common/http';
 import { effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { Session } from './session';
+import { LiveRefresh } from './live-refresh';
 
-const EVERY_MS = 60_000;
+const EVERY_MS = 20_000;
 
 /**
- * จำนวนแจ้งเตือนที่ยังไม่อ่าน (จุดแดงบนกระดิ่ง) — ถามเซิร์ฟเวอร์ตอนล็อกอินแล้วทุก 1 นาที · อ่านแล้วเรียก refresh() ให้ตัวเลขลดทันที
+ * จำนวนแจ้งเตือนที่ยังไม่อ่าน (จุดแดงบนกระดิ่ง) — ถามเซิร์ฟเวอร์ตอนล็อกอินแล้วทุก 20 วินาที (และทันทีเมื่อมีแจ้งเตือนเข้า/กลับมาที่แอป) · อ่านแล้วเรียก refresh() ให้ตัวเลขลดทันที
  * GET /me/notifications?unread=true&per_page=1 → ใช้ `total`
  */
 @Injectable({ providedIn: 'root' })
@@ -17,6 +18,7 @@ export class UnreadCount {
   private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
+    inject(LiveRefresh).ticks.subscribe(() => void this.refresh());
     effect(() => {
       const me = this.session.me();
       untracked(() => {

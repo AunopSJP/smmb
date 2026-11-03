@@ -356,7 +356,7 @@ export class HeadApproved implements OnInit {
       this.editingContact.set(false);
       this.toast.show({ th: 'บันทึกช่องทางติดต่อแล้ว', en: 'Contact saved' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่ได้ ลองใหม่', en: 'Couldn’t save — try again' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save — try again' });
     }
   }
   private readonly toast = inject(Toast);

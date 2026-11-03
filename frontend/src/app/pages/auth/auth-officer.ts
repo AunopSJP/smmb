@@ -241,7 +241,7 @@ export class AuthWaitingHead {
         <span class="big-icon danger"><app-icon name="bell" [size]="34" /></span>
         <h1>{{ i18n.t({ th: 'ต้องเปิดแจ้งเตือนก่อน', en: 'Turn on notifications first' }) }}</h1>
         <p class="muted small">
-          {{ i18n.t({ th: 'ไม่งั้นจะไม่ได้รับ SOS จากบ้านในโซน', en: 'Otherwise you will miss SOS alerts from your zone.' }) }}<br />
+          {{ i18n.t({ th: 'หากไม่เปิด จะไม่ได้รับ SOS จากบ้านในโซน', en: 'Otherwise you will miss SOS alerts from your zone.' }) }}<br />
           {{ i18n.t({ th: 'ยังใช้งานต่อไม่ได้จนกว่าจะเปิด', en: 'You cannot continue until it is on' }) }}
         </p>
       </div>

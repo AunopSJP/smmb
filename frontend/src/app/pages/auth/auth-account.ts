@@ -224,12 +224,12 @@ export class AuthChangePassword {
       this.current.set('');
       this.error.set(
         e.code === 'ACCOUNT_LOCKED'
-          ? { th: 'ลองผิดหลายครั้ง พักไว้ 15 นาที', en: 'Too many tries — locked for 15 minutes' }
+          ? { th: 'กรอกผิดหลายครั้ง พักไว้ 15 นาที', en: 'Too many tries — locked for 15 minutes' }
           : e.code === 'INVALID_CREDENTIALS'
             ? { th: `รหัส${this.forced() ? 'ชั่วคราว' : 'ปัจจุบัน'}ไม่ถูกต้อง · ผิด 5 ครั้งจะถูกพักบัญชี`, en: `Wrong ${this.forced() ? 'temporary' : 'current'} password · 5 wrong tries locks the account` }
             : e.status === 400
               ? { th: 'รหัสใหม่ต้องยาว 8–128 ตัว', en: 'The new password must be 8–128 characters' }
-              : { th: 'เปลี่ยนรหัสไม่ได้ ลองใหม่อีกครั้ง', en: 'Couldn’t change it — try again' },
+              : { th: 'เปลี่ยนรหัสไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t change it — try again' },
       );
       return;
     }

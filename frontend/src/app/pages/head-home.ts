@@ -10,6 +10,7 @@ import { screenUrl } from '../screens/registry';
 import { Icon } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
 import { ZoneFilter } from './head/head-log';
+import { liveRefresh } from '../core/live-refresh';
 
 /** api.md §8.1 GET /agency/today */
 interface Today {
@@ -160,6 +161,8 @@ export class HeadHome {
       const f = this.zoneId() || this.filter();
       untracked(() => void this.load(f));
     });
+    // SOS / ตรวจแล้ว / คำขอเข้าทีม ของทั้งหน่วยงาน ขึ้นเองโดยไม่ต้องรีเฟรช
+    liveRefresh(() => this.load(this.zoneId() || this.filter()), 10_000);
   }
 
   protected pickZone(id: string): void {

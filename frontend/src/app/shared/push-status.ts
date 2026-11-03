@@ -34,7 +34,7 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
       <div class="card status warn">
         <strong>{{ i18n.t({ th: '🔕 เครื่องนี้ยังไม่ได้รับแจ้งเตือน', en: '🔕 This device is not getting notifications' }) }}</strong>
         @if (required()) {
-          <small>{{ i18n.t({ th: 'เจ้าหน้าที่ต้องเปิดไว้ ไม่งั้นระบบจะไม่ให้ใช้งานและจะไม่ได้รับ SOS', en: 'Officers must keep this on — otherwise the app is locked and you will miss SOS alerts' }) }}</small>
+          <small>{{ i18n.t({ th: 'เจ้าหน้าที่ต้องเปิดไว้ จึงจะใช้งานและรับ SOS ได้', en: 'Officers must keep this on — otherwise the app is locked and you will miss SOS alerts' }) }}</small>
         } @else {
           <small>{{ i18n.t({ th: 'จะไม่รู้เมื่อมีเจ้าหน้าที่มาตรวจ ของมาส่ง หรือ SOS จนกว่าจะเปิด', en: 'You will not know about patrol checks, deliveries or SOS until you turn it on' }) }}</small>
         }
@@ -146,7 +146,7 @@ export class PushStatus {
     const e = apiError(error);
     const tail = (e.code ?? (e.status ? `HTTP ${e.status}` : ''));
     if (e.code === 'PUSH_UNAVAILABLE') return { th: 'เซิร์ฟเวอร์ยังไม่ได้ตั้งค่าแจ้งเตือน (VAPID) — แจ้งผู้ดูแล', en: 'The server has no push keys configured (VAPID) — tell the admin' };
-    if (e.status === 0 && error instanceof HttpErrorResponse) return { th: 'ต่อเซิร์ฟเวอร์ไม่ได้ ตรวจเน็ตแล้วลองใหม่', en: 'Can’t reach the server — check your connection' };
+    if (e.status === 0 && error instanceof HttpErrorResponse) return { th: 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Can’t reach the server — check your connection' };
     if (e.status === 401) return { th: 'หมดเวลาเข้าสู่ระบบ — ล็อกอินใหม่แล้วลองอีกครั้ง', en: 'Your session expired — sign in again' };
     if (e.status >= 400) return { th: `เซิร์ฟเวอร์ไม่รับ (${tail}) — ปิดแล้วเปิดใหม่ ถ้ายังไม่ได้แจ้งผู้ดูแล`, en: `The server refused it (${tail}) — turn it off and on; if it persists, tell the admin` };
     // ไม่ใช่ error จากเซิร์ฟเวอร์ → มักเป็นฝั่งเบราว์เซอร์ (service worker ยังไม่พร้อม / push service ของเบราว์เซอร์ปฏิเสธ)
