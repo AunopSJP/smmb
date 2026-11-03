@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, signal, type OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, signal, untracked, type OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ApiConfig, apiError } from '../../core/api';
 import { AdminApi, type BeepPattern, type AdminBoxDetail, type BoxConfigOverride, type AdminBoxRow, type FirmwareInfo, type RegisteredBox } from '../../core/admin-api';
@@ -300,12 +300,12 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
     .cols > :nth-child(4) {
       justify-self: end;
     }
-    @media (min-inline-size: 1024px) {
+    @media (min-width: 1024px) {
       .cols > :nth-child(4) {
         justify-self: start;
       }
     }
-    @media (min-inline-size: 1024px) {
+    @media (min-width: 1024px) {
       .cols {
         display: grid;
         grid-template-columns: minmax(0, 2.2fr) 140px 150px minmax(0, 1.4fr) 28px;
@@ -335,7 +335,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
         background: #fff;
       }
     }
-    @media (max-inline-size: 420px) {
+    @media (max-width: 420px) {
       .add {
         inline-size: 100%;
         margin-inline-start: 0;
@@ -429,9 +429,13 @@ export class AdminBoxes implements OnInit {
     });
   });
 
-  ngOnInit(): void {
+  /** ?filter= จากเมนูย่อยข้างซ้าย — เปลี่ยนเมนูย่อยแล้วตัวกรองเปลี่ยนตาม (หน้าเดิมไม่ถูกสร้างใหม่) */
+  private readonly syncFilter = effect(() => {
     const f = this.filterParam();
-    if (f === 'offline' || f === 'low' || f === 'unbound') this.filter.set(f);
+    untracked(() => this.filter.set(f === 'offline' || f === 'low' || f === 'unbound' ? f : 'all'));
+  });
+
+  ngOnInit(): void {
     void this.load();
   }
 
@@ -618,12 +622,12 @@ export class AdminBoxes implements OnInit {
             <ol class="checklist">
               @if (r.wifi_reset) {
                 <li>{{ i18n.t({ th: 'รอให้ตู้ออนไลน์ แล้วตู้จะรับคำสั่งลืม Wi-Fi และเปิด Wi-Fi ', en: 'Wait for the box to be online — it takes the command and opens the Wi-Fi ' }) }}<code>{{ r.ap_name }}</code> <span class="muted small">({{ i18n.t({ th: 'ดูสถานะที่แถบด้านบน', en: 'status is shown at the top' }) }})</span></li>
-                <li>{{ i18n.t({ th: 'ต่อมือถือเข้า Wi-Fi นั้น แล้วตั้ง Wi-Fi บ้านใหม่ในหน้าตั้งค่าที่เด้งขึ้น', en: 'Join that Wi-Fi with a phone and set the new home Wi-Fi on the page that opens' }) }}</li>
+                <li>{{ i18n.t({ th: 'ต่อมือถือเข้า Wi-Fi นั้น แล้วตั้ง Wi-Fi บ้านใหม่ในหน้าตั้งค่าที่เปิดขึ้นเอง', en: 'Join that Wi-Fi with a phone and set the new home Wi-Fi on the page that opens' }) }}</li>
               } @else {
                 <li>{{ i18n.t({ th: 'ตู้ยังใช้ Wi-Fi เดิมอยู่ — ถ้าต้องเปลี่ยน ให้กด "สั่งตู้ลืม Wi-Fi" ด้านล่าง', en: 'The box keeps its old Wi-Fi — press “Make the box forget its Wi-Fi” below if it must change' }) }}</li>
               }
               <li>{{ i18n.t({ th: 'พิมพ์ QR เปิดใช้ตู้ใบใหม่ (แท็บ "QR และบอร์ด") ให้เจ้าของคนใหม่', en: 'Print the new activation QR (tab “QR & board”) for the new owner' }) }}</li>
-              <li>{{ i18n.t({ th: 'เจ้าของใหม่สมัคร/ล็อกอินแล้วสแกน QR เปิดใช้ตู้ และกรอกบ้านเลขที่', en: 'The new owner signs in, scans the activation QR and enters the house number' }) }}</li>
+              <li>{{ i18n.t({ th: 'เจ้าของใหม่สมัคร/เข้าสู่ระบบแล้วสแกน QR เปิดใช้ตู้ และกรอกบ้านเลขที่', en: 'The new owner signs in, scans the activation QR and enters the house number' }) }}</li>
             </ol>
             <div class="actions">
               <button type="button" class="btn" (click)="tab.set('qr'); returned.set(null)">{{ i18n.t({ th: 'ไปพิมพ์ QR เปิดใช้ตู้', en: 'Go print the activation QR' }) }}</button>
@@ -710,7 +714,7 @@ export class AdminBoxes implements OnInit {
             </div>
           } @empty {
             @if (fwLoadError(); as err) {
-              <p class="row danger-text" role="alert">{{ i18n.t({ th: 'โหลดรายการเฟิร์มแวร์ไม่ได้ (' + err + ') — ไม่ใช่ว่ายังไม่มีไฟล์ ลองโหลดหน้าใหม่', en: 'Could not load the firmware list (' + err + ') — this does not mean there are no files; reload the page' }) }}</p>
+              <p class="row danger-text" role="alert">{{ i18n.t({ th: 'โหลดรายการเฟิร์มแวร์ไม่สำเร็จ (' + err + ') — ไม่ใช่ว่ายังไม่มีไฟล์ ลองโหลดหน้าใหม่', en: 'Could not load the firmware list (' + err + ') — this does not mean there are no files; reload the page' }) }}</p>
             } @else {
               <p class="row muted">{{ i18n.t({ th: 'ยังไม่มีเฟิร์มแวร์ที่อัปโหลดไว้', en: 'No firmware uploaded yet' }) }}</p>
             }
@@ -929,7 +933,7 @@ export class AdminBoxes implements OnInit {
       gap: 10px;
       margin-block-start: 8px;
     }
-    @media (min-inline-size: 900px) {
+    @media (min-width: 900px) {
       .kpis {
         grid-template-columns: repeat(5, minmax(0, 1fr));
       }
@@ -1293,7 +1297,7 @@ export class AdminBox implements OnInit {
             ? { th: 'ไฟล์ใหญ่เกินที่เซิร์ฟเวอร์รับ (413) — ตัวกลาง (nginx/gateway) จำกัดขนาด แจ้งผู้ดูแลเซิร์ฟเวอร์', en: 'The file is larger than the server accepts (413) — a proxy limits the size; tell the server admin' }
             : a.status === 0
               ? { th: 'ส่งไฟล์ไม่ถึงเซิร์ฟเวอร์ (เครือข่าย/ตัวกลางตัดการเชื่อมต่อ)', en: 'The file never reached the server (network or a proxy cut it off)' }
-              : { th: `อัปโหลดไม่ได้ (${why}) · ต้องเป็นไฟล์ firmware.bin ของ ESP32 ไม่เกิน 1.9 MB และชื่อเวอร์ชันไม่มีช่องว่าง`, en: `Upload failed (${why}) · it must be an ESP32 firmware.bin up to 1.9 MB, and the version name must have no spaces` },
+              : { th: `อัปโหลดไม่สำเร็จ (${why}) · ต้องเป็นไฟล์ firmware.bin ของ ESP32 ไม่เกิน 1.9 MB และชื่อเวอร์ชันไม่มีช่องว่าง`, en: `Upload failed (${why}) · it must be an ESP32 firmware.bin up to 1.9 MB, and the version name must have no spaces` },
       );
     } finally {
       this.uploadingFw.set(false);
@@ -1338,7 +1342,7 @@ export class AdminBox implements OnInit {
       await this.reload();
       this.toast.show({ th: 'บันทึกแล้ว · ตู้ได้ค่าใหม่ทันทีที่ติดต่อ', en: 'Saved · the box picks it up at its next contact' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่ได้', en: 'Could not save' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not save' });
     } finally {
       this.savingOverride.set(false);
     }
@@ -1363,7 +1367,7 @@ export class AdminBox implements OnInit {
       const code = (err as { error?: { code?: string } })?.error?.code;
       this.toast.show(code === 'SOS_OPEN'
         ? { th: 'มี SOS ค้างอยู่ — ปิดเคสก่อน จึงจะยกเลิกการผูกได้', en: 'An SOS is open — close it first' }
-        : { th: 'ยกเลิกการผูกไม่ได้', en: 'Could not unlink' });
+        : { th: 'ยกเลิกการผูกไม่สำเร็จ', en: 'Could not unlink' });
     } finally {
       this.unbinding.set(false);
     }
@@ -1414,7 +1418,7 @@ export class AdminBox implements OnInit {
       await this.reload();
       this.toast.show(active ? { th: 'เปิดบริการแล้ว', en: 'Switched on' } : { th: 'ปิดบริการแล้ว · แจ้งเจ้าของบ้านแล้ว', en: 'Switched off · the owner was notified' });
     } catch {
-      this.toast.show({ th: 'ทำไม่ได้', en: 'Could not change it' });
+      this.toast.show({ th: 'ทำรายการไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not change it' });
     } finally {
       this.serviceBusy.set(false);
     }
@@ -1431,7 +1435,7 @@ export class AdminBox implements OnInit {
       await this.loadFirmware();
       this.toast.show({ th: 'ลบแล้ว', en: 'Deleted' });
     } catch {
-      this.toast.show({ th: 'ลบไม่ได้ · อาจมีตู้รอโหลดเวอร์ชันนี้อยู่ ให้ยกเลิกงานอัปเดตของตู้นั้นก่อน', en: 'Could not delete · a box may be waiting for it — cancel that update first' });
+      this.toast.show({ th: 'ลบไม่สำเร็จ · อาจมีตู้รอโหลดเวอร์ชันนี้อยู่ ให้ยกเลิกงานอัปเดตของตู้นั้นก่อน', en: 'Could not delete · a box may be waiting for it — cancel that update first' });
     }
   }
 
@@ -1445,7 +1449,7 @@ export class AdminBox implements OnInit {
         ? { th: `สั่ง ${id} อัปเดตเป็น ${version} แล้ว`, en: `${id} will update to ${version}` }
         : { th: 'ยกเลิกการอัปเดตแล้ว', en: 'Update cancelled' });
     } catch {
-      this.toast.show({ th: 'สั่งไม่ได้', en: 'Could not send the update' });
+      this.toast.show({ th: 'สั่งไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not send the update' });
     }
   }
 
@@ -1469,7 +1473,7 @@ export class AdminBox implements OnInit {
     try {
       this.secret.set((await this.api.revealSecret(id)).device_secret);
     } catch {
-      this.toast.show({ th: 'เปิดดูไม่ได้', en: 'Couldn’t load it' });
+      this.toast.show({ th: 'เปิดดูไม่สำเร็จ', en: 'Couldn’t load it' });
     }
   }
 
@@ -1495,7 +1499,7 @@ export class AdminBox implements OnInit {
       this.toast.show({ th: 'ลบตู้แล้ว', en: 'Box deleted' });
       await this.router.navigateByUrl(this.url('D03'));
     } catch {
-      this.toast.show({ th: 'ลบไม่ได้ · ตู้อาจถูกเปิดใช้หรือมีประวัติแล้ว', en: 'Could not delete · the box may be activated or have activity' });
+      this.toast.show({ th: 'ลบไม่สำเร็จ · ตู้อาจถูกเปิดใช้หรือมีประวัติแล้ว', en: 'Could not delete · the box may be activated or have activity' });
       await this.reload();
     }
   }
@@ -1517,7 +1521,7 @@ export class AdminBox implements OnInit {
         ? { th: 'คืนค่าแล้ว · บอร์ดรับค่ากลางแล้ว', en: 'Restored · the board has applied shared settings' }
         : { th: 'คืนค่าแล้ว · รอบอร์ด sync เมื่อเชื่อมต่อครั้งถัดไป', en: 'Restored · waiting for the board to sync on its next connection' });
     } catch {
-      this.toast.show({ th: 'รีเซ็ตไม่ได้ · ลองโหลดข้อมูลตู้ใหม่', en: 'Could not reset · reload the box and try again' });
+      this.toast.show({ th: 'รีเซ็ตไม่สำเร็จ · โปรดโหลดข้อมูลตู้ใหม่', en: 'Could not reset · reload the box and try again' });
     } finally {
       this.resettingConfig.set(false);
     }

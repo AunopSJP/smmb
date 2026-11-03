@@ -23,9 +23,9 @@ import { Icon } from '../../shared/icon';
         <div class="checklist">
           <strong>{{ i18n.t({ th: 'ลองตรวจสอบเบื้องต้น', en: 'Try these first' }) }}</strong>
           <ol>
-            <li>{{ i18n.t({ th: 'ไฟที่ตู้ติดไหม (ไม่ติด = แบตหมด)', en: 'Is the box light on? (off = battery empty)' }) }}</li>
+            <li>{{ i18n.t({ th: 'แบตตู้อาจหมด — แผงโซลาร์โดนแดดไหม', en: 'Is the box light on? (off = battery empty)' }) }}</li>
             <li>{{ i18n.t({ th: 'Wi-Fi บ้านใช้งานได้ไหม', en: 'Is your home Wi-Fi working?' }) }}</li>
-            <li>{{ i18n.t({ th: 'เพิ่งเปลี่ยนรหัส Wi-Fi หรือเปล่า', en: 'Did you just change the Wi-Fi password?' }) }}</li>
+            <li>{{ i18n.t({ th: 'เพิ่งเปลี่ยนรหัส Wi-Fi ใช่ไหม', en: 'Did you just change the Wi-Fi password?' }) }}</li>
           </ol>
         </div>
         <div class="two">
@@ -58,7 +58,7 @@ import { Icon } from '../../shared/icon';
         <app-icon name="alert" [size]="22" />
         <span>
           <strong>{{ i18n.t({ th: 'แบตตู้เหลือ 15%', en: 'Battery at 15%' }) }}</strong>
-          <span class="muted small block">{{ i18n.t({ th: 'ดูว่าแผงโซลาร์โดนแดดไหม มีอะไรบังหรือเปล่า', en: 'Check the solar panel gets sun and is not blocked' }) }}</span>
+          <span class="muted small block">{{ i18n.t({ th: 'ตรวจสอบว่าแผงโซลาร์โดนแดด และไม่มีสิ่งใดบัง', en: 'Check the solar panel gets sun and is not blocked' }) }}</span>
         </span>
       </section>
     }

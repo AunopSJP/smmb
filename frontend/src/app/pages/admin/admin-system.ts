@@ -153,7 +153,7 @@ export class AdminConfig implements OnInit {
       await this.ngOnInit();
       this.toast.show({ th: 'บันทึกแล้ว ตู้ดึงค่าใหม่ภายใน 1 วัน', en: 'Saved — boxes update within 1 day' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่ได้ ตรวจค่าอีกครั้ง', en: 'Couldn’t save — check the values' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ โปรดตรวจสอบค่าอีกครั้ง', en: 'Couldn’t save — check the values' });
     } finally {
       this.busy.set(false);
     }
@@ -276,7 +276,7 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
       align-items: center;
     }
     /* จอคอม: หัวข้อ + รายละเอียดอยู่บรรทัดเดียวกัน อ่านเป็นตาราง */
-    @media (min-inline-size: 1024px) {
+    @media (min-width: 1024px) {
       .csv {
         inline-size: auto;
       }

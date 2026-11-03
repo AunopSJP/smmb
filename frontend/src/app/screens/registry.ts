@@ -48,7 +48,7 @@ export const AREA_LABEL: Record<Area, Tr> = {
   head: { th: 'หัวหน้าหน่วยงาน', en: 'Agency head' },
   admin: { th: 'แอดมิน / ช่าง', en: 'Admin / technician' },
   rider: { th: 'ไรเดอร์', en: 'Rider' },
-  auth: { th: 'ล็อกอิน / สมัคร', en: 'Sign-in / sign-up' },
+  auth: { th: 'เข้าสู่ระบบ / สมัคร', en: 'Sign-in / sign-up' },
 };
 
 /** แท็บล่างของแต่ละบทบาท — ตาม wireframe */
@@ -205,7 +205,7 @@ export const SCREENS: ScreenDef[] = [
   }),
   s('A02', 'auth', 'install', 'ติดตั้งเป็นแอป (iPhone)', 'Install the app (iPhone)'),
   s('A03', 'auth', 'notifications', 'เปิดแจ้งเตือน', 'Turn on notifications'),
-  s('A04', 'auth', 'signin', 'ล็อกอิน', 'Sign in', { states: ['A04-b'], next: ['A05'], waitingDecision: true }),
+  s('A04', 'auth', 'signin', 'เข้าสู่ระบบ', 'Sign in', { states: ['A04-b'], next: ['A05'], waitingDecision: true }),
   s('A05', 'auth', 'choose', 'เลือกประเภทผู้ใช้', 'Choose account type', { next: ['A06', 'A10', 'L01'], waitingDecision: true }),
   s('A06', 'auth', 'signup/owner', 'สมัคร · เจ้าของบ้าน', 'Sign up · homeowner', { states: ['A06-b'], next: ['A07'], waitingDecision: true }),
   s('A07', 'auth', 'activate', 'สแกน QR เปิดใช้ตู้', 'Scan the activation QR', { states: ['A07-b', 'A07-c'], next: ['A08'], waitingDecision: true }),

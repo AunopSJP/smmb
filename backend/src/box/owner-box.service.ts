@@ -62,7 +62,7 @@ export interface WifiResetDto {
 const WIFI_RESET_DONE_SHOW_MIN = 30;
 
 type ActivateOutcome =
-  | { result: 'ok'; boxId: string; qrId: string }
+  | { result: 'ok' | 'already_mine'; boxId: string; qrId: string }
   | { result: 'invalid' | 'not_system'; boxId: null; qrId: null }
   | { result: 'already_owned'; boxId: string; qrId: string };
 
@@ -261,7 +261,7 @@ export class OwnerBoxService {
     if (outcome.result === 'already_owned') {
       throw new AppError(HttpStatus.CONFLICT, 'BOX_ALREADY_OWNED', 'box already bound — contact support');
     }
-    if (outcome.result !== 'ok') {
+    if (outcome.result !== 'ok' && outcome.result !== 'already_mine') {
       if (method === 'code') await this.codes.fail(ip ?? 'unknown');
       throw new AppError(HttpStatus.NOT_FOUND, 'QR_INVALID', 'this activation QR is not valid');
     }
@@ -317,6 +317,8 @@ export class OwnerBoxService {
     );
     const qr = rows[0];
     if (!qr || qr.status === 'revoked') return { result: 'invalid', boxId: null, qrId: null };
+    // ผูกกับบัญชีนี้อยู่แล้ว (เช่น กดย้อนกลับก่อนตั้งชื่อแล้วสแกนซ้ำ) → ถือว่าสำเร็จ ไปตั้งชื่อต่อได้ ไม่เปลี่ยนอะไร
+    if (qr.owner_user_id === userId) return { result: 'already_mine', boxId: qr.box_id, qrId: qr.box_qr_code_id };
     if (qr.status === 'used' || qr.owner_user_id) return { result: 'already_owned', boxId: qr.box_id, qrId: qr.box_qr_code_id };
 
     await db.query(

@@ -70,7 +70,7 @@ import { Icon } from './icon';
       text-align: center;
     }
     /* แอดมินบนจอคอม: หัวหน้าจอใหญ่ขึ้น ปุ่มกลมเล็กลง เส้นคั่นใต้หัว */
-    @media (min-inline-size: 1024px) {
+    @media (min-width: 1024px) {
       :host-context(.admin-layout) header {
         gap: 14px;
         padding: 20px 0 16px;

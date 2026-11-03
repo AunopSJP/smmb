@@ -136,7 +136,7 @@ export class AuthSignupOfficer {
           <h1>{{ i18n.t({ th: 'คำขอถูกปฏิเสธ', en: 'Request declined' }) }}</h1>
           <p class="muted small">
             {{ i18n.t({ th: 'หัวหน้าไม่ได้ยืนยันคำขอนี้', en: 'Your head did not approve this request.' }) }}<br />
-            {{ i18n.t({ th: 'ตรวจรหัสกลุ่มกับหัวหน้าอีกครั้ง', en: 'Check the group code with them' }) }}
+            {{ i18n.t({ th: 'ตรวจสอบรหัสกลุ่มกับหัวหน้าอีกครั้ง', en: 'Check the group code with them' }) }}
           </p>
         </div>
         <app-contact-card [label]="{ th: 'ติดต่อหน่วยงาน · ' + req().agency.th, en: 'Contact the agency · ' + req().agency.en }" [contact]="req().contact" />

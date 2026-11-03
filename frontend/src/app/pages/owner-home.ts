@@ -9,6 +9,7 @@ import { screenUrl } from '../screens/registry';
 import { Icon } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
 import { Toast } from '../core/toast';
+import { Session } from '../core/session';
 import { liveRefresh } from '../core/live-refresh';
 
 /** ต้องกดค้างกี่วินาทีถึงส่ง SOS (กันกดโดนโดยไม่ตั้งใจ ✅) */
@@ -23,12 +24,54 @@ const REFRESH_MS = 10_000;
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (noBox()) {
-      <app-page-header [caption]="''" [title]="i18n.t({ th: 'ยังไม่มีตู้', en: 'No mailbox yet' })" />
-      <div class="stack page">
-        <section class="card stack">
-          <p>{{ i18n.t({ th: 'ผูกตู้กับบัญชีก่อน — สแกน QR เปิดใช้ตู้ที่อยู่ด้านในตู้', en: 'Bind your mailbox first — scan the activation QR inside the box' }) }}</p>
-          <a class="btn" [routerLink]="url('A07')">{{ i18n.t({ th: 'ผูกตู้', en: 'Add my mailbox' }) }}</a>
+      <app-page-header [caption]="greeting()" [title]="i18n.t({ th: 'เริ่มใช้งานตู้ของคุณ', en: 'Set up your mailbox' })" />
+      <div class="stack page onboard">
+        <section class="hero" aria-hidden="true">
+          <svg viewBox="0 0 240 170" class="art">
+            <ellipse cx="120" cy="158" rx="78" ry="8" class="shadow" />
+            <rect x="96" y="96" width="14" height="60" rx="3" class="post" />
+            <path d="M60 60a40 40 0 0 1 40-40h70a28 28 0 0 1 28 28v56H60z" class="body" />
+            <path d="M60 60a40 40 0 0 1 80 0v44H60z" class="door" />
+            <rect x="78" y="58" width="44" height="6" rx="3" class="slot" />
+            <g class="qr" transform="translate(150 50)">
+              <rect width="34" height="34" rx="5" class="qr-bg" />
+              <path d="M6 6h9v9H6zM19 6h9v9h-9zM6 19h9v9H6zM20 20h3v3h-3zM25 20h3v3h-3zM20 25h3v3h-3zM25 25h3v3h-3z" class="qr-ink" />
+            </g>
+            <path d="M198 40v34" class="flag-pole" />
+            <path d="M198 40h22l-6 8 6 8h-22z" class="flag" />
+            <circle cx="40" cy="36" r="4" class="spark" />
+            <circle cx="214" cy="112" r="3" class="spark" />
+            <circle cx="30" cy="118" r="2.5" class="spark" />
+          </svg>
         </section>
+
+        <section class="intro">
+          <h2>{{ i18n.t({ th: 'ยังไม่ได้ผูกตู้กับบัญชีนี้', en: 'No mailbox linked to this account' }) }}</h2>
+          <p class="muted">{{ i18n.t({ th: 'ผูกตู้ครั้งเดียว แล้วจะรู้ทันทีเมื่อเจ้าหน้าที่มาตรวจ มีของมาส่ง และกด SOS ขอความช่วยเหลือได้', en: 'Link it once to know right away when an officer checks in or a parcel arrives — and to send SOS' }) }}</p>
+        </section>
+
+        <ol class="steps">
+          <li>
+            <span class="num">1</span>
+            <span><strong>{{ i18n.t({ th: 'เปิดฝาตู้', en: 'Open the mailbox' }) }}</strong><small>{{ i18n.t({ th: 'QR เปิดใช้ตู้ติดอยู่ด้านใน', en: 'The activation QR is inside' }) }}</small></span>
+          </li>
+          <li>
+            <span class="num">2</span>
+            <span><strong>{{ i18n.t({ th: 'สแกน QR เปิดใช้ตู้', en: 'Scan the activation QR' }) }}</strong><small>{{ i18n.t({ th: 'หรือพิมพ์รหัส 8 ตัวใต้ QR', en: 'or type the 8-character code below it' }) }}</small></span>
+          </li>
+          <li>
+            <span class="num">3</span>
+            <span><strong>{{ i18n.t({ th: 'ตั้งชื่อตู้', en: 'Name your mailbox' }) }}</strong><small>{{ i18n.t({ th: 'เช่น ตู้หน้าบ้าน — พร้อมใช้งานทันที', en: 'e.g. Front gate — ready to use' }) }}</small></span>
+          </li>
+        </ol>
+
+        <div class="stack push-end">
+          <a class="btn big" [routerLink]="url('A07')">
+            <app-icon name="scan" [size]="20" />
+            {{ i18n.t({ th: 'ผูกตู้ตอนนี้', en: 'Link my mailbox' }) }}
+          </a>
+          <p class="muted small center">{{ i18n.t({ th: 'ไม่พบ QR ในตู้? ติดต่อผู้ติดตั้งหรือผู้ดูแลระบบ', en: 'No QR inside? Contact your installer or the admin' }) }}</p>
+        </div>
       </div>
     } @else if (b(); as b) {
       <app-page-header
@@ -55,7 +98,7 @@ const REFRESH_MS = 10_000;
         @if (b.qr_task) {
           <section class="card warn-card stack">
             <strong>{{ i18n.t({ th: 'QR หน้าตู้ชำรุด', en: 'Front QR is damaged' }) }}</strong>
-            <span class="small">{{ i18n.t({ th: 'นำ QR สำรองที่เก็บด้านในมาติดหน้าตู้ แล้วกดยืนยัน ระบบจะปิด QR ใบเก่าและออกใบสำรองใหม่ให้แอดมินจัดส่ง', en: 'Move the backup QR inside the box to the front, then confirm. The old QR will be disabled and a replacement backup issued.' }) }}</span>
+            <span class="small">{{ i18n.t({ th: 'นำ QR สำรองที่เก็บด้านในมาติดหน้าตู้ แล้วกดยืนยัน ระบบจะปิด QR ใบเก่าและออกใบสำรองใหม่ให้ผู้ดูแลระบบจัดส่ง', en: 'Move the backup QR inside the box to the front, then confirm. The old QR will be disabled and a replacement backup issued.' }) }}</span>
             <button type="button" class="btn secondary" [disabled]="confirmingQr()" (click)="confirmBackup(b.id)">
               {{ confirmingQr() ? i18n.t({ th: 'กำลังบันทึก…', en: 'Saving…' }) : i18n.t({ th: 'ติด QR สำรองแล้ว', en: 'Backup QR is in place' }) }}
             </button>
@@ -92,7 +135,7 @@ const REFRESH_MS = 10_000;
                 <strong class="value">{{ m }} {{ i18n.t({ th: 'นาที', en: 'min' }) }}</strong>
                 <span class="label">{{ i18n.t({ th: 'ที่แล้ว', en: 'ago' }) }}</span>
               } @else {
-                <strong class="value">{{ b.last_seen_at ? i18n.t({ th: 'เมื่อกี้', en: 'just now' }) : '—' }}</strong>
+                <strong class="value">{{ b.last_seen_at ? i18n.t({ th: 'เมื่อสักครู่', en: 'just now' }) : '—' }}</strong>
               }
             </div>
           </div>
@@ -165,7 +208,7 @@ const REFRESH_MS = 10_000;
         </button>
       </div>
       @if (sosError()) {
-        <p class="card err" role="alert">{{ i18n.t({ th: 'ส่ง SOS ไม่ได้ — โทร 191 / 1669 ทันที', en: 'Couldn’t send the SOS — call 191 / 1669 now' }) }}</p>
+        <p class="card err" role="alert">{{ i18n.t({ th: 'ส่ง SOS ไม่สำเร็จ — โปรดโทร 191 / 1669 ทันที', en: 'Couldn’t send the SOS — call 191 / 1669 now' }) }}</p>
       }
 
       @if (holding()) {
@@ -185,7 +228,7 @@ const REFRESH_MS = 10_000;
       }
     } @else if (error()) {
       <div class="stack page">
-        <p class="card err" role="alert">{{ i18n.t({ th: 'โหลดข้อมูลไม่ได้', en: 'Couldn’t load' }) }}</p>
+        <p class="card err" role="alert">{{ i18n.t({ th: 'โหลดข้อมูลไม่สำเร็จ', en: 'Couldn’t load' }) }}</p>
         <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button>
       </div>
     } @else {
@@ -234,6 +277,11 @@ export class OwnerHome implements OnDestroy {
   protected readonly b = signal<BoxDetail | null>(null);
   protected readonly boxes = signal<{ id: string; name: string; house_no: string }[]>([]);
   protected readonly noBox = signal(false);
+  private readonly me = inject(Session).me;
+  protected readonly greeting = computed(() => {
+    const n = this.me()?.display_name;
+    return n ? this.i18n.t({ th: `สวัสดี คุณ${n}`, en: `Hello, ${n}` }) : '';
+  });
   protected readonly error = signal(false);
   protected readonly sending = signal(false);
   protected readonly sosError = signal(false);
@@ -283,7 +331,7 @@ export class OwnerHome implements OnDestroy {
       await this.api.confirmQrBackupPlaced(boxId);
       await this.load();
     } catch {
-      this.toast.show({ th: 'บันทึกไม่ได้ · ลองโหลดหน้าใหม่', en: 'Could not save · reload and try again' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ · โปรดโหลดหน้าใหม่', en: 'Could not save · reload and try again' });
     } finally {
       this.confirmingQr.set(false);
     }

@@ -184,3 +184,87 @@
   background: var(--brand);
   color: #fff;
 }
+
+/* ── ยังไม่มีตู้ (เริ่มใช้งาน) ── */
+.onboard {
+  gap: 18px;
+}
+.hero {
+  display: grid;
+  place-items: center;
+  padding: 18px 0 6px;
+  border-radius: var(--radius);
+  background: radial-gradient(120% 90% at 50% 0%, var(--brand-light) 0%, transparent 70%);
+}
+.art {
+  inline-size: min(260px, 72%);
+  block-size: auto;
+  .shadow { fill: color-mix(in srgb, var(--text) 10%, transparent); }
+  .post { fill: color-mix(in srgb, var(--text) 55%, var(--surface)); }
+  .body { fill: var(--brand); }
+  .door { fill: var(--brand-dark); }
+  .slot { fill: color-mix(in srgb, #000 35%, var(--brand-dark)); }
+  .qr-bg { fill: #fff; stroke: var(--brand-dark); stroke-width: 1.5; }
+  .qr-ink { fill: #111; }
+  .flag-pole { stroke: color-mix(in srgb, var(--text) 55%, var(--surface)); stroke-width: 3; stroke-linecap: round; }
+  .flag { fill: var(--warn, #f59e0b); }
+  .spark { fill: var(--brand); opacity: 0.35; }
+}
+.intro {
+  text-align: center;
+  h2 {
+    font-size: 1.25rem;
+    margin-block-end: 6px;
+  }
+  p {
+    max-inline-size: 34ch;
+    margin-inline: auto;
+    line-height: 1.55;
+  }
+}
+.steps {
+  text-align: start;
+  list-style: none;
+  margin: 0;
+  padding: 6px 16px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  li {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 0;
+    & + li {
+      border-block-start: 1px solid var(--line);
+    }
+    > span:last-child {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    small {
+      color: var(--text-muted);
+      font-size: 0.8125rem;
+    }
+  }
+}
+.num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 32px;
+  block-size: 32px;
+  border-radius: 50%;
+  background: var(--brand-light);
+  color: var(--brand-dark);
+  font-weight: 800;
+}
+.btn.big {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-block-size: 56px;
+  font-size: 1.0625rem;
+}

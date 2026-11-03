@@ -25,7 +25,14 @@ import { AccountActions } from '../auth/auth-account';
       [bell]="url('H14')"
     />
     <div class="stack grow">
-      <app-push-status />
+      <app-push-status [compact]="true" />
+      @if (loaded() && !boxes().length) {
+        <section class="card nobox" role="status">
+          <strong>{{ i18n.t({ th: 'ยังไม่ได้ผูกตู้', en: 'No mailbox linked yet' }) }}</strong>
+          <span class="muted small">{{ i18n.t({ th: 'โปรดผูกตู้ก่อน จึงจะตั้งค่าตู้ได้ — สแกน QR เปิดใช้ตู้ที่อยู่ด้านในตู้', en: 'Link your mailbox first to change its settings — scan the activation QR inside the box' }) }}</span>
+          <a class="btn" [routerLink]="url('A07')" [queryParams]="{ from: 'H13' }">{{ i18n.t({ th: 'ผูกตู้', en: 'Link a mailbox' }) }}</a>
+        </section>
+      }
       @if (boxes().length > 1) {
         <div class="segmented chips" role="group">
           @for (b of boxes(); track b.id) {
@@ -45,7 +52,7 @@ import { AccountActions } from '../auth/auth-account';
                   <button type="button" class="link strong" [disabled]="!draft().trim()" (click)="rename()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
                 </span>
               } @else {
-                {{ b.name }} <button type="button" class="link" (click)="startRename()">{{ i18n.t({ th: 'แก้', en: 'Edit' }) }}</button>
+                {{ b.name }} <button type="button" class="link" (click)="startRename()">{{ i18n.t({ th: 'แก้ไข', en: 'Edit' }) }}</button>
               }
             </dd>
             <dt>{{ i18n.t({ th: 'หมู่บ้าน / ย่าน', en: 'Village / area' }) }}</dt>
@@ -57,7 +64,7 @@ import { AccountActions } from '../auth/auth-account';
                   <button type="button" class="link strong" (click)="saveArea()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
                 </span>
               } @else {
-                {{ b.area || '—' }} <button type="button" class="link" (click)="startArea()">{{ i18n.t({ th: 'แก้', en: 'Edit' }) }}</button>
+                {{ b.area || '—' }} <button type="button" class="link" (click)="startArea()">{{ i18n.t({ th: 'แก้ไข', en: 'Edit' }) }}</button>
               }
             </dd>
             <dt>{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd>{{ b.id }}</dd>
@@ -82,6 +89,15 @@ import { AccountActions } from '../auth/auth-account';
 
       <nav class="list">
         @for (m of menu(); track m.code) {
+          @if (m.needsBox && loaded() && !boxes().length) {
+            <div class="row disabled" aria-disabled="true">
+              <span class="icon-bubble"><app-icon [name]="m.icon" [size]="20" /></span>
+              <span class="grow">
+                <strong>{{ i18n.t(m.title) }}</strong>
+                <span class="muted small block">{{ i18n.t({ th: 'ผูกตู้ก่อนจึงจะใช้ได้', en: 'Link a mailbox first' }) }}</span>
+              </span>
+            </div>
+          } @else {
           <a class="row" [routerLink]="url(m.code)">
             <span class="icon-bubble"><app-icon [name]="m.icon" [size]="20" /></span>
             <span class="grow">
@@ -94,6 +110,7 @@ import { AccountActions } from '../auth/auth-account';
               <app-icon name="chevronRight" [size]="18" />
             }
           </a>
+          }
         }
       </nav>
 
@@ -105,6 +122,16 @@ import { AccountActions } from '../auth/auth-account';
     </div>
   `,
   styles: `
+    .nobox {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-color: var(--brand);
+    }
+    .row.disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
     .grow {
       flex: 1;
       min-inline-size: 0;
@@ -159,11 +186,14 @@ export class OwnerSettings {
   protected readonly plan = signal<PlanInfo | null>(null);
   protected readonly editingArea = signal(false);
   protected readonly areaDraft = signal('');
+  /** โหลดรายการตู้เสร็จแล้ว — ยังไม่มีตู้ = ตั้งค่าตู้ไม่ได้ ให้ผูกตู้ก่อน */
+  protected readonly loaded = signal(false);
 
   constructor() {
     void this.api.plan().then((p) => this.plan.set(p)).catch(() => undefined);
     void this.api.boxes().then((b) => {
       this.boxes.set(b);
+      this.loaded.set(true);
       if (b[0]) void this.open(b[0].id);
     });
   }
@@ -205,7 +235,7 @@ export class OwnerSettings {
       await this.open(b.id);
       this.toast.show({ th: 'บันทึกย่านแล้ว', en: 'Area saved' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่ได้', en: 'Couldn’t save' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save' });
     }
   }
 
@@ -220,18 +250,18 @@ export class OwnerSettings {
       this.boxes.update((list) => list.map((x) => (x.id === b.id ? { ...x, name: this.draft().trim() } : x)));
       this.toast.show({ th: 'เปลี่ยนชื่อตู้แล้ว', en: 'Renamed' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่ได้', en: 'Couldn’t save' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save' });
     }
   }
 
   protected signout(): void {
     void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true }));
   }
-  protected readonly menu = computed<{ code: string; icon: IconName; title: Tr; sub: Tr; badge?: Tr }[]>(() => {
+  protected readonly menu = computed<{ code: string; icon: IconName; title: Tr; sub: Tr; badge?: Tr; needsBox?: boolean }[]>(() => {
     const pushOn = this.session.me()?.push.subscribed === true;
     return [
-    { code: 'H13-b', icon: 'layers', title: { th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' }, sub: { th: 'กดสั่งจากเว็บ ตู้จะเข้าโหมดตั้งค่าเอง', en: 'Tap here — the mailbox enters setup mode by itself' } },
-    { code: 'H13-c', icon: 'user', title: { th: 'แจ้งช่าง', en: 'Request a technician' }, sub: { th: 'ให้ช่างนัดมาตั้งค่า / ซ่อม', en: 'A technician will set up or repair' } },
+    { code: 'H13-b', icon: 'layers', title: { th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' }, sub: { th: 'กดสั่งจากเว็บ ตู้จะเข้าโหมดตั้งค่าเอง', en: 'Tap here — the mailbox enters setup mode by itself' }, needsBox: true },
+    { code: 'H13-c', icon: 'user', title: { th: 'แจ้งช่าง', en: 'Request a technician' }, sub: { th: 'ให้ช่างนัดมาตั้งค่า / ซ่อม', en: 'A technician will set up or repair' }, needsBox: true },
     { code: 'H14', icon: 'bell', title: { th: 'การแจ้งเตือน', en: 'Notifications' }, sub: pushOn ? { th: 'เครื่องนี้รับแจ้งเตือนอยู่', en: 'This device gets notifications' } : { th: 'เครื่องนี้ยังไม่ได้เปิด — แตะเพื่อเปิด', en: 'Off on this device — tap to turn on' }, ...(pushOn ? { badge: { th: 'เปิด', en: 'On' } } : {}) },
     { code: 'H13-d', icon: 'settings', title: { th: 'การแสดงผล', en: 'Display' }, sub: { th: 'ธีม · ภาษา · ขนาดตัวอักษร', en: 'Theme · language · text size' } },
   ];
@@ -265,7 +295,7 @@ export class OwnerSettings {
         } @else if (w.status === 'expired') {
           <div class="card status warn">
             <strong>{{ i18n.t({ th: 'ตู้ไม่ได้รับคำสั่ง (เกิน 24 ชม.)', en: 'The mailbox never received the command (over 24 h)' }) }}</strong>
-            <small>{{ i18n.t({ th: 'ตรวจว่าตู้เปิดอยู่และมีสัญญาณ แล้วสั่งใหม่ หรือแจ้งช่าง', en: 'Check it is powered and has signal, then try again — or ask a technician.' }) }}</small>
+            <small>{{ i18n.t({ th: 'ตรวจสอบว่าตู้เปิดอยู่และมีสัญญาณ แล้วสั่งใหม่ หรือแจ้งช่าง', en: 'Check it is powered and has signal, then try again — or ask a technician.' }) }}</small>
           </div>
         }
 
@@ -410,7 +440,7 @@ export class OwnerWifi {
     return [
       { title: { th: 'ตู้ตัด Wi-Fi เดิมแล้ว', en: 'The mailbox dropped the old Wi-Fi' }, sub: { th: 'จะได้ยินเสียงปี๊บสั้น ๆ 3 ครั้ง', en: 'You will hear three short beeps' } },
       { title: { th: `มือถือต่อ Wi-Fi ชื่อ ${apName}`, en: `Join Wi-Fi “${apName}”` }, sub: { th: 'อยู่ใกล้ตู้ · ไม่มีรหัสผ่าน', en: 'Stay near the box · no password' } },
-      { title: { th: 'เปิดเว็บ 192.168.4.1', en: 'Open 192.168.4.1' }, sub: { th: 'ถ้าหน้าตั้งค่าไม่เด้งขึ้นเอง', en: 'If the setup page does not pop up' } },
+      { title: { th: 'เปิดเว็บ 192.168.4.1', en: 'Open 192.168.4.1' }, sub: { th: 'ถ้าหน้าตั้งค่าไม่เปิดขึ้นเอง', en: 'If the setup page does not pop up' } },
       { title: { th: 'เลือก Wi-Fi บ้าน (2.4 GHz) + ใส่รหัส', en: 'Pick home Wi-Fi (2.4 GHz) + password' }, sub: { th: 'ต้องทำภายใน 10 นาที หากไม่ทัน ตู้จะกลับไปใช้ Wi-Fi เดิม', en: 'Within 10 minutes, or it returns to the old Wi-Fi' } },
     ];
   }
@@ -462,6 +492,13 @@ export class OwnerWifi {
           </select>
         </label>
       }
+      @if (loaded() && !boxes().length) {
+        <section class="card nobox" role="status">
+          <strong>{{ i18n.t({ th: 'ยังไม่ได้ผูกตู้', en: 'No mailbox linked yet' }) }}</strong>
+          <span class="muted small">{{ i18n.t({ th: 'โปรดผูกตู้ก่อน จึงจะตั้งค่าตู้ได้ — สแกน QR เปิดใช้ตู้ที่อยู่ด้านในตู้', en: 'Link your mailbox first to change its settings — scan the activation QR inside the box' }) }}</span>
+          <a class="btn" [routerLink]="url('A07')" [queryParams]="{ from: 'H13' }">{{ i18n.t({ th: 'ผูกตู้', en: 'Link a mailbox' }) }}</a>
+        </section>
+      } @else {
       @if (activeRequest(); as request) {
         <span class="check"><app-icon name="check" [size]="30" /></span>
         <h1 class="center">{{ request.status === 'done' ? i18n.t({ th: 'ช่างแก้ไขแล้ว', en: 'Technician visit completed' }) : i18n.t({ th: 'ส่งคำขอแล้ว', en: 'Request sent' }) }}</h1>
@@ -487,10 +524,11 @@ export class OwnerWifi {
             <textarea maxlength="1000" rows="3" [value]="note()" (input)="setNote($event)"></textarea>
           </label>
         </section>
-        @if (error()) { <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดหรือส่งคำขอไม่สำเร็จ อาจมีคำขอที่ยังเปิดอยู่แล้ว ลองโหลดหน้าใหม่', en: 'Could not load or send the request. An open request may already exist; reload the page.' }) }}</p> }
+        @if (error()) { <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดหรือส่งคำขอไม่สำเร็จ อาจมีคำขอที่ยังเปิดอยู่แล้ว โปรดโหลดหน้าใหม่', en: 'Could not load or send the request. An open request may already exist; reload the page.' }) }}</p> }
         <button type="button" class="btn end" [disabled]="sending() || !boxId()" (click)="submit()">
           {{ sending() ? i18n.t({ th: 'กำลังส่ง…', en: 'Sending…' }) : i18n.t({ th: 'ส่งคำขอช่าง', en: 'Send request' }) }}
         </button>
+      }
       }
       <a class="btn end" [routerLink]="url('H03')">{{ i18n.t({ th: 'กลับหน้าหลัก', en: 'Back to home' }) }}</a>
     </div>
@@ -544,9 +582,13 @@ export class OwnerTechnician {
     { value: 'other' as const, label: { th: 'เรื่องอื่น', en: 'Other' } },
   ];
 
+  /** โหลดรายการตู้เสร็จแล้ว — ยังไม่มีตู้ = แจ้งช่างไม่ได้ ให้ผูกตู้ก่อน */
+  protected readonly loaded = signal(false);
+
   constructor() {
     void this.api.boxes().then((boxes) => {
       this.boxes.set(boxes);
+      this.loaded.set(true);
       const first = boxes[0];
       if (first) { this.boxId.set(first.id); void this.loadRequests(first.id); }
     }).catch(() => this.error.set(true));
@@ -637,7 +679,7 @@ export class OwnerTechnician {
         <label class="card toggle">
           <span>
             <strong>{{ i18n.t({ th: 'ธีมมืดอัตโนมัติตอนตรวจกลางคืน', en: 'Auto dark theme for night patrols' }) }}</strong>
-            <span class="muted small block">{{ i18n.t({ th: '18:00–06:00 · ไม่แสบตา ประหยัดแบต', en: '18:00–06:00 · easier on the eyes, saves battery' }) }}</span>
+            <span class="muted small block">{{ i18n.t({ th: '18:00–06:00 · ถนอมสายตา ประหยัดแบตเตอรี่', en: '18:00–06:00 · easier on the eyes, saves battery' }) }}</span>
           </span>
           <input type="checkbox" class="switch" role="switch" [checked]="display.nightAutoDark()" (change)="display.nightAutoDark.set($any($event.target).checked)" />
         </label>

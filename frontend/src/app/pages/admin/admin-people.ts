@@ -84,7 +84,7 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
       padding: 40px 24px;
       color: var(--text-muted);
     }
-    @media (min-inline-size: 1024px) {
+    @media (min-width: 1024px) {
       .stack {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
@@ -234,7 +234,7 @@ export class AdminAgencyRequests implements OnInit {
       font-variant-numeric: tabular-nums;
       letter-spacing: 0.03em;
     }
-    @media (min-inline-size: 1024px) {
+    @media (min-width: 1024px) {
       .acols {
         grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr) 160px 130px;
         gap: 16px;
@@ -319,7 +319,7 @@ const ROLE_LABEL: Record<string, Tr> = {
           </p>
           @if (temp(); as t) {
             <div class="info-box">
-              <span class="small">{{ i18n.t({ th: 'รหัสชั่วคราว (แสดงครั้งเดียว — ให้ผู้ใช้เปลี่ยนตอนล็อกอิน)', en: 'Temporary password (shown once — they must change it at sign-in)' }) }}</span>
+              <span class="small">{{ i18n.t({ th: 'รหัสชั่วคราว (แสดงครั้งเดียว — ให้ผู้ใช้เปลี่ยนตอนเข้าสู่ระบบ)', en: 'Temporary password (shown once — they must change it at sign-in)' }) }}</span>
               <p class="temp">{{ t }}</p>
             </div>
           }
@@ -409,7 +409,7 @@ const ROLE_LABEL: Record<string, Tr> = {
       gap: var(--gap);
       min-inline-size: 0;
     }
-    @media (min-inline-size: 1360px) {
+    @media (min-width: 1360px) {
       .split {
         display: grid;
         grid-template-columns: minmax(0, 1fr) 400px;
@@ -454,7 +454,7 @@ const ROLE_LABEL: Record<string, Tr> = {
     .list-head.ucols > :nth-child(3) {
       grid-area: st;
     }
-    @media (min-inline-size: 1024px) {
+    @media (min-width: 1024px) {
       .ucols {
         grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) 84px;
         grid-template-areas: 'name info st';
@@ -519,7 +519,12 @@ export class AdminUsers implements OnInit {
   protected readonly selectedId = linkedSignal<string | null>(() => this.id() ?? null);
   protected readonly q = signal('');
   protected readonly users = signal<AdminUser[]>([]);
-  protected readonly roleFilter = signal<'all' | 'owner' | 'officer' | 'head' | 'admin' | 'off'>('all');
+  /** ?role= จากเมนูย่อยข้างซ้าย */
+  readonly roleParam = input<string | undefined>(undefined, { alias: 'role' });
+  protected readonly roleFilter = linkedSignal<'all' | 'owner' | 'officer' | 'head' | 'admin' | 'off'>(() => {
+    const r = this.roleParam();
+    return r === 'owner' || r === 'officer' || r === 'head' || r === 'admin' || r === 'off' ? r : 'all';
+  });
   protected readonly roleFilters: { v: 'all' | 'owner' | 'officer' | 'head' | 'admin' | 'off'; label: Tr }[] = [
     { v: 'all', label: { th: 'ทั้งหมด', en: 'All' } },
     { v: 'owner', label: { th: 'เจ้าของบ้าน', en: 'Owners' } },
@@ -573,7 +578,7 @@ export class AdminUsers implements OnInit {
       this.temp.set((await this.api.resetPassword(u.id)).temp_password);
     } catch (err) {
       const e = apiError(err);
-      this.error.set(e.code === 'CANNOT_CHANGE_SELF' ? { th: 'รีเซ็ตรหัสตัวเองไม่ได้ — ใช้เปลี่ยนรหัสผ่าน', en: 'Can’t reset yourself — use change password' } : { th: 'รีเซ็ตไม่ได้', en: 'Couldn’t reset' });
+      this.error.set(e.code === 'CANNOT_CHANGE_SELF' ? { th: 'รีเซ็ตรหัสตัวเองไม่ได้ — ใช้เปลี่ยนรหัสผ่าน', en: 'Can’t reset yourself — use change password' } : { th: 'รีเซ็ตไม่สำเร็จ', en: 'Couldn’t reset' });
     } finally {
       this.busy.set(false);
     }
@@ -588,7 +593,7 @@ export class AdminUsers implements OnInit {
       await this.search();
     } catch (err) {
       const e = apiError(err);
-      this.error.set(e.code === 'CANNOT_CHANGE_SELF' ? { th: 'ปิดบัญชีตัวเองไม่ได้', en: 'Can’t disable yourself' } : { th: 'ทำไม่ได้', en: 'Couldn’t do it' });
+      this.error.set(e.code === 'CANNOT_CHANGE_SELF' ? { th: 'ปิดบัญชีตัวเองไม่ได้', en: 'Can’t disable yourself' } : { th: 'ทำรายการไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t do it' });
     } finally {
       this.busy.set(false);
     }

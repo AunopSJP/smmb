@@ -382,6 +382,8 @@ describe('Boxes (e2e)', () => {
 
       const other = await signupOwner();
       expect((await as(other.cookie).post('/api/v1/boxes/activate', { qr_text: url }).expect(409)).body.code).toBe('BOX_ALREADY_OWNED');
+      // เจ้าของเดิมกดย้อนกลับก่อนตั้งชื่อแล้วสแกนซ้ำ → ไปตั้งชื่อต่อได้ (ไม่ใช่ "ตู้มีเจ้าของแล้ว")
+      expect((await as(owner.cookie).post('/api/v1/boxes/activate', { qr_text: url }).expect(200)).body).toEqual(res.body);
 
       expect((await as(owner.cookie).patch(`/api/v1/boxes/${b.box_id}`, { name: 'ตู้หน้าบ้าน' }).expect(200)).body.name).toBe('ตู้หน้าบ้าน');
       await as(other.cookie).patch(`/api/v1/boxes/${b.box_id}`, { name: 'ของฉัน' }).expect(404);

@@ -53,7 +53,7 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
       <label class="field" [class.invalid]="tried() && !phoneOk()">
         <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
         <input type="tel" inputmode="tel" autocomplete="tel" [value]="f().phone" (input)="set('phone', $any($event.target).value)" />
-        <small>{{ i18n.t({ th: 'ใช้ล็อกอิน · แอดมินใช้ติดต่อตอนตรวจคำขอ', en: 'Used to sign in · the admin may call while reviewing' }) }}</small>
+        <small>{{ i18n.t({ th: 'ใช้เข้าสู่ระบบ · ผู้ดูแลระบบใช้ติดต่อตอนตรวจคำขอ', en: 'Used to sign in · the admin may call while reviewing' }) }}</small>
       </label>
       <label class="field" [class.invalid]="tried() && !contactOk()">
         <span>{{ i18n.t({ th: 'ช่องทางติดต่อหน่วยงาน', en: 'Agency contact' }) }}</span>
@@ -164,7 +164,7 @@ export class HeadSignup {
         <div class="result">
           <span class="big-icon danger" aria-hidden="true">✕</span>
           <h1>{{ i18n.t({ th: 'ไม่อนุมัติ', en: 'Not approved' }) }}</h1>
-          <p class="muted small">{{ i18n.t({ th: 'แอดมินไม่อนุมัติหน่วยงานนี้', en: 'The admin did not approve this agency' }) }}</p>
+          <p class="muted small">{{ i18n.t({ th: 'ผู้ดูแลระบบไม่อนุมัติหน่วยงานนี้', en: 'The admin did not approve this agency' }) }}</p>
         </div>
         <section class="card">
           <dl class="kv">
@@ -179,7 +179,7 @@ export class HeadSignup {
       } @else {
         <div class="result">
           <span class="big-icon danger dots" aria-hidden="true">•••</span>
-          <h1>{{ i18n.t({ th: 'รอแอดมินตรวจ', en: 'Waiting for the admin' }) }}</h1>
+          <h1>{{ i18n.t({ th: 'รอผู้ดูแลระบบตรวจ', en: 'Waiting for the admin' }) }}</h1>
           <p class="muted small">{{ i18n.t({ th: 'ส่งคำขอแล้ว ปกติใช้ไม่เกิน 1 วันทำการ', en: 'Request sent — usually within 1 working day' }) }}</p>
         </div>
         <section class="card">
@@ -240,7 +240,7 @@ export class HeadPending implements OnInit {
     } else if (a?.status === 'rejected') {
       void this.router.navigate([screenUrl('L02')], { queryParams: { state: 'rejected' }, replaceUrl: true });
     } else {
-      this.toast.show({ th: 'ยังรอแอดมินตรวจอยู่', en: 'Still waiting for the admin' });
+      this.toast.show({ th: 'ยังรอผู้ดูแลระบบตรวจอยู่', en: 'Still waiting for the admin' });
     }
   }
 

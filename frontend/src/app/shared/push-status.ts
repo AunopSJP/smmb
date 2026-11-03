@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal, type OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { apiError } from '../core/api';
 import { I18n, type Tr } from '../core/i18n';
@@ -19,10 +19,12 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (on()) {
+    @if (on() && compact()) {
+      <!-- เปิดแล้ว: ไม่ต้องมีแถบให้กดเปิดอีก -->
+    } @else if (on()) {
       <div class="card status ok">
         <strong>{{ i18n.t({ th: '🔔 เครื่องนี้รับแจ้งเตือนอยู่', en: '🔔 This device gets notifications' }) }}</strong>
-        <small>{{ i18n.t({ th: 'มือถือ/คอมเครื่องอื่นที่ล็อกอินบัญชีนี้ ต้องเปิดแยกเครื่องละครั้ง', en: 'Every other phone or computer you sign in on needs to turn it on separately' }) }}</small>
+        <small>{{ i18n.t({ th: 'มือถือ/คอมพิวเตอร์เครื่องอื่นที่เข้าสู่ระบบบัญชีนี้ ต้องเปิดแยกเครื่องละครั้ง', en: 'Every other phone or computer you sign in on needs to turn it on separately' }) }}</small>
         <div class="row-btns">
           <button type="button" class="btn secondary" [disabled]="busy()" (click)="test()">{{ i18n.t({ th: 'ส่งทดสอบ', en: 'Send a test' }) }}</button>
           @if (!required()) {
@@ -84,12 +86,14 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
     }
   `,
 })
-export class PushStatus {
+export class PushStatus implements OnInit {
   protected readonly i18n = inject(I18n);
   /** เจ้าหน้าที่/หัวหน้า: ต้องเปิดไว้เสมอ (ไม่มีปุ่มปิด) */
   readonly required = input(false);
   /** ชื่อเครื่องที่ส่งให้ server (device_label) */
   readonly deviceLabel = input<string>();
+  /** เปิดอยู่แล้ว → ไม่แสดงอะไร (ใช้หน้าตั้งค่า ที่มีเมนู "การแจ้งเตือน" แยกอยู่แล้ว) */
+  readonly compact = input(false);
   private readonly push = inject(PushNotifications);
   private readonly session = inject(Session);
   private readonly toast = inject(Toast);
@@ -97,7 +101,13 @@ export class PushStatus {
   protected readonly busy = signal(false);
   /** ค่านี้เปลี่ยนเมื่อกดอนุญาต/ปิด (ไม่มี signal ของ Notification.permission) */
   private readonly tick = signal(0);
-  protected readonly on = computed(() => this.session.me()?.push.subscribed === true);
+  /** ผลตรวจฝั่งเบราว์เซอร์ (null = ยังไม่รู้) — server บอกว่าเปิด แต่เบราว์เซอร์ถูกปิดสิทธิ์/ลบ subscription ไปแล้ว ต้องถือว่ายังไม่เปิด */
+  private readonly deviceOk = signal<boolean | null>(null);
+  protected readonly on = computed(() => this.session.me()?.push.subscribed === true && this.deviceOk() !== false);
+
+  async ngOnInit(): Promise<void> {
+    this.deviceOk.set(await this.push.isActive().catch(() => false));
+  }
   protected readonly blocker = computed<PushBlocker | null>(() => {
     this.tick();
     return this.push.blocker();
@@ -112,16 +122,30 @@ export class PushStatus {
     );
   }
 
+  /** เปิด → ตรวจว่าเปิดได้จริง (เบราว์เซอร์ + เซิร์ฟเวอร์) → ส่งทดสอบ 1 ครั้งให้เห็นว่าเด้งจริง · ไม่ผ่าน = แถบยังอยู่ให้กดใหม่ */
   protected async turnOn(): Promise<void> {
     await this.run(async () => {
       await this.push.enable(this.deviceLabel());
-      this.toast.show({ th: 'เปิดแจ้งเตือนแล้ว', en: 'Notifications are on' });
+      await this.session.refresh();
+      const ok = (await this.push.isActive().catch(() => false)) && this.session.me()?.push.subscribed === true;
+      this.deviceOk.set(ok);
+      if (!ok) {
+        this.toast.show({ th: 'ยังเปิดแจ้งเตือนไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Notifications are not on yet — try again' });
+        return;
+      }
+      const r = await this.push.sendTest().catch(() => null);
+      this.toast.show(
+        r && r.sent > 0
+          ? { th: 'เปิดแจ้งเตือนแล้ว · ส่งแจ้งเตือนทดสอบมาที่เครื่องนี้แล้ว', en: 'Notifications are on · a test was sent to this device' }
+          : { th: 'เปิดแจ้งเตือนแล้ว แต่ส่งทดสอบไม่สำเร็จ — กด "ส่งทดสอบ" ในหน้าการแจ้งเตือน', en: 'Notifications are on, but the test failed — tap “Send a test” on the notifications page' },
+      );
     });
   }
 
   protected async turnOff(): Promise<void> {
     await this.run(async () => {
       await this.push.disable();
+      this.deviceOk.set(false);
       this.toast.show({ th: 'ปิดแจ้งเตือนบนเครื่องนี้แล้ว', en: 'Notifications are off on this device' });
     });
   }
@@ -133,9 +157,9 @@ export class PushStatus {
         r.sent > 0
           ? { th: 'ส่งแจ้งเตือนทดสอบแล้ว — รอสักครู่ (ถ้าไม่เห็น ดูว่าเปิดสิทธิ์แจ้งเตือนของเบราว์เซอร์/แอปไว้)', en: 'Test sent — it should arrive in a moment (if not, check the browser/app notification permission)' }
           : r.removed > 0
-            ? { th: 'เครื่องนี้หมดอายุแล้ว — ปิดแจ้งเตือนแล้วเปิดใหม่', en: 'This device’s subscription expired — turn notifications off and on again' }
+            ? { th: 'การลงทะเบียนแจ้งเตือนของเครื่องนี้หมดอายุแล้ว — ปิดแล้วเปิดใหม่', en: 'This device’s subscription expired — turn notifications off and on again' }
             : r.failed > 0
-              ? { th: `เซิร์ฟเวอร์ส่งไม่สำเร็จ (${r.failure_status ?? 'เครือข่าย'}) — ปิดแล้วเปิดใหม่ ถ้ายังไม่ได้แจ้งผู้ดูแล`, en: `The server could not deliver it (${r.failure_status ?? 'network'}) — turn it off and on; if it persists, tell the admin` }
+              ? { th: `เซิร์ฟเวอร์ส่งไม่สำเร็จ (${r.failure_status ?? 'เครือข่าย'}) — ปิดแล้วเปิดใหม่ หากยังไม่ได้ โปรดแจ้งผู้ดูแลระบบ`, en: `The server could not deliver it (${r.failure_status ?? 'network'}) — turn it off and on; if it persists, tell the admin` }
               : { th: 'เครื่องนี้ยังไม่ได้ผูกกับบัญชี — ปิดแจ้งเตือนแล้วเปิดใหม่', en: 'This device is not linked to your account yet — turn notifications off and on again' };
       this.toast.show(msg);
     });
@@ -145,10 +169,10 @@ export class PushStatus {
   private failureText(error: unknown): Tr {
     const e = apiError(error);
     const tail = (e.code ?? (e.status ? `HTTP ${e.status}` : ''));
-    if (e.code === 'PUSH_UNAVAILABLE') return { th: 'เซิร์ฟเวอร์ยังไม่ได้ตั้งค่าแจ้งเตือน (VAPID) — แจ้งผู้ดูแล', en: 'The server has no push keys configured (VAPID) — tell the admin' };
+    if (e.code === 'PUSH_UNAVAILABLE') return { th: 'เซิร์ฟเวอร์ยังไม่ได้ตั้งค่าแจ้งเตือน (VAPID) — โปรดแจ้งผู้ดูแลระบบ', en: 'The server has no push keys configured (VAPID) — tell the admin' };
     if (e.status === 0 && error instanceof HttpErrorResponse) return { th: 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Can’t reach the server — check your connection' };
-    if (e.status === 401) return { th: 'หมดเวลาเข้าสู่ระบบ — ล็อกอินใหม่แล้วลองอีกครั้ง', en: 'Your session expired — sign in again' };
-    if (e.status >= 400) return { th: `เซิร์ฟเวอร์ไม่รับ (${tail}) — ปิดแล้วเปิดใหม่ ถ้ายังไม่ได้แจ้งผู้ดูแล`, en: `The server refused it (${tail}) — turn it off and on; if it persists, tell the admin` };
+    if (e.status === 401) return { th: 'หมดเวลาเข้าสู่ระบบ — เข้าสู่ระบบใหม่แล้วลองอีกครั้ง', en: 'Your session expired — sign in again' };
+    if (e.status >= 400) return { th: `เซิร์ฟเวอร์ไม่รับ (${tail}) — ปิดแล้วเปิดใหม่ หากยังไม่ได้ โปรดแจ้งผู้ดูแลระบบ`, en: `The server refused it (${tail}) — turn it off and on; if it persists, tell the admin` };
     // ไม่ใช่ error จากเซิร์ฟเวอร์ → มักเป็นฝั่งเบราว์เซอร์ (service worker ยังไม่พร้อม / push service ของเบราว์เซอร์ปฏิเสธ)
     const name = error instanceof Error ? error.name : 'unknown';
     return { th: `เบราว์เซอร์สมัครแจ้งเตือนไม่สำเร็จ (${name}) — โหลดหน้าใหม่ หรือล้างข้อมูลเว็บของไซต์นี้แล้วลองอีกครั้ง`, en: `The browser could not subscribe (${name}) — reload, or clear this site’s data, then try again` };

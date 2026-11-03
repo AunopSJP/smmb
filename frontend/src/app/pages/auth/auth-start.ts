@@ -113,11 +113,11 @@ export class AuthLine {
       </ol>
       <p class="info-box">
         <strong>{{ i18n.t({ th: 'ข้อควรรู้ (iPhone)', en: 'Good to know (iPhone)' }) }}</strong><br />
-        <span class="small">{{ i18n.t({ th: 'ต้องเปิดเว็บนี้ด้วย Safari เท่านั้น (Chrome บน iPhone เพิ่มลงหน้าจอหลักแบบรับแจ้งเตือนไม่ได้) · ต้องใช้ iOS 16.4 ขึ้นไป · หลังติดตั้ง ให้เปิดจากไอคอนแล้วล็อกอินใหม่อีกครั้ง เพราะแอปที่ติดตั้งแยกจาก Safari', en: 'Use Safari only (Chrome on iPhone cannot install it with notifications) · needs iOS 16.4 or newer · after installing, open it from the icon and sign in again — the installed app is separate from Safari' }) }}</span>
+        <span class="small">{{ i18n.t({ th: 'ต้องเปิดเว็บนี้ด้วย Safari เท่านั้น (Chrome บน iPhone เพิ่มลงหน้าจอหลักแบบรับแจ้งเตือนไม่ได้) · ต้องใช้ iOS 16.4 ขึ้นไป · หลังติดตั้ง ให้เปิดจากไอคอนแล้วเข้าสู่ระบบใหม่อีกครั้ง เพราะแอปที่ติดตั้งแยกจาก Safari', en: 'Use Safari only (Chrome on iPhone cannot install it with notifications) · needs iOS 16.4 or newer · after installing, open it from the icon and sign in again — the installed app is separate from Safari' }) }}</span>
       </p>
       <p class="info-box android">
         <strong>{{ i18n.t({ th: 'Android ไม่ต้องติดตั้งก็รับแจ้งเตือนได้', en: 'Android: no install needed for notifications' }) }}</strong><br />
-        <span class="small">{{ i18n.t({ th: 'ใช้ Chrome แล้วกด "อนุญาต" ตอนเปิดแจ้งเตือน · อยากได้ไอคอนบนหน้าจอ: เมนู ⋮ → ติดตั้งแอป', en: 'Use Chrome and tap “Allow” when asked · for a home-screen icon: ⋮ menu → Install app' }) }}</span>
+        <span class="small">{{ i18n.t({ th: 'ใช้ Chrome แล้วกด "อนุญาต" ตอนเปิดแจ้งเตือน · ถ้าต้องการไอคอนบนหน้าจอ: เมนู ⋮ → ติดตั้งแอป', en: 'Use Chrome and tap “Allow” when asked · for a home-screen icon: ⋮ menu → Install app' }) }}</span>
       </p>
       <a class="btn push-end" [routerLink]="url('A03')">{{ i18n.t({ th: 'ทำแล้ว ไปต่อ', en: 'Done, continue' }) }}</a>
     </div>
@@ -260,7 +260,7 @@ export class AuthNotifications {
     } catch (error) {
       const message = error instanceof PushBlockedError
         ? { th: 'เบราว์เซอร์นี้เปิดแจ้งเตือนไม่ได้ · เปิดจากเบราว์เซอร์ปกติและตรวจสิทธิ์การแจ้งเตือน', en: 'Notifications are blocked here · use a supported browser and check its notification permission' }
-        : { th: 'เปิดแจ้งเตือนไม่สำเร็จ ลองอีกครั้ง', en: 'Could not enable notifications. Try again.' };
+        : { th: 'เปิดแจ้งเตือนไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not enable notifications. Try again.' };
       this.toast.show(message);
     }
   }
@@ -311,7 +311,7 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
         <app-password-field [(value)]="password" [invalid]="!!error()" />
         <p class="small">
           <span class="danger-text">{{ i18n.t({ th: 'ลืมรหัสผ่าน? ', en: 'Forgot it? ' }) }}</span>
-          {{ i18n.t({ th: 'เจ้าหน้าที่ขอให้หัวหน้ารีเซ็ต · คนอื่นติดต่อผู้ดูแล: ', en: 'Officers ask their head · everyone else contacts the admin: ' }) }}<strong>{{ support() ?? '—' }}</strong>
+          {{ i18n.t({ th: 'เจ้าหน้าที่ขอให้หัวหน้ารีเซ็ต · ผู้ใช้อื่นติดต่อผู้ดูแลระบบ: ', en: 'Officers ask their head · everyone else contacts the admin: ' }) }}<strong>{{ support() ?? '—' }}</strong>
         </p>
 
         <div class="stack push-end">
@@ -419,23 +419,23 @@ export class AuthSignin implements OnInit {
     const roles = (me.roles.includes('head') ? me.roles.filter((x) => x !== 'officer') : me.roles) as DemoAccountRole[];
     if (roles.length > 1) this.choose.set(roles);
     else if (roles.length === 1) this.enter(roles[0]);
-    else this.error.set({ title: { th: 'บัญชีนี้ยังไม่มีบทบาทที่ใช้ได้', en: 'This account has no usable role yet' }, sub: { th: 'ติดต่อผู้ดูแล', en: 'Contact the admin' } });
+    else this.error.set({ title: { th: 'บัญชีนี้ยังไม่มีบทบาทที่ใช้ได้', en: 'This account has no usable role yet' }, sub: { th: 'ติดต่อผู้ดูแลระบบ', en: 'Contact the admin' } });
   }
 
   private errorText(code: string | null, status: number): { title: Tr; sub: Tr } {
     switch (code) {
       case 'ACCOUNT_LOCKED':
-        return { title: { th: 'กรอกผิดหลายครั้ง พักไว้ 15 นาที', en: 'Too many tries — locked for 15 minutes' }, sub: { th: 'ลืมรหัส ติดต่อหัวหน้าหรือผู้ดูแลให้รีเซ็ต', en: 'Forgot it? Ask your head or the admin to reset it' } };
+        return { title: { th: 'กรอกผิดหลายครั้ง ระบบพักบัญชีไว้ 15 นาที', en: 'Too many tries — locked for 15 minutes' }, sub: { th: 'ลืมรหัสผ่าน? ให้หัวหน้าหรือผู้ดูแลระบบรีเซ็ตให้', en: 'Forgot it? Ask your head or the admin to reset it' } };
       case 'ACCOUNT_DISABLED':
-        return { title: { th: 'บัญชีนี้ถูกปิด', en: 'This account is disabled' }, sub: { th: 'ติดต่อผู้ดูแล', en: 'Contact the admin' } };
+        return { title: { th: 'บัญชีนี้ถูกปิด', en: 'This account is disabled' }, sub: { th: 'ติดต่อผู้ดูแลระบบ', en: 'Contact the admin' } };
       case 'RATE_LIMITED':
-        return { title: { th: 'ลองบ่อยเกินไป', en: 'Too many attempts' }, sub: { th: 'รอ 1 นาทีแล้วลองอีกครั้ง', en: 'Wait a minute and try again' } };
+        return { title: { th: 'พยายามบ่อยเกินไป', en: 'Too many attempts' }, sub: { th: 'รอ 1 นาทีแล้วลองอีกครั้ง', en: 'Wait a minute and try again' } };
       case 'INVALID_CREDENTIALS':
-        return { title: { th: 'เบอร์หรือรหัสผ่านไม่ถูกต้อง', en: 'Wrong phone number or password' }, sub: { th: 'ผิด 5 ครั้งจะถูกพักบัญชี 15 นาที', en: '5 wrong tries locks the account for 15 minutes' } };
+        return { title: { th: 'เบอร์โทรศัพท์หรือรหัสผ่านไม่ถูกต้อง', en: 'Wrong phone number or password' }, sub: { th: 'ผิด 5 ครั้งจะถูกพักบัญชี 15 นาที', en: '5 wrong tries locks the account for 15 minutes' } };
       default:
         return status === 0
           ? { title: { th: 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้', en: 'Can’t reach the server' }, sub: { th: 'ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Check your connection and retry' } }
-          : { title: { th: 'เข้าสู่ระบบไม่ได้', en: 'Couldn’t sign in' }, sub: { th: 'โปรดลองอีกครั้ง', en: 'Please try again' } };
+          : { title: { th: 'เข้าสู่ระบบไม่สำเร็จ', en: 'Couldn’t sign in' }, sub: { th: 'โปรดลองอีกครั้ง', en: 'Please try again' } };
     }
   }
 

@@ -262,7 +262,7 @@ interface Notification {
 
 | method | path | สิทธิ์ | body | ตอบ |
 |---|---|---|---|---|
-| POST | `/boxes/activate` | `owner` | `{ qr_text }` (สแกน — ลิงก์ `https://smmb.app/a/<16 ตัว>`) **หรือ** `{ code }` (พิมพ์รหัสใต้ QR) | 200 `{ box: BoxSummary, needs_name: true }` → หน้า `A08` · 404 `QR_INVALID` (`A07-b`) · 409 `BOX_ALREADY_OWNED` "ตู้ถูกผูกแล้ว กรุณาติดต่อผู้ดูแล" (`A07-c`) · 429 `CODE_ATTEMPTS_EXCEEDED` |
+| POST | `/boxes/activate` | `owner` | `{ qr_text }` (สแกน — ลิงก์ `https://smmb.app/a/<16 ตัว>`) **หรือ** `{ code }` (พิมพ์รหัสใต้ QR) | 200 `{ box: BoxSummary, needs_name: true }` → หน้า `A08` · 404 `QR_INVALID` (`A07-b`) · 409 `BOX_ALREADY_OWNED` "ตู้ถูกผูกแล้ว โปรดติดต่อผู้ดูแล" (`A07-c`) — เฉพาะผูกกับบัญชีอื่น · ✅ 2026-11-03 ผูกกับบัญชีนี้อยู่แล้ว (กดย้อนกลับก่อนตั้งชื่อแล้วสแกนซ้ำ) → 200 เหมือนผูกสำเร็จ ไปตั้งชื่อต่อได้ · 429 `CODE_ATTEMPTS_EXCEEDED` |
 | PATCH | `/boxes/:box_id` | `owner` (เจ้าของตู้) | `{ name?, area? }` (ส่งอย่างน้อยหนึ่งอย่าง · name 1–40 ตัว · area ≤ 100 ตัว `''` = ล้าง) | `BoxSummary` (มี `area`) → `A09` |
 
 - ✅ Activate QR ใช้ได้**ครั้งเดียว** — ผูกสำเร็จแล้วรหัสนี้ตายทันที (ทำใน transaction เดียวกับการผูก)

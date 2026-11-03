@@ -353,7 +353,7 @@ export class RiderClosed {
         <h1>{{ i18n.t({ th: 'แจ้งส่งของบ่อยเกินไป', en: 'Too many delivery reports' }) }}</h1>
         <p class="muted small">
           {{ i18n.t({ th: 'ตู้นี้แจ้งส่งของได้ไม่เกิน ' + limit + ' ครั้ง/ชั่วโมง', en: 'This box takes at most ' + limit + ' reports an hour' }) }}<br />
-          {{ i18n.t({ th: 'กันการกดซ้ำจากรูป QR', en: 'to stop repeats from photos of the QR' }) }}
+          {{ i18n.t({ th: 'ป้องกันการแจ้งซ้ำจากรูปถ่าย QR', en: 'to stop repeats from photos of the QR' }) }}
         </p>
       </div>
       <p class="info-box tip">

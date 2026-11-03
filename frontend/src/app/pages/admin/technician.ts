@@ -89,7 +89,7 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
               <div class="info-box">
                 <ol>
                   <li>{{ i18n.t({ th: 'ต่อไฟตู้ — ตู้ยังไม่รู้จัก Wi-Fi บ้าน จะปล่อยสัญญาณชื่อ', en: 'Power the box — with no home Wi-Fi it broadcasts' }) }} <strong>{{ ap() }}</strong></li>
-                  <li>{{ i18n.t({ th: 'มือถือต่อ Wi-Fi นั้น → หน้าตั้งค่าเด้งเอง (ไม่เด้ง: ปิดอินเทอร์เน็ตมือถือ แล้วเปิด 192.168.4.1)', en: 'Join it on the phone → the setup page opens (if not: turn off mobile data, open 192.168.4.1)' }) }}</li>
+                  <li>{{ i18n.t({ th: 'มือถือต่อ Wi-Fi นั้น → หน้าตั้งค่าเปิดขึ้นเอง (หากไม่เปิดขึ้น: ปิดอินเทอร์เน็ตมือถือ แล้วเปิด 192.168.4.1)', en: 'Join it on the phone → the setup page opens (if not: turn off mobile data, open 192.168.4.1)' }) }}</li>
                   <li>{{ i18n.t({ th: 'เลือก Wi-Fi บ้าน (2.4 GHz) → ใส่รหัส → เชื่อมต่อ', en: 'Pick the home Wi-Fi (2.4 GHz) → password → connect' }) }}</li>
                   <li>{{ i18n.t({ th: 'มือถือกลับมาใช้อินเทอร์เน็ตตามปกติ แล้วรอหน้านี้ขึ้น "ตู้เชื่อมต่ออินเทอร์เน็ตแล้ว" (ตู้ปี๊บ 1 ครั้ง)', en: 'Switch the phone back to normal internet and wait for “Box is online” (the box beeps once)' }) }}</li>
                 </ol>
@@ -97,7 +97,7 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
               <p class="muted small center" role="status">{{ i18n.t({ th: 'กำลังรอตู้เชื่อมต่ออินเทอร์เน็ต… (ตรวจทุก 3 วินาที)', en: 'Waiting for the box… (checking every 3 s)' }) }}</p>
               <div class="two">
                 <a class="btn secondary" [routerLink]="url('T02')" [queryParams]="{ id: b.id, from: from() }">{{ i18n.t({ th: 'หน้าตั้งค่าในตู้หน้าตาแบบนี้', en: 'What the box page looks like' }) }}</a>
-                <a class="btn secondary" [routerLink]="url('T02-c')" [queryParams]="{ id: b.id, from: from() }">{{ i18n.t({ th: 'ตู้ต่อไม่ได้', en: 'It won’t connect' }) }}</a>
+                <a class="btn secondary" [routerLink]="url('T02-c')" [queryParams]="{ id: b.id, from: from() }">{{ i18n.t({ th: 'ตู้เชื่อมต่อไม่ได้', en: 'It won’t connect' }) }}</a>
               </div>
             }
             @case (2) {
@@ -283,8 +283,8 @@ export class TechChecklist {
     const other = b?.qr.find((q) => q.url === text.trim());
     this.scanError.set(
       other
-        ? { th: 'เป็น QR ของตู้นี้แต่คนละช่อง — ตรวจว่าติดใบถูกที่', en: 'This box’s QR but the wrong slot — check which sticker went where' }
-        : { th: 'ไม่ใช่ QR ของตู้นี้ — ตรวจว่าหยิบชุดสติกเกอร์ถูกตู้', en: 'Not this box’s QR — check you used the right sticker set' },
+        ? { th: 'เป็น QR ของตู้นี้แต่คนละช่อง — ตรวจสอบว่าติดใบถูกตำแหน่ง', en: 'This box’s QR but the wrong slot — check which sticker went where' }
+        : { th: 'ไม่ใช่ QR ของตู้นี้ — ตรวจสอบว่าหยิบชุดสติกเกอร์ถูกตู้', en: 'Not this box’s QR — check you used the right sticker set' },
     );
   }
 
@@ -436,7 +436,7 @@ export class TechWifi {
       </div>
       <div class="stack push-end">
         <a class="btn" [routerLink]="url('T01')">{{ i18n.t({ th: 'กลับเช็กลิสต์', en: 'Back to checklist' }) }}</a>
-        <a class="btn secondary" [routerLink]="url('T02-c')">{{ i18n.t({ th: 'ตู้ต่อไม่ได้', en: 'It won’t connect' }) }}</a>
+        <a class="btn secondary" [routerLink]="url('T02-c')">{{ i18n.t({ th: 'ตู้เชื่อมต่อไม่ได้', en: 'It won’t connect' }) }}</a>
       </div>
     </div>
   `,
@@ -466,7 +466,7 @@ export class TechLights {
     <div class="stack grow">
       <div class="result">
         <span class="big-icon danger" aria-hidden="true">!</span>
-        <h1>{{ i18n.t({ th: 'ตู้ต่อ Wi-Fi ไม่ได้', en: 'The box could not join Wi-Fi' }) }}</h1>
+        <h1>{{ i18n.t({ th: 'ตู้เชื่อมต่อ Wi-Fi ไม่ได้', en: 'The box could not join Wi-Fi' }) }}</h1>
       </div>
       <div class="info-box">
         <strong>{{ i18n.t({ th: 'ตรวจทีละข้อ', en: 'Check one by one' }) }}</strong>

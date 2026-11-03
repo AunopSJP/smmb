@@ -25,8 +25,8 @@ interface BoxSummary {
 }
 
 export const SIGNUP_ERROR: Record<string, Tr> = {
-  PHONE_TAKEN: { th: 'เบอร์นี้มีบัญชีแล้ว — ล็อกอินแล้วเพิ่มบทบาทแทน', en: 'This number already has an account — sign in and add the role instead' },
-  GROUP_CODE_INVALID: { th: 'รหัสกลุ่มไม่ถูกต้อง — ตรวจกับหัวหน้าอีกครั้ง', en: 'Group code not found — check it with your head' },
+  PHONE_TAKEN: { th: 'เบอร์นี้มีบัญชีแล้ว — เข้าสู่ระบบแล้วเพิ่มบทบาทแทน', en: 'This number already has an account — sign in and add the role instead' },
+  GROUP_CODE_INVALID: { th: 'รหัสกลุ่มไม่ถูกต้อง — ตรวจสอบกับหัวหน้าอีกครั้ง', en: 'Group code not found — check it with your head' },
   INVALID: { th: 'กรอกข้อมูลให้ครบและถูกต้อง', en: 'Please complete the form correctly' },
 };
 
@@ -46,7 +46,7 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
       <label class="field" [class.invalid]="tried() && !phoneOk()">
         <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
         <input type="tel" inputmode="tel" autocomplete="tel" [value]="f().phone" (input)="set('phone', $any($event.target).value)" />
-        <small>{{ i18n.t({ th: 'ใช้ล็อกอิน · เจ้าหน้าที่เห็นเฉพาะตอนคุณกด SOS', en: 'Used to sign in · officers see it only during your SOS' }) }}</small>
+        <small>{{ i18n.t({ th: 'ใช้เข้าสู่ระบบ · เจ้าหน้าที่เห็นเฉพาะตอนคุณกด SOS', en: 'Used to sign in · officers see it only during your SOS' }) }}</small>
       </label>
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
       <label class="field" [class.invalid]="tried() && !f().house_no.trim()">
@@ -191,7 +191,7 @@ const ACTIVATE_STEPS: Step[] = [
           <app-steps [steps]="steps" [current]="1" />
           @if (needSignin()) {
             <p class="info-box">
-              {{ i18n.t({ th: 'ล็อกอินหรือสมัครเจ้าของบ้านก่อน แล้วระบบจะพากลับมาผูกตู้นี้', en: 'Sign in or sign up first — we’ll bring you back to bind this box' }) }}<br />
+              {{ i18n.t({ th: 'เข้าสู่ระบบหรือสมัครเจ้าของบ้านก่อน แล้วระบบจะพากลับมาผูกตู้นี้', en: 'Sign in or sign up first — we’ll bring you back to bind this box' }) }}<br />
               <a [routerLink]="url('A04')" [queryParams]="{ next: here() }">{{ i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</a> ·
               <a [routerLink]="url('A06')">{{ i18n.t({ th: 'สมัครเจ้าของบ้าน', en: 'Sign up' }) }}</a>
             </p>

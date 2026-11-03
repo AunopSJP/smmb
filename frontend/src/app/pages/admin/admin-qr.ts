@@ -189,7 +189,7 @@ export class QrPrintSheet {
             <span class="go desktop-only">{{ i18n.t({ th: 'จัดการ', en: 'Open' }) }}</span>
           </a>
         } @empty {
-          <p class="row muted">{{ loadFailed() ? i18n.t({ th: 'โหลดรายการ QR ไม่ได้ — ลองรีเฟรชหน้า', en: 'Could not load QR cases — refresh the page' }) : loaded() ? i18n.t({ th: 'QR ทุกใบปกติ ไม่มีเคสที่ต้องจัดการ', en: 'Every QR is fine — no cases to handle' }) : i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
+          <p class="row muted">{{ loadFailed() ? i18n.t({ th: 'โหลดรายการ QR ไม่สำเร็จ — โปรดรีเฟรชหน้า', en: 'Could not load QR cases — refresh the page' }) : loaded() ? i18n.t({ th: 'QR ทุกใบปกติ ไม่มีเคสที่ต้องจัดการ', en: 'Every QR is fine — no cases to handle' }) : i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
         }
       </div>
       <p class="muted small">{{ i18n.t({ th: 'ตรวจอัตโนมัติทุกคืน 23:00 · QR ที่อาจปลอมแจ้งทันที · รายการรีเฟรชเองทุก 10 วินาที', en: 'Checked every night at 23:00 · possible fakes are reported at once · refreshes every 10 s' }) }}</p>
@@ -244,7 +244,7 @@ export class QrPrintSheet {
     .qcols > :nth-child(5) {
       grid-column: 1 / -1;
     }
-    @media (min-inline-size: 1024px) {
+    @media (min-width: 1024px) {
       .qcols {
         grid-template-columns: minmax(0, 1.2fr) 110px minmax(0, 1.6fr) minmax(0, 1.4fr) 110px 70px;
         gap: 16px;
@@ -525,7 +525,7 @@ const REISSUE_STEPS: FlowStep[] = [
       gap: 16px;
       align-items: start;
     }
-    @media (min-inline-size: 1024px) {
+    @media (min-width: 1024px) {
       .case {
         grid-template-columns: minmax(0, 1fr) 340px;
         gap: 24px;

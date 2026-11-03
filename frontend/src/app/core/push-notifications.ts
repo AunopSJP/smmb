@@ -33,6 +33,12 @@ export class PushNotifications {
     return null;
   }
 
+  /** เครื่องนี้รับแจ้งเตือนได้จริงไหม (ฝั่งเบราว์เซอร์): อนุญาตแล้ว + มี subscription อยู่ */
+  async isActive(): Promise<boolean> {
+    if (this.blocker() || Notification.permission !== 'granted') return false;
+    return (await this.current()) !== null;
+  }
+
   /** ขอสิทธิ์ → สมัครกับ push service → ส่ง subscription ให้ server (ผูกกับ session ของเครื่องนี้) */
   async enable(deviceLabel?: string): Promise<void> {
     const blocker = this.blocker();

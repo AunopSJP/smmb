@@ -173,7 +173,7 @@ export class UserPlan {
       this.plans.set(plans);
       this.history.set(history);
     } catch {
-      if (request === this.requestSequence) this.toast.show({ th: 'โหลดประวัติแพ็กไม่ได้', en: 'Could not load plan history' });
+      if (request === this.requestSequence) this.toast.show({ th: 'โหลดประวัติแพ็กไม่สำเร็จ', en: 'Could not load plan history' });
     }
   }
 
@@ -216,7 +216,7 @@ export class UserPlan {
       this.toast.show({ th: 'เปลี่ยนแพ็กเกจแล้ว', en: 'Plan changed' });
     } catch (err) {
       const code = apiError(err).code;
-      this.error.set(code === 'NOT_OWNER' ? PLAN_ERROR.NOT_OWNER : code === 'PLAN_INACTIVE' ? PLAN_ERROR.PLAN_INACTIVE : code === 'PLAN_END_MUST_BE_FUTURE' ? PLAN_ERROR.BAD_END : { th: 'เปลี่ยนแพ็กเกจไม่ได้ · ลองโหลดข้อมูลใหม่', en: 'Could not change the plan · reload and try again' });
+      this.error.set(code === 'NOT_OWNER' ? PLAN_ERROR.NOT_OWNER : code === 'PLAN_INACTIVE' ? PLAN_ERROR.PLAN_INACTIVE : code === 'PLAN_END_MUST_BE_FUTURE' ? PLAN_ERROR.BAD_END : { th: 'เปลี่ยนแพ็กเกจไม่สำเร็จ · โปรดโหลดข้อมูลใหม่', en: 'Could not change the plan · reload and try again' });
     } finally {
       this.saving.set(false);
     }
@@ -236,7 +236,7 @@ export class UserPlan {
         <p class="muted">{{ i18n.t({ th: 'กำลังโหลดแพ็กเกจ…', en: 'Loading plans…' }) }}</p>
       } @else if (loadFailed()) {
         <section class="card stack" role="alert">
-          <p>{{ i18n.t({ th: 'โหลดแพ็กเกจไม่ได้', en: 'Could not load plans' }) }}</p>
+          <p>{{ i18n.t({ th: 'โหลดแพ็กเกจไม่สำเร็จ', en: 'Could not load plans' }) }}</p>
           <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Try again' }) }}</button>
         </section>
       }
@@ -299,7 +299,7 @@ export class UserPlan {
             <input [value]="nameEn()" (input)="nameEn.set($any($event.target).value)" />
           </label>
           <label class="field">
-            <span>{{ i18n.t({ th: 'ข้อความราคา (แสดงเฉย ๆ ไม่มีการชำระเงิน)', en: 'Price note (display only — no payments)' }) }}</span>
+            <span>{{ i18n.t({ th: 'ข้อความราคา (ใช้แสดงผลเท่านั้น ไม่มีการชำระเงิน)', en: 'Price note (display only — no payments)' }) }}</span>
             <input [value]="price()" (input)="price.set($any($event.target).value)" />
           </label>
           <p class="muted small">{{ i18n.t({ th: 'ยังไม่มีการชำระเงิน · รายการแพ็กเป็นข้อมูลกำกับและยังไม่เปลี่ยนสิทธิ์ฟีเจอร์ในระบบ', en: 'Payments are not enabled · plan entries are informational and do not change feature access' }) }}</p>
@@ -371,7 +371,7 @@ export class UserPlan {
       font-variant-numeric: tabular-nums;
       font-weight: 700;
     }
-    @media (min-inline-size: 1024px) {
+    @media (min-width: 1024px) {
       .pcols {
         grid-template-columns: minmax(0, 2fr) 110px 190px minmax(0, 1.4fr);
         gap: 16px;
@@ -464,7 +464,7 @@ export class AdminPlans implements OnInit {
       await this.load();
       this.toast.show({ th: 'ตั้งเป็นแพ็กเริ่มต้นแล้ว', en: 'Now the default plan' });
     } catch {
-      this.toast.show({ th: 'ตั้งแพ็กเริ่มต้นไม่ได้', en: 'Could not set the default plan' });
+      this.toast.show({ th: 'ตั้งแพ็กเริ่มต้นไม่สำเร็จ', en: 'Could not set the default plan' });
     } finally {
       this.busy.set(null);
     }
@@ -477,7 +477,7 @@ export class AdminPlans implements OnInit {
       await this.load();
       this.toast.show(active ? { th: 'เปิดให้เลือกแล้ว', en: 'Offered again' } : { th: 'ปิดให้เลือกแล้ว', en: 'No longer offered' });
     } catch {
-      this.toast.show({ th: 'เปลี่ยนสถานะแพ็กไม่ได้', en: 'Could not change the plan status' });
+      this.toast.show({ th: 'เปลี่ยนสถานะแพ็กไม่สำเร็จ', en: 'Could not change the plan status' });
     } finally {
       this.busy.set(null);
     }

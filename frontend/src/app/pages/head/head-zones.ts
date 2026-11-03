@@ -389,7 +389,7 @@ export class HeadZoneEdit {
       }
     } catch (err) {
       const e = apiError(err);
-      this.error.set(ZONE_ERROR[e.code ?? ''] ?? { th: 'บันทึกไม่ได้', en: 'Couldn’t save' });
+      this.error.set(ZONE_ERROR[e.code ?? ''] ?? { th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save' });
     } finally {
       this.busy.set(false);
     }
@@ -512,7 +512,7 @@ export class HeadZoneEdit {
       await this.api.removeZone(z.id);
       void this.router.navigateByUrl(screenUrl('L06'));
     } catch {
-      this.toast.show({ th: 'ลบไม่ได้', en: 'Couldn’t delete' });
+      this.toast.show({ th: 'ลบไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t delete' });
     }
   }
 }

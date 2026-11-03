@@ -195,7 +195,7 @@ interface Segment {
 
         <section class="panel support">
           <header>
-            <h2>{{ i18n.t({ th: 'ช่องทางติดต่อผู้ดูแล', en: 'Admin contact' }) }}</h2>
+            <h2>{{ i18n.t({ th: 'ช่องทางติดต่อผู้ดูแลระบบ', en: 'Admin contact' }) }}</h2>
           </header>
           <p class="muted small">{{ i18n.t({ th: 'แสดงให้ผู้ใช้เห็นตอนต้องติดต่อแอดมิน', en: 'Shown to users when they need the admin' }) }}</p>
           @if (editingSupport()) {
@@ -356,12 +356,12 @@ interface Segment {
       font-size: 0.75rem;
       color: var(--text-muted);
     }
-    @media (min-inline-size: 700px) {
+    @media (min-width: 700px) {
       .kpis {
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
     }
-    @media (min-inline-size: 1200px) {
+    @media (min-width: 1200px) {
       .kpis {
         grid-template-columns: repeat(6, minmax(0, 1fr));
       }
@@ -374,7 +374,7 @@ interface Segment {
       gap: 20px;
       align-items: start;
     }
-    @media (min-inline-size: 1024px) {
+    @media (min-width: 1024px) {
       .two-col {
         grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
       }
@@ -521,12 +521,12 @@ interface Segment {
     .show-sm {
       display: block;
     }
-    @media (max-inline-size: 719px) {
+    @media (max-width: 719px) {
       .hide-sm {
         display: none;
       }
     }
-    @media (min-inline-size: 720px) {
+    @media (min-width: 720px) {
       .show-sm {
         display: none;
       }
@@ -679,7 +679,7 @@ export class AdminHome implements OnInit {
       this.editingSupport.set(false);
       this.toast.show({ th: 'บันทึกช่องทางติดต่อแล้ว', en: 'Contact saved' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่ได้', en: 'Couldn’t save' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save' });
     }
   }
 
@@ -701,7 +701,7 @@ export class AdminHome implements OnInit {
       items.push({ key: a.id, tone: 'warn', title: { th: 'หน่วยงานใหม่ · ' + a.name, en: 'New agency · ' + a.name }, sub: { th: 'รออนุมัติ', en: 'Waiting for approval' }, path: screenUrl('D02') });
     }
     if (this.technicianRequests() > 0) {
-      items.push({ key: 'technician-requests', tone: 'warn', title: { th: 'มีคำขอช่างใหม่', en: 'New technician requests' }, sub: { th: `${this.technicianRequests()} รายการรอดำเนินการ`, en: `${this.technicianRequests()} requests waiting` }, path: screenUrl('D15') });
+      items.push({ key: 'technician-requests', tone: 'warn', title: { th: 'มีคำขอช่างใหม่', en: 'New technician requests' }, sub: { th: `${this.technicianRequests()} รายการรอจัดการ`, en: `${this.technicianRequests()} requests waiting` }, path: screenUrl('D15') });
     }
     return items;
   });

@@ -71,7 +71,7 @@ const go = (router: Router, code: string, id?: string) =>
           </li>
         }
       </ul>
-      <p class="muted small">{{ i18n.t({ th: 'SOS ใหม่จะเด้งเป็นแจ้งเตือนสีแดงทันที (ต้องเปิดแจ้งเตือนไว้)', en: 'A new SOS pops up as a red notification (keep notifications on)' }) }}</p>
+      <p class="muted small">{{ i18n.t({ th: 'SOS ใหม่จะขึ้นเป็นแจ้งเตือนสีแดงทันที (ต้องเปิดแจ้งเตือนไว้)', en: 'A new SOS pops up as a red notification (keep notifications on)' }) }}</p>
     </div>
   `,
   styles: `

@@ -34,8 +34,8 @@ const backTo = (code: string | undefined, fallback: string) => {
 
 const ADD_ROLE_ERROR: Record<string, Tr> = {
   ROLE_EXISTS: { th: 'บัญชีนี้มีบทบาทนี้อยู่แล้ว หรือมีคำขอค้างอยู่', en: 'This account already has this role or a pending request' },
-  ADMIN_ROLE_EXCLUSIVE: { th: 'บัญชีแอดมินเพิ่มบทบาทอื่นไม่ได้', en: 'Admin accounts cannot have other roles' },
-  GROUP_CODE_INVALID: { th: 'รหัสกลุ่มไม่ถูกต้อง — ตรวจกับหัวหน้าอีกครั้ง', en: 'Group code not found — check it with your head' },
+  ADMIN_ROLE_EXCLUSIVE: { th: 'บัญชีผู้ดูแลระบบเพิ่มบทบาทอื่นไม่ได้', en: 'Admin accounts cannot have other roles' },
+  GROUP_CODE_INVALID: { th: 'รหัสกลุ่มไม่ถูกต้อง — ตรวจสอบกับหัวหน้าอีกครั้ง', en: 'Group code not found — check it with your head' },
   INVALID: { th: 'กรอกข้อมูลให้ครบ', en: 'Please fill in the form' },
 };
 
@@ -53,7 +53,7 @@ const ADD_ROLE_ERROR: Record<string, Tr> = {
           <span class="icon-bubble"><app-icon [name]="roles[r].icon" [size]="20" /></span>
           <span class="grow">
             <strong>{{ i18n.t({ th: 'ใช้งานเป็น', en: 'Switch to ' }) }}{{ i18n.t(roles[r].label) }}</strong>
-            <span class="muted small block">{{ i18n.t({ th: 'บัญชีเดียวกัน ไม่ต้องล็อกอินใหม่', en: 'Same account, no new sign-in' }) }}</span>
+            <span class="muted small block">{{ i18n.t({ th: 'บัญชีเดียวกัน ไม่ต้องเข้าสู่ระบบใหม่', en: 'Same account, no new sign-in' }) }}</span>
           </span>
           <app-icon name="chevronRight" [size]="18" />
         </button>
@@ -91,7 +91,7 @@ const ADD_ROLE_ERROR: Record<string, Tr> = {
         <span class="icon-bubble"><app-icon name="settings" [size]="20" /></span>
         <span class="grow">
           <strong>{{ i18n.t({ th: 'เปลี่ยนรหัสผ่าน', en: 'Change password' }) }}</strong>
-          <span class="muted small block">{{ i18n.t({ th: 'เปลี่ยนแล้วต้องล็อกอินใหม่ทุกเครื่อง', en: 'You will be signed out on every device' }) }}</span>
+          <span class="muted small block">{{ i18n.t({ th: 'เปลี่ยนแล้วต้องเข้าสู่ระบบใหม่ทุกเครื่อง', en: 'You will be signed out on every device' }) }}</span>
         </span>
         <app-icon name="chevronRight" [size]="18" />
       </a>
@@ -154,7 +154,7 @@ export class AccountActions {
     <form class="stack grow" (submit)="$event.preventDefault(); submit()">
       @if (forced()) {
         <p class="info-box">
-          <strong>{{ i18n.t({ th: 'หัวหน้าหรือแอดมินรีเซ็ตรหัสให้คุณ', en: 'Your head or the admin reset your password' }) }}</strong><br />
+          <strong>{{ i18n.t({ th: 'หัวหน้าหรือผู้ดูแลระบบรีเซ็ตรหัสให้คุณ', en: 'Your head or the admin reset your password' }) }}</strong><br />
           <span class="muted small">{{ i18n.t({ th: 'ใส่รหัสชั่วคราวที่ได้รับ แล้วตั้งรหัสใหม่ที่จำได้ — ยังใช้หน้าอื่นไม่ได้จนกว่าจะเปลี่ยน', en: 'Enter the temporary password you were given, then choose one you will remember — nothing else works until you do' }) }}</span>
         </p>
       }
@@ -172,7 +172,7 @@ export class AccountActions {
       } @else if (tried() && same()) {
         <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ใช้รหัสเดิมไม่ได้ ตั้งรหัสใหม่', en: 'Choose a different password' }) }}</p>
       }
-      <p class="muted small">{{ i18n.t({ th: 'เปลี่ยนแล้ว ทุกเครื่องจะออกจากระบบ ต้องล็อกอินใหม่ด้วยรหัสใหม่', en: 'After changing, every device is signed out — sign in again with the new password' }) }}</p>
+      <p class="muted small">{{ i18n.t({ th: 'เปลี่ยนแล้ว ทุกเครื่องจะออกจากระบบ ต้องเข้าสู่ระบบใหม่ด้วยรหัสใหม่', en: 'After changing, every device is signed out — sign in again with the new password' }) }}</p>
       <div class="stack push-end">
         <button type="submit" class="btn" [disabled]="!current() || !next() || !confirm()">{{ i18n.t({ th: 'บันทึกรหัสใหม่', en: 'Save new password' }) }}</button>
         @if (forced()) {
@@ -224,7 +224,7 @@ export class AuthChangePassword {
       this.current.set('');
       this.error.set(
         e.code === 'ACCOUNT_LOCKED'
-          ? { th: 'กรอกผิดหลายครั้ง พักไว้ 15 นาที', en: 'Too many tries — locked for 15 minutes' }
+          ? { th: 'กรอกผิดหลายครั้ง ระบบพักบัญชีไว้ 15 นาที', en: 'Too many tries — locked for 15 minutes' }
           : e.code === 'INVALID_CREDENTIALS'
             ? { th: `รหัส${this.forced() ? 'ชั่วคราว' : 'ปัจจุบัน'}ไม่ถูกต้อง · ผิด 5 ครั้งจะถูกพักบัญชี`, en: `Wrong ${this.forced() ? 'temporary' : 'current'} password · 5 wrong tries locks the account` }
             : e.status === 400
@@ -234,7 +234,7 @@ export class AuthChangePassword {
       return;
     }
     await this.realSession.signout();
-    this.toast.show({ th: 'เปลี่ยนรหัสแล้ว — ล็อกอินใหม่ด้วยรหัสใหม่', en: 'Password changed — sign in with the new one' });
+    this.toast.show({ th: 'เปลี่ยนรหัสแล้ว — เข้าสู่ระบบใหม่ด้วยรหัสใหม่', en: 'Password changed — sign in with the new one' });
     void this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true });
   }
 

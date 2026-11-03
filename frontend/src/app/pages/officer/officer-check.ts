@@ -48,7 +48,7 @@ async function startInspection(api: InspectionApi, router: Router, body: Paramet
         return null;
       case 'QR_INVALID':
         return 'code' in body
-          ? { th: 'รหัสไม่ถูกต้อง ตรวจรหัสใต้ QR อีกครั้ง', en: 'Wrong code — check the code under the QR' }
+          ? { th: 'รหัสไม่ถูกต้อง ตรวจสอบรหัสใต้ QR อีกครั้ง', en: 'Wrong code — check the code under the QR' }
           : (go(router, 'O04-b', { reason: 'invalid' }), null);
       case 'CODE_ATTEMPTS_EXCEEDED':
       case 'RATE_LIMITED':
@@ -169,7 +169,7 @@ export class OfficerScan implements OnInit {
         </h2>
         <p class="small">
           {{ i18n.t({ th: 'ใช้สแกน QR หน้าตู้เท่านั้น ไม่ถ่ายรูปเก็บ', en: 'Only to scan mailbox QR codes — no photos are kept' }) }}<br />
-          {{ i18n.t({ th: 'กด "อนุญาต" ในหน้าต่างที่เด้งขึ้นมา · ถ้าไม่อนุญาต ต้องพิมพ์รหัสใต้ QR ทุกครั้ง', en: 'Tap "Allow" in the pop-up · without it you must type the code every time' }) }}
+          {{ i18n.t({ th: 'กด "อนุญาต" ในหน้าต่างที่ขึ้นมา · ถ้าไม่อนุญาต ต้องพิมพ์รหัสใต้ QR ทุกครั้ง', en: 'Tap "Allow" in the pop-up · without it you must type the code every time' }) }}
         </p>
         <div class="two">
           <button type="button" class="btn secondary" (click)="answer(false)">{{ i18n.t({ th: 'พิมพ์รหัสแทน', en: 'Type instead' }) }}</button>
@@ -232,7 +232,7 @@ const CAMERA_NOTE: Record<string, Tr> = {
             @if (error(); as e) {
               {{ i18n.t(e) }}
             } @else {
-              {{ i18n.t({ th: 'ไม่สนตัวเล็กใหญ่ ไม่มีตัว 0 O 1 I L ให้สับสน', en: 'Any case — no 0, O, 1, I or L to confuse' }) }}
+              {{ i18n.t({ th: 'พิมพ์ตัวเล็กหรือตัวใหญ่ก็ได้ · ไม่มีตัว 0 O 1 I L ที่สับสนง่าย', en: 'Any case — no 0, O, 1, I or L to confuse' }) }}
             }
           </span>
         </label>
@@ -337,7 +337,7 @@ const CONDITIONS: { v: QrCondition; label: Tr; wide?: boolean }[] = [
   template: `
     <div class="pad">
       <p class="ok-text small strong">{{ i18n.t({ th: 'รหัสถูกต้อง · บ้านเลขที่ ', en: 'Code OK · house ' }) }}{{ ins()?.box?.house_no }}</p>
-      <h1>{{ i18n.t({ th: 'QR หน้าตู้ดูเป็นยังไง?', en: 'How does the mailbox QR look?' }) }}</h1>
+      <h1>{{ i18n.t({ th: 'สภาพ QR หน้าตู้เป็นอย่างไร?', en: 'How does the mailbox QR look?' }) }}</h1>
       <p class="muted small">{{ i18n.t({ th: 'เลือกสภาพ QR แล้วระบบจะแจ้งให้เปลี่ยนใบใหม่', en: 'Tell us and we will arrange a replacement' }) }}</p>
       <div class="grid" role="radiogroup" [attr.aria-label]="i18n.t({ th: 'สภาพ QR', en: 'QR condition' })">
         @for (c of conditions; track c.v) {
@@ -423,7 +423,7 @@ export class OfficerQrCondition implements OnInit {
           {{ i18n.t({ th: 'อาจมีคนแปะ QR ปลอมทับไว้ อย่าสแกนด้วยกล้องมือถือธรรมดา · ไม่ได้บันทึกการตรวจ', en: 'Someone may have stuck a fake QR on top. Don’t scan it with the normal camera · not recorded' }) }}
         </p>
         <p class="info-box">
-          <strong class="ok-text"><app-icon name="check" [size]="14" /> {{ i18n.t({ th: 'แจ้งแอดมินแล้วอัตโนมัติ', en: 'Admin alerted automatically' }) }}</strong><br />
+          <strong class="ok-text"><app-icon name="check" [size]="14" /> {{ i18n.t({ th: 'แจ้งผู้ดูแลระบบแล้วอัตโนมัติ', en: 'Admin alerted automatically' }) }}</strong><br />
           <span class="muted">{{ i18n.t({ th: 'ถ้าเป็น QR หน้าตู้ ลองพิมพ์รหัสใต้ QR แทน', en: 'If this is the mailbox QR, try typing the code under it' }) }}</span>
         </p>
       </div>
@@ -457,7 +457,7 @@ const DENIED: Record<string, { title: Tr; body: Tr }> = {
   },
   closed: {
     title: { th: 'ตู้นี้ปิดบริการอยู่', en: 'This mailbox is closed' },
-    body: { th: 'แอดมินปิดบริการตู้นี้ไว้ · ไม่ได้บันทึกการตรวจ', en: 'The admin closed this mailbox · not recorded' },
+    body: { th: 'ผู้ดูแลระบบปิดบริการตู้นี้ไว้ · ไม่ได้บันทึกการตรวจ', en: 'The admin closed this mailbox · not recorded' },
   },
   offline: {
     title: { th: 'ตู้ไม่ออนไลน์', en: 'The mailbox is offline' },
@@ -520,7 +520,7 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
         <div class="result">
           <span class="big-icon ok"><app-icon name="check" [size]="30" /></span>
           <h1>{{ i18n.t({ th: 'แจ้งปัญหาตู้แล้ว', en: 'Problem reported' }) }}</h1>
-          <p class="muted small">{{ i18n.t({ th: 'แจ้งเจ้าของบ้านและแอดมินแล้ว · บ้านนี้ยังไม่นับว่าตรวจแล้ว', en: 'Owner and admin notified · this house is not counted as checked' }) }}</p>
+          <p class="muted small">{{ i18n.t({ th: 'แจ้งเจ้าของบ้านและผู้ดูแลระบบแล้ว · บ้านนี้ยังไม่นับว่าตรวจแล้ว', en: 'Owner and admin notified · this house is not counted as checked' }) }}</p>
         </div>
         <a class="btn push-end" [routerLink]="url('O01')">{{ i18n.t({ th: 'กลับหน้าสรุป', en: 'Back to summary' }) }}</a>
       } @else if (noResponse()) {
@@ -538,7 +538,7 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
         @if (failed()) {
           <p class="err small" role="alert">{{ i18n.t({ th: 'ส่งไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t send — try again' }) }}</p>
         }
-        <p class="muted small">{{ i18n.t({ th: 'ระบบจะแจ้งเจ้าของบ้านและแอดมินให้', en: 'We will tell the owner and the admin' }) }}</p>
+        <p class="muted small">{{ i18n.t({ th: 'ระบบจะแจ้งเจ้าของบ้านและผู้ดูแลระบบให้', en: 'We will tell the owner and the admin' }) }}</p>
         <div class="stack push-end">
           <button type="button" class="btn orange" [disabled]="busy()" (click)="report()">{{ i18n.t({ th: 'แจ้งปัญหาตู้', en: 'Report a box problem' }) }}</button>
           <a class="btn secondary" [routerLink]="url('O02')">{{ i18n.t({ th: 'สแกนปลุกตู้ใหม่', en: 'Scan to wake it again' }) }}</a>
@@ -696,7 +696,7 @@ interface WakeLockSentinelLike {
     <div class="pad">
       @if ((ins()?.attempt ?? 1) > 1) {
         <p class="retry" role="alert">
-          <strong>{{ i18n.t({ th: 'ตู้อ่านไม่ผ่าน ลองอีกครั้ง', en: 'The box couldn’t read it — try again' }) }}</strong><br />
+          <strong>{{ i18n.t({ th: 'ตู้อ่านไม่ผ่าน โปรดลองอีกครั้ง', en: 'The box couldn’t read it — try again' }) }}</strong><br />
           <span class="small">{{ i18n.t({ th: 'ลองขยับให้ใกล้ขึ้น หรือเอียงจอเลี่ยงแสงสะท้อน', en: 'Move closer, or tilt to avoid glare' }) }}</span>
         </p>
       } @else {
@@ -911,7 +911,7 @@ export class OfficerBadge implements OnInit {
         <p class="muted small">{{ i18n.t({ th: 'ตู้อาจมีปัญหา เช่น กล้องสกปรก หรือหมดเวลาก่อนอ่านได้', en: 'The box may have a problem, like a dirty camera, or time ran out' }) }}</p>
         <p class="info-box muted">
           {{ i18n.t({ th: 'บ้านนี้ยังไม่นับว่าตรวจแล้ว', en: 'This house is not counted as checked' }) }}<br />
-          {{ i18n.t({ th: 'กดแจ้งปัญหา ระบบจะบอกเจ้าของบ้านและแอดมินให้', en: 'Report it and we’ll tell the owner and the admin' }) }}
+          {{ i18n.t({ th: 'กดแจ้งปัญหา ระบบจะบอกเจ้าของบ้านและผู้ดูแลระบบให้', en: 'Report it and we’ll tell the owner and the admin' }) }}
         </p>
       </div>
       <div class="stack push-end">
