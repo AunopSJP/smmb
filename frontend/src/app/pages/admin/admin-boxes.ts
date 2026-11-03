@@ -871,7 +871,7 @@ export class AdminBoxes implements OnInit {
         }
         }
         @if (tab() === 'danger') {
-        <a class="btn secondary" [routerLink]="url('T01')" [queryParams]="{ id: b.id }">{{ i18n.t({ th: 'เปิดเช็กลิสต์ติดตั้ง (ช่าง)', en: 'Open install checklist' }) }}</a>
+        <a class="btn secondary" [routerLink]="url('T01')" [queryParams]="{ id: b.id, from: 'D04' }">{{ i18n.t({ th: 'เปิดเช็กลิสต์ติดตั้ง (ช่าง)', en: 'Open install checklist' }) }}</a>
         @if (b.can_delete) {
           <section class="card stack delete-box">
             <p class="small">{{ i18n.t({ th: 'ตู้นี้ยังไม่เปิดใช้และไม่มีประวัติการทำงาน', en: 'This box is unused and has no activity history' }) }}</p>

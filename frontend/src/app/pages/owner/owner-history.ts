@@ -39,6 +39,10 @@ export class OwnerHistoryStore {
   readonly events = signal<BoxEvent[]>([]);
   readonly more = signal(false);
   readonly loading = signal(false);
+  readonly initialized = signal(false);
+  readonly selection = signal<Range>('7d');
+  readonly customFrom = signal('');
+  readonly customTo = signal('');
   private page = 1;
 
   /** ช่วงวันที่ที่กรองอยู่ (ว่าง = ทั้งหมด) */
@@ -61,6 +65,7 @@ export class OwnerHistoryStore {
       this.more.set(r.data.length === r.per_page);
     } finally {
       this.loading.set(false);
+      this.initialized.set(true);
     }
   }
 
@@ -166,7 +171,7 @@ export class OwnerHistory {
   protected readonly url = screenUrl;
   protected readonly ranges = RANGES;
   protected readonly kind = KIND;
-  protected readonly range = signal<Range>('7d');
+  protected readonly range = this.store.selection;
   protected readonly caption = computed(() => {
     const b = this.store.boxes().find((x) => x.id === this.store.boxId());
     return b ? this.i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + b.house_no : '';
@@ -174,13 +179,13 @@ export class OwnerHistory {
   /** รายการที่เซิร์ฟเวอร์กรองตามช่วงมาให้แล้ว */
   protected readonly items = computed(() => this.store.events());
   protected readonly today = bkkDay(new Date());
-  protected readonly from = signal('');
-  protected readonly to = signal('');
+  protected readonly from = this.store.customFrom;
+  protected readonly to = this.store.customTo;
   protected readonly rangeError = signal<Tr | null>(null);
 
   /** เลือกปุ่มช่วงเวลา — ปุ่มสำเร็จรูปโหลดใหม่ทันที · "เลือกวันที่" รอให้กรอกก่อน */
   protected pick(v: Range): void {
-    this.range.set(v);
+    this.store.selection.set(v);
     this.rangeError.set(null);
     if (v === 'custom') return;
     const days = RANGES.find((r) => r.v === v)!.days;
@@ -199,8 +204,11 @@ export class OwnerHistory {
   }
 
   constructor() {
-    // เปิดหน้านี้ = ดู 7 วันล่าสุด (ตามปุ่มที่เลือกไว้เริ่มต้น)
-    void this.store.load(undefined, rangeOf(RANGES.find((r) => r.v === this.range())!.days));
+    // Keep the selected mailbox and date range when returning from an event detail.
+    const range = this.store.initialized()
+      ? this.store.range()
+      : rangeOf(RANGES.find((r) => r.v === this.range())!.days);
+    void this.store.load(undefined, range);
   }
 
   protected sub(h: BoxEvent): string {

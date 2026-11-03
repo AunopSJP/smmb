@@ -112,7 +112,7 @@ export class AuthSignupOfficer {
       );
       await this.session.refresh();
       this.f.set({ ...f, password: '' });
-      void this.router.navigateByUrl(screenUrl('A11'));
+      void this.router.navigateByUrl(screenUrl('A11'), { replaceUrl: true });
     } catch (err) {
       const e = apiError(err);
       this.errorCode.set(e.code === 'PHONE_TAKEN' || e.code === 'GROUP_CODE_INVALID' ? e.code : 'INVALID');
@@ -210,9 +210,9 @@ export class AuthWaitingHead {
     } else if (me.agency_status === 'active' && (me.roles.includes('officer') || me.roles.includes('head'))) {
       this.toast.show({ th: 'หัวหน้ายืนยันแล้ว', en: 'Approved by your head' });
       // ต้องเปิดแจ้งเตือนก่อนไหม — server ตัดสิน (403 PUSH_REQUIRED → A12 ผ่าน apiInterceptor)
-      void this.router.navigateByUrl('/officer');
+      void this.router.navigateByUrl('/officer', { replaceUrl: true });
     } else if (me.agency_status === 'rejected') {
-      void this.router.navigate([screenUrl('A11')], { queryParams: { state: 'rejected' } });
+      void this.router.navigate([screenUrl('A11')], { queryParams: { state: 'rejected' }, replaceUrl: true });
     } else {
       this.toast.show({ th: 'ยังรอหัวหน้ายืนยันอยู่', en: 'Still waiting for your head' });
     }
@@ -225,7 +225,7 @@ export class AuthWaitingHead {
 
   /** ออกจากระบบจริง (ลบ session ที่ server + cookie) */
   protected signout(): void {
-    void this.realSession.signout().then(() => this.router.navigateByUrl(screenUrl('A04')));
+    void this.realSession.signout().then(() => this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true }));
   }
 }
 
@@ -289,7 +289,7 @@ export class AuthPushRequired {
       await this.push.enable();
       await this.realSession.refresh();
       this.toast.show({ th: 'เปิดแจ้งเตือนแล้ว', en: 'Notifications on' });
-      void this.router.navigateByUrl('/officer');
+      void this.router.navigateByUrl('/officer', { replaceUrl: true });
     } catch (err) {
       this.help.set(true);
       this.toast.show(
@@ -308,7 +308,7 @@ export class AuthPushRequired {
   imports: [PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header caption="Smart Mailbox" [title]="t().title" [back]="backUrl()" />
+    <app-page-header caption="Smart Mailbox" [title]="t().title" [back]="update() ? undefined : backUrl()" />
     <div class="stack grow">
       <p class="muted small">{{ t().intro }}</p>
       @for (sec of t().sections; track sec.title; let first = $first) {
@@ -355,7 +355,21 @@ export class AuthTerms {
   private readonly router = inject(Router);
   /** ?from=A06|A10|L01|A15|A16 — กลับไปฟอร์มเดิมพร้อมติ๊กยอมรับให้ */
   readonly from = input<string>();
-  protected readonly backUrl = computed(() => screenUrl(this.formOf(this.from()) ? this.from()! : 'A04'));
+  readonly returnTo = input<string>();
+  protected readonly backUrl = computed(() => {
+    const code = this.formOf(this.from()) ? this.from()! : 'A04';
+    const target = screenUrl(code);
+    const returnTo = this.returnTo();
+    if (returnTo && (code === 'A15' || code === 'A16')) {
+      try {
+        screenUrl(returnTo);
+        return `${target}?from=${encodeURIComponent(returnTo)}`;
+      } catch {
+        return target;
+      }
+    }
+    return target;
+  });
   /** ของจริง: GET /api/v1/terms/current (body_md มีทั้งไทยและอังกฤษ คั่นด้วย <!-- en -->) */
   protected readonly t = computed(() => TERMS[this.i18n.lang()]);
   protected readonly version = TERMS_VERSION;
@@ -376,11 +390,11 @@ export class AuthTerms {
       const terms = await firstValueFrom(this.http.get<{ version: string }>('/api/v1/terms/current'));
       await firstValueFrom(this.http.post('/api/v1/me/terms', { terms_version: terms.version }));
       await this.session.refresh();
-      void this.router.navigateByUrl('/');
+      void this.router.navigateByUrl('/', { replaceUrl: true });
       return;
     }
     const form = this.formOf(this.from());
     if (form) this.demo.forms[form].update((f) => ({ ...f, terms: true }));
-    void this.router.navigateByUrl(this.backUrl());
+    void this.router.navigateByUrl(this.backUrl(), { replaceUrl: true });
   }
 }

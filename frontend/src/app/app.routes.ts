@@ -1,5 +1,5 @@
 import type { CanActivateFn, Route, Routes } from '@angular/router';
-import { homeRedirect, requireRole, requireSignedIn } from './core/session';
+import { guestOnly, homeRedirect, requireRole, requireSignedIn } from './core/session';
 import { AreaShell } from './layout/area-shell';
 import { AREA_PREFIX, SCREENS, type Area } from './screens/registry';
 
@@ -149,6 +149,8 @@ const GUARD: Partial<Record<Area, CanActivateFn>> = {
 };
 /** หน้าที่ต้องล็อกอินแต่ยังไม่มีบทบาทก็เข้าได้ */
 const SIGNED_IN_ONLY = new Set(['L02']);
+/** หน้าก่อนล็อกอิน — ล็อกอินอยู่แล้วเข้าไม่ได้ (เด้งไปหน้าของบทบาท) */
+const GUEST_ONLY = new Set(['A01', 'A02', 'A03', 'A04', 'A05']);
 
 function areaRoute(area: Area): Route {
   return {
@@ -158,7 +160,13 @@ function areaRoute(area: Area): Route {
     children: SCREENS.filter((s) => s.area === area).map((s) => ({
       path: s.path,
       loadComponent: BUILT[s.code] ?? placeholder,
-      ...(SIGNED_IN_ONLY.has(s.code) ? { canActivate: [requireSignedIn] } : GUARD[area] ? { canActivate: [GUARD[area]] } : {}),
+      ...(SIGNED_IN_ONLY.has(s.code)
+        ? { canActivate: [requireSignedIn] }
+        : GUEST_ONLY.has(s.code)
+          ? { canActivate: [guestOnly] }
+          : GUARD[area]
+            ? { canActivate: [GUARD[area]] }
+            : {}),
       data: { code: s.code },
       title: `${s.title.th} · Smart Mailbox`,
     })),

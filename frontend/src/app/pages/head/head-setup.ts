@@ -142,7 +142,7 @@ export class HeadSignup {
       );
       await this.session.refresh();
       this.f.set({ ...f, password: '' });
-      void this.router.navigateByUrl(screenUrl('L02'));
+      void this.router.navigateByUrl(screenUrl('L02'), { replaceUrl: true });
     } catch (err) {
       const e = apiError(err);
       this.errorCode.set(e.code === 'PHONE_TAKEN' ? 'PHONE_TAKEN' : 'INVALID');
@@ -236,9 +236,9 @@ export class HeadPending implements OnInit {
     if (a?.status === 'approved') {
       await this.realSession.refresh();
       this.realSession.use('head');
-      void this.router.navigateByUrl(screenUrl('L03'));
+      void this.router.navigateByUrl(screenUrl('L03'), { replaceUrl: true });
     } else if (a?.status === 'rejected') {
-      void this.router.navigate([screenUrl('L02')], { queryParams: { state: 'rejected' } });
+      void this.router.navigate([screenUrl('L02')], { queryParams: { state: 'rejected' }, replaceUrl: true });
     } else {
       this.toast.show({ th: 'ยังรอแอดมินตรวจอยู่', en: 'Still waiting for the admin' });
     }
@@ -247,7 +247,7 @@ export class HeadPending implements OnInit {
   private readonly realSession = inject(Session);
   /** ออกจากระบบจริง (ลบ session ที่ server + cookie) */
   protected signout(): void {
-    void this.realSession.signout().then(() => this.router.navigateByUrl(screenUrl('A04')));
+    void this.realSession.signout().then(() => this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true }));
   }
 }
 

@@ -235,14 +235,14 @@ export class AuthChangePassword {
     }
     await this.realSession.signout();
     this.toast.show({ th: 'เปลี่ยนรหัสแล้ว — ล็อกอินใหม่ด้วยรหัสใหม่', en: 'Password changed — sign in with the new one' });
-    void this.router.navigateByUrl(screenUrl('A04'));
+    void this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true });
   }
 
   private readonly http = inject(HttpClient);
   private readonly realSession = inject(Session);
   /** ออกจากระบบจริง (ลบ session ที่ server + cookie) */
   protected signout(): void {
-    void this.realSession.signout().then(() => this.router.navigateByUrl(screenUrl('A04')));
+    void this.realSession.signout().then(() => this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true }));
   }
 }
 
@@ -265,7 +265,7 @@ export class AuthChangePassword {
         <input maxlength="100" autocomplete="address-level3" [placeholder]="i18n.t({ th: 'เช่น หมู่บ้านสุขใจ', en: 'e.g. Sukjai Village' })" [value]="f().area" (input)="set('area', $any($event.target).value)" />
         <small>{{ i18n.t({ th: 'ช่วยให้เจ้าหน้าที่แยกบ้านเลขที่ซ้ำกันคนละหมู่บ้าน', en: 'Helps officers tell apart the same house number in different villages' }) }}</small>
       </label>
-      <app-terms-check from="A15" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="!!f().house_no.trim() && !f().terms" />
+      <app-terms-check from="A15" [returnTo]="from()" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="!!f().house_no.trim() && !f().terms" />
       @if (errorCode(); as e) {
         <p class="danger-text small" role="alert">{{ i18n.t(errors[e]) }}</p>
       }
@@ -306,7 +306,7 @@ export class AuthAddOwner {
       await firstValueFrom(this.http.post('/api/v1/me/roles/owner', { house_no: this.f().house_no.trim(), area: this.f().area.trim() || undefined, terms_version: terms.version }));
       await this.realSession.refresh();
       this.realSession.use('owner');
-      void this.router.navigateByUrl(screenUrl('A07'));
+      void this.router.navigate([screenUrl('A07')], { queryParams: { from: this.from() ?? 'O13' }, replaceUrl: true });
     } catch (err) {
       const { code } = apiError(err);
       this.errorCode.set(code && ADD_ROLE_ERROR[code] ? code : 'INVALID');
@@ -330,7 +330,7 @@ export class AuthAddOwner {
         <span>{{ i18n.t({ th: 'รหัสกลุ่มจากหัวหน้า', en: 'Group code from your head' }) }}</span>
         <input autocomplete="off" autocapitalize="characters" spellcheck="false" [placeholder]="i18n.t({ th: 'เช่น PX7K-2MQ9', en: 'e.g. PX7K-2MQ9' })" [value]="f().group_code" (input)="set('group_code', $any($event.target).value)" />
       </label>
-      <app-terms-check from="A16" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="!!f().group_code.trim() && !f().terms" />
+      <app-terms-check from="A16" [returnTo]="from()" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="!!f().group_code.trim() && !f().terms" />
       @if (errorCode(); as e) {
         <p class="danger-text small" role="alert">{{ i18n.t(errors[e]) }}</p>
       }
@@ -371,7 +371,7 @@ export class AuthJoinAgency {
       const terms = await firstValueFrom(this.http.get<{ version: string }>('/api/v1/terms/current'));
       await firstValueFrom(this.http.post('/api/v1/me/agency/join', { group_code: groupCode, terms_version: terms.version }));
       await this.realSession.refresh();
-      void this.router.navigateByUrl(screenUrl('A11'));
+      void this.router.navigateByUrl(screenUrl('A11'), { replaceUrl: true });
     } catch (err) {
       const { code } = apiError(err);
       this.errorCode.set(code && ADD_ROLE_ERROR[code] ? code : 'INVALID');

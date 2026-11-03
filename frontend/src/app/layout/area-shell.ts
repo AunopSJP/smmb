@@ -354,7 +354,7 @@ export class AreaShell {
   protected readonly url = screenUrl;
   private readonly router = inject(Router);
   protected signout(): void {
-    void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04')));
+    void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true }));
   }
   protected readonly areaLabel = computed(() => AREA_LABEL[this.area]);
   protected readonly tabs = computed(() => TABS[this.area]);

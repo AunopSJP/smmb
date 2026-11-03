@@ -397,22 +397,22 @@ export class AuthSignin implements OnInit {
     const me = r.me;
     // ถูกรีเซ็ตรหัส → ต้องเปลี่ยนก่อน (403 PASSWORD_CHANGE_REQUIRED ทุก route)
     if (me.must_change_password) {
-      void this.router.navigate([screenUrl('A14')], { queryParams: { forced: 1 } });
+      void this.router.navigate([screenUrl('A14')], { queryParams: { forced: 1 }, replaceUrl: true });
       return;
     }
     if (me.terms_update_required) {
-      void this.router.navigate([screenUrl('A13')], { queryParams: { update: 1 } });
+      void this.router.navigate([screenUrl('A13')], { queryParams: { update: 1 }, replaceUrl: true });
       return;
     }
     // คำขอเป็นเจ้าหน้าที่/หน่วยงานที่ยังรออยู่ และไม่มีบทบาทอื่นให้ใช้ → หน้ารอ
     if (!me.roles.length && (me.agency_status === 'pending' || me.agency_status === 'rejected')) {
       const rejected = me.agency_status === 'rejected';
-      void this.router.navigate([screenUrl(me.agency?.is_head ? 'L02' : 'A11')], { queryParams: rejected ? { state: 'rejected' } : {} });
+      void this.router.navigate([screenUrl(me.agency?.is_head ? 'L02' : 'A11')], { queryParams: rejected ? { state: 'rejected' } : {}, replaceUrl: true });
       return;
     }
     const next = this.next();
     if (next && next.startsWith('/') && !next.startsWith('//')) {
-      void this.router.navigateByUrl(next);
+      void this.router.navigateByUrl(next, { replaceUrl: true });
       return;
     }
     // หัวหน้าเป็นเจ้าหน้าที่อยู่แล้ว — ไม่ต้องให้เลือกระหว่างสองอย่างนี้
@@ -441,7 +441,7 @@ export class AuthSignin implements OnInit {
 
   protected enter(role: DemoAccountRole): void {
     this.session.use(role);
-    void this.router.navigateByUrl(ROLE_HOME[role]);
+    void this.router.navigateByUrl(ROLE_HOME[role], { replaceUrl: true });
   }
 }
 

@@ -69,7 +69,7 @@ export class PasswordField {
     <label class="terms">
       <input type="checkbox" [checked]="checked()" (change)="checked.set($any($event.target).checked)" />
       <span>
-        {{ i18n.t({ th: 'ยอมรับ', en: 'I accept the ' }) }}<a [routerLink]="terms" [queryParams]="{ from: from() }">{{ i18n.t({ th: 'ข้อตกลงการใช้งาน', en: 'terms of use' }) }}</a>
+        {{ i18n.t({ th: 'ยอมรับ', en: 'I accept the ' }) }}<a [routerLink]="terms" [queryParams]="{ from: from(), returnTo: returnTo() }">{{ i18n.t({ th: 'ข้อตกลงการใช้งาน', en: 'terms of use' }) }}</a>
       </span>
     </label>
     @if (showError()) {
@@ -103,6 +103,8 @@ export class TermsCheck {
   readonly checked = model(false);
   /** รหัสหน้าที่จะกลับมาหลังอ่านข้อตกลง */
   readonly from = input.required<string>();
+  /** หน้าบัญชีที่เปิดฟอร์มนี้ เพื่อคงปลายทางย้อนกลับของฟอร์มเดิม */
+  readonly returnTo = input<string>();
   readonly showError = input(false);
 }
 

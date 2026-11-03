@@ -684,7 +684,7 @@ export class AdminHome implements OnInit {
   }
 
   protected signout(): void {
-    void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04')));
+    void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true }));
   }
 
   /** งานค้างเรียงตามความเร่งด่วน: ตู้ไม่ออนไลน์ → แบตต่ำ → หน่วยงาน/คำขอช่างรออนุมัติ — หายไปเมื่อจัดการแล้ว */

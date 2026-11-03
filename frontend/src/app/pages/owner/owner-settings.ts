@@ -225,7 +225,7 @@ export class OwnerSettings {
   }
 
   protected signout(): void {
-    void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04')));
+    void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true }));
   }
   protected readonly menu = computed<{ code: string; icon: IconName; title: Tr; sub: Tr; badge?: Tr }[]>(() => {
     const pushOn = this.session.me()?.push.subscribed === true;

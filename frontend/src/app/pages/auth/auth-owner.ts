@@ -131,7 +131,7 @@ export class AuthSignupOwner implements OnInit {
       await this.session.refresh();
       this.session.use('owner');
       this.f.set({ ...f, password: '' });
-      void this.router.navigateByUrl(screenUrl('A07'));
+      void this.router.navigate([screenUrl('A07')], { queryParams: { from: 'A06' }, replaceUrl: true });
     } catch (err) {
       const e = apiError(err);
       this.errorCode.set(e.code === 'PHONE_TAKEN' ? 'PHONE_TAKEN' : 'INVALID');
@@ -186,7 +186,7 @@ const ACTIVATE_STEPS: Step[] = [
         </div>
       }
       @default {
-        <app-page-header [caption]="i18n.t({ th: 'ขั้น 2 จาก 2', en: 'Step 2 of 2' })" [title]="i18n.t({ th: 'ผูกตู้กับบัญชี', en: 'Add your mailbox' })" [back]="url('A06')" />
+        <app-page-header [caption]="i18n.t({ th: 'ขั้น 2 จาก 2', en: 'Step 2 of 2' })" [title]="i18n.t({ th: 'ผูกตู้กับบัญชี', en: 'Add your mailbox' })" [back]="backUrl()" />
         <div class="stack grow">
           <app-steps [steps]="steps" [current]="1" />
           @if (needSignin()) {
@@ -242,6 +242,22 @@ export class AuthActivate implements OnInit {
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
   protected readonly steps = ACTIVATE_STEPS;
+  readonly from = input<string>();
+  protected readonly backUrl = computed(() => {
+    const from = this.from();
+    if (from) {
+      try {
+        return screenUrl(from);
+      } catch {
+        // Ignore invalid return codes and choose a destination from the session.
+      }
+    }
+    const me = this.session.me();
+    if (!me) return screenUrl('A06');
+    if (me.roles.includes('head')) return screenUrl('L04');
+    if (me.roles.includes('officer')) return screenUrl('O13');
+    return screenUrl('H13');
+  });
   /** ?state=invalid|taken = A07-b / A07-c · ?qr= มาจากลิงก์ /a/<token> (กล้องมือถือธรรมดาเปิดลิงก์มา) */
   readonly state = input<string>();
   readonly qr = input<string>();
@@ -283,11 +299,11 @@ export class AuthActivate implements OnInit {
     try {
       const r = await firstValueFrom(this.http.post<{ box: BoxSummary }>('/api/v1/boxes/activate', body));
       this.session.use('owner');
-      void this.router.navigate([screenUrl('A08')], { queryParams: { box: r.box.id } });
+      void this.router.navigate([screenUrl('A08')], { queryParams: { box: r.box.id, from: this.from() }, replaceUrl: true });
     } catch (err) {
       const e = apiError(err);
       if (e.code === 'BOX_ALREADY_OWNED' || e.code === 'QR_INVALID') {
-        void this.router.navigate([screenUrl('A07')], { queryParams: { state: e.code === 'BOX_ALREADY_OWNED' ? 'taken' : 'invalid' } });
+        void this.router.navigate([screenUrl('A07')], { queryParams: { state: e.code === 'BOX_ALREADY_OWNED' ? 'taken' : 'invalid', from: this.from() }, replaceUrl: true });
       } else if (e.code === 'CODE_ATTEMPTS_EXCEEDED') {
         this.message.set({ th: 'พิมพ์ผิดหลายครั้ง รอสักครู่แล้วลองใหม่', en: 'Too many wrong codes — wait a moment and retry' });
       } else if (e.status === 404 || e.status === 401) {
@@ -302,7 +318,7 @@ export class AuthActivate implements OnInit {
   }
 
   protected retry(): void {
-    void this.router.navigateByUrl(screenUrl('A07'));
+    void this.router.navigate([screenUrl('A07')], { queryParams: { from: this.from() }, replaceUrl: true });
   }
 }
 
@@ -313,7 +329,7 @@ export class AuthActivate implements OnInit {
   imports: [PageHeader, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'ขั้น 2 จาก 2', en: 'Step 2 of 2' })" [title]="i18n.t({ th: 'ตั้งชื่อตู้', en: 'Name your mailbox' })" [back]="url('A07')" />
+    <app-page-header [caption]="i18n.t({ th: 'ขั้น 2 จาก 2', en: 'Step 2 of 2' })" [title]="i18n.t({ th: 'ตั้งชื่อตู้', en: 'Name your mailbox' })" [back]="backUrl()" />
     <form class="stack grow" (submit)="$event.preventDefault(); save()">
       <p class="ok-text found"><app-icon name="check" [size]="18" /> {{ i18n.t({ th: 'พบตู้ ', en: 'Found mailbox ' }) }}{{ boxId() }}{{ i18n.t({ th: ' แล้ว', en: '' }) }}</p>
       <label class="field" [class.invalid]="!valid()">
@@ -352,6 +368,11 @@ export class AuthNameBox {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
+  readonly from = input<string>();
+  protected readonly backUrl = computed(() => {
+    const from = this.from();
+    return from ? `${screenUrl('A07')}?from=${encodeURIComponent(from)}` : screenUrl('A07');
+  });
   /** ?box=BX-00042 */
   readonly box = input<string>('');
   protected readonly boxId = computed(() => this.box());
@@ -373,7 +394,7 @@ export class AuthNameBox {
     this.failed.set(false);
     try {
       await firstValueFrom(this.http.patch(`/api/v1/boxes/${encodeURIComponent(this.box())}`, { name: this.name().trim() }));
-      void this.router.navigate([screenUrl('A09')], { queryParams: { box: this.box() } });
+      void this.router.navigate([screenUrl('A09')], { queryParams: { box: this.box() }, replaceUrl: true });
     } catch {
       this.failed.set(true);
     }

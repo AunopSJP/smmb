@@ -80,6 +80,6 @@ export class OfficerAccount {
   }
 
   protected signout(): void {
-    void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04')));
+    void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true }));
   }
 }

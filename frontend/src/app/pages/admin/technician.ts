@@ -37,14 +37,14 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
   imports: [RouterLink, PageHeader, Steps, BoxTest, QrScanner, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'งานช่าง', en: 'Technician' }) + (id() ? ' · ' + id() : '')" [title]="i18n.t({ th: 'ติดตั้งตู้', en: 'Install a mailbox' })" [back]="url('D01')" />
+    <app-page-header [caption]="i18n.t({ th: 'งานช่าง', en: 'Technician' }) + (id() ? ' · ' + id() : '')" [title]="i18n.t({ th: 'ติดตั้งตู้', en: 'Install a mailbox' })" [back]="backUrl()" />
 
     @if (!id()) {
       <div class="stack">
         <p class="muted">{{ i18n.t({ th: 'เลือกตู้ที่จะติดตั้ง (ตู้ที่ยังไม่ผูกเจ้าของ)', en: 'Pick the box to install (not yet bound)' }) }}</p>
         <nav class="list">
           @for (b of freeBoxes(); track b.id) {
-            <a class="row" [routerLink]="url('T01')" [queryParams]="{ id: b.id }">
+            <a class="row" [routerLink]="url('T01')" [queryParams]="{ id: b.id, from: from() }">
               <span class="icon-bubble"><app-icon name="box" [size]="20" /></span>
               <span class="grow">
                 <strong>{{ b.id }}</strong>
@@ -96,8 +96,8 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
               </div>
               <p class="muted small center" role="status">{{ i18n.t({ th: 'กำลังรอตู้ต่อเน็ต… (เช็กทุก 3 วิ)', en: 'Waiting for the box… (checking every 3 s)' }) }}</p>
               <div class="two">
-                <a class="btn secondary" [routerLink]="url('T02')" [queryParams]="{ id: b.id }">{{ i18n.t({ th: 'หน้าตั้งค่าในตู้หน้าตาแบบนี้', en: 'What the box page looks like' }) }}</a>
-                <a class="btn secondary" [routerLink]="url('T02-c')" [queryParams]="{ id: b.id }">{{ i18n.t({ th: 'ตู้ต่อไม่ได้', en: 'It won’t connect' }) }}</a>
+                <a class="btn secondary" [routerLink]="url('T02')" [queryParams]="{ id: b.id, from: from() }">{{ i18n.t({ th: 'หน้าตั้งค่าในตู้หน้าตาแบบนี้', en: 'What the box page looks like' }) }}</a>
+                <a class="btn secondary" [routerLink]="url('T02-c')" [queryParams]="{ id: b.id, from: from() }">{{ i18n.t({ th: 'ตู้ต่อไม่ได้', en: 'It won’t connect' }) }}</a>
               </div>
             }
             @case (2) {
@@ -201,6 +201,11 @@ export class TechChecklist {
   protected readonly steps = INSTALL_STEPS;
   protected readonly seen = seenText;
   readonly id = input<string>();
+  readonly from = input<string>();
+  protected readonly backUrl = computed(() => {
+    if (this.from() !== 'D04' || !this.id()) return screenUrl('D01');
+    return `${screenUrl('D04')}?id=${encodeURIComponent(this.id()!)}`;
+  });
 
   protected readonly box = signal<AdminBoxDetail | null>(null);
   protected readonly notFound = signal(false);
@@ -388,6 +393,7 @@ export class TechWifi {
   protected readonly i18n = inject(I18n);
   private readonly router = inject(Router);
   readonly id = input<string>();
+  readonly from = input<string>();
   protected readonly ap = computed(() => apName(this.id() ?? 'BX-000000'));
   protected readonly networks = [
     { ssid: 'HOME_2.4G', band: '2.4 GHz', ok: true },
@@ -395,7 +401,13 @@ export class TechWifi {
   ];
   protected readonly ssid = signal<string | null>('HOME_2.4G');
   protected readonly password = signal('');
-  protected readonly back = computed(() => screenUrl('T01') + (this.id() ? `?id=${this.id()}` : ''));
+  protected readonly back = computed(() => {
+    const params = new URLSearchParams();
+    if (this.id()) params.set('id', this.id()!);
+    if (this.from()) params.set('from', this.from()!);
+    const query = params.toString();
+    return `${screenUrl('T01')}${query ? `?${query}` : ''}`;
+  });
 
   protected connect(): void {
     if (!this.ssid() || !this.password()) return;
@@ -468,7 +480,7 @@ export class TechLights {
       </div>
       <p class="muted small center">{{ i18n.t({ th: 'ต่อไม่ได้ ตู้จะกลับเข้าโหมดตั้งค่าเอง — ต่อ Wi-Fi ของตู้ใหม่อีกครั้ง', en: 'After a failure the box goes back to setup mode — join its Wi-Fi again' }) }}</p>
       <div class="stack push-end">
-        <a class="btn" [routerLink]="url('T01')" [queryParams]="id() ? { id: id() } : {}">{{ i18n.t({ th: 'กลับเช็กลิสต์', en: 'Back to checklist' }) }}</a>
+        <a class="btn" [routerLink]="url('T01')" [queryParams]="{ id: id(), from: from() }">{{ i18n.t({ th: 'กลับเช็กลิสต์', en: 'Back to checklist' }) }}</a>
         @if (id()) {
           <a class="btn secondary" [routerLink]="url('D04')" [queryParams]="{ id: id() }">{{ i18n.t({ th: 'ดูรายละเอียดตู้', en: 'Box details' }) }}</a>
         }
@@ -492,4 +504,5 @@ export class TechWifiFailed {
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
   readonly id = input<string>();
+  readonly from = input<string>();
 }

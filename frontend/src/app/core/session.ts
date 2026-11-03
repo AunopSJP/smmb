@@ -133,6 +133,21 @@ export const requireSignedIn: CanActivateFn = async (_route, state) => {
   return me ? true : router.createUrlTree([screenUrl('A04')], { queryParams: { next: state.url } });
 };
 
+/**
+ * หน้าก่อนล็อกอิน (A01–A05) — ล็อกอินอยู่แล้วและพร้อมใช้งาน → ไปหน้าของบทบาท (หรือ ?next=)
+ * กันกรณีล็อกอินเสร็จแล้วกดปุ่มย้อนกลับมาเจอฟอร์มเข้าสู่ระบบทั้งที่ล็อกอินอยู่
+ */
+export const guestOnly: CanActivateFn = async (route) => {
+  const session = inject(Session);
+  const router = inject(Router);
+  const me = await session.ensure();
+  if (!me || !me.roles.length || me.must_change_password || me.terms_update_required) return true;
+  const next = route.queryParamMap.get('next');
+  if (next && next.startsWith('/') && !next.startsWith('//')) return router.parseUrl(next);
+  const role = me.roles.includes('head') ? 'head' : me.roles[0];
+  return router.createUrlTree([ROLE_HOME[role] ?? '/']);
+};
+
 /** หน้าแรก (/) — ล็อกอินอยู่ → หน้าแรกของบทบาท · ยังไม่ล็อกอิน → เข้าสู่ระบบ */
 export const homeRedirect: CanActivateFn = async () => {
   // inject ก่อน await เสมอ (หลัง await ไม่อยู่ใน injection context แล้ว)
