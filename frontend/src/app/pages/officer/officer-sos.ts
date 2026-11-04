@@ -135,7 +135,25 @@ export class OfficerSosList {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = card();
-    @if (taken() || (c && c.status !== 'open' && c.status !== 'cancelled' && !c.mine)) {
+    @if (c?.status === 'closed') {
+      <!-- เปิดจากแจ้งเตือนเก่า: เรื่องปิดไปแล้ว — ห้ามแสดงเป็น SOS ใหม่ -->
+      <div class="pad">
+        <div class="result">
+          <span class="big-icon"><app-icon name="check" [size]="30" /></span>
+          <h1>{{ i18n.t({ th: 'SOS นี้ปิดเรื่องแล้ว', en: 'This SOS is closed' }) }}</h1>
+          <p class="muted small">{{ i18n.t({ th: 'ไม่ต้องทำอะไรเพิ่ม', en: 'No action needed' }) }}</p>
+        </div>
+        <section class="card">
+          <dl class="kv">
+            <dt>{{ i18n.t({ th: 'บ้าน', en: 'House' }) }}</dt><dd>{{ i18n.t({ th: 'เลขที่ ', en: 'No. ' }) }}{{ c?.house_no }}</dd>
+            @if (c?.accepted_by; as a) {
+              <dt>{{ i18n.t({ th: 'ดูแลโดย', en: 'Handled by' }) }}</dt><dd>{{ a.display_name }} · {{ a.agency_name }}</dd>
+            }
+          </dl>
+        </section>
+        <a class="btn push-end" [routerLink]="url('O12')">{{ i18n.t({ th: 'ดูรายการ SOS', en: 'SOS list' }) }}</a>
+      </div>
+    } @else if (taken() || (c && c.status !== 'open' && c.status !== 'cancelled' && !c.mine)) {
       <div class="pad">
         <div class="result">
           <span class="big-icon danger"><app-icon name="check" [size]="30" /></span>
@@ -248,9 +266,11 @@ export class OfficerSosCase implements OnInit {
       if (!c) return;
       this.card.set(c);
       if (c.mine && c.status === 'accepted') go(this.router, 'O10', c.id);
+      // ปิด/ยกเลิกแล้ว = จบ ไม่ต้องถามต่อ
+      if (c.status === 'closed' || c.status === 'cancelled') clearInterval(t);
     };
-    void tick();
     const t = setInterval(() => void tick(), POLL_MS);
+    void tick();
     this.destroy.onDestroy(() => clearInterval(t));
   }
 
@@ -336,11 +356,14 @@ export class OfficerSosHandling implements OnInit {
   protected readonly url = screenUrl;
   readonly id = input<string>('');
   protected readonly card = signal<SosCard | null>(null);
+  private readonly router = inject(Router);
 
   ngOnInit(): void {
     const tick = async () => {
       const c = await this.api.card(this.id()).catch(() => null);
       if (c) this.card.set(c);
+      // ปิดเรื่องแล้ว (เปิดจากลิงก์/แจ้งเตือนเก่า) → หน้าสรุปเรื่องที่ปิดแล้ว ไม่ให้กดปิดซ้ำ
+      if (c?.status === 'closed') go(this.router, 'O09', c.id);
     };
     void tick();
     const t = setInterval(() => void tick(), POLL_MS * 2);
@@ -424,6 +447,15 @@ export class OfficerSosClose {
   protected readonly note = signal('');
   protected readonly busy = signal(false);
   protected readonly failed = signal(false);
+
+  constructor() {
+    // เรื่องปิดไปแล้ว → ไม่ให้ปิดซ้ำ
+    queueMicrotask(() =>
+      void this.api.card(this.id()).then((c) => {
+        if (c.status === 'closed') go(this.router, 'O09', c.id);
+      }).catch(() => undefined),
+    );
+  }
 
   /** POST /sos/:id/close { note } — หมายเหตุ = ผลที่เลือก + ข้อความที่พิมพ์ */
   protected async close(e: Event): Promise<void> {
