@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Ip, Param, Patch, Post, Query } from '@nestjs/common';
 import { Transform, Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
 import { RateLimit } from '../rate-limit/rate-limit.guard.js';
@@ -33,6 +33,15 @@ class UpdateBoxDto {
   @IsOptional() @Transform(trim) @IsString() @Length(1, 40) name?: string;
   /** ย่าน/หมู่บ้าน · '' = ล้าง */
   @IsOptional() @Transform(trim) @IsString() @MaxLength(100) area?: string;
+  /** ที่อยู่บ้าน · '' = ล้าง */
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(200) address_line?: string;
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(100) subdistrict?: string;
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(100) district?: string;
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(100) province?: string;
+  /** พิกัดหมุดบ้าน — ต้องส่ง lat และ lng คู่กัน */
+  @ValidateIf((o: { lat?: number; lng?: number }) => o.lat !== undefined || o.lng !== undefined) @IsNumber() @Min(-90) @Max(90) lat?: number;
+  @ValidateIf((o: { lat?: number; lng?: number }) => o.lat !== undefined || o.lng !== undefined) @IsNumber() @Min(-180) @Max(180) lng?: number;
+  @IsOptional() @IsBoolean() clear_location?: boolean;
 }
 
 class TechnicianRequestDto {
@@ -77,7 +86,8 @@ export class OwnerBoxController {
   /** ตั้งชื่อตู้ และ/หรือย่าน (ส่งอย่างน้อยหนึ่งอย่าง) */
   @Patch(':box_id')
   update(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Body() body: UpdateBoxDto) {
-    if (body.name === undefined && body.area === undefined) throw new BadRequestException('send name and/or area');
+    if (Object.values(body).every((v) => v === undefined)) throw new BadRequestException('send at least one field');
+    if (body.clear_location && body.lat !== undefined) throw new BadRequestException('clear_location and lat/lng are exclusive');
     return this.boxes.update(auth.userId, p.box_id, body);
   }
 

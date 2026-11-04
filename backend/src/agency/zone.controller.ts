@@ -4,6 +4,7 @@ import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString, IsUUID, Length, Matc
 import { AccessService } from '../auth/access.service.js';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
+import { ZoneRequestService } from './zone-request.service.js';
 import { ZoneService, type ZoneFilter } from './zone.service.js';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
@@ -35,6 +36,10 @@ class SetHousesDto {
 class HouseSearchQuery {
   /** ไม่ส่ง/ว่าง = รายการบ้านที่ยังไม่มีหน่วยงานไหนดูแล (ไว้ไล่เพิ่มเข้าโซน) */
   @IsOptional() @Transform(trim) @IsString() @MaxLength(50) q?: string;
+  /** ✅ 2026-11-04 '1' = เฉพาะบ้านที่ยังไม่มีหน่วยงานไหนดูแล · '0' = ทุกบ้าน (ไม่ส่ง = ตามคำค้น: ว่าง → ยังไม่มีใครดูแล) */
+  @IsOptional() @IsIn(['0', '1']) unzoned?: '0' | '1';
+  /** '1' = เฉพาะตู้ที่ออนไลน์ตอนนี้ */
+  @IsOptional() @IsIn(['0', '1']) online?: '0' | '1';
 }
 
 class SetOfficersDto {
@@ -52,7 +57,10 @@ export class HouseController {
   @RequireRole('head')
   @Get('search')
   async search(@Auth() auth: AuthContext, @Query() q: HouseSearchQuery) {
-    return this.zones.searchHouses(await this.access.load(auth.userId).then((a) => a.agency!.id), q.q);
+    return this.zones.searchHouses(await this.access.load(auth.userId).then((a) => a.agency!.id), q.q, {
+      unzoned: q.unzoned === undefined ? undefined : q.unzoned === '1',
+      online: q.online === '1',
+    });
   }
 }
 
@@ -95,7 +103,7 @@ export class ZoneController {
   @RequireRole('head')
   @Put(':id/houses')
   async setHouses(@Auth() auth: AuthContext, @Param() p: ZoneIdParam, @Body() dto: SetHousesDto) {
-    return this.zones.setHouses(await this.agencyId(auth), p.id, dto.box_ids);
+    return this.zones.setHouses(await this.agencyId(auth), p.id, dto.box_ids, auth.userId);
   }
 
   @RequireRole('head')
@@ -110,5 +118,35 @@ export class ZoneController {
   async remove(@Auth() auth: AuthContext, @Param() p: ZoneIdParam) {
     await this.zones.remove(await this.agencyId(auth), p.id);
     return { ok: true };
+  }
+}
+
+class RequestIdParam {
+  @IsUUID() id!: string;
+}
+
+// docs/api.md §4.6 — ✅ 2026-11-04 เจ้าของบ้านยอมรับ/ปฏิเสธคำขอให้หน่วยงานดูแลบ้าน
+@Controller('api/v1/me/zone-requests')
+export class OwnerZoneRequestController {
+  constructor(private readonly requests: ZoneRequestService) {}
+
+  @RequireRole('owner')
+  @Get()
+  list(@Auth() auth: AuthContext) {
+    return this.requests.listForOwner(auth.userId);
+  }
+
+  @RequireRole('owner')
+  @Post(':id/accept')
+  @HttpCode(HttpStatus.OK)
+  accept(@Auth() auth: AuthContext, @Param() p: RequestIdParam) {
+    return this.requests.decide(auth.userId, p.id, true);
+  }
+
+  @RequireRole('owner')
+  @Post(':id/reject')
+  @HttpCode(HttpStatus.OK)
+  reject(@Auth() auth: AuthContext, @Param() p: RequestIdParam) {
+    return this.requests.decide(auth.userId, p.id, false);
   }
 }

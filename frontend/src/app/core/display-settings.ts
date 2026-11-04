@@ -15,6 +15,8 @@ interface Saved {
   textSize: TextSize;
   simpleHome: boolean;
   nightAutoDark?: boolean;
+  mutedTypes?: string[];
+  easyMode?: boolean;
 }
 
 const bangkokHour = () =>
@@ -36,6 +38,24 @@ export class DisplaySettings {
   readonly simpleHome = signal(false);
   /** ธีมมืดอัตโนมัติ 18:00–06:00 — เจ้าหน้าที่/หัวหน้าเท่านั้น (api.md §3 `night_auto_dark`) */
   readonly nightAutoDark = signal(true);
+  /** โหมดใช้งานง่าย: ตัวใหญ่ ปุ่มใหญ่ ซ่อนรายละเอียดรอง หน้าหลักเจ้าของบ้านเรียบง่าย (ทุกบทบาท) */
+  readonly easyMode = signal(false);
+
+  setEasy(on: boolean): void {
+    this.easyMode.set(on);
+    this.simpleHome.set(on);
+  }
+
+  /** แจ้งเตือนที่ปิดรับ (เก็บกับบัญชี — server ไม่ส่งให้) */
+  readonly mutedTypes = signal<string[]>([]);
+
+  isMuted(type: string): boolean {
+    return this.mutedTypes().includes(type);
+  }
+
+  setMuted(type: string, muted: boolean): void {
+    this.mutedTypes.update((cur) => (muted ? (cur.includes(type) ? cur : [...cur, type]) : cur.filter((t) => t !== type)));
+  }
   /** ตอนนี้อยู่ในหน้าของเจ้าหน้าที่/หัวหน้าไหม (ดูจาก URL) */
   readonly officerContext = toSignal(
     inject(Router).events.pipe(
@@ -55,6 +75,8 @@ export class DisplaySettings {
     text_size: this.textSize(),
     simple_home: this.simpleHome(),
     night_auto_dark: this.nightAutoDark(),
+    easy_mode: this.easyMode(),
+    muted_types: this.mutedTypes(),
   }));
 
   /** ใช้ค่าจากบัญชี (ตอนล็อกอิน) — ภาษาที่เลือกไว้ที่เครื่องอื่นตามมาด้วย */
@@ -65,6 +87,8 @@ export class DisplaySettings {
     if (p.text_size) this.textSize.set(p.text_size);
     if (p.simple_home !== undefined) this.simpleHome.set(p.simple_home);
     if (p.night_auto_dark !== undefined) this.nightAutoDark.set(p.night_auto_dark);
+    if (p.easy_mode !== undefined) this.easyMode.set(p.easy_mode);
+    if (p.muted_types) this.mutedTypes.set(p.muted_types);
   }
 
   /** ธีมที่ใช้จริง: ตอนตรวจกลางคืน เจ้าหน้าที่ได้ธีมมืดเพื่อไม่แสบตา */
@@ -79,6 +103,8 @@ export class DisplaySettings {
       this.textSize.set(saved.textSize);
       this.simpleHome.set(saved.simpleHome);
       this.nightAutoDark.set(saved.nightAutoDark ?? true);
+      this.mutedTypes.set(saved.mutedTypes ?? []);
+      this.easyMode.set(saved.easyMode ?? false);
       this.lang.set(saved.lang);
     }
     const t = setInterval(() => this.hour.set(bangkokHour()), 60_000);
@@ -91,6 +117,8 @@ export class DisplaySettings {
       if (applied === 'system') root.removeAttribute('data-theme');
       else root.setAttribute('data-theme', applied);
       root.setAttribute('data-text-size', this.textSize());
+      if (this.easyMode()) root.setAttribute('data-easy', 'true');
+      else root.removeAttribute('data-easy');
       root.setAttribute('lang', this.lang());
       this.save({
         theme,
@@ -98,6 +126,8 @@ export class DisplaySettings {
         textSize: this.textSize(),
         simpleHome: this.simpleHome(),
         nightAutoDark: this.nightAutoDark(),
+        mutedTypes: this.mutedTypes(),
+        easyMode: this.easyMode(),
       });
     });
   }

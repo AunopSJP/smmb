@@ -32,10 +32,31 @@ export class ApiConfig {
  * ใส่ apiBase หน้า `/api/...` + ส่ง cookie (`sid`) ไปด้วยทุกคำขอ
  * 403 PUSH_REQUIRED (เจ้าหน้าที่/หัวหน้ายังไม่เปิดแจ้งเตือน) → หน้า A12 ที่เดียว ไม่ต้องให้ทุกหน้าจัดการเอง
  */
+/**
+ * รหัสเครื่องสุ่มเก็บในเบราว์เซอร์ (ไม่ใช่ข้อมูลส่วนตัว) — server ใช้เทียบว่าเจ้าหน้าที่เข้าจากเครื่องใหม่ไหม (แจ้งหัวหน้า)
+ * เก็บไม่ได้ (โหมดส่วนตัว) = สุ่มใหม่ทุกครั้งที่เปิดแอป
+ */
+let cachedDeviceId: string | null = null;
+/** crypto.randomUUID มีเฉพาะ HTTPS/localhost — getRandomValues ใช้ได้ทุกที่ (เช่น ทดสอบผ่าน http บนวง LAN) */
+const randomId = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
+export function deviceId(): string {
+  if (cachedDeviceId) return cachedDeviceId;
+  try {
+    cachedDeviceId = localStorage.getItem('smmb.device');
+    if (!cachedDeviceId) {
+      cachedDeviceId = randomId();
+      localStorage.setItem('smmb.device', cachedDeviceId);
+    }
+  } catch {
+    cachedDeviceId ??= randomId();
+  }
+  return cachedDeviceId;
+}
+
 export const apiInterceptor: HttpInterceptorFn = (req, next) => {
   if (!req.url.startsWith('/api/')) return next(req);
   const router = inject(Router);
-  return next(req.clone({ url: inject(ApiConfig).apiBase() + req.url, withCredentials: true })).pipe(
+  return next(req.clone({ url: inject(ApiConfig).apiBase() + req.url, withCredentials: true, setHeaders: { 'X-Device-Id': deviceId() } })).pipe(
     tap({
       error: (err: unknown) => {
         if (err instanceof HttpErrorResponse && err.status === 403 && (err.error as { code?: string } | null)?.code === 'PUSH_REQUIRED') {

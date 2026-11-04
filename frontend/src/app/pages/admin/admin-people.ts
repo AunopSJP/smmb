@@ -43,6 +43,12 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
           <p class="muted small">
             {{ i18n.t({ th: 'หัวหน้า: ', en: 'Head: ' }) }}{{ heads(a) }} · {{ i18n.t({ th: 'ส่งเมื่อ ', en: 'Sent ' }) }}{{ date(a.created_at) }}
           </p>
+          @if (a.address || a.registration_no) {
+            <p class="small">
+              @if (a.address) { {{ i18n.t({ th: 'ที่ตั้ง: ', en: 'Address: ' }) }}{{ a.address }} }
+              @if (a.registration_no) { <br />{{ i18n.t({ th: 'เลขทะเบียน/ใบอนุญาต: ', en: 'Registration no.: ' }) }}{{ a.registration_no }} }
+            </p>
+          }
           @if (rejecting() === a.id) {
             <label class="field">
               <span>{{ i18n.t({ th: 'เหตุผล (หัวหน้าเห็น)', en: 'Reason (shown to the head)' }) }}</span>

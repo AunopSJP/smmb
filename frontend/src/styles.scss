@@ -56,6 +56,22 @@
 :root[data-text-size='xlarge'] {
   --text-scale: 1.3;
 }
+/* โหมดใช้งานง่าย: อย่างน้อยตัวใหญ่, ปุ่มและแถวกดง่าย, ซ่อนรายละเอียดรอง (.easy-hide) */
+:root[data-easy='true'] {
+  --text-scale: 1.3;
+
+  .btn {
+    min-block-size: 64px;
+    font-size: 1.125rem;
+  }
+  .easy-hide {
+    display: none !important;
+  }
+  .row,
+  .list > * {
+    min-block-size: 64px;
+  }
+}
 
 *,
 *::before,

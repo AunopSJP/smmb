@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import pg from 'pg';
 import { PG_POOL } from '../db/db.module.js';
-import { renderMessage, type Lang, type NotificationType } from './messages.js';
+import { MUTABLE_NOTIFICATION_TYPES, renderMessage, type Lang, type NotificationType } from './messages.js';
 import { PushService } from './push.service.js';
 
 /** api.md §3 `Notification` — ชื่อฟิลด์ของ API */
@@ -40,7 +40,19 @@ export class NotificationService {
     userIds: string[],
     msg: { type: NotificationType; data: Record<string, unknown>; link: string; tag?: string },
   ): Promise<void> {
-    for (const userId of new Set(userIds)) {
+    const ids = [...new Set(userIds)];
+    if (!ids.length) return;
+    // คนที่ปิดรับ type นี้ (เฉพาะ type ที่ปิดได้) → ไม่เก็บ ไม่ส่ง
+    const muted = new Set<string>();
+    if ((MUTABLE_NOTIFICATION_TYPES as readonly string[]).includes(msg.type)) {
+      const { rows } = await this.pool.query<{ user_id: string }>(
+        `SELECT user_id FROM app.user_tb WHERE user_id = ANY($1::text[]) AND coalesce(prefs->'muted_types', '[]'::jsonb) ? $2`,
+        [ids, msg.type],
+      );
+      for (const r of rows) muted.add(r.user_id);
+    }
+    for (const userId of ids) {
+      if (muted.has(userId)) continue;
       const { rows } = await this.pool.query<{ notification_id: string }>(
         `INSERT INTO app.notification_tb (user_id, type, data, link) VALUES ($1, $2, $3, $4) RETURNING notification_id`,
         [userId, msg.type, msg.data, msg.link],

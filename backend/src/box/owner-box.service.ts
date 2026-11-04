@@ -13,6 +13,19 @@ import { SosService, type SosStage, type SosStatus } from '../sos/sos.service.js
 import { JobHub } from './job-hub.js';
 import { setupApName, WIFI_RESET_TTL_H } from './box-protocol.service.js';
 
+/** แก้ชื่อ / ย่าน / ที่อยู่ / พิกัดบ้าน (ไม่ส่ง = ไม่แตะ · สตริง '' = ล้าง · lat+lng มาเป็นคู่ · clear_location = ล้างหมุด) */
+export interface BoxPatch {
+  name?: string;
+  area?: string;
+  address_line?: string;
+  subdistrict?: string;
+  district?: string;
+  province?: string;
+  lat?: number;
+  lng?: number;
+  clear_location?: boolean;
+}
+
 /** api.md §4.2 `BoxSummary` */
 export interface BoxSummary {
   id: string;
@@ -20,6 +33,10 @@ export interface BoxSummary {
   house_no: string;
   /** ย่าน/หมู่บ้าน (ว่าง = ไม่ได้ระบุ) */
   area: string;
+  /** ที่อยู่บ้าน (✅ 2026-11-04 · ว่าง = ไม่ได้ระบุ) */
+  address: { line: string; subdistrict: string; district: string; province: string };
+  /** พิกัดบ้านที่เจ้าของปักหมุด (null = ยังไม่ปัก) — เห็นเฉพาะเจ้าของ · เจ้าหน้าที่เห็นเฉพาะตอน SOS */
+  location: { lat: number; lng: number } | null;
   status: BoxStatus;
 }
 
@@ -31,6 +48,8 @@ export interface BoxEventDto {
   officer?: { agency_type: string; agency_name: string; display_name: string };
   qr_slot?: 1 | 2;
   method?: 'scan' | 'code';
+  /** ✅ 2026-11-04 มีรูปยืนยันตัวเจ้าหน้าที่ (ดูที่ GET /me/inspection-photos/:id · เก็บ 30 วัน) */
+  has_photo?: boolean;
 }
 
 /** api.md §4.2 `BoxDetail` (ฉบับย่อ) */
@@ -208,10 +227,12 @@ export class OwnerBoxService {
       display_name: string | null;
       slot: string;
       method: 'scan' | 'code';
+      has_photo: boolean;
     }>(
       `SELECT * FROM (
          SELECT i.inspection_id::text AS id, 'inspected' AS type, i.checked_date AS at, a.type AS agency_type, a.name AS agency_name,
-                u.display_name, q.slot, i.method
+                u.display_name, q.slot, i.method,
+                EXISTS (SELECT 1 FROM app.inspection_photo_tb p WHERE p.inspection_id = i.inspection_id AND p.created_date > now() - interval '30 days') AS has_photo
          FROM app.inspection_tb i
          JOIN app.agency_tb a ON a.agency_id = i.agency_id
          JOIN app.user_tb u ON u.user_id = i.officer_user_id
@@ -219,7 +240,7 @@ export class OwnerBoxService {
          WHERE i.box_id = $1 AND i.status = 'passed'
            AND i.checked_date >= coalesce((SELECT bound_date FROM app.box_tb WHERE box_id = $1), '-infinity')
          UNION ALL
-         SELECT d.delivery_id::text, 'delivered', d.created_date, NULL, NULL, NULL, q.slot, d.method
+         SELECT d.delivery_id::text, 'delivered', d.created_date, NULL, NULL, NULL, q.slot, d.method, false
          FROM app.delivery_tb d JOIN app.box_qr_code_tb q ON q.box_qr_code_id = d.box_qr_code_id
          WHERE d.box_id = $1
            AND d.created_date >= coalesce((SELECT bound_date FROM app.box_tb WHERE box_id = $1), '-infinity')
@@ -237,6 +258,7 @@ export class OwnerBoxService {
       ...(e.type === 'inspected' ? { officer: { agency_type: e.agency_type ?? '', agency_name: e.agency_name ?? '', display_name: e.display_name ?? '' } } : {}),
       qr_slot: Number(e.slot) as 1 | 2,
       method: e.method,
+      ...(e.type === 'inspected' ? { has_photo: e.has_photo } : {}),
     }));
   }
 
@@ -275,13 +297,26 @@ export class OwnerBoxService {
   }
 
   /** ตั้งชื่อตู้ / ย่าน — ตู้ของคนอื่น → 404 · area = '' ล้างค่า · ไม่ส่งฟิลด์ = ไม่แตะ */
-  async update(userId: string, boxId: string, patch: { name?: string; area?: string }): Promise<BoxSummary> {
+  async update(userId: string, boxId: string, patch: BoxPatch): Promise<BoxSummary> {
     const { rowCount } = await this.pool.query(
       `UPDATE app.box_tb SET
          name = coalesce($3, name),
-         area = CASE WHEN $4::boolean THEN nullif($5, '') ELSE area END
+         area = CASE WHEN $4::boolean THEN nullif($5, '') ELSE area END,
+         address_line = CASE WHEN $6::boolean THEN nullif($7, '') ELSE address_line END,
+         subdistrict = CASE WHEN $8::boolean THEN nullif($9, '') ELSE subdistrict END,
+         district = CASE WHEN $10::boolean THEN nullif($11, '') ELSE district END,
+         province = CASE WHEN $12::boolean THEN nullif($13, '') ELSE province END,
+         lat = CASE WHEN $14::boolean THEN $15::numeric ELSE lat END,
+         lng = CASE WHEN $14::boolean THEN $16::numeric ELSE lng END
        WHERE box_id = $1 AND owner_user_id = $2`,
-      [boxId, userId, patch.name ?? null, patch.area !== undefined, patch.area ?? null],
+      [
+        boxId, userId, patch.name ?? null, patch.area !== undefined, patch.area ?? null,
+        patch.address_line !== undefined, patch.address_line ?? null,
+        patch.subdistrict !== undefined, patch.subdistrict ?? null,
+        patch.district !== undefined, patch.district ?? null,
+        patch.province !== undefined, patch.province ?? null,
+        patch.lat !== undefined || patch.clear_location === true, patch.clear_location ? null : (patch.lat ?? null), patch.clear_location ? null : (patch.lng ?? null),
+      ],
     );
     if (!rowCount) throw new NotFoundException();
     const [box] = await this.summaries(userId, boxId);
@@ -323,7 +358,11 @@ export class OwnerBoxService {
 
     await db.query(
       `UPDATE app.box_tb SET owner_user_id = $2, house_no = (SELECT house_no FROM app.user_tb WHERE user_id = $2),
-         area = (SELECT area FROM app.user_tb WHERE user_id = $2), bound_date = now()
+         area = (SELECT area FROM app.user_tb WHERE user_id = $2),
+         address_line = (SELECT address_line FROM app.user_tb WHERE user_id = $2), subdistrict = (SELECT subdistrict FROM app.user_tb WHERE user_id = $2),
+         district = (SELECT district FROM app.user_tb WHERE user_id = $2), province = (SELECT province FROM app.user_tb WHERE user_id = $2),
+         lat = (SELECT house_lat FROM app.user_tb WHERE user_id = $2), lng = (SELECT house_lng FROM app.user_tb WHERE user_id = $2),
+         bound_date = now()
        WHERE box_id = $1`,
       [qr.box_id, userId],
     );
@@ -337,18 +376,32 @@ export class OwnerBoxService {
       name: string | null;
       house_no: string | null;
       area: string | null;
+      address_line: string | null;
+      subdistrict: string | null;
+      district: string | null;
+      province: string | null;
+      lat: string | null;
+      lng: string | null;
       owner_user_id: string | null;
       service_active: boolean;
       last_poll_date: Date | null;
       last_seen_date: Date | null;
       config_override: Record<string, unknown>;
     }>(
-      `SELECT box_id, name, house_no, area, owner_user_id, service_active, last_poll_date, last_seen_date, config_override
+      `SELECT box_id, name, house_no, area, address_line, subdistrict, district, province, lat, lng, owner_user_id, service_active, last_poll_date, last_seen_date, config_override
        FROM app.box_tb WHERE owner_user_id = $1 AND ($2::text IS NULL OR box_id = $2)
        ORDER BY bound_date, box_id`,
       [userId, boxId ?? null],
     );
     const status = await this.configs.statusOf(rows);
-    return rows.map((r) => ({ id: r.box_id, name: r.name ?? '', house_no: r.house_no ?? '', area: r.area ?? '', status: status.get(r.box_id)! }));
+    return rows.map((r) => ({
+      id: r.box_id,
+      name: r.name ?? '',
+      house_no: r.house_no ?? '',
+      area: r.area ?? '',
+      address: { line: r.address_line ?? '', subdistrict: r.subdistrict ?? '', district: r.district ?? '', province: r.province ?? '' },
+      location: r.lat !== null && r.lng !== null ? { lat: Number(r.lat), lng: Number(r.lng) } : null,
+      status: status.get(r.box_id)!,
+    }));
   }
 }

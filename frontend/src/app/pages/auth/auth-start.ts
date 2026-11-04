@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input, signal, type OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal, type OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { PushBlockedError, PushNotifications } from '../../core/push-notifications';
 import { I18n, type Tr } from '../../core/i18n';
@@ -268,6 +268,13 @@ export class AuthNotifications {
 
 // ── A04 · เข้าสู่ระบบ (+ A04-b รหัสผิด) ────────────────────────
 
+const AS_ROLE: Record<string, Tr> = {
+  owner: { th: 'เข้าสู่ระบบสำหรับเจ้าของบ้าน', en: 'Sign in as homeowner' },
+  officer: { th: 'เข้าสู่ระบบสำหรับเจ้าหน้าที่', en: 'Sign in as officer' },
+  head: { th: 'เข้าสู่ระบบสำหรับหัวหน้าหน่วยงาน', en: 'Sign in as agency head' },
+  admin: { th: 'เข้าสู่ระบบสำหรับผู้ดูแลระบบ', en: 'Sign in as admin' },
+};
+
 const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
   owner: { label: { th: 'เจ้าของบ้าน', en: 'Homeowner' }, icon: 'home' },
   officer: { label: { th: 'เจ้าหน้าที่', en: 'Officer' }, icon: 'shield' },
@@ -298,6 +305,9 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
     } @else {
       <form class="stack grow" (submit)="$event.preventDefault(); submit()">
         <h1>{{ i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</h1>
+        @if (asRole(); as r) {
+          <p class="info-box">{{ i18n.t(r) }}</p>
+        }
         @if (error(); as e) {
           <p class="card err" role="alert">
             <strong>{{ i18n.t(e.title) }}</strong><br />
@@ -366,6 +376,9 @@ export class AuthSignin implements OnInit {
 
   /** ?next=/officer/… — กลับไปหน้าที่ตั้งใจเปิดหลังล็อกอิน */
   readonly next = input<string>();
+  /** ?as=officer — มาจากลิงก์เข้าตรงของบทบาท (/in/officer) */
+  readonly as = input<string>();
+  protected readonly asRole = computed(() => AS_ROLE[this.as() ?? ''] ?? null);
   protected readonly phone = signal('');
   protected readonly password = signal('');
   protected readonly busy = signal(false);

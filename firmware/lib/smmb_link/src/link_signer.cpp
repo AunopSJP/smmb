@@ -1,4 +1,6 @@
-#include "signer.h"
+// ลายเซ็นคำขอ — X-Signature = hex(HMAC-SHA256(key = device_secret เป็นสตริง ASCII 64 ไบต์,
+//                               METHOD|PATH|TIMESTAMP|NONCE|sha256hex(BODY)))  (โปรโตคอล §1.1 = backend box-crypto.ts)
+#include "SmmbLink.h"
 
 #include <esp_random.h>
 #include <mbedtls/md.h>
@@ -20,7 +22,7 @@ String sha256Hex(const String& data) {
   return toHex(d, 32);
 }
 
-String signRequest(const String& secret, const char* method, const String& path, uint32_t ts, const String& nonce, const String& body) {
+String linkSign(const String& secret, const char* method, const String& path, uint32_t ts, const String& nonce, const String& body) {
   String msg = String(method) + "|" + path + "|" + String(ts) + "|" + nonce + "|" + sha256Hex(body);
   uint8_t mac[32];
   mbedtls_md_hmac(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), (const uint8_t*)secret.c_str(), secret.length(),
@@ -28,17 +30,17 @@ String signRequest(const String& secret, const char* method, const String& path,
   return toHex(mac, 32);
 }
 
-String newNonce() {
+String linkNonce() {
   uint8_t b[6];
   esp_fill_random(b, sizeof(b));
   return toHex(b, sizeof(b));
 }
 
-bool signerSelfTest(bool verbose) {
+bool linkSelfTest(bool verbose) {
   const String secret = "65dafb799784ed3b28d608b1f06bc7201ab8097735360ae35682f339428ea35f";
   const String body = "{\"fw\":\"1.0.3\",\"config_ver\":0,\"battery_pct\":87}";
-  String a = signRequest(secret, "POST", "/v1/box/boot", 1761123456, "9f2c41ab77e0", body);
-  String b = signRequest(secret, "GET", "/v1/box/jobs?wait=50", 1761123500, "a1b2c3d4e5f6", "");
+  String a = linkSign(secret, "POST", "/v1/box/boot", 1761123456, "9f2c41ab77e0", body);
+  String b = linkSign(secret, "GET", "/v1/box/jobs?wait=50", 1761123500, "a1b2c3d4e5f6", "");
   bool okA = a == "ba685f7b6f384ac1b514ef80e43e8bbe70f4c9bda93ded8205f1889f9b0f7ff8";
   bool okB = b == "86c6520798d17a12cf2af3d156f02f1a361cb5ac3138245135d6176bd901de6c";
   if (verbose) {

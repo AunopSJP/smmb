@@ -3,6 +3,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import pg from 'pg';
 import request from 'supertest';
+import { acceptPendingHouses } from './zone-consent.js';
 import { configureApp } from '../src/app-setup.js';
 import { AppModule } from '../src/app.module.js';
 import { signRequest } from '../src/box/box-crypto.js';
@@ -431,8 +432,10 @@ describe('Boxes (e2e)', () => {
       const z2 = (await as(guard.cookie).post('/api/v1/agency/zones', { name: 'ประตู 1', windows: [['08:00', '10:00'], ['20:00', '22:00']] }).expect(201)).body;
 
       const houses = await as(police.cookie).put(`/api/v1/agency/zones/${z1.id}/houses`, { box_ids: [b.box_id] }).expect(200);
-      expect(houses.body).toEqual([{ box_id: b.box_id, house_no: '55/1', box_name: null, area: null, box_status: expect.any(String) }]);
+      expect(houses.body).toEqual([{ box_id: b.box_id, house_no: '55/1', box_name: null, area: null, box_status: expect.any(String), pending: true }]);
+      await acceptPendingHouses(pool);
       await as(guard.cookie).put(`/api/v1/agency/zones/${z2.id}/houses`, { box_ids: [b.box_id] }).expect(200);
+      await acceptPendingHouses(pool);
 
       const found = await as(guard.cookie).get('/api/v1/agency/houses/search?q=55/').expect(200);
       const hit = found.body.find((h: { box_id: string }) => h.box_id === b.box_id);
@@ -456,6 +459,43 @@ describe('Boxes (e2e)', () => {
       expect((await as(police.cookie).get(`/api/v1/agency/zones/${z1.id}`).expect(200)).body.houses_count).toBe(1);
     });
 
+    it('owner consent: adding a house sends a request; only the owner can accept or decline, once', async () => {
+      const { b, owner } = await boundBox('57/1');
+      const stranger = await boundBox('57/2');
+      const head = await readyHead();
+      const z = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ขอความยินยอม', windows: [['06:00', '09:00']] }).expect(201)).body;
+
+      const put = await as(head.cookie).put(`/api/v1/agency/zones/${z.id}/houses`, { box_ids: [b.box_id] }).expect(200);
+      expect(put.body).toEqual([expect.objectContaining({ box_id: b.box_id, pending: true })]);
+      expect((await as(head.cookie).get(`/api/v1/agency/zones/${z.id}`).expect(200)).body.houses_count).toBe(0);
+      // ส่งซ้ำ = ไม่สร้างคำขอซ้ำ
+      await as(head.cookie).put(`/api/v1/agency/zones/${z.id}/houses`, { box_ids: [b.box_id] }).expect(200);
+
+      const list = (await as(owner.cookie).get('/api/v1/me/zone-requests').expect(200)).body as { id: string; zone_name: string }[];
+      expect(list).toHaveLength(1);
+      expect(list[0].zone_name).toBe('ขอความยินยอม');
+      const notes = (await as(owner.cookie).get('/api/v1/me/notifications').expect(200)).body.data as { type: string }[];
+      expect(notes.some((n) => n.type === 'zone_join_request')).toBe(true);
+
+      // เจ้าของตู้อื่นเห็นไม่ได้ / กดไม่ได้ → 404
+      expect((await as(stranger.owner.cookie).get('/api/v1/me/zone-requests').expect(200)).body).toEqual([]);
+      await http().post(`/api/v1/me/zone-requests/${list[0].id}/accept`).set('Cookie', stranger.owner.cookie).expect(404);
+
+      await http().post(`/api/v1/me/zone-requests/${list[0].id}/accept`).set('Cookie', owner.cookie).expect(200);
+      const res = await http().post(`/api/v1/me/zone-requests/${list[0].id}/reject`).set('Cookie', owner.cookie).expect(409);
+      expect(res.body.code).toBe('REQUEST_DECIDED');
+      const detail = (await as(head.cookie).get(`/api/v1/agency/zones/${z.id}`).expect(200)).body;
+      expect(detail.houses_count).toBe(1);
+      expect(detail.houses).toEqual([expect.objectContaining({ box_id: b.box_id, pending: false })]);
+
+      // ปฏิเสธ → ไม่เข้าโซน
+      const z2 = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ถูกปฏิเสธ', windows: [['06:00', '09:00']] }).expect(201)).body;
+      await as(head.cookie).put(`/api/v1/agency/zones/${z2.id}/houses`, { box_ids: [stranger.b.box_id] }).expect(200);
+      const r2 = (await as(stranger.owner.cookie).get('/api/v1/me/zone-requests').expect(200)).body[0];
+      await http().post(`/api/v1/me/zone-requests/${r2.id}/reject`).set('Cookie', stranger.owner.cookie).expect(200);
+      expect((await as(head.cookie).get(`/api/v1/agency/zones/${z2.id}`).expect(200)).body.houses).toEqual([]);
+    });
+
     it('house search: no query lists houses nobody covers yet · matches by prefix first · says which zones are ours · shows box status', async () => {
       const free = await boundBox('61/1');
       const taken = await boundBox('61/2');
@@ -465,7 +505,9 @@ describe('Boxes (e2e)', () => {
       const mine = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ของเรา', windows: [['06:00', '09:00']] }).expect(201)).body;
       const theirs = (await as(other.cookie).post('/api/v1/agency/zones', { name: 'ของเขา', windows: [['06:00', '09:00']] }).expect(201)).body;
       await as(head.cookie).put(`/api/v1/agency/zones/${mine.id}/houses`, { box_ids: [taken.b.box_id] }).expect(200);
+      await acceptPendingHouses(pool);
       await as(other.cookie).put(`/api/v1/agency/zones/${theirs.id}/houses`, { box_ids: [noise.b.box_id] }).expect(200);
+      await acceptPendingHouses(pool);
 
       // ไม่ใส่คำค้น = เฉพาะบ้านที่ไม่มีหน่วยงานไหนดูแล
       const browse = (await as(head.cookie).get('/api/v1/agency/houses/search').expect(200)).body as { box_id: string }[];
@@ -759,6 +801,7 @@ describe('Boxes (e2e)', () => {
       const head = await readyHead();
       const zone = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ปิดบริการ', windows: [['00:00', '23:59']] }).expect(201)).body;
       await as(head.cookie).put(`/api/v1/agency/zones/${zone.id}/houses`, { box_ids: [b.box_id] }).expect(200);
+      await acceptPendingHouses(pool);
 
       expect((await as(admin.cookie).get(`/api/v1/admin/boxes/${b.box_id}`).expect(200)).body).toMatchObject({ service_active: true, service_reason: null });
 
@@ -803,6 +846,7 @@ describe('Boxes (e2e)', () => {
       const head = await readyHead();
       const zone = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ขายบ้าน', windows: [['06:00', '09:00']] }).expect(201)).body;
       await as(head.cookie).put(`/api/v1/agency/zones/${zone.id}/houses`, { box_ids: [b.box_id] }).expect(200);
+      await acceptPendingHouses(pool);
 
       const res = await unbind(b.box_id, { reason: 'ขายบ้าน' }).expect(200);
       expect(res.body.box_id).toBe(b.box_id);
@@ -1026,6 +1070,39 @@ describe('Boxes (e2e)', () => {
       await patch({ prefs: { evil: true } }).expect(400);
       await patch({ role: 'admin' }).expect(400);
       await http().patch('/api/v1/me').send({ prefs: { lang: 'en' } }).expect(401);
+    });
+
+    it('owner box keeps address + pin; pairs are validated; other owners get 404', async () => {
+      const { b, owner } = await boundBox('94/4');
+      const patch = (id: string, body: object) => http().patch(`/api/v1/boxes/${id}`).set('Cookie', owner.cookie).send(body);
+      const res = await patch(b.box_id, { address_line: 'ซอย 3', subdistrict: 'ลาดยาว', district: 'จตุจักร', province: 'กรุงเทพฯ', lat: 13.812345, lng: 100.561234 }).expect(200);
+      expect(res.body.address).toEqual({ line: 'ซอย 3', subdistrict: 'ลาดยาว', district: 'จตุจักร', province: 'กรุงเทพฯ' });
+      expect(res.body.location).toEqual({ lat: 13.812345, lng: 100.561234 });
+      await patch(b.box_id, { lat: 13.8 }).expect(400);
+      await patch(b.box_id, { clear_location: true, lat: 1, lng: 1 }).expect(400);
+      expect((await patch(b.box_id, { clear_location: true }).expect(200)).body.location).toBeNull();
+      const other = await boundBox('94/5');
+      await patch(other.b.box_id, { province: 'x' }).expect(404);
+    });
+
+    it('muted notification types are skipped; critical ones cannot be muted', async () => {
+      const { b, owner } = await boundBox('94/3');
+      const patch = (body: object) => http().patch('/api/v1/me').set('Cookie', owner.cookie).send(body);
+      expect((await patch({ prefs: {} }).expect(200)).body.prefs.muted_types).toEqual([]);
+      // ปิดรับได้เฉพาะ type ที่อนุญาต · SOS / ตู้มีปัญหา ปิดไม่ได้ (400)
+      await patch({ prefs: { muted_types: ['sos_new'] } }).expect(400);
+      await patch({ prefs: { muted_types: ['box_problem'] } }).expect(400);
+      await patch({ prefs: { muted_types: ['box_service_closed', 'box_service_closed'] } }).expect(400);
+      const res = await patch({ prefs: { muted_types: ['box_service_closed'] } }).expect(200);
+      expect(res.body.prefs.muted_types).toEqual(['box_service_closed']);
+      await http().patch(`/api/v1/admin/boxes/${b.box_id}/service`).set('Cookie', admin.cookie).send({ active: false, reason: 'maintenance' }).expect(200);
+      const list = (await as(owner.cookie).get('/api/v1/me/notifications').expect(200)).body.data as { type: string }[];
+      expect(list.some((x) => x.type === 'box_service_closed')).toBe(false);
+      // เปิดรับกลับ → ได้ตามปกติ
+      await patch({ prefs: { muted_types: [] } }).expect(200);
+      await http().patch(`/api/v1/admin/boxes/${b.box_id}/service`).set('Cookie', admin.cookie).send({ active: true }).expect(200);
+      const again = (await as(owner.cookie).get('/api/v1/me/notifications').expect(200)).body.data as { type: string }[];
+      expect(again.some((x) => x.type === 'box_service_opened')).toBe(true);
     });
 
     it('notifications follow the saved language (stored as type + data, translated when read)', async () => {

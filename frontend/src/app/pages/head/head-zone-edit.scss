@@ -78,3 +78,24 @@
 .err {
   color: var(--sos);
 }
+
+// ตัวกรองตอนค้นบ้าน + บ้านที่รอเจ้าของยืนยัน (✅ 2026-11-04)
+.filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.pill.pending {
+  border-style: dashed;
+  opacity: 0.8;
+}

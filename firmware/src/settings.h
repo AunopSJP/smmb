@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include <SmmbLink.h> // BoxConfig + boxConfig (ค่าจากเซิร์ฟเวอร์)
 
 // ค่าที่เก็บถาวรใน NVS (ปิดเปิดเครื่องแล้วยังอยู่)
 struct Settings
@@ -20,23 +21,7 @@ struct Settings
   bool debugCam = false;   // true = เปิดหน้าเว็บดูภาพกล้อง (ทดสอบเท่านั้น · debugview.h)
 };
 
-// ค่าจากเซิร์ฟเวอร์ (config ในคำตอบ boot/report)
-#define MAX_WINDOWS 8
-struct BoxConfig
-{
-  uint32_t ver = 0;
-  uint8_t windowCount = 0;
-  uint16_t winStart[MAX_WINDOWS]; // นาทีนับจากเที่ยงคืน (เวลาไทย)
-  uint16_t winEnd[MAX_WINDOWS];
-  uint16_t reportAt = 23 * 60 + 30;
-  uint8_t scanTimeoutS = 20;
-  uint8_t maxAttempts = 3;
-  bool flashWhenDark = true;
-  uint8_t longpollWaitS = 50;
-};
-
 extern Settings settings;
-extern BoxConfig boxConfig;
 
 void settingsLoad();
 void settingsSave();
@@ -48,9 +33,8 @@ void settingsStashWifi();
 bool settingsRestoreWifi(); // true = มี Wi-Fi สำรองและกู้คืนแล้ว
 void settingsClearStashedWifi();
 
-/** เก็บ config จาก JSON ที่เซิร์ฟเวอร์ส่ง (object "config") + เวอร์ชัน */
-bool configApplyJson(const String &configJson, uint32_t ver);
-void configSetVersionOnly(uint32_t ver);
+/** จำ config ที่เซิร์ฟเวอร์ส่งมา (LinkHooks.saveConfig) — settingsLoad โหลดคืนให้ */
+void settingsSaveConfig(const String &configJson, uint32_t ver);
 
 /** "MAILBOX-000003" จาก box_id · ยังไม่ตั้ง box → ใช้ MAC */
 String apName();

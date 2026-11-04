@@ -133,9 +133,9 @@ client **ห้ามเดาจาก `message`** ให้ดู `code` เ�
 
 | method | path | สิทธิ์ | body | ตอบ |
 |---|---|---|---|---|
-| POST | `/auth/signup/owner` | public | `{ name, phone, password, house_no, area?, terms_version }` (`area` = หมู่บ้าน/ย่าน ไม่บังคับ ≤ 100 ตัว → คัดลอกลงตู้ตอนผูกตู้ ไว้แยกบ้านเลขที่ซ้ำ · `/me/roles/owner` รับ `area?` เหมือนกัน) | 201 + set cookie `sid` → ไปหน้า `A07` ผูกตู้ · 409 `PHONE_TAKEN` · 400 `TERMS_NOT_ACCEPTED` (`A06-b`) |
-| POST | `/auth/signup/officer` | public | `{ name, phone, password, group_code, terms_version }` | 201 + cookie · สถานะ `pending` (`A11`) · 404 `GROUP_CODE_INVALID` · 409 `PHONE_TAKEN` |
-| POST | `/auth/signup/agency` | public | `{ agency: { name, type: "police"\|"guard"\|"other", contact }, head: { name, phone, password }, terms_version }` — `contact` 3–200 ตัว (บังคับ ✅ 2026-10-27) ช่องทางติดต่อที่ตั้งใจเปิดเผย แสดงให้คนที่ขอเข้าหน่วยงาน | 201 + cookie · หน่วยงานสถานะ `pending` (`L02`) |
+| POST | `/auth/signup/owner` | public | `{ name, phone, password, house_no, area?, terms_version }` (`area` = หมู่บ้าน/ย่าน ไม่บังคับ ≤ 100 ตัว → คัดลอกลงตู้ตอนผูกตู้ ไว้แยกบ้านเลขที่ซ้ำ · `/me/roles/owner` รับ `area?` เหมือนกัน) · ✅ 2026-11-04 ไม่บังคับที่ API (เว็บบังคับที่ฟอร์ม): `address_line?` (≤200) `subdistrict?` `district?` `province?` (≤100) · `lat?` + `lng?` (หมุดบ้าน ต้องมาคู่) · `emergency_name?` + `emergency_phone?` (ผู้ติดต่อฉุกเฉิน ต้องมาคู่) — `/me/roles/owner` รับชุดเดียวกัน · คัดลอกที่อยู่+หมุดลงตู้ตอนผูก | 201 + set cookie `sid` → ไปหน้า `A07` ผูกตู้ · 409 `PHONE_TAKEN` · 400 `TERMS_NOT_ACCEPTED` (`A06-b`) |
+| POST | `/auth/signup/officer` | public | `{ name, phone, password, group_code, position?, staff_no?, terms_version }` (✅ 2026-11-04 `position` ตำแหน่ง/ยศ ≤100 · `staff_no` เลขประจำตัว ≤50 · `/me/agency/join` รับเหมือนกัน · หัวหน้าเห็นใน `Member`) | 201 + cookie · สถานะ `pending` (`A11`) · 404 `GROUP_CODE_INVALID` · 409 `PHONE_TAKEN` |
+| POST | `/auth/signup/agency` | public | `{ agency: { name, type: "police"\|"guard"\|"other", contact }, head: { name, phone, password }, terms_version }` — `contact` 3–200 ตัว (บังคับ ✅ 2026-10-27) ช่องทางติดต่อที่ตั้งใจเปิดเผย แสดงให้คนที่ขอเข้าหน่วยงาน · ✅ 2026-11-04 `agency.address?` (≤300) `agency.registration_no?` (≤100 เลขทะเบียน/ใบอนุญาต) → แอดมินเห็นใน `AdminAgencyDetail` ตอนอนุมัติ | 201 + cookie · หน่วยงานสถานะ `pending` (`L02`) |
 | POST | `/auth/signin` | public | `{ phone, password }` | 200 `{ ok: true, data: Me }` + cookie · 401 `INVALID_CREDENTIALS` (`A04-b` — เบอร์ไม่มีบัญชีก็ตอบแบบเดียวกัน) · 401 `ACCOUNT_LOCKED` · 401 `ACCOUNT_DISABLED` (บอกเฉพาะเมื่อรหัสถูก) · 429 `RATE_LIMITED` |
 | POST | `/auth/signout` | login | — | 200 ล้าง cookie เครื่องนี้ |
 | GET | `/auth/verify` | login | — | 200 `Me` (ด้านล่าง) — client เรียกตอนเปิดแอปและตอนกลับมาที่แท็บ |
@@ -205,11 +205,13 @@ interface Prefs {
   text_size: "normal" | "large" | "xlarge";
   simple_home: boolean;                      // หน้าหลักแบบเรียบง่าย (H03-L) — owner เท่านั้น
   night_auto_dark: boolean;                  // ธีมมืดอัตโนมัติ 18:00–06:00 — officer/head เท่านั้น
+  easy_mode: boolean;                        // โหมดใช้งานง่าย (✅ 2026-11-04) — ตัวใหญ่ ปุ่มใหญ่ หน้าหลักเรียบง่าย · ทุกบทบาท · เว็บตั้ง simple_home ตามด้วย
+  muted_types: string[];                     // แจ้งเตือนที่ปิดรับ (✅ 2026-11-04) — ส่งเป็นรายการเต็มทุกครั้ง · ปิดได้เฉพาะ inspected, delivered, low_battery, sos_taken, qr_health, technician_scheduled, technician_done, plan_expiring, box_service_opened, box_service_closed · type อื่น (SOS ตู้มีปัญหา QR ปลอม ฯลฯ) → 400 · type ที่ปิดไว้จะไม่ถูกเก็บลงหน้าแจ้งเตือนและไม่ส่ง push
 }
 ```
 
 - 💡 เก็บ `prefs` ที่ server (ไม่ใช่แค่ localStorage) เพราะ**ภาษาใช้กับข้อความแจ้งเตือน**ที่ server ส่งด้วย และผู้สูงอายุมักให้ลูกหลานตั้งให้จากอีกเครื่อง
-- ค่าเริ่มต้น: `theme: system`, `lang: th`, `text_size: normal`, `simple_home: false`, `night_auto_dark: true`
+- ค่าเริ่มต้น: `theme: system`, `lang: th`, `text_size: normal`, `simple_home: false`, `night_auto_dark: true`, `easy_mode: false`, `muted_types: []`
 
 ### Web Push — `/api/v1/me/push`
 
@@ -263,7 +265,7 @@ interface Notification {
 | method | path | สิทธิ์ | body | ตอบ |
 |---|---|---|---|---|
 | POST | `/boxes/activate` | `owner` | `{ qr_text }` (สแกน — ลิงก์ `https://smmb.app/a/<16 ตัว>`) **หรือ** `{ code }` (พิมพ์รหัสใต้ QR) | 200 `{ box: BoxSummary, needs_name: true }` → หน้า `A08` · 404 `QR_INVALID` (`A07-b`) · 409 `BOX_ALREADY_OWNED` "ตู้ถูกผูกแล้ว โปรดติดต่อผู้ดูแล" (`A07-c`) — เฉพาะผูกกับบัญชีอื่น · ✅ 2026-11-03 ผูกกับบัญชีนี้อยู่แล้ว (กดย้อนกลับก่อนตั้งชื่อแล้วสแกนซ้ำ) → 200 เหมือนผูกสำเร็จ ไปตั้งชื่อต่อได้ · 429 `CODE_ATTEMPTS_EXCEEDED` |
-| PATCH | `/boxes/:box_id` | `owner` (เจ้าของตู้) | `{ name?, area? }` (ส่งอย่างน้อยหนึ่งอย่าง · name 1–40 ตัว · area ≤ 100 ตัว `''` = ล้าง) | `BoxSummary` (มี `area`) → `A09` |
+| PATCH | `/boxes/:box_id` | `owner` (เจ้าของตู้) | `{ name?, area?, address_line?, subdistrict?, district?, province?, lat?, lng?, clear_location? }` (✅ 2026-11-04 ที่อยู่ `''` = ล้าง · `lat`+`lng` ต้องมาคู่ · `clear_location: true` ล้างหมุด ห้ามส่งคู่กับ lat) (ส่งอย่างน้อยหนึ่งอย่าง · name 1–40 ตัว · area ≤ 100 ตัว `''` = ล้าง) | `BoxSummary` (มี `area`) → `A09` |
 
 - ✅ Activate QR ใช้ได้**ครั้งเดียว** — ผูกสำเร็จแล้วรหัสนี้ตายทันที (ทำใน transaction เดียวกับการผูก)
 - ✅ ทุกครั้งที่สแกน/พิมพ์ บันทึก scan log แม้ไม่ผ่าน (§12): `qr_kind: "activate"`, `method: scan|code`, `result`
@@ -278,7 +280,10 @@ interface Notification {
 | GET | `/boxes/:box_id` | `owner` | `BoxDetail` — หน้าหลัก `H03*` |
 
 ```ts
-interface BoxSummary { id: string; name: string; house_no: string; status: BoxStatus; }
+interface BoxSummary { id: string; name: string; house_no: string; area: string;
+  address: { line: string; subdistrict: string; district: string; province: string };  // ✅ 2026-11-04 · '' = ไม่ได้กรอก
+  location: { lat: number; lng: number } | null;  // หมุดบ้าน — เห็นเฉพาะเจ้าของ (เจ้าหน้าที่เห็นใน SosCard.house ตอน SOS เปิดอยู่)
+  status: BoxStatus; }
 type BoxStatus = "online" | "offline" | "sleeping" | "service_closed" | "unbound";
 
 interface BoxDetail extends BoxSummary {
@@ -527,6 +532,7 @@ interface SosCard {
   id: string; status: Sos["status"]; stage: SosStage; created_at: string;
   house_no: string;
   owner: { name: string; phone: string } | null;   // ✅ เห็นชื่อ+เบอร์เจ้าของบ้านเฉพาะตอน SOS เปิดอยู่
+  house: { address: string; area: string; location: { lat: number; lng: number } | null } | null;  // ✅ 2026-11-04 ที่อยู่+หมุดบ้าน กฎเดียวกับเบอร์
   accepted_by: { display_name: string; agency_name: string } | null;
 }
 ```
@@ -568,7 +574,7 @@ interface SosCard {
 
 ```ts
 interface Member { id; name; display_name; phone; status: "pending" | "active" | "disabled" | "rejected";
-                   is_head: boolean; zones: { id; name }[]; joined_at: string; last_inspection_at: string | null }
+                   is_head: boolean; position: string; staff_no: string; /* ✅ 2026-11-04 '' = ไม่ได้กรอก */ zones: { id; name }[]; joined_at: string; last_inspection_at: string | null }
 ```
 
 - **403 `CANNOT_CHANGE_SELF`** ถ้าปิด / ถอดหัวหน้า / รีเซ็ตรหัส**ตัวเอง** (กันล็อกตัวเองออก — เปลี่ยนรหัสตัวเองใช้ `change-password`)
@@ -964,3 +970,44 @@ payload ที่ส่งให้ service worker (✅ 2026-10-27 — รูป
 - 🧪 สมาชิกในบ้าน (§4.6) — รอลูกค้าตัดสิน
 - ❓ แพ็กในอนาคตมีอะไร ต่างกันตรงไหน หมดอายุแล้วตัดอะไร (§4.5 — ✅ ผูกกับเจ้าของบ้าน, เริ่มต้นฟรี)
 - ❓ ปุ่มหน้าตู้: กดแล้วตู้พักกี่วินาทีก่อนรับกดใหม่ · ส่งไม่ได้ลองใหม่กี่ครั้ง · ไฟบอกผลแบบไหน (§13.7)
+
+
+---
+
+## ✅ 2026-11-04 รอบ 3 — ความยินยอมเข้าโซน · Snapface · เครื่องใหม่ (migration `0025`, ข้อตกลง `0026`)
+
+### §4.6 เจ้าของบ้านยืนยันก่อนบ้านเข้าโซน
+- `PUT /agency/zones/:id/houses` เปลี่ยนความหมาย: บ้าน**ใหม่** = สร้างคำขอ (`zone_box_request_tb`) + แจ้งเจ้าของบ้าน `zone_join_request` · เอาออก = ออกทันที + ยกเลิกคำขอที่ค้าง · ส่งซ้ำไม่สร้างคำขอซ้ำ
+- `ZoneHouse` มี `pending: boolean` (true = รอเจ้าของบ้าน ยังตรวจ/ได้ SOS ไม่ได้) · `houses_count` นับเฉพาะที่เข้าโซนแล้ว
+
+| Method | Path | สิทธิ์ | Body | ตอบ |
+|---|---|---|---|---|
+| GET | `/me/zone-requests` | `owner` | — | `ZoneRequest[]` (เฉพาะคำขอที่รอ ของตู้ตัวเอง) |
+| POST | `/me/zone-requests/:id/accept` | `owner` | — | 200 `{ id, status: "accepted" }` → เข้าโซน + แจ้งหัวหน้า `zone_join_accepted` · ไม่ใช่ตู้ตัวเอง 404 · ตัดสินแล้ว 409 `REQUEST_DECIDED` |
+| POST | `/me/zone-requests/:id/reject` | `owner` | — | 200 `{ id, status: "rejected" }` + แจ้งหัวหน้า `zone_join_rejected` |
+
+```ts
+interface ZoneRequest { id: string; box: { id; name; house_no }; agency: { name; type }; zone_name: string; requested_at: string }
+```
+
+### §8.3 ค้นบ้าน (`GET /agency/houses/search`) — ตัวกรองเพิ่ม
+- `q` ค้นได้ทั้ง บ้านเลขที่ · รหัสตู้ · ย่าน · ที่อยู่ · แขวง/ตำบล · เขต/อำเภอ · จังหวัด
+- `unzoned=1|0` เฉพาะบ้านที่ยังไม่มีใครดูแล / ทุกบ้าน (ไม่ส่ง: ว่าง → ยังไม่มีใครดูแล, มีคำค้น → ทุกบ้าน) · `online=1` เฉพาะตู้ออนไลน์
+- ผลลัพธ์เพิ่ม `locality` (แขวง เขต — ไม่มีบ้านเลขที่/ซอย) และ `pending_mine` (หน่วยงานเรามีคำขอรออยู่)
+
+### §6.4 Snapface — รูปยืนยันตัวเจ้าหน้าที่
+| Method | Path | สิทธิ์ | Body | ตอบ |
+|---|---|---|---|---|
+| POST | `/inspections/:id/photo` | `officer` (คนที่ตรวจ) | ไบต์ของรูป `Content-Type: image/jpeg` หรือ `image/webp` ≤ 400 KB (ตรวจหัวไฟล์จริง) | 201 · ยังไม่ผ่าน 409 `INSPECTION_NOT_PASSED` · เกิน 15 นาทีหลังผ่าน 410 `PHOTO_WINDOW_CLOSED` · ส่งซ้ำ 409 `PHOTO_EXISTS` · ไม่ใช่รูป 400 `PHOTO_INVALID` · ใหญ่ไป 413 `PHOTO_TOO_LARGE` · การตรวจของคนอื่น 404 |
+| GET | `/me/inspection-photos/:id` | `owner` (เจ้าของตู้ ตรวจหลังวันผูก) | — | รูป (`Cache-Control: no-store`) · อื่น ๆ 404 · บันทึก `data_access_log_tb` ทุกครั้ง |
+| GET | `/admin/inspection-photos/:id` | `admin` | — | รูป · บันทึก `data_access_log_tb` |
+
+- เก็บ 30 วันแล้ว `SchedulerService.cleanup` ลบ · ไม่เทียบใบหน้า · หัวหน้าดูไม่ได้ (ผู้ใช้กำหนด: เจ้าของบ้าน + แอดมิน)
+- `BoxEvent` (inspected) มี `has_photo: boolean`
+
+### §2 เครื่องใหม่
+- เว็บส่ง header `X-Device-Id` (สุ่มเก็บใน localStorage) ทุกคำขอ · ตอน `POST /auth/signin` server เก็บ hash ใน `user_device_tb`
+- เจ้าหน้าที่ (สมาชิก active) เข้าจากเครื่องที่ไม่เคยเห็น และไม่ใช่เครื่องแรกของบัญชี → แจ้ง `officer_new_device` ถึงหัวหน้าทุกคน + ตัวเจ้าหน้าที่
+
+### §14 แจ้งเตือนใหม่ (ปิดรับไม่ได้)
+`zone_join_request` · `zone_join_accepted` · `zone_join_rejected` · `officer_new_device`

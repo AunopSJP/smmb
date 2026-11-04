@@ -23,7 +23,18 @@ export interface BoxSummary {
   house_no: string;
   /** หมู่บ้าน/ย่าน ('' = ไม่ได้ระบุ) */
   area: string;
+  /** ที่อยู่บ้าน ('' = ไม่ได้กรอก · ✅ 2026-11-04) */
+  address: BoxAddress;
+  /** หมุดบ้าน (null = ยังไม่ปัก) — เจ้าหน้าที่เห็นเฉพาะตอน SOS */
+  location: { lat: number; lng: number } | null;
   status: BoxStatus;
+}
+
+export interface BoxAddress {
+  line: string;
+  subdistrict: string;
+  district: string;
+  province: string;
 }
 
 export interface BoxEvent {
@@ -33,6 +44,17 @@ export interface BoxEvent {
   officer?: { agency_type: string; agency_name: string; display_name: string };
   qr_slot?: 1 | 2;
   method?: 'scan' | 'code';
+  /** มีรูปยืนยันตัวเจ้าหน้าที่ (เก็บ 30 วัน) */
+  has_photo?: boolean;
+}
+
+/** api.md §4.6 คำขอให้หน่วยงานดูแลบ้าน (รอเจ้าของบ้านยอมรับ) */
+export interface ZoneRequest {
+  id: string;
+  box: { id: string; name: string; house_no: string };
+  agency: { name: string; type: string };
+  zone_name: string;
+  requested_at: string;
 }
 
 export interface TechnicianRequest {
@@ -89,6 +111,8 @@ export interface SosCard {
   created_at: string;
   house_no: string;
   owner: { name: string; phone: string } | null;
+  /** ที่อยู่ + หมุดบ้าน — มีเฉพาะตอน SOS ยังเปิดอยู่ (✅ 2026-11-04) */
+  house: { address: string; area: string; location: { lat: number; lng: number } | null } | null;
   accepted_by: { display_name: string; agency_name: string } | null;
   mine: boolean;
 }
@@ -117,6 +141,27 @@ export class OwnerApi {
     return firstValueFrom(this.http.get<PlanInfo>('/api/v1/me/plan'));
   }
   /** ตั้งย่าน/หมู่บ้านของบ้าน ('' = ล้าง) */
+  /** PATCH /boxes/:id ที่อยู่ + หมุด (location null = ล้างหมุด) */
+  setAddress(id: string, a: BoxAddress, location: { lat: number; lng: number } | null): Promise<unknown> {
+    return firstValueFrom(
+      this.http.patch('/api/v1/boxes/' + encodeURIComponent(id), {
+        address_line: a.line.trim(),
+        subdistrict: a.subdistrict.trim(),
+        district: a.district.trim(),
+        province: a.province.trim(),
+        ...(location ? { lat: location.lat, lng: location.lng } : { clear_location: true }),
+      }),
+    );
+  }
+
+  zoneRequests(): Promise<ZoneRequest[]> {
+    return firstValueFrom(this.http.get<ZoneRequest[]>('/api/v1/me/zone-requests'));
+  }
+
+  decideZoneRequest(id: string, accept: boolean): Promise<unknown> {
+    return firstValueFrom(this.http.post(`/api/v1/me/zone-requests/${encodeURIComponent(id)}/${accept ? 'accept' : 'reject'}`, {}));
+  }
+
   setArea(id: string, area: string): Promise<unknown> {
     return firstValueFrom(this.http.patch('/api/v1/boxes/' + encodeURIComponent(id), { area }));
   }

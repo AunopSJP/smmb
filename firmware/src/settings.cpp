@@ -5,40 +5,8 @@
 #include <WiFi.h>
 
 Settings settings;
-BoxConfig boxConfig;
 
 static Preferences prefs;
-
-static uint16_t hhmm(const char* s) {
-  if (!s || strlen(s) != 5 || s[2] != ':') return 0xFFFF;
-  int h = atoi(s), m = atoi(s + 3);
-  if (h < 0 || h > 23 || m < 0 || m > 59) return 0xFFFF;
-  return h * 60 + m;
-}
-
-static bool parseConfig(const String& json, BoxConfig& out) {
-  JsonDocument doc;
-  if (deserializeJson(doc, json)) return false;
-  BoxConfig c;
-  c.ver = out.ver;
-  JsonArray w = doc["windows"].as<JsonArray>();
-  for (JsonArray pair : w) {
-    if (c.windowCount >= MAX_WINDOWS) break;
-    uint16_t s = hhmm(pair[0] | ""), e = hhmm(pair[1] | "");
-    if (s == 0xFFFF || e == 0xFFFF || s >= e) continue;
-    c.winStart[c.windowCount] = s;
-    c.winEnd[c.windowCount] = e;
-    c.windowCount++;
-  }
-  uint16_t r = hhmm(doc["report_at"] | "");
-  if (r != 0xFFFF) c.reportAt = r;
-  c.scanTimeoutS = constrain((int)(doc["scan_timeout_s"] | 20), 5, 60);
-  c.maxAttempts = constrain((int)(doc["max_attempts"] | 3), 1, 5);
-  c.flashWhenDark = doc["flash_when_dark"] | true;
-  c.longpollWaitS = constrain((int)(doc["longpoll_wait_s"] | 50), 10, 55);
-  out = c;
-  return true;
-}
 
 void settingsLoad() {
   prefs.begin("smmb", true);
@@ -63,7 +31,7 @@ void settingsLoad() {
   uint32_t ver = prefs.getUInt("cfgver", 0);
   prefs.end();
   boxConfig = BoxConfig();
-  if (cfg.length() && parseConfig(cfg, boxConfig)) boxConfig.ver = ver;
+  if (cfg.length() && linkParseConfig(cfg, boxConfig)) boxConfig.ver = ver;
 }
 
 void settingsSave() {
@@ -127,21 +95,11 @@ void settingsClearStashedWifi() {
   prefs.end();
 }
 
-bool configApplyJson(const String& json, uint32_t ver) {
-  BoxConfig c;
-  if (!parseConfig(json, c)) return false;
-  c.ver = ver;
-  boxConfig = c;
+void settingsSaveConfig(const String& json, uint32_t ver) {
   prefs.begin("smmb", false);
   prefs.putString("cfg", json);
   prefs.putUInt("cfgver", ver);
   prefs.end();
-  return true;
-}
-
-void configSetVersionOnly(uint32_t ver) {
-  // เซิร์ฟเวอร์ไม่ส่ง config มา = ของเราตรงอยู่แล้ว
-  boxConfig.ver = ver;
 }
 
 static volatile uint8_t lastReason = 0;

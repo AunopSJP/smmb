@@ -34,6 +34,8 @@ export interface SosCardDto {
   house_no: string;
   /** ✅ เห็นชื่อ + เบอร์เจ้าของบ้านเฉพาะตอน SOS ยังเปิดอยู่ */
   owner: { name: string; phone: string } | null;
+  /** ✅ 2026-11-04 ที่อยู่ + หมุดบ้าน — เห็นเฉพาะตอน SOS ยังเปิดอยู่ (กฎเดียวกับเบอร์) · null = ปิดแล้ว/ไม่มีข้อมูล */
+  house: { address: string; area: string; location: { lat: number; lng: number } | null } | null;
   accepted_by: { display_name: string; agency_name: string } | null;
   /** ฉันเป็นคนรับเรื่องนี้ */
   mine: boolean;
@@ -43,6 +45,10 @@ interface CaseRow {
   sos_case_id: string;
   box_id: string;
   house_no: string | null;
+  area: string | null;
+  address: string | null;
+  lat: string | null;
+  lng: string | null;
   owner_user_id: string;
   owner_name: string;
   owner_phone: string;
@@ -59,7 +65,8 @@ interface CaseRow {
 }
 
 const CASE_SQL = `
-  SELECT c.sos_case_id, c.box_id, b.house_no, c.owner_user_id, o.name AS owner_name, o.phone AS owner_phone,
+  SELECT c.sos_case_id, c.box_id, b.house_no, b.area,
+         concat_ws(' ', b.address_line, b.subdistrict, b.district, b.province) AS address, b.lat, b.lng, c.owner_user_id, o.name AS owner_name, o.phone AS owner_phone,
          c.status, c.stage, c.stage_changed_date, c.created_date, c.accepted_by,
          a.display_name AS accepted_name, a.phone AS accepted_phone, ag.name AS accepted_agency, c.accepted_date, c.close_note
   FROM app.sos_case_tb c
@@ -398,6 +405,13 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
       created_at: c.created_date.toISOString(),
       house_no: c.house_no ?? '',
       owner: showOwner ? { name: c.owner_name, phone: c.owner_phone } : null,
+      house: showOwner
+        ? {
+            address: c.address ?? '',
+            area: c.area ?? '',
+            location: c.lat !== null && c.lng !== null ? { lat: Number(c.lat), lng: Number(c.lng) } : null,
+          }
+        : null,
       accepted_by: c.accepted_by ? { display_name: c.accepted_name ?? '', agency_name: c.accepted_agency ?? '' } : null,
       mine: c.accepted_by === userId,
     };

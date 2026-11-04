@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { OwnerApi, type BoxDetail, type PlanInfo, type TechnicianRequest } from '../../core/owner-api';
+import { OwnerApi, type BoxAddress, type BoxDetail, type PlanInfo, type ZoneRequest, type TechnicianRequest } from '../../core/owner-api';
 import { Session } from '../../core/session';
 import { Toast } from '../../core/toast';
 import { DisplaySettings, type TextSize, type Theme } from '../../core/display-settings';
 import { I18n, type Lang, type Tr } from '../../core/i18n';
 import { screenUrl } from '../../screens/registry';
+import { MapPin, type LatLng } from '../../shared/map-pin';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { PushStatus } from '../../shared/push-status';
@@ -16,7 +17,7 @@ import { AccountActions } from '../auth/auth-account';
 
 @Component({
   selector: 'app-owner-settings',
-  imports: [RouterLink, PageHeader, Icon, AccountActions, PushStatus],
+  imports: [RouterLink, PageHeader, Icon, AccountActions, PushStatus, MapPin],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
@@ -26,6 +27,18 @@ import { AccountActions } from '../auth/auth-account';
     />
     <div class="stack grow">
       <app-push-status [compact]="true" />
+      @for (r of zoneRequests(); track r.id) {
+        <section class="card stack request" role="status">
+          <strong>{{ i18n.t({ th: 'หน่วยงานขอดูแลบ้านของคุณ', en: 'An agency asks to cover your house' }) }}</strong>
+          <span>{{ r.agency.name }} · {{ i18n.t({ th: 'โซน ', en: 'zone ' }) }}{{ r.zone_name }}</span>
+          <span class="muted small">{{ i18n.t({ th: 'ตู้ ', en: 'Mailbox ' }) }}{{ r.box.name }} · {{ i18n.t({ th: 'บ้านเลขที่ ', en: 'house ' }) }}{{ r.box.house_no }}</span>
+          <span class="muted small">{{ i18n.t({ th: 'ยอมรับแล้ว เจ้าหน้าที่ของหน่วยงานนี้จะมาตรวจตู้ในเวลาตรวจ และได้รับ SOS ของบ้านนี้', en: 'If you accept, this agency’s officers will check your mailbox during patrol hours and receive your SOS' }) }}</span>
+          <div class="two">
+            <button type="button" class="btn secondary" [disabled]="deciding() === r.id" (click)="decide(r.id, false)">{{ i18n.t({ th: 'ปฏิเสธ', en: 'Decline' }) }}</button>
+            <button type="button" class="btn" [disabled]="deciding() === r.id" (click)="decide(r.id, true)">{{ i18n.t({ th: 'ยอมรับ', en: 'Accept' }) }}</button>
+          </div>
+        </section>
+      }
       @if (loaded() && !boxes().length) {
         <section class="card nobox" role="status">
           <strong>{{ i18n.t({ th: 'ยังไม่ได้ผูกตู้', en: 'No mailbox linked yet' }) }}</strong>
@@ -85,6 +98,35 @@ import { AccountActions } from '../auth/auth-account';
             </dd>
           </dl>
         </section>
+
+        <section class="card stack">
+          <h2 class="sec">{{ i18n.t({ th: 'ที่อยู่และหมุดบ้าน', en: 'Address and house pin' }) }}</h2>
+          @if (editingAddr()) {
+            <label class="field"><span>{{ i18n.t({ th: 'ที่อยู่ (ซอย / ถนน / หมู่)', en: 'Address (soi / road / moo)' }) }}</span>
+              <input maxlength="200" [value]="addr().line" (input)="setAddr('line', $any($event.target).value)" /></label>
+            <div class="two">
+              <label class="field"><span>{{ i18n.t({ th: 'แขวง / ตำบล', en: 'Subdistrict' }) }}</span>
+                <input maxlength="100" [value]="addr().subdistrict" (input)="setAddr('subdistrict', $any($event.target).value)" /></label>
+              <label class="field"><span>{{ i18n.t({ th: 'เขต / อำเภอ', en: 'District' }) }}</span>
+                <input maxlength="100" [value]="addr().district" (input)="setAddr('district', $any($event.target).value)" /></label>
+            </div>
+            <label class="field"><span>{{ i18n.t({ th: 'จังหวัด', en: 'Province' }) }}</span>
+              <input maxlength="100" [value]="addr().province" (input)="setAddr('province', $any($event.target).value)" /></label>
+            <app-map-pin [editable]="true" [(value)]="pin" />
+            <div class="two">
+              <button type="button" class="btn secondary" (click)="editingAddr.set(false)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
+              <button type="button" class="btn" [disabled]="savingAddr()" (click)="saveAddr()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
+            </div>
+          } @else {
+            <p>{{ addressText(b) || i18n.t({ th: 'ยังไม่ได้กรอกที่อยู่', en: 'No address yet' }) }}</p>
+            @if (b.location) {
+              <app-map-pin [value]="b.location" [height]="180" />
+            } @else {
+              <p class="muted small">{{ i18n.t({ th: 'ยังไม่ได้ปักหมุด — ปักไว้ช่วยให้เจ้าหน้าที่มาถึงเร็วขึ้นตอน SOS', en: 'No pin yet — a pin helps officers reach you faster during an SOS' }) }}</p>
+            }
+            <button type="button" class="btn secondary" (click)="startAddr()">{{ i18n.t({ th: 'แก้ไขที่อยู่และหมุด', en: 'Edit address and pin' }) }}</button>
+          }
+        </section>
       }
 
       <nav class="list">
@@ -122,6 +164,17 @@ import { AccountActions } from '../auth/auth-account';
     </div>
   `,
   styles: `
+    .request {
+      border: 2px solid var(--brand);
+    }
+    .sec {
+      font-size: 1rem;
+    }
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
     .nobox {
       display: flex;
       flex-direction: column;
@@ -186,11 +239,18 @@ export class OwnerSettings {
   protected readonly plan = signal<PlanInfo | null>(null);
   protected readonly editingArea = signal(false);
   protected readonly areaDraft = signal('');
+  protected readonly editingAddr = signal(false);
+  protected readonly zoneRequests = signal<ZoneRequest[]>([]);
+  protected readonly deciding = signal<string | null>(null);
+  protected readonly savingAddr = signal(false);
+  protected readonly addr = signal<BoxAddress>({ line: '', subdistrict: '', district: '', province: '' });
+  protected readonly pin = signal<LatLng | null>(null);
   /** โหลดรายการตู้เสร็จแล้ว — ยังไม่มีตู้ = ตั้งค่าตู้ไม่ได้ ให้ผูกตู้ก่อน */
   protected readonly loaded = signal(false);
 
   constructor() {
     void this.api.plan().then((p) => this.plan.set(p)).catch(() => undefined);
+    void this.loadRequests();
     void this.api.boxes().then((b) => {
       this.boxes.set(b);
       this.loaded.set(true);
@@ -217,6 +277,61 @@ export class OwnerSettings {
     if (p.status === 'expired') return this.i18n.t({ th: `หมดอายุเมื่อ ${date}`, en: `Expired on ${date}` });
     if (p.status === 'expiring') return this.i18n.t({ th: `ใกล้หมดอายุ · ถึง ${date}`, en: `Expiring soon · until ${date}` });
     return p.ends_at ? this.i18n.t({ th: `ใช้ได้ถึง ${date}`, en: `Valid until ${date}` }) : this.i18n.t({ th: 'ไม่มีวันหมดอายุ', en: 'No end date' });
+  }
+
+  private async loadRequests(): Promise<void> {
+    this.zoneRequests.set(await this.api.zoneRequests().catch(() => []));
+  }
+
+  /** ยอมรับ / ปฏิเสธคำขอของหน่วยงาน (api.md §4.6) */
+  protected async decide(id: string, accept: boolean): Promise<void> {
+    if (this.deciding()) return;
+    this.deciding.set(id);
+    try {
+      await this.api.decideZoneRequest(id, accept);
+      this.toast.show(accept ? { th: 'ยอมรับแล้ว', en: 'Accepted' } : { th: 'ปฏิเสธแล้ว', en: 'Declined' });
+      const b = this.box();
+      if (b && accept) await this.open(b.id);
+    } catch {
+      this.toast.show({ th: 'ทำรายการไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t do that — try again' });
+    } finally {
+      this.deciding.set(null);
+      await this.loadRequests();
+    }
+  }
+
+  protected addressText(b: BoxDetail): string {
+    const a = b.address;
+    return [a.line, a.subdistrict, a.district, a.province].filter((x) => x).join(' ');
+  }
+
+  protected startAddr(): void {
+    const b = this.box();
+    if (!b) return;
+    this.addr.set({ ...b.address });
+    this.pin.set(b.location);
+    this.editingAddr.set(true);
+  }
+
+  protected setAddr(key: keyof BoxAddress, v: string): void {
+    this.addr.update((a) => ({ ...a, [key]: v }));
+  }
+
+  /** PATCH /boxes/:box_id ที่อยู่ + หมุด */
+  protected async saveAddr(): Promise<void> {
+    const b = this.box();
+    if (!b || this.savingAddr()) return;
+    this.savingAddr.set(true);
+    try {
+      await this.api.setAddress(b.id, this.addr(), this.pin());
+      this.editingAddr.set(false);
+      await this.open(b.id);
+      this.toast.show({ th: 'บันทึกที่อยู่แล้ว', en: 'Address saved' });
+    } catch {
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save' });
+    } finally {
+      this.savingAddr.set(false);
+    }
   }
 
   protected startArea(): void {
@@ -686,15 +801,29 @@ export class OwnerTechnician {
         @if (display.nightActive()) {
           <p class="muted small">{{ i18n.t({ th: 'ตอนนี้กลางคืน จึงใช้ธีมมืดอยู่', en: 'It’s night now, so the dark theme is on' }) }}</p>
         }
-      } @else {
-        <label class="card toggle">
-          <span>
-            <strong>{{ i18n.t({ th: 'หน้าหลักแบบเรียบง่าย', en: 'Simple home screen' }) }}</strong>
-            <span class="muted small block">{{ i18n.t({ th: 'เหลือแค่สถานะตู้ เหตุการณ์ล่าสุด และปุ่ม SOS', en: 'Only mailbox status, latest event and the SOS button' }) }}</span>
-          </span>
-          <input type="checkbox" class="switch" role="switch" [checked]="display.simpleHome()" (change)="display.simpleHome.set($any($event.target).checked)" />
-        </label>
       }
+
+      <label class="card toggle">
+        <span>
+          <strong>{{ i18n.t({ th: 'โหมดใช้งานง่าย', en: 'Easy mode' }) }}</strong>
+          <span class="muted small block">{{ i18n.t({ th: 'ตัวอักษรใหญ่ ปุ่มใหญ่ เหลือเฉพาะสิ่งที่ใช้บ่อย (เจ้าของบ้านเห็นหน้าหลักแบบเรียบง่าย)', en: 'Larger text and buttons, only what you use most (owners get a simple home screen)' }) }}</span>
+        </span>
+        <input type="checkbox" class="switch" role="switch" [checked]="display.easyMode()" (change)="display.setEasy($any($event.target).checked)" />
+      </label>
+
+      <section class="card stack">
+        <h2 class="head"><app-icon name="bell" [size]="20" />{{ i18n.t({ th: 'แจ้งเตือนที่ต้องการรับ', en: 'Notifications to receive' }) }}</h2>
+        @for (n of notifyOptions(); track n.type) {
+          <label class="toggle">
+            <span>
+              <strong>{{ i18n.t(n.label) }}</strong>
+              <span class="muted small block">{{ i18n.t(n.hint) }}</span>
+            </span>
+            <input type="checkbox" class="switch" role="switch" [checked]="!display.isMuted(n.type)" (change)="display.setMuted(n.type, !$any($event.target).checked)" />
+          </label>
+        }
+        <p class="muted small">{{ i18n.t({ th: 'แจ้งเตือนสำคัญ เช่น SOS และตู้มีปัญหา ปิดไม่ได้', en: 'Critical alerts such as SOS and mailbox problems cannot be turned off' }) }}</p>
+      </section>
     </div>
   `,
   styles: `
@@ -722,8 +851,13 @@ export class OwnerTechnician {
     .toggle {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 12px;
       cursor: pointer;
+    }
+    .toggle > span {
+      flex: 1;
+      min-inline-size: 0;
     }
     .block {
       display: block;
@@ -750,4 +884,20 @@ export class OwnerDisplay {
     { v: 'large', label: { th: 'ใหญ่', en: 'Large' } },
     { v: 'xlarge', label: { th: 'ใหญ่มาก', en: 'Extra large' } },
   ];
+
+  /** แจ้งเตือนที่ปิดรับได้ ตามบทบาทของหน้านี้ (type ต้องตรงกับ MUTABLE_NOTIFICATION_TYPES ของ backend) */
+  protected readonly notifyOptions = computed<{ type: string; label: Tr; hint: Tr }[]>(() =>
+    this.officer
+      ? [{ type: 'sos_taken', label: { th: 'มีเจ้าหน้าที่รับ SOS แล้ว', en: 'SOS taken by another officer' }, hint: { th: 'แจ้งเมื่อเพื่อนร่วมโซนรับเรื่องไปแล้ว', en: 'When a teammate has taken the case' } }]
+      : [
+          { type: 'inspected', label: { th: 'เจ้าหน้าที่มาตรวจ', en: 'Officer inspection' }, hint: { th: 'ทุกครั้งที่ตรวจผ่านหน้าตู้', en: 'Each time the mailbox is checked' } },
+          { type: 'delivered', label: { th: 'มีของมาส่ง', en: 'Parcel delivered' }, hint: { th: 'เมื่อไรเดอร์แจ้งส่งของที่ตู้', en: 'When a rider reports a drop-off' } },
+          { type: 'low_battery', label: { th: 'แบตเตอรี่ตู้ใกล้หมด', en: 'Low mailbox battery' }, hint: { th: 'เตือนก่อนตู้ดับ', en: 'Warning before the box goes dark' } },
+          { type: 'technician_scheduled', label: { th: 'นัดช่างแล้ว', en: 'Technician scheduled' }, hint: { th: 'วันเวลาที่ช่างจะมา', en: 'When the technician will visit' } },
+          { type: 'technician_done', label: { th: 'ช่างทำงานเสร็จ', en: 'Technician finished' }, hint: { th: 'ผลการซ่อมหรือติดตั้ง', en: 'Repair or install result' } },
+          { type: 'box_service_opened', label: { th: 'ตู้เปิดให้บริการอีกครั้ง', en: 'Mailbox service resumed' }, hint: { th: 'หลังหยุดให้บริการชั่วคราว', en: 'After a temporary pause' } },
+          { type: 'box_service_closed', label: { th: 'ตู้หยุดให้บริการ', en: 'Mailbox service paused' }, hint: { th: 'เมื่อผู้ดูแลระบบปิดตู้ชั่วคราว', en: 'When an admin pauses the box' } },
+          { type: 'plan_expiring', label: { th: 'แพ็กเกจใกล้หมดอายุ', en: 'Plan expiring' }, hint: { th: 'เตือนก่อนหมด 7 วัน', en: '7 days before it ends' } },
+        ],
+  );
 }

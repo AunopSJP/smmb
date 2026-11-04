@@ -27,6 +27,9 @@ export interface Prefs {
   text_size: 'normal' | 'large' | 'xlarge';
   simple_home: boolean;
   night_auto_dark: boolean;
+  easy_mode: boolean;
+  /** type แจ้งเตือนที่ปิดรับ (ปิดได้เฉพาะ MUTABLE_NOTIFICATION_TYPES) */
+  muted_types: string[];
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -35,6 +38,8 @@ export const DEFAULT_PREFS: Prefs = {
   text_size: 'normal',
   simple_home: false,
   night_auto_dark: true,
+  easy_mode: false,
+  muted_types: [],
 };
 
 /** api.md §2 `Me` — ชื่อฟิลด์ของ API ไม่ใช่ชื่อคอลัมน์ */

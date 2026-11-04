@@ -13,6 +13,7 @@ import { PageHeader } from '../../shared/page-header';
 import { Steps, type Step } from '../../shared/steps';
 import { ContactCard } from '../../shared/contact-card';
 import { PasswordField, TermsCheck } from './auth-parts';
+import { emptyHouseProfile, HouseFields, houseProfilePayload, houseProfileValid } from '../../shared/house-fields';
 
 // เจ้าของบ้าน: A06 สมัคร → A07 สแกน QR เปิดใช้ตู้ → A08 ตั้งชื่อตู้ → A09 เสร็จ (api.md §2, §4.1) — ใช้ API จริง
 
@@ -34,7 +35,7 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
 
 @Component({
   selector: 'app-auth-signup-owner',
-  imports: [RouterLink, PageHeader, PasswordField, TermsCheck],
+  imports: [RouterLink, PageHeader, PasswordField, TermsCheck, HouseFields],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'ขั้น 1 จาก 2', en: 'Step 1 of 2' })" [title]="i18n.t({ th: 'สมัครเจ้าของบ้าน', en: 'Homeowner sign-up' })" [back]="url('A05')" />
@@ -58,6 +59,7 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
         <input maxlength="100" autocomplete="address-level3" [placeholder]="i18n.t({ th: 'เช่น หมู่บ้านสุขใจ', en: 'e.g. Sukjai Village' })" [value]="f().area" (input)="set('area', $any($event.target).value)" />
         <small>{{ i18n.t({ th: 'ช่วยให้เจ้าหน้าที่แยกบ้านเลขที่ซ้ำกันคนละหมู่บ้าน', en: 'Helps officers tell apart the same house number in different villages' }) }}</small>
       </label>
+      <app-house-fields [(value)]="house" [tried]="tried()" />
       <app-terms-check from="A06" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="filled() && !f().terms" />
 
       @if (error(); as e) {
@@ -94,6 +96,8 @@ export class AuthSignupOwner implements OnInit {
   readonly state = input<string>();
   protected readonly f = this.demo.forms.owner;
   protected readonly tried = signal(false);
+  /** ที่อยู่ + หมุด + ผู้ติดต่อฉุกเฉิน (✅ 2026-11-04) */
+  protected readonly house = signal(emptyHouseProfile());
   protected readonly errorCode = signal<string | null>(null);
   protected readonly error = computed(() => (this.errorCode() ? SIGNUP_ERROR[this.errorCode()!] : null));
   protected readonly phoneOk = computed(() => !!normalizePhone(this.f().phone));
@@ -118,7 +122,7 @@ export class AuthSignupOwner implements OnInit {
     this.tried.set(true);
     const f = this.f();
     const phone = normalizePhone(f.phone);
-    if (!f.terms || !f.name.trim() || !phone || f.password.length < this.min || !f.house_no.trim()) {
+    if (!f.terms || !f.name.trim() || !phone || f.password.length < this.min || !f.house_no.trim() || !houseProfileValid(this.house())) {
       if (f.terms) this.errorCode.set('INVALID');
       return;
     }
@@ -126,7 +130,7 @@ export class AuthSignupOwner implements OnInit {
     try {
       const terms = await firstValueFrom(this.http.get<{ version: string }>('/api/v1/terms/current'));
       await firstValueFrom(
-        this.http.post('/api/v1/auth/signup/owner', { name: f.name.trim(), phone, password: f.password, house_no: f.house_no.trim(), area: f.area.trim() || undefined, terms_version: terms.version }),
+        this.http.post('/api/v1/auth/signup/owner', { name: f.name.trim(), phone, password: f.password, house_no: f.house_no.trim(), area: f.area.trim() || undefined, ...houseProfilePayload(this.house()), terms_version: terms.version }),
       );
       await this.session.refresh();
       this.session.use('owner');

@@ -20,3 +20,4 @@ Thumbs.db
 # เฟิร์มแวร์ ESP32 (PlatformIO build + library ที่ดาวน์โหลด)
 firmware/.pio/
 firmware/.vscode/
+handoff/

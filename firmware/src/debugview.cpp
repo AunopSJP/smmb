@@ -7,7 +7,7 @@
 
 #include "camera_qr.h"
 #include "settings.h"
-#include "signer.h"
+#include <SmmbLink.h>
 
 static WebServer* server = nullptr;
 static uint32_t lastViewMs = 0;

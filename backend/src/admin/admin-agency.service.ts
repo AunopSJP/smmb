@@ -18,6 +18,9 @@ export interface AdminAgencyRow {
   status: AgencyStatus;
   group_code: string | null;
   created_at: string;
+  /** ที่อยู่ · เลขทะเบียน/ใบอนุญาต (✅ 2026-11-04 · '' = ไม่ได้กรอก) — ใช้ประกอบการอนุมัติ */
+  address: string;
+  registration_no: string;
   heads: { id: string; display_name: string }[];
 }
 
@@ -47,10 +50,12 @@ export class AdminAgencyService {
       type: string;
       status: AgencyStatus;
       group_code: string | null;
+      address: string | null;
+      registration_no: string | null;
       created_date: Date;
       heads: { id: string; display_name: string }[];
     }>(
-      `SELECT a.agency_id, a.name, a.type, a.status, a.group_code, a.created_date,
+      `SELECT a.agency_id, a.name, a.type, a.status, a.group_code, a.address, a.registration_no, a.created_date,
               COALESCE((SELECT json_agg(json_build_object('id', u.user_id, 'display_name', u.display_name))
                         FROM app.agency_member_tb m JOIN app.user_tb u ON u.user_id = m.user_id
                         WHERE m.agency_id = a.agency_id AND m.is_head), '[]') AS heads
@@ -68,6 +73,8 @@ export class AdminAgencyService {
       status: r.status,
       group_code: r.group_code,
       created_at: r.created_date.toISOString(),
+      address: r.address ?? '',
+      registration_no: r.registration_no ?? '',
       heads: r.heads,
     }));
   }
@@ -81,6 +88,8 @@ export class AdminAgencyService {
       status: AgencyStatus;
       group_code: string | null;
       reject_reason: string | null;
+      address: string | null;
+      registration_no: string | null;
       created_date: Date;
       approved_date: Date | null;
       members_active: number;
@@ -88,7 +97,7 @@ export class AdminAgencyService {
       zones: number;
       houses: number;
     }>(
-      `SELECT a.agency_id, a.name, a.type, a.status, a.group_code, a.reject_reason, a.created_date, a.approved_date,
+      `SELECT a.agency_id, a.name, a.type, a.status, a.group_code, a.reject_reason, a.address, a.registration_no, a.created_date, a.approved_date,
               (SELECT count(*)::int FROM app.agency_member_tb m WHERE m.agency_id = a.agency_id AND m.status = 'active') AS members_active,
               (SELECT count(*)::int FROM app.agency_member_tb m WHERE m.agency_id = a.agency_id AND m.status = 'pending') AS members_pending,
               (SELECT count(*)::int FROM app.zone_tb z WHERE z.agency_id = a.agency_id AND z.deleted_date IS NULL) AS zones,
@@ -119,6 +128,8 @@ export class AdminAgencyService {
       created_at: a.created_date.toISOString(),
       approved_at: a.approved_date?.toISOString() ?? null,
       reject_reason: a.reject_reason,
+      address: a.address ?? '',
+      registration_no: a.registration_no ?? '',
       heads: heads.rows.map((h) => ({ id: h.user_id, display_name: h.display_name })),
       heads_contact: heads.rows.map((h) => ({ id: h.user_id, name: h.name, display_name: h.display_name, phone: h.phone })),
       counts: { members_active: a.members_active, members_pending: a.members_pending, zones: a.zones, houses: a.houses },

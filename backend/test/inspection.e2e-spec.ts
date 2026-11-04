@@ -3,6 +3,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import pg from 'pg';
 import request from 'supertest';
+import { acceptPendingHouses } from './zone-consent.js';
 import { configureApp } from '../src/app-setup.js';
 import { AppModule } from '../src/app.module.js';
 import { signRequest } from '../src/box/box-crypto.js';
@@ -92,6 +93,7 @@ describe('Inspections (e2e)', () => {
     const ag = await agency();
     const zone = (await as(ag.head).post('/api/v1/agency/zones', { name: `โซน ${seq++}`, windows }).expect(201)).body;
     await as(ag.head).put(`/api/v1/agency/zones/${zone.id}/houses`, { box_ids: [b.box_id] }).expect(200);
+    await acceptPendingHouses(pool);
     await as(ag.head).put(`/api/v1/agency/zones/${zone.id}/officers`, { user_ids: [ag.officer.id] }).expect(200);
     return { b, owner, ...ag };
   };

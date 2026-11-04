@@ -33,10 +33,31 @@ export const NOTIFICATION_TYPES = [
   'box_service_closed',
   'box_service_opened',
   'box_unbound',
+  'zone_join_request',
+  'zone_join_accepted',
+  'zone_join_rejected',
+  'officer_new_device',
   'test',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+/**
+ * แจ้งเตือนที่ผู้ใช้ปิดรับเองได้ (`prefs.muted_types`) — ที่เหลือเกี่ยวกับความปลอดภัย/สิทธิ์/ตู้ใช้งานไม่ได้ ปิดไม่ได้
+ * (SOS · ตู้มีปัญหา/หลุด · QR ปลอม · คำขอเข้าหน่วยงาน · ทดสอบ ฯลฯ) · เพิ่ม type ที่ปิดได้ต้องเพิ่มชื่อในหน้า "การแสดงผล" ของเว็บด้วย
+ */
+export const MUTABLE_NOTIFICATION_TYPES = [
+  'inspected',
+  'delivered',
+  'low_battery',
+  'sos_taken',
+  'qr_health',
+  'technician_scheduled',
+  'technician_done',
+  'plan_expiring',
+  'box_service_opened',
+  'box_service_closed',
+] as const satisfies readonly NotificationType[];
 
 type Data = Record<string, unknown>;
 type Text = { title: string; body: string };
@@ -160,6 +181,22 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
       title: '📶 Mailbox is ready for new Wi-Fi',
       body: `Join the Wi-Fi named ${s(d.ap_name)} and open 192.168.4.1 within 10 minutes (otherwise it goes back to the old Wi-Fi)`,
     }),
+  },
+  zone_join_request: {
+    th: (d) => ({ title: '🏠 หน่วยงานขอดูแลบ้านของคุณ', body: `${s(d.agency_name)} ขอเพิ่มตู้ ${s(d.box_id)} เข้าโซน ${s(d.zone_name)} · แตะเพื่อยอมรับหรือปฏิเสธ` }),
+    en: (d) => ({ title: '🏠 An agency asks to cover your house', body: `${s(d.agency_name)} asks to add mailbox ${s(d.box_id)} to zone ${s(d.zone_name)} · tap to accept or decline` }),
+  },
+  zone_join_accepted: {
+    th: (d) => ({ title: 'เจ้าของบ้านยอมรับแล้ว', body: `บ้านเลขที่ ${s(d.house_no)} เข้าโซน ${s(d.zone_name)} แล้ว` }),
+    en: (d) => ({ title: 'Homeowner accepted', body: `House ${s(d.house_no)} is now in zone ${s(d.zone_name)}` }),
+  },
+  zone_join_rejected: {
+    th: (d) => ({ title: 'เจ้าของบ้านปฏิเสธ', body: `บ้านเลขที่ ${s(d.house_no)} ไม่เข้าโซน ${s(d.zone_name)}` }),
+    en: (d) => ({ title: 'Homeowner declined', body: `House ${s(d.house_no)} will not join zone ${s(d.zone_name)}` }),
+  },
+  officer_new_device: {
+    th: (d) => ({ title: '📱 เจ้าหน้าที่เข้าสู่ระบบจากเครื่องใหม่', body: `${s(d.officer_name)} · ${s(d.device)}` }),
+    en: (d) => ({ title: '📱 Officer signed in on a new device', body: `${s(d.officer_name)} · ${s(d.device)}` }),
   },
   technician_request: {
     th: (d) => ({ title: 'มีคนขอช่าง', body: `ตู้ ${s(d.box_id)} · ${s(d.reason)}` }),

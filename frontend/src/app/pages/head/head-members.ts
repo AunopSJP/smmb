@@ -42,6 +42,9 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
         @for (m of pending(); track m.id) {
           <section class="card pending">
             <strong>{{ m.display_name }}</strong>
+            @if (m.position || m.staff_no) {
+              <p class="small">{{ m.position }}{{ m.position && m.staff_no ? ' · ' : '' }}{{ m.staff_no ? i18n.t({ th: 'เลขประจำตัว ', en: 'Staff no. ' }) + m.staff_no : '' }}</p>
+            }
             <p class="muted small">{{ i18n.t({ th: 'เบอร์ ', en: 'Phone ' }) }}{{ m.phone }} · {{ i18n.t({ th: 'ขอเมื่อ ', en: 'asked ' }) }}{{ when(m.joined_at) }}</p>
             <div class="two">
               <button type="button" class="btn secondary" [disabled]="busy()" (click)="decide(m, false)">{{ i18n.t({ th: 'ปฏิเสธ', en: 'Decline' }) }}</button>
@@ -171,6 +174,8 @@ export class HeadMembers implements OnInit {
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'ชื่อ', en: 'Name' }) }}</dt><dd>{{ m.name }}</dd>
             <dt>{{ i18n.t({ th: 'เบอร์', en: 'Phone' }) }}</dt><dd><a [href]="'tel:' + m.phone">{{ m.phone }}</a></dd>
+            <dt>{{ i18n.t({ th: 'ตำแหน่ง / ยศ', en: 'Position' }) }}</dt><dd>{{ m.position || '—' }}</dd>
+            <dt>{{ i18n.t({ th: 'เลขประจำตัว', en: 'Staff no.' }) }}</dt><dd>{{ m.staff_no || '—' }}</dd>
             <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt>
             <dd>{{ m.status === 'active' ? i18n.t({ th: 'ใช้งาน', en: 'Active' }) : i18n.t({ th: 'ปิดสิทธิ์', en: 'Disabled' }) }}{{ m.is_head ? ' · ' + i18n.t({ th: 'หัวหน้า', en: 'Head' }) : '' }}</dd>
             <dt>{{ i18n.t({ th: 'โซน', en: 'Zones' }) }}</dt><dd>{{ zones(m) }}</dd>

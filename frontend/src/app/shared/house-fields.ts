@@ -1,0 +1,129 @@
+import { ChangeDetectionStrategy, Component, inject, input, model } from '@angular/core';
+import { I18n } from '../core/i18n';
+import { normalizePhone } from '../core/mock/auth-demo';
+import { MapPin, type LatLng } from './map-pin';
+
+/** ข้อมูลบ้านที่ละเอียดขึ้น (api.md §2.1 · ✅ 2026-11-04) — ใช้ใน A06 สมัคร และ A15 เพิ่มบทบาทเจ้าของบ้าน */
+export interface HouseProfileForm {
+  address_line: string;
+  subdistrict: string;
+  district: string;
+  province: string;
+  location: LatLng | null;
+  emergency_name: string;
+  emergency_phone: string;
+}
+
+export const emptyHouseProfile = (): HouseProfileForm => ({
+  address_line: '',
+  subdistrict: '',
+  district: '',
+  province: '',
+  location: null,
+  emergency_name: '',
+  emergency_phone: '',
+});
+
+/** ผู้ติดต่อฉุกเฉินต้องกรอกครบคู่ หรือไม่กรอกเลย */
+const emergencyOk = (p: HouseProfileForm) => {
+  const name = p.emergency_name.trim();
+  const phone = p.emergency_phone.trim();
+  return (!name && !phone) || (!!name && !!normalizePhone(phone));
+};
+
+/** ที่อยู่บังคับ (แขวง/ตำบล เขต/อำเภอ จังหวัด) · หมุดและผู้ติดต่อฉุกเฉินไม่บังคับ */
+export function houseProfileValid(p: HouseProfileForm): boolean {
+  return !!(p.address_line.trim() && p.subdistrict.trim() && p.district.trim() && p.province.trim()) && emergencyOk(p);
+}
+
+/** แปลงเป็นฟิลด์ของ API (ค่าว่าง = ไม่ส่ง) */
+export function houseProfilePayload(p: HouseProfileForm): Record<string, string | number> {
+  const out: Record<string, string | number> = {};
+  for (const k of ['address_line', 'subdistrict', 'district', 'province'] as const) if (p[k].trim()) out[k] = p[k].trim();
+  if (p.location) {
+    out['lat'] = p.location.lat;
+    out['lng'] = p.location.lng;
+  }
+  const phone = normalizePhone(p.emergency_phone);
+  if (p.emergency_name.trim() && phone) {
+    out['emergency_name'] = p.emergency_name.trim();
+    out['emergency_phone'] = phone;
+  }
+  return out;
+}
+
+@Component({
+  selector: 'app-house-fields',
+  imports: [MapPin],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <label class="field" [class.invalid]="tried() && !value().address_line.trim()">
+      <span>{{ i18n.t({ th: 'ที่อยู่ (ซอย / ถนน / หมู่)', en: 'Address (soi / road / moo)' }) }}</span>
+      <input maxlength="200" autocomplete="address-line2" [placeholder]="i18n.t({ th: 'เช่น ซอยสุขใจ 3 ถนนพหลโยธิน', en: 'e.g. Soi Sukjai 3, Phahonyothin Rd' })" [value]="value().address_line" (input)="set('address_line', $any($event.target).value)" />
+    </label>
+    <div class="two">
+      <label class="field" [class.invalid]="tried() && !value().subdistrict.trim()">
+        <span>{{ i18n.t({ th: 'แขวง / ตำบล', en: 'Subdistrict' }) }}</span>
+        <input maxlength="100" [value]="value().subdistrict" (input)="set('subdistrict', $any($event.target).value)" />
+      </label>
+      <label class="field" [class.invalid]="tried() && !value().district.trim()">
+        <span>{{ i18n.t({ th: 'เขต / อำเภอ', en: 'District' }) }}</span>
+        <input maxlength="100" [value]="value().district" (input)="set('district', $any($event.target).value)" />
+      </label>
+    </div>
+    <label class="field" [class.invalid]="tried() && !value().province.trim()">
+      <span>{{ i18n.t({ th: 'จังหวัด', en: 'Province' }) }}</span>
+      <input maxlength="100" autocomplete="address-level1" [value]="value().province" (input)="set('province', $any($event.target).value)" />
+    </label>
+
+    <div class="field">
+      <span>{{ i18n.t({ th: 'ปักหมุดบ้าน (แนะนำ)', en: 'Pin your house (recommended)' }) }}</span>
+      <small>{{ i18n.t({ th: 'เจ้าหน้าที่เห็นตำแหน่งนี้เฉพาะตอนคุณกด SOS เพื่อมาถึงบ้านได้เร็วขึ้น', en: 'Officers see this only during your SOS, so they can reach you faster' }) }}</small>
+      <app-map-pin [editable]="true" [value]="value().location" (valueChange)="set('location', $event)" />
+    </div>
+
+    <fieldset class="field" [class.invalid]="tried() && !emergencyValid()">
+      <legend>{{ i18n.t({ th: 'ผู้ติดต่อฉุกเฉิน (ไม่บังคับ)', en: 'Emergency contact (optional)' }) }}</legend>
+      <div class="two">
+        <input maxlength="100" [attr.aria-label]="i18n.t({ th: 'ชื่อผู้ติดต่อ', en: 'Contact name' })" [placeholder]="i18n.t({ th: 'ชื่อ', en: 'Name' })" [value]="value().emergency_name" (input)="set('emergency_name', $any($event.target).value)" />
+        <input type="tel" inputmode="tel" [attr.aria-label]="i18n.t({ th: 'เบอร์ผู้ติดต่อ', en: 'Contact phone' })" [placeholder]="i18n.t({ th: 'เบอร์โทร', en: 'Phone' })" [value]="value().emergency_phone" (input)="set('emergency_phone', $any($event.target).value)" />
+      </div>
+      <small>{{ i18n.t({ th: 'กรอกทั้งชื่อและเบอร์ หรือเว้นว่างทั้งคู่', en: 'Fill in both name and phone, or leave both empty' }) }}</small>
+    </fieldset>
+  `,
+  styles: `
+    :host {
+      display: grid;
+      gap: 14px;
+    }
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    fieldset {
+      border: 0;
+      padding: 0;
+      margin: 0;
+    }
+    legend {
+      padding: 0;
+      margin-block-end: 6px;
+      font-weight: 600;
+    }
+  `,
+})
+export class HouseFields {
+  protected readonly i18n = inject(I18n);
+  readonly value = model.required<HouseProfileForm>();
+  /** กดส่งแล้ว — แสดงช่องที่ยังไม่ครบ */
+  readonly tried = input(false);
+
+  protected emergencyValid(): boolean {
+    return emergencyOk(this.value());
+  }
+
+  protected set<K extends keyof HouseProfileForm>(key: K, v: HouseProfileForm[K]): void {
+    this.value.update((p) => ({ ...p, [key]: v }));
+  }
+}

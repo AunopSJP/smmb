@@ -1,16 +1,14 @@
-#include "api.h"
-
+// HTTPS + ลายเซ็นของทุกคำขอ /v1/box/* · นาฬิกาจาก X-Server-Time · โหลดเฟิร์มแวร์ (OTA จากเซิร์ฟเวอร์)
 #include <HTTPClient.h>
 #include <Update.h>
-#include <esp_task_wdt.h>
-#include <mbedtls/sha256.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <esp_task_wdt.h>
+#include <mbedtls/sha256.h>
 #include <sys/time.h>
 
-#include "ca_roots.h"
-#include "settings.h"
-#include "signer.h"
+#include "link_ca_roots.h"
+#include "link_internal.h"
 
 // เวลาเก็บใน system clock ของ ESP32 (อยู่รอดตอนหลับลึก) — ก่อนตั้งครั้งแรกจะเป็นค่าน้อย ๆ ใกล้ 0
 static const uint32_t SANE_EPOCH = 1700000000;
@@ -52,38 +50,50 @@ static String urlBase(const String &url)
   return u;
 }
 
-ApiResult apiCall(const char *method, const String &suffix, const String &body, uint32_t timeoutMs)
+/** เปิดการเชื่อมต่อ + ใส่ header ลายเซ็น (ผู้เรียกส่งคำขอ/ปิดเอง) */
+struct SignedHttp
 {
-  ApiResult r;
-  if (WiFi.status() != WL_CONNECTED)
-    return r;
-
-  const String url = urlBase(settings.url) + suffix;
-  const String signedPath = urlPathPrefix(settings.url) + suffix;
-  // boot ยอมให้นาฬิกาเพี้ยน — ก่อนตั้งเวลาครั้งแรกส่ง 0 ไม่ได้ (header ผิดรูปแบบ) จึงส่งเวลาคร่าว ๆ ไปก่อน
-  const uint32_t ts = clockSet() ? nowUtc() : SANE_EPOCH;
-  const String nonce = newNonce();
-  const String sig = signRequest(settings.secret, method, signedPath, ts, nonce, body);
-
-  const bool https = settings.url.startsWith("https://");
   WiFiClientSecure secure;
   WiFiClient plain;
   HTTPClient http;
-  if (https)
-    secure.setCACert(CA_ROOTS);
-  const bool ok = https ? http.begin(secure, url) : http.begin(plain, url);
-  if (!ok)
-    return r;
+  String signedPath;
 
-  http.setReuse(false); // Connection: close — ให้เซิร์ฟเวอร์ปิดหลังตอบ ไม่ค้าง keep-alive
+  bool begin(const char *method, const String &suffix, const String &body)
+  {
+    const LinkCredentials c = linkCred();
+    const String url = urlBase(c.url) + suffix;
+    signedPath = urlPathPrefix(c.url) + suffix;
+    // boot ยอมให้นาฬิกาเพี้ยน — ก่อนตั้งเวลาครั้งแรกส่ง 0 ไม่ได้ (header ผิดรูปแบบ) จึงส่งเวลาคร่าว ๆ ไปก่อน
+    const uint32_t ts = clockSet() ? nowUtc() : SANE_EPOCH;
+    const String nonce = linkNonce();
+    const String sig = linkSign(c.secret, method, signedPath, ts, nonce, body);
+    const bool https = c.url.startsWith("https://");
+    if (https)
+      secure.setCACert(LINK_CA_ROOTS);
+    if (!(https ? http.begin(secure, url) : http.begin(plain, url)))
+      return false;
+    http.setReuse(false); // Connection: close — ให้เซิร์ฟเวอร์ปิดหลังตอบ ไม่ค้าง keep-alive
+    http.addHeader("X-Box-Id", c.boxId);
+    http.addHeader("X-Timestamp", String(ts));
+    http.addHeader("X-Nonce", nonce);
+    http.addHeader("X-Signature", sig);
+    return true;
+  }
+};
+
+LinkResponse linkRequest(const char *method, const String &suffix, const String &body, uint32_t timeoutMs)
+{
+  LinkResponse r;
+  if (WiFi.status() != WL_CONNECTED)
+    return r;
+  SignedHttp s;
+  if (!s.begin(method, suffix, body))
+    return r;
+  HTTPClient &http = s.http;
   http.setConnectTimeout((uint16_t)min<uint32_t>(timeoutMs, 10000));
   http.setTimeout((uint16_t)min<uint32_t>(timeoutMs, 65000));
   static const char *headerKeys[] = {"X-Server-Time"};
   http.collectHeaders(headerKeys, 1);
-  http.addHeader("X-Box-Id", settings.boxId);
-  http.addHeader("X-Timestamp", String(ts));
-  http.addHeader("X-Nonce", nonce);
-  http.addHeader("X-Signature", sig);
 
   const unsigned long startedAt = millis();
   const bool trace = strcmp(method, "GET") == 0; // long-poll: พิมพ์ขั้นตอนไว้หาจุดที่ค้าง
@@ -109,51 +119,32 @@ ApiResult apiCall(const char *method, const String &suffix, const String &body, 
       r.body = http.getString();
     r.serverTime = (uint32_t)strtoul(http.header("X-Server-Time").c_str(), nullptr, 10);
     // ตั้งนาฬิกาเฉพาะคำขอสั้น ๆ: server ตั้ง X-Server-Time ตอนเริ่มรับคำขอ ถ้า long-poll รอ 50 วิ ค่านี้เก่า 50 วิ → นาฬิกาถอยทุกรอบจน clock_skew
-    // (นาฬิกาตู้เดินจากคริสตัลอยู่แล้ว เพี้ยนไม่ถึงวินาทีต่อชั่วโมง · boot / report / ready / result ตั้งใหม่ให้ตลอด)
-    // (ถ้ายังไม่เคยตั้งนาฬิกา ตั้งเสมอ แม้คำขอแรกจะช้า เช่น จับมือ TLS บน Wi-Fi อ่อน — ไม่งั้นคำขอถัดไปเซ็นด้วยเวลาผิดแล้วโดน clock_skew)
+    // (ถ้ายังไม่เคยตั้งนาฬิกา ตั้งเสมอ แม้คำขอแรกจะช้า — ไม่งั้นคำขอถัดไปเซ็นด้วยเวลาผิดแล้วโดน clock_skew)
     if (r.serverTime && (!clockSet() || millis() - startedAt < 5000))
       clockSetFrom(r.serverTime);
   }
   else
   {
-    Serial.printf("[api] %s %s → %s\n", method, signedPath.c_str(), http.errorToString(code).c_str());
+    Serial.printf("[api] %s %s → %s\n", method, s.signedPath.c_str(), http.errorToString(code).c_str());
   }
   http.end();
   if (trace)
     Serial.printf("[trace] GET done after %lu ms\n", millis() - startedAt);
-  if (code > 0)
-  {
-    // ไม่พิมพ์ลายเซ็น/รหัสลับลง log
-    Serial.printf("[api] %s %s → %d %s\n", method, signedPath.c_str(), code, r.body.substring(0, 160).c_str());
-  }
+  if (code > 0) // ไม่พิมพ์ลายเซ็น/รหัสลับลง log
+    Serial.printf("[api] %s %s → %d %s\n", method, s.signedPath.c_str(), code, r.body.substring(0, 160).c_str());
   return r;
 }
 
-bool apiDownloadFirmware(const String &version, size_t size, const String &sha256Hex)
+bool linkInstallFirmware(const String &version, size_t size, const String &sha256Hex)
 {
   if (WiFi.status() != WL_CONNECTED || !clockSet() || size < 64 * 1024 || sha256Hex.length() != 64)
     return false;
-  const String suffix = "/v1/box/firmware/" + version;
-  const String url = urlBase(settings.url) + suffix;
-  const uint32_t ts = nowUtc();
-  const String nonce = newNonce();
-  const String sig = signRequest(settings.secret, "GET", urlPathPrefix(settings.url) + suffix, ts, nonce, "");
-
-  const bool https = settings.url.startsWith("https://");
-  WiFiClientSecure secure;
-  WiFiClient plain;
-  HTTPClient http;
-  if (https)
-    secure.setCACert(CA_ROOTS);
-  if (!(https ? http.begin(secure, url) : http.begin(plain, url)))
+  SignedHttp s;
+  if (!s.begin("GET", "/v1/box/firmware/" + version, ""))
     return false;
-  http.setReuse(false);
+  HTTPClient &http = s.http;
   http.setConnectTimeout(10000);
   http.setTimeout(20000);
-  http.addHeader("X-Box-Id", settings.boxId);
-  http.addHeader("X-Timestamp", String(ts));
-  http.addHeader("X-Nonce", nonce);
-  http.addHeader("X-Signature", sig);
 
   const int code = http.GET();
   if (code != 200 || (size_t)http.getSize() != size)

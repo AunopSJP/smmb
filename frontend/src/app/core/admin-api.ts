@@ -146,6 +146,9 @@ export interface AdminAgency {
   status: 'pending' | 'approved' | 'rejected';
   group_code: string | null;
   created_at: string;
+  /** ✅ 2026-11-04 '' = ไม่ได้กรอก */
+  address: string;
+  registration_no: string;
   heads: { id: string; display_name: string }[];
 }
 

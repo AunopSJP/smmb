@@ -4,6 +4,7 @@ import { I18n, type Tr } from '../../core/i18n';
 import { OwnerApi, type BoxEvent, type BoxSummary } from '../../core/owner-api';
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
+import { PrivatePhoto } from '../../shared/private-photo';
 import { PageHeader } from '../../shared/page-header';
 
 // เจ้าของบ้าน: H12 ประวัติ (การตรวจ · ของมาส่ง) · H12-b / H12-c รายละเอียด · H12-d ตู้ไม่ออนไลน์ · H12-e ช่วงวันที่
@@ -237,7 +238,7 @@ function useEvent(type: BoxEvent['type']) {
 
 @Component({
   selector: 'app-owner-inspection',
-  imports: [PageHeader],
+  imports: [PageHeader, PrivatePhoto],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'ประวัติ', en: 'History' })" [title]="i18n.t({ th: 'เจ้าหน้าที่มาตรวจ', en: 'Officer checked' })" [back]="url('H12')" />
@@ -252,6 +253,14 @@ function useEvent(type: BoxEvent['type']) {
             <dt>{{ i18n.t({ th: 'วิธี', en: 'Method' }) }}</dt><dd>{{ h.method === 'code' ? i18n.t({ th: 'พิมพ์รหัส', en: 'Typed code' }) : i18n.t({ th: 'สแกน', en: 'Scan' }) }}</dd>
             <dt>{{ i18n.t({ th: 'ตู้ยืนยัน', en: 'Box confirmed' }) }}</dt><dd class="ok">{{ i18n.t({ th: 'ผ่าน', en: 'Passed' }) }}</dd>
           </dl>
+        </section>
+        <section class="card stack">
+          <strong>{{ i18n.t({ th: 'รูปยืนยันตัวเจ้าหน้าที่', en: 'Officer confirmation photo' }) }}</strong>
+          @if (h.has_photo) {
+            <app-private-photo [src]="'/api/v1/me/inspection-photos/' + h.id" [alt]="i18n.t({ th: 'รูปเจ้าหน้าที่ที่มาตรวจ', en: 'Photo of the inspecting officer' })" />
+          } @else {
+            <p class="muted small">{{ i18n.t({ th: 'ไม่มีรูป (เจ้าหน้าที่ไม่ได้ถ่าย หรือเกิน 30 วันแล้ว)', en: 'No photo (not taken, or older than 30 days)' }) }}</p>
+          }
         </section>
         <p class="muted small">{{ i18n.t({ th: 'ตู้ยืนยันด้วยการสแกน QR ประจำตัวของเจ้าหน้าที่ — ปลอมไม่ได้', en: 'The mailbox verified the officer’s personal QR — it cannot be faked' }) }}</p>
       </div>

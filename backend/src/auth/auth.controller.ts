@@ -21,7 +21,7 @@ import { MeService, type Me, type PlanInfo } from './me.service.js';
 import { SessionService, type AuthContext } from './session.service.js';
 import { TermsService, type CurrentTerms } from './terms.service.js';
 
-const meta = (req: Request): ClientMeta => ({ ip: req.ip, userAgent: req.get('user-agent') });
+const meta = (req: Request): ClientMeta => ({ ip: req.ip, userAgent: req.get('user-agent'), deviceId: req.get('x-device-id') });
 
 /** กันเดารหัสกลุ่ม (เข้าหน่วยงาน / เพิ่มบทบาท) · 💡 ตัวเลขยังไม่ได้ตกลง */
 const SIGNUP_LIMIT = { limit: 10, windowSec: 60 };

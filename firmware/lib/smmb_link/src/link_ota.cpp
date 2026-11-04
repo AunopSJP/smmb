@@ -1,9 +1,8 @@
-#include "ota.h"
-
+// แฟลชผ่าน Wi-Fi ในวง LAN (ArduinoOTA / espota จาก PlatformIO) — ใช้ตอนพัฒนา · ตู้ภาคสนามใช้ OTA จากเซิร์ฟเวอร์ (link_http.cpp)
 #include <ArduinoOTA.h>
 #include <WiFi.h>
 
-#include "settings.h"
+#include "SmmbLink.h"
 
 #ifndef OTA_PASS
 #define OTA_PASS ""
@@ -22,11 +21,11 @@ static void otaTask(void *)
   }
 }
 
-void otaStart()
+void linkLanOtaStart(const String &hostname)
 {
   if (started || sizeof(OTA_PASS) <= 1 || WiFi.status() != WL_CONNECTED)
     return;
-  String host = apName();
+  String host = hostname;
   host.toLowerCase();
   ArduinoOTA.setHostname(host.c_str());
   ArduinoOTA.setPassword(OTA_PASS);
@@ -52,4 +51,4 @@ void otaStart()
   Serial.printf("[ota] ready · host %s.local · IP %s\n", host.c_str(), WiFi.localIP().toString().c_str());
 }
 
-bool otaBusy() { return busy; }
+bool linkLanOtaBusy() { return busy; }

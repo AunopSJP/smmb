@@ -15,7 +15,7 @@ const me = (id: string): Me =>
     phone: '0812345678',
     agency: null,
     push: { subscribed: false },
-    prefs: { theme: 'system', lang: 'th', text_size: 'normal', simple_home: false, night_auto_dark: true },
+    prefs: { theme: 'system', lang: 'th', text_size: 'normal', simple_home: false, night_auto_dark: true, easy_mode: false, muted_types: [] },
     must_change_password: false,
     terms_update_required: false,
   }) as Me;

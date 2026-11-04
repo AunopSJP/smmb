@@ -10,6 +10,10 @@ const form = (patch: Partial<SignupForm>): SignupForm => ({
   agency_name: '',
   agency_type: 'police',
   contact: '',
+  position: '',
+  staff_no: '',
+  agency_address: '',
+  registration_no: '',
   terms: true,
   ...patch,
 });

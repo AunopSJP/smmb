@@ -6,6 +6,8 @@
 
 ---
 
+
+> **โครงโค้ด (2026-11-04):** ส่วนที่คุยกับเซิร์ฟเวอร์ทั้งหมด (ลายเซ็น · HTTPS · boot/report/events · long-poll · งานตรวจ · คำสั่ง · OTA) แยกเป็นไลบรารี `firmware/lib/smmb_link/` — ทีม Hardware ไม่ต้องแก้ ต่อฮาร์ดแวร์ผ่าน `LinkHooks` ดู `firmware/lib/smmb_link/README.md` · ส่วนฮาร์ดแวร์อยู่ `firmware/src/`
 ## 1. ตู้ทำอะไร / ไม่ทำอะไร
 
 **ตู้ทำ**

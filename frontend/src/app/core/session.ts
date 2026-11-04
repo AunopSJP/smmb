@@ -29,6 +29,9 @@ export interface ServerPrefs {
   text_size: 'normal' | 'large' | 'xlarge';
   simple_home: boolean;
   night_auto_dark: boolean;
+  easy_mode: boolean;
+  /** type แจ้งเตือนที่ปิดรับ (ปิดได้เฉพาะบางประเภท · api.md §3) */
+  muted_types: string[];
 }
 
 /** หน้าแรกของแต่ละบทบาท */
@@ -146,6 +149,22 @@ export const guestOnly: CanActivateFn = async (route) => {
   if (next && next.startsWith('/') && !next.startsWith('//')) return router.parseUrl(next);
   const role = me.roles.includes('head') ? 'head' : me.roles[0];
   return router.createUrlTree([ROLE_HOME[role] ?? '/']);
+};
+
+/**
+ * ลิงก์เข้าตรงของแต่ละบทบาท: /in/owner · /in/officer · /in/head · /in/admin
+ * ล็อกอินอยู่ → หน้าแรกของบทบาทนั้น · ยังไม่ล็อกอิน → เข้าสู่ระบบ (บอกว่าเข้าในฐานะอะไร) แล้วไปหน้าแรกของบทบาทนั้น
+ * (เป็นแค่ทางลัด — สิทธิ์ตัดสินที่ requireRole และ server)
+ */
+export const roleEntry: CanActivateFn = async (route) => {
+  const session = inject(Session);
+  const router = inject(Router);
+  const role = route.paramMap.get('role') as DemoRole | null;
+  if (!role || !(role in ROLE_HOME)) return router.createUrlTree(['/']);
+  const me = await session.ensure();
+  const home = ROLE_HOME[role];
+  if (!me) return router.createUrlTree([screenUrl('A04')], { queryParams: { next: home, as: role } });
+  return router.createUrlTree([home]);
 };
 
 /** หน้าแรก (/) — ล็อกอินอยู่ → หน้าแรกของบทบาท · ยังไม่ล็อกอิน → เข้าสู่ระบบ */

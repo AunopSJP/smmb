@@ -35,6 +35,8 @@ export function configureApp(app: NestExpressApplication): void {
   // ภาพสดจากกล้อง (งานทดสอบ) เป็น JSON ที่มี JPEG แบบ base64 → ใหญ่กว่าคำขออื่น
   // อัปโหลดเฟิร์มแวร์ (ไบต์ดิบ ≤ 1.9 MB) โดยแอดมิน — อ่านเป็น Buffer เอง ไม่ผ่านตัวอ่าน JSON
   app.use('/api/v1/admin/firmware', express.raw({ type: () => true, limit: '2mb' }));
+  // รูปยืนยันตัวเจ้าหน้าที่ (Snapface) — อ่านเป็นไบต์เฉพาะคำขอที่เป็นรูป คำขอ JSON อื่นใต้ /inspections ไม่โดน
+  app.use('/api/v1/inspections', express.raw({ type: ['image/jpeg', 'image/webp'], limit: '400kb' }));
   app.use('/v1/box/preview', express.raw({ type: () => true, limit: '120kb' }));
   app.use('/v1/box', express.raw({ type: () => true, limit: '16kb' }));
   // ดูคำขอจากตู้แบบสด ๆ ตอนทดสอบบอร์ด (npm run dev:mock เปิดให้เอง) — เหตุผลที่ลายเซ็นไม่ผ่านพิมพ์จาก BoxAuthGuard

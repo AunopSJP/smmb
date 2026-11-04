@@ -1,3 +1,4 @@
+import { NotificationService } from '../push/notification.service.js';
 import { HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import pg from 'pg';
 import { AppError } from '../common/http-exception.filter.js';
@@ -28,6 +29,8 @@ export interface ZoneHouseDto {
   /** ย่าน/หมู่บ้านที่เจ้าของระบุ (ไม่ระบุ = null) */
   area: string | null;
   box_status: BoxStatus;
+  /** ✅ 2026-11-04 true = รอเจ้าของบ้านกดยอมรับ (ยังไม่อยู่ในโซน ยังตรวจไม่ได้) */
+  pending: boolean;
 }
 
 /** api.md §8.3 ผลค้นบ้าน — ใช้ตอนเพิ่มบ้านเข้าโซน · zones = โซนที่บ้านนี้อยู่แล้ว (ทุกหน่วยงาน) */
@@ -36,6 +39,10 @@ export interface HouseSearchDto {
   house_no: string | null;
   box_name: string | null;
   area: string | null;
+  /** แขวง/ตำบล + เขต/อำเภอ (✅ 2026-11-04 ไม่มีบ้านเลขที่/ซอย) — ให้หัวหน้าแยกบ้านได้ */
+  locality: string;
+  /** มีคำขอเข้าโซนของหน่วยงานเรารออยู่ */
+  pending_mine: boolean;
   /** ตู้ออนไลน์ไหม / ปิดบริการไหม — ให้หัวหน้าเห็นว่าเพิ่มบ้านที่ตรวจได้จริงหรือเปล่า */
   box_status: BoxStatus;
   /** โซนที่บ้านนี้อยู่แล้ว (ทุกหน่วยงาน) · mine = ของหน่วยงานเรา */
@@ -89,6 +96,7 @@ export class ZoneService {
     @Inject(PG_POOL) private readonly pool: pg.Pool,
     private readonly agency: AgencyService,
     private readonly boxConfigs: BoxConfigService,
+    private readonly notifications: NotificationService,
   ) {}
 
   async list(agencyId: string, userId: string, filter: ZoneFilter = 'all'): Promise<ZoneDto[]> {
@@ -105,10 +113,11 @@ export class ZoneService {
   /**
    * แทนที่บ้านในโซนทั้งชุด (`L07-b`) — ต้องเป็นตู้ที่มีเจ้าของผูกแล้ว ไม่งั้น 400 HOUSE_NOT_FOUND
    * บ้านที่อยู่ในโซนของหน่วยงานอื่นอยู่แล้วใส่ได้ (✅ 2026-10-28) · เวลาตรวจของตู้ = รวมทุกโซน → ตู้รับค่าใหม่ตอนรายงานรายวัน
+   * ✅ 2026-11-04 บ้านใหม่ = ส่งคำขอให้เจ้าของบ้านกดยอมรับก่อน (zone_box_request_tb) · เอาออก = ออกทันที + ยกเลิกคำขอที่ค้าง
    */
-  async setHouses(agencyId: string, zoneId: string, boxIds: string[]): Promise<ZoneHouseDto[]> {
+  async setHouses(agencyId: string, zoneId: string, boxIds: string[], requestedBy: string): Promise<ZoneHouseDto[]> {
     const ids = [...new Set(boxIds)];
-    await withTx(this.pool, async (db) => {
+    const asked = await withTx(this.pool, async (db) => {
       await this.lock(db, agencyId, zoneId);
       if (ids.length) {
         const { rows } = await db.query<{ box_id: string }>(
@@ -120,9 +129,37 @@ export class ZoneService {
         }
       }
       await db.query(`DELETE FROM app.zone_box_tb WHERE zone_id = $1 AND NOT (box_id = ANY($2::text[]))`, [zoneId, ids]);
-      await db.query(`INSERT INTO app.zone_box_tb (zone_id, box_id) SELECT $1, unnest($2::text[]) ON CONFLICT DO NOTHING`, [zoneId, ids]);
+      await db.query(
+        `UPDATE app.zone_box_request_tb SET status = 'cancelled', decided_by = $3, decided_date = now()
+         WHERE zone_id = $1 AND status = 'pending' AND NOT (box_id = ANY($2::text[]))`,
+        [zoneId, ids, requestedBy],
+      );
+      const { rows: created } = await db.query<{ zone_box_request_id: string; box_id: string; owner_user_id: string }>(
+        `INSERT INTO app.zone_box_request_tb (zone_id, box_id, requested_by)
+         SELECT $1, x, $3 FROM unnest($2::text[]) AS x
+         WHERE NOT EXISTS (SELECT 1 FROM app.zone_box_tb zb WHERE zb.zone_id = $1 AND zb.box_id = x)
+         ON CONFLICT DO NOTHING
+         RETURNING zone_box_request_id, box_id, (SELECT owner_user_id FROM app.box_tb b WHERE b.box_id = zone_box_request_tb.box_id)`,
+        [zoneId, ids, requestedBy],
+      );
       await db.query(`UPDATE app.zone_tb SET updated_date = now() WHERE zone_id = $1`, [zoneId]);
+      return created;
     });
+    if (asked.length) {
+      const { rows } = await this.pool.query<{ agency_name: string; zone_name: string }>(
+        `SELECT a.name AS agency_name, z.name AS zone_name FROM app.zone_tb z JOIN app.agency_tb a ON a.agency_id = z.agency_id WHERE z.zone_id = $1`,
+        [zoneId],
+      );
+      for (const r of asked) {
+        await this.notifications
+          .notify([r.owner_user_id], {
+            type: 'zone_join_request',
+            data: { request_id: r.zone_box_request_id, box_id: r.box_id, agency_name: rows[0]?.agency_name ?? '', zone_name: rows[0]?.zone_name ?? '' },
+            link: '/home/settings',
+          })
+          .catch(() => undefined);
+      }
+    }
     return this.housesOf(zoneId);
   }
 
@@ -131,8 +168,10 @@ export class ZoneService {
    * บอกว่าบ้านนี้อยู่โซนไหนแล้วบ้าง (รวมหน่วยงานอื่น) ให้หัวหน้าเห็นว่ามีใครดูแลอยู่
    * ไม่ใส่คำค้น = บ้านที่ยังไม่มีหน่วยงานไหนดูแล (ไล่ดูแล้วเพิ่มได้เลย โดยไม่ต้องรู้บ้านเลขที่) · ตรงต้นคำขึ้นก่อน
    */
-  async searchHouses(agencyId: string, q?: string): Promise<HouseSearchDto[]> {
+  async searchHouses(agencyId: string, q?: string, opt: { unzoned?: boolean; online?: boolean } = {}): Promise<HouseSearchDto[]> {
     const term = q?.trim() ?? '';
+    // ไม่ใส่คำค้นและไม่ระบุตัวกรอง = บ้านที่ยังไม่มีใครดูแล (พฤติกรรมเดิม)
+    const unzoned = opt.unzoned ?? term === '';
     const { rows } = await this.pool.query<{
       box_id: string;
       house_no: string | null;
@@ -144,30 +183,47 @@ export class ZoneService {
       last_seen_date: Date | null;
       config_override: Record<string, unknown>;
       zones: HouseSearchDto['zones'];
+      locality: string;
+      pending_mine: boolean;
     }>(
       `SELECT b.box_id, b.house_no, b.name, b.area, b.owner_user_id, b.service_active, b.last_poll_date, b.last_seen_date, b.config_override,
               coalesce((SELECT json_agg(json_build_object('agency_name', a.name, 'zone_name', z.name, 'mine', a.agency_id = $3) ORDER BY a.name, z.name)
                 FROM app.zone_box_tb zb
                 JOIN app.zone_tb z ON z.zone_id = zb.zone_id AND z.deleted_date IS NULL
                 JOIN app.agency_tb a ON a.agency_id = z.agency_id AND a.status = 'approved'
-                WHERE zb.box_id = b.box_id), '[]') AS zones
+                WHERE zb.box_id = b.box_id), '[]') AS zones,
+              concat_ws(' ', b.subdistrict, b.district) AS locality,
+              EXISTS (SELECT 1 FROM app.zone_box_request_tb r JOIN app.zone_tb z ON z.zone_id = r.zone_id
+                      WHERE r.box_id = b.box_id AND r.status = 'pending' AND z.agency_id = $3) AS pending_mine
        FROM app.box_tb b
        WHERE b.owner_user_id IS NOT NULL
          AND (
            $4::boolean
-           OR (b.house_no ILIKE $1 OR b.box_id ILIKE $1 OR replace(b.box_id, '-', '') ILIKE $1 OR b.area ILIKE $1)
+           OR (b.house_no ILIKE $1 OR b.box_id ILIKE $1 OR replace(b.box_id, '-', '') ILIKE $1 OR b.area ILIKE $1
+               OR b.subdistrict ILIKE $1 OR b.district ILIKE $1 OR b.province ILIKE $1 OR b.address_line ILIKE $1)
          )
-         AND (NOT $4::boolean OR NOT EXISTS (
+         AND (NOT $6::boolean OR NOT EXISTS (
            SELECT 1 FROM app.zone_box_tb zb
            JOIN app.zone_tb z ON z.zone_id = zb.zone_id AND z.deleted_date IS NULL
            JOIN app.agency_tb a ON a.agency_id = z.agency_id AND a.status = 'approved'
            WHERE zb.box_id = b.box_id))
        ORDER BY (b.house_no ILIKE $5 OR b.box_id ILIKE $5) DESC, b.house_no NULLS LAST, b.box_id
        LIMIT $2`,
-      [likeContains(term), HOUSE_SEARCH_LIMIT, agencyId, term === '', likeContains(term).slice(1)],
+      [likeContains(term), HOUSE_SEARCH_LIMIT, agencyId, term === '', likeContains(term).slice(1), unzoned],
     );
     const status = await this.boxConfigs.statusOf(rows);
-    return rows.map((r) => ({ box_id: r.box_id, house_no: r.house_no, box_name: r.name, area: r.area, box_status: status.get(r.box_id)!, zones: r.zones }));
+    return rows
+      .map((r) => ({
+        box_id: r.box_id,
+        house_no: r.house_no,
+        box_name: r.name,
+        area: r.area,
+        locality: r.locality,
+        pending_mine: r.pending_mine,
+        box_status: status.get(r.box_id)!,
+        zones: r.zones,
+      }))
+      .filter((r) => !opt.online || r.box_status === 'online');
   }
 
   async create(agencyId: string, userId: string, name: string, windows: unknown): Promise<ZoneDto> {
@@ -234,6 +290,7 @@ export class ZoneService {
       await db.query(`UPDATE app.zone_tb SET deleted_date = now() WHERE zone_id = $1`, [zoneId]);
       await db.query(`DELETE FROM app.zone_officer_tb WHERE zone_id = $1`, [zoneId]);
       await db.query(`DELETE FROM app.zone_box_tb WHERE zone_id = $1`, [zoneId]);
+      await db.query(`UPDATE app.zone_box_request_tb SET status = 'cancelled', decided_date = now() WHERE zone_id = $1 AND status = 'pending'`, [zoneId]);
     });
   }
 
@@ -276,15 +333,19 @@ export class ZoneService {
       last_poll_date: Date | null;
       last_seen_date: Date | null;
       config_override: Record<string, unknown>;
+      pending: boolean;
     }>(
-      `SELECT b.box_id, b.house_no, b.name, b.area, b.owner_user_id, b.service_active, b.last_poll_date, b.last_seen_date, b.config_override
-       FROM app.zone_box_tb zb JOIN app.box_tb b ON b.box_id = zb.box_id
-       WHERE zb.zone_id = $1
-       ORDER BY b.house_no NULLS LAST, b.box_id`,
+      `SELECT b.box_id, b.house_no, b.name, b.area, b.owner_user_id, b.service_active, b.last_poll_date, b.last_seen_date, b.config_override,
+              m.pending
+       FROM (SELECT box_id, false AS pending FROM app.zone_box_tb WHERE zone_id = $1
+             UNION ALL
+             SELECT box_id, true FROM app.zone_box_request_tb WHERE zone_id = $1 AND status = 'pending') m
+       JOIN app.box_tb b ON b.box_id = m.box_id
+       ORDER BY m.pending, b.house_no NULLS LAST, b.box_id`,
       [zoneId],
     );
     const status = await this.boxConfigs.statusOf(rows);
-    return rows.map((r) => ({ box_id: r.box_id, house_no: r.house_no, box_name: r.name, area: r.area, box_status: status.get(r.box_id)! }));
+    return rows.map((r) => ({ box_id: r.box_id, house_no: r.house_no, box_name: r.name, area: r.area, box_status: status.get(r.box_id)!, pending: r.pending }));
   }
 
   private async officersOf(agencyId: string, zoneId: string): Promise<MemberDto[]> {

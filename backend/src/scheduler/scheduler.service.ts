@@ -1,3 +1,4 @@
+import { PHOTO_KEEP_DAYS } from '../inspection/inspection-photo.service.js';
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import pg from 'pg';
 import { PG_POOL } from '../db/db.module.js';
@@ -196,7 +197,9 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       `DELETE FROM app.session_tb WHERE expire_date < now() - $1::interval OR revoked_date < now() - $1::interval`,
       [SESSION_KEEP],
     );
-    return rowCount ?? 0;
+    // รูปยืนยันตัวเจ้าหน้าที่เก็บ 30 วัน
+    const photos = await this.pool.query(`DELETE FROM app.inspection_photo_tb WHERE created_date < now() - make_interval(days => $1)`, [PHOTO_KEEP_DAYS]);
+    return (rowCount ?? 0) + (photos.rowCount ?? 0);
   }
 
   private async adminIds(): Promise<string[]> {

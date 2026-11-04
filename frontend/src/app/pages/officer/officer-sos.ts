@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { apiError } from '../../core/api';
 import { I18n, type Tr } from '../../core/i18n';
 import { hhmm } from '../../core/inspection-api';
+import { MapPin } from '../../shared/map-pin';
 import { OfficerSosApi, secondsSince, type SosCard } from '../../core/owner-api';
 import { Session } from '../../core/session';
 import { screenUrl } from '../../screens/registry';
@@ -131,7 +132,7 @@ export class OfficerSosList {
 
 @Component({
   selector: 'app-officer-sos-case',
-  imports: [RouterLink, Icon],
+  imports: [RouterLink, Icon, MapPin],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = card();
@@ -199,10 +200,16 @@ export class OfficerSosList {
                 <a [href]="'tel:' + p">{{ p }}</a>
               }
             </dd>
+            @if (c.house?.address || c.house?.area) {
+              <dt>{{ i18n.t({ th: 'ที่อยู่', en: 'Address' }) }}</dt><dd>{{ c.house?.address }} {{ c.house?.area }}</dd>
+            }
             <dt>{{ i18n.t({ th: 'ขั้น', en: 'Stage' }) }}</dt><dd>{{ c.stage === 'zone' ? i18n.t({ th: 'เจ้าหน้าที่ในโซน', en: 'Zone officers' }) : i18n.t({ th: 'ทุกคนในหน่วยงาน', en: 'Whole agency' }) }}</dd>
             <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt><dd class="danger-text">{{ i18n.t({ th: 'ยังไม่มีคนรับ', en: 'Not accepted yet' }) }}</dd>
           </dl>
         </section>
+        @if (c.house?.location; as loc) {
+          <section class="card"><app-map-pin [value]="loc" [height]="180" /></section>
+        }
         @if (failed()) {
           <p class="card on-red danger-text" role="alert">{{ i18n.t({ th: 'รับเรื่องไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t accept — try again' }) }}</p>
         }
@@ -301,7 +308,7 @@ export class OfficerSosCase implements OnInit {
 
 @Component({
   selector: 'app-officer-sos-handling',
-  imports: [RouterLink, Icon],
+  imports: [RouterLink, Icon, MapPin],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = card();
@@ -318,9 +325,15 @@ export class OfficerSosCase implements OnInit {
         <section class="card">
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'เจ้าของบ้าน', en: 'Owner' }) }}</dt><dd>{{ c?.owner?.name }}</dd>
+            @if (c?.house?.address || c?.house?.area) {
+              <dt>{{ i18n.t({ th: 'ที่อยู่', en: 'Address' }) }}</dt><dd>{{ c?.house?.address }} {{ c?.house?.area }}</dd>
+            }
             <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt><dd class="ok">{{ i18n.t({ th: 'เจ้าของบ้านเห็นว่าคุณรับแล้ว', en: 'The owner sees you accepted' }) }}</dd>
           </dl>
         </section>
+        @if (c?.house?.location; as loc) {
+          <section class="card"><app-map-pin [value]="loc" [height]="200" /></section>
+        }
         @if (c?.owner?.phone; as p) {
           <a class="btn big" [href]="'tel:' + p">{{ i18n.t({ th: 'โทรหาเจ้าของบ้าน ', en: 'Call the owner ' }) }}{{ p }}</a>
         }

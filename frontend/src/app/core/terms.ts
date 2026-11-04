@@ -1,4 +1,4 @@
-// สร้างจาก docs/terms-2026-10-27.md ด้วย docs/scripts/gen-terms.mjs — ห้ามแก้ไฟล์นี้ตรง ๆ
+// สร้างจาก docs/terms-2026-11-04.md ด้วย docs/scripts/gen-terms.mjs — ห้ามแก้ไฟล์นี้ตรง ๆ
 // ของจริงหน้า A13 อ่านจาก GET /api/v1/terms/current (ฉบับเดียวกัน)
 
 export interface TermsPart {
@@ -7,7 +7,7 @@ export interface TermsPart {
   sections: { title: string; items: string[] }[];
 }
 
-export const TERMS_VERSION = '2026-10-27';
+export const TERMS_VERSION = '2026-11-04';
 
 export const TERMS: { th: TermsPart; en: TermsPart } = {
   "th": {
@@ -44,14 +44,18 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
         "items": [
           "ทุกการสแกนหรือพิมพ์รหัส แม้ไม่ผ่าน: ใคร · ตู้ไหน · QR ใบไหน · สแกนหรือพิมพ์ · ผล · เวลา",
           "การแจ้งส่งของ (ไม่เก็บว่าไรเดอร์เป็นใคร) · SOS · การยอมรับข้อตกลง · การที่แอดมินเปิดดูข้อมูลส่วนบุคคล",
-          "บันทึกเหล่านี้แก้ไขหรือลบไม่ได้ และเก็บไว้ 1 ปี"
+          "บันทึกเหล่านี้แก้ไขหรือลบไม่ได้ และเก็บไว้ 1 ปี",
+          "ข้อมูลบ้านที่เจ้าของบ้านกรอก: ที่อยู่ · หมุดตำแหน่งบ้าน (ถ้าปัก) · ผู้ติดต่อฉุกเฉิน (ถ้ากรอก)",
+          "รูปถ่ายใบหน้าเจ้าหน้าที่ที่ถ่ายในแอปหลังตรวจตู้ผ่าน เพื่อยืนยันว่ามาตรวจด้วยตัวเอง — เก็บ 30 วันแล้วลบ ไม่ใช้เทียบหรือจดจำใบหน้า",
+          "เครื่องที่ใช้เข้าสู่ระบบ (รหัสเครื่องแบบเข้ารหัส และชนิดเบราว์เซอร์) — เจ้าหน้าที่เข้าจากเครื่องใหม่ หัวหน้าจะได้รับแจ้ง"
         ]
       },
       {
         "title": "5. ใครเห็นข้อมูลอะไร",
         "items": [
-          "เจ้าหน้าที่และหัวหน้าเห็นบ้านเลขที่และชื่อตู้ ไม่เห็นชื่อหรือเบอร์ของเจ้าของบ้าน ยกเว้นระหว่างที่ SOS ของบ้านนั้นเปิดอยู่",
-          "เจ้าของบ้านเห็นชื่อและหน่วยงานของเจ้าหน้าที่ที่มาตรวจ และเห็นเบอร์ของคนที่รับ SOS ระหว่างที่ SOS เปิดอยู่",
+          "เจ้าหน้าที่และหัวหน้าเห็นบ้านเลขที่และชื่อตู้ ไม่เห็นชื่อหรือเบอร์ของเจ้าของบ้าน ยกเว้นระหว่างที่ SOS ของบ้านนั้นเปิดอยู่ ซึ่งจะเห็นชื่อ เบอร์ ที่อยู่ และหมุดตำแหน่งบ้านด้วย",
+          "หัวหน้าหน่วยงานขอเพิ่มบ้านเข้าโซนได้ แต่บ้านจะเข้าโซนเมื่อเจ้าของบ้านกดยอมรับเท่านั้น",
+          "เจ้าของบ้านเห็นชื่อ หน่วยงาน และรูปยืนยันตัวของเจ้าหน้าที่ที่มาตรวจบ้านตัวเอง (รูปเก็บ 30 วัน) และเห็นเบอร์ของคนที่รับ SOS ระหว่างที่ SOS เปิดอยู่",
           "ไรเดอร์เห็นแค่บ้านเลขที่ · ช่องทางติดต่อที่หน่วยงานกรอกตอนสมัคร แสดงให้คนที่ขอเข้าหน่วยงานเห็น",
           "แอดมินเห็นข้อมูลทั้งระบบเพื่อดูแลและแก้ปัญหา และทุกครั้งที่เปิดดูข้อมูลส่วนบุคคลจะถูกบันทึก"
         ]
@@ -59,7 +63,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
       {
         "title": "6. ตู้และ QR",
         "items": [
-          "ตู้อ่าน QR อย่างเดียว ไม่ถ่ายรูป ไม่อัดเสียง ไม่มีไซเรน",
+          "ตู้อ่าน QR อย่างเดียว ไม่ถ่ายรูป ไม่อัดเสียง ไม่มีไซเรน (รูปยืนยันตัวเจ้าหน้าที่ถ่ายจากมือถือของเจ้าหน้าที่ ไม่ใช่จากตู้)",
           "เจ้าหน้าที่ตรวจได้เฉพาะเวลาตรวจที่หน่วยงานตั้ง และต้องยืนยันด้วย QR ประจำตัวที่ตู้สแกน",
           "ตู้ต้องมี Wi-Fi บ้าน (2.4 GHz) และแผงโซลาร์ที่รับแดด · ถ้าตู้ไม่ออนไลน์ การตรวจจะบันทึกไม่ได้"
         ]
@@ -75,6 +79,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
         "title": "8. หน้าที่ของเจ้าหน้าที่และหัวหน้า",
         "items": [
           "เปิดการแจ้งเตือนไว้ตลอด เพื่อไม่พลาด SOS",
+          "ตรวจตู้ด้วยตัวเองเท่านั้น ห้ามให้คนอื่นใช้บัญชีหรือสแกนแทน · ถ่ายรูปยืนยันตัวหลังตรวจผ่าน",
           "สแกน QR หน้าตู้ผ่านแอปเท่านั้น และตรวจเฉพาะบ้านในโซนของตัวเอง",
           "ใช้ข้อมูลที่เห็นเพื่อหน้าที่นี้เท่านั้น · หัวหน้าดูแลสมาชิกและโซนของหน่วยงานตัวเอง"
         ]
@@ -123,14 +128,18 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
         "items": [
           "Every scan or typed code, even failures: who · which box · which QR · scanned or typed · result · time",
           "Delivery reports (riders are not identified) · SOS · terms acceptance · every time an admin views personal data",
-          "These records cannot be edited or deleted and are kept for 1 year"
+          "These records cannot be edited or deleted and are kept for 1 year",
+          "House details the homeowner enters: address · house pin (if set) · emergency contact (if given)",
+          "A face photo the officer takes in the app after an inspection passes, to show they came in person — kept 30 days then deleted, never used for face matching",
+          "Devices used to sign in (a hashed device code and browser type) — when an officer signs in on a new device, their head is notified"
         ]
       },
       {
         "title": "5. Who sees what",
         "items": [
-          "Officers and heads see house numbers and box names, not the homeowner's name or phone — except while that house's SOS is open",
-          "Homeowners see the name and agency of the officer who checked, and the phone of whoever accepted their SOS while it is open",
+          "Officers and heads see house numbers and box names, not the homeowner's name or phone — except while that house's SOS is open, when they also see the address and house pin",
+          "An agency head can ask to add a house to a zone, but it joins only after the homeowner accepts",
+          "Homeowners see the name, agency and confirmation photo of the officer who checked their own house (photos kept 30 days), and the phone of whoever accepted their SOS while it is open",
           "Riders see only the house number · the contact an agency enters at sign-up is shown to people asking to join it",
           "Admins see the whole system to keep it running, and every view of personal data is logged"
         ]
@@ -138,7 +147,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
       {
         "title": "6. Mailboxes and QR codes",
         "items": [
-          "The box only reads QR codes — no photos, no audio, no siren",
+          "The box only reads QR codes — no photos, no audio, no siren (the officer's confirmation photo is taken on the officer's phone, not by the box)",
           "Officers can inspect only during the patrol hours their agency sets, confirmed by their badge QR scanned at the box",
           "The box needs home Wi-Fi (2.4 GHz) and a sunny solar panel · if it is offline, an inspection cannot be recorded"
         ]
@@ -154,6 +163,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
         "title": "8. Officer and head duties",
         "items": [
           "Keep notifications on so you never miss an SOS",
+          "Inspect in person only — never let anyone else use your account or scan for you · take the confirmation photo after each passed inspection",
           "Scan box QR codes only through the app, and only for houses in your own zones",
           "Use what you see only for this work · heads manage only their own agency's members and zones"
         ]

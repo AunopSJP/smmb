@@ -60,6 +60,15 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
         <input maxlength="200" [placeholder]="i18n.t({ th: 'เช่น สถานี 02-111-2222', en: 'e.g. Station 02-111-2222' })" [value]="f().contact" (input)="set('contact', $any($event.target).value)" />
         <small>{{ i18n.t({ th: 'แสดงให้คนที่ขอเข้าหน่วยงานเห็น — ใส่เฉพาะที่ยินดีเปิดเผย', en: 'Shown to people asking to join — only what you are happy to share' }) }}</small>
       </label>
+      <label class="field" [class.invalid]="tried() && !f().agency_address.trim()">
+        <span>{{ i18n.t({ th: 'ที่ตั้งหน่วยงาน', en: 'Agency address' }) }}</span>
+        <input maxlength="300" autocomplete="street-address" [placeholder]="i18n.t({ th: 'เช่น สภ.เมือง ถ.ราชดำเนิน อ.เมือง จ.เชียงใหม่', en: 'e.g. Muang Police Station, Ratchadamnoen Rd, Chiang Mai' })" [value]="f().agency_address" (input)="set('agency_address', $any($event.target).value)" />
+      </label>
+      <label class="field">
+        <span>{{ i18n.t({ th: 'เลขทะเบียนหน่วยงาน / ใบอนุญาต (ไม่บังคับ)', en: 'Registration / licence no. (optional)' }) }}</span>
+        <input maxlength="100" autocomplete="off" [value]="f().registration_no" (input)="set('registration_no', $any($event.target).value)" />
+        <small>{{ i18n.t({ th: 'ผู้ดูแลระบบใช้ประกอบการอนุมัติ ไม่แสดงให้คนอื่นเห็น', en: 'Used by the admin when approving · not shown to others' }) }}</small>
+      </label>
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
       <app-terms-check from="L01" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="filled() && !f().terms" />
       @if (errorCode(); as e) {
@@ -126,7 +135,7 @@ export class HeadSignup {
     const f = this.f();
     const phone = normalizePhone(f.phone);
     if (!f.terms) return;
-    if (!f.agency_name.trim() || !f.name.trim() || !phone || f.password.length < this.min || !this.contactOk()) {
+    if (!f.agency_name.trim() || !f.name.trim() || !phone || f.password.length < this.min || !this.contactOk() || !f.agency_address.trim()) {
       this.errorCode.set('INVALID');
       return;
     }
@@ -135,7 +144,13 @@ export class HeadSignup {
       const terms = await firstValueFrom(this.http.get<{ version: string }>('/api/v1/terms/current'));
       await firstValueFrom(
         this.http.post('/api/v1/auth/signup/agency', {
-          agency: { name: f.agency_name.trim(), type: f.agency_type, contact: f.contact.trim() },
+          agency: {
+            name: f.agency_name.trim(),
+            type: f.agency_type,
+            contact: f.contact.trim(),
+            address: f.agency_address.trim(),
+            registration_no: f.registration_no.trim() || undefined,
+          },
           head: { name: f.name.trim(), phone, password: f.password },
           terms_version: terms.version,
         }),

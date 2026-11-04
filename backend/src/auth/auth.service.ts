@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import pg from 'pg';
 import { AppError } from '../common/http-exception.filter.js';
@@ -27,12 +28,46 @@ export const LOCK_WINDOW_SEC = 15 * 60;
 export interface ClientMeta {
   ip?: string;
   userAgent?: string;
+  /** รหัสเครื่องที่เว็บสุ่มเก็บไว้ (header X-Device-Id) — ใช้เทียบว่าเป็นเครื่องใหม่ไหม · ไม่บังคับ */
+  deviceId?: string;
 }
 
 export interface SessionResult {
   token: string;
   me: Me;
 }
+
+/** ชื่อเครื่องแบบคร่าว ๆ จาก User-Agent (ไว้แสดงในแจ้งเตือน) */
+export function deviceLabel(ua: string | null): string {
+  if (!ua) return 'unknown device';
+  const os = /iPhone|iPad/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac OS/.test(ua) ? 'Mac' : 'other';
+  const br = /EdgA?\//.test(ua) ? 'Edge' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /Firefox|FxiOS/.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'browser';
+  return `${os} · ${br}`;
+}
+
+/** ข้อมูลบ้านที่ละเอียดขึ้นจาก DTO (api.md §2.1) */
+export interface HouseProfile {
+  address_line?: string;
+  subdistrict?: string;
+  district?: string;
+  province?: string;
+  lat?: number;
+  lng?: number;
+  emergency_name?: string;
+  emergency_phone?: string;
+}
+
+/** ลำดับตรงกับคอลัมน์: address_line, subdistrict, district, province, house_lat, house_lng, emergency_name, emergency_phone */
+const profileParams = (p: HouseProfile) => [
+  p.address_line ?? null,
+  p.subdistrict ?? null,
+  p.district ?? null,
+  p.province ?? null,
+  p.lat ?? null,
+  p.lng ?? null,
+  p.emergency_name ?? null,
+  p.emergency_phone ?? null,
+];
 
 @Injectable()
 export class AuthService {
@@ -56,7 +91,7 @@ export class AuthService {
     const hash = await this.passwords.hash(dto.password);
     return withTx(this.pool, async (db) => {
       await this.terms.assertCurrent(db, dto.terms_version);
-      const userId = await this.insertUser(db, { name: dto.name, phone: dto.phone, houseNo: dto.house_no, area: dto.area, hash });
+      const userId = await this.insertUser(db, { name: dto.name, phone: dto.phone, houseNo: dto.house_no, area: dto.area, profile: dto, hash });
       await db.query(`INSERT INTO app.user_role_tb (user_id, role) VALUES ($1, 'owner')`, [userId]);
       await this.account.giveDefaultPlan(db, userId);
       await this.terms.accept(db, userId, dto.terms_version, meta);
@@ -71,7 +106,12 @@ export class AuthService {
       await this.terms.assertCurrent(db, dto.terms_version);
       const agencyId = await this.findAgencyByGroupCode(db, dto.group_code);
       const userId = await this.insertUser(db, { name: dto.name, phone: dto.phone, hash });
-      await db.query(`INSERT INTO app.agency_member_tb (agency_id, user_id) VALUES ($1, $2)`, [agencyId, userId]);
+      await db.query(`INSERT INTO app.agency_member_tb (agency_id, user_id, position, staff_no) VALUES ($1, $2, $3, $4)`, [
+        agencyId,
+        userId,
+        dto.position ?? null,
+        dto.staff_no ?? null,
+      ]);
       await this.terms.accept(db, userId, dto.terms_version, meta);
       return { result: await this.startSession(db, userId, meta), agencyId };
     });
@@ -86,8 +126,8 @@ export class AuthService {
       await this.terms.assertCurrent(db, dto.terms_version);
       const userId = await this.insertUser(db, { name: dto.head.name, phone: dto.head.phone, hash });
       const { rows } = await db.query<{ agency_id: string }>(
-        `INSERT INTO app.agency_tb (name, type, contact) VALUES ($1, $2, $3) RETURNING agency_id`,
-        [dto.agency.name, dto.agency.type, dto.agency.contact],
+        `INSERT INTO app.agency_tb (name, type, contact, address, registration_no) VALUES ($1, $2, $3, $4, $5) RETURNING agency_id`,
+        [dto.agency.name, dto.agency.type, dto.agency.contact, dto.agency.address ?? null, dto.agency.registration_no ?? null],
       );
       await db.query(`INSERT INTO app.agency_member_tb (agency_id, user_id, is_head) VALUES ($1, $2, true)`, [
         rows[0].agency_id,
@@ -120,8 +160,11 @@ export class AuthService {
         throw err;
       }
       await db.query(
-        `UPDATE app.user_tb SET house_no = $2, area = coalesce($3, area), perm_version = perm_version + 1 WHERE user_id = $1`,
-        [userId, dto.house_no, dto.area ?? null],
+        `UPDATE app.user_tb SET house_no = $2, area = coalesce($3, area),
+           address_line = $4, subdistrict = $5, district = $6, province = $7, house_lat = $8, house_lng = $9,
+           emergency_name = $10, emergency_phone = $11, perm_version = perm_version + 1
+         WHERE user_id = $1`,
+        [userId, dto.house_no, dto.area ?? null, ...profileParams(dto)],
       );
       await this.account.giveDefaultPlan(db, userId);
       await this.terms.accept(db, userId, dto.terms_version, meta);
@@ -147,7 +190,12 @@ export class AuthService {
       const agencyId = await this.findAgencyByGroupCode(db, dto.group_code);
       // เคยถูกปฏิเสธ → ขอใหม่ได้ (1 คน 1 หน่วยงาน — แทนแถวเดิม)
       if (member[0]) await db.query(`DELETE FROM app.agency_member_tb WHERE user_id = $1`, [userId]);
-      await db.query(`INSERT INTO app.agency_member_tb (agency_id, user_id) VALUES ($1, $2)`, [agencyId, userId]);
+      await db.query(`INSERT INTO app.agency_member_tb (agency_id, user_id, position, staff_no) VALUES ($1, $2, $3, $4)`, [
+        agencyId,
+        userId,
+        dto.position ?? null,
+        dto.staff_no ?? null,
+      ]);
       await db.query(`UPDATE app.user_tb SET perm_version = perm_version + 1 WHERE user_id = $1`, [userId]);
       await this.terms.accept(db, userId, dto.terms_version, meta);
       return { me: await this.me.build(userId, db, sessionId), agencyId };
@@ -193,7 +241,45 @@ export class AuthService {
       throw new AppError(HttpStatus.UNAUTHORIZED, 'ACCOUNT_DISABLED', 'account disabled');
     }
     await this.resetFails(user.user_id);
-    return this.startSession(this.pool, user.user_id, meta);
+    const result = await this.startSession(this.pool, user.user_id, meta);
+    await this.checkDevice(user.user_id, meta).catch(() => undefined);
+    return result;
+  }
+
+  /**
+   * ✅ 2026-11-04 กันการสแกนแทนกัน: เจ้าหน้าที่เข้าสู่ระบบจากเครื่องที่ไม่เคยเห็น → แจ้งหัวหน้าทุกคนของหน่วยงาน (และตัวเจ้าหน้าที่)
+   * เครื่องแรกของบัญชีไม่แจ้ง · ไม่ส่งรหัสเครื่อง = ข้าม · เก็บแค่ hash
+   */
+  private async checkDevice(userId: string, meta: ClientMeta): Promise<void> {
+    const id = meta.deviceId?.trim();
+    if (!id || !/^[A-Za-z0-9-]{16,64}$/.test(id)) return;
+    const hash = createHash('sha256').update(id).digest('hex');
+    const ua = meta.userAgent?.slice(0, 300) ?? null;
+    const { rows: known } = await this.pool.query<{ n: number; seen: boolean }>(
+      `SELECT count(*)::int AS n, bool_or(device_hash = $2) AS seen FROM app.user_device_tb WHERE user_id = $1`,
+      [userId, hash],
+    );
+    await this.pool.query(
+      `INSERT INTO app.user_device_tb (user_id, device_hash, user_agent) VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, device_hash) DO UPDATE SET last_seen_date = now(), user_agent = EXCLUDED.user_agent`,
+      [userId, hash, ua],
+    );
+    if (known[0].seen || known[0].n === 0) return;
+    const { rows: m } = await this.pool.query<{ agency_id: string; name: string }>(
+      `SELECT m.agency_id, u.display_name AS name FROM app.agency_member_tb m JOIN app.user_tb u ON u.user_id = m.user_id
+       WHERE m.user_id = $1 AND m.status = 'active'`,
+      [userId],
+    );
+    if (!m[0]) return;
+    const { rows: heads } = await this.pool.query<{ user_id: string }>(
+      `SELECT user_id FROM app.agency_member_tb WHERE agency_id = $1 AND is_head AND status = 'active'`,
+      [m[0].agency_id],
+    );
+    await this.notifications.notify([...heads.map((h) => h.user_id), userId], {
+      type: 'officer_new_device',
+      data: { officer_name: m[0].name, device: deviceLabel(ua) },
+      link: '/agency/members',
+    });
   }
 
   /** สำเร็จ = เตะทุก session รวมเครื่องนี้ (api.md §2) */
@@ -224,13 +310,14 @@ export class AuthService {
 
   private async insertUser(
     db: Db,
-    u: { name: string; phone: string; houseNo?: string; area?: string; hash: string },
+    u: { name: string; phone: string; houseNo?: string; area?: string; profile?: HouseProfile; hash: string },
   ): Promise<string> {
     try {
       const { rows } = await db.query<{ user_id: string }>(
-        `INSERT INTO app.user_tb (phone, name, display_name, house_no, area, password_hash)
-         VALUES ($1, $2, $2, $3, $5, $4) RETURNING user_id`,
-        [u.phone, u.name, u.houseNo ?? null, u.hash, u.area ?? null],
+        `INSERT INTO app.user_tb (phone, name, display_name, house_no, area, password_hash,
+           address_line, subdistrict, district, province, house_lat, house_lng, emergency_name, emergency_phone)
+         VALUES ($1, $2, $2, $3, $5, $4, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING user_id`,
+        [u.phone, u.name, u.houseNo ?? null, u.hash, u.area ?? null, ...profileParams(u.profile ?? {})],
       );
       return rows[0].user_id;
     } catch (err) {

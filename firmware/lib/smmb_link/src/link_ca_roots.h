@@ -1,7 +1,7 @@
 #pragma once
 // ใบรับรองราก (สาธารณะ) ที่ใช้ตรวจเซิร์ฟเวอร์ HTTPS: ISRG Root X1 + ISRG Root X2 (Let's Encrypt)
 // hub.sjp-dev.net: leaf → YE1 → Root YE → ISRG Root X2 (→ X1) · ตรวจแล้ว 2026-10-28 · ห้ามปักหมุดใบ leaf
-static const char CA_ROOTS[] = R"PEM(
+static const char LINK_CA_ROOTS[] = R"PEM(
 -----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
 TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh

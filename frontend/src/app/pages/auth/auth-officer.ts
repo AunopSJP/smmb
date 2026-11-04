@@ -37,6 +37,16 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
         <input type="tel" inputmode="tel" autocomplete="tel" [value]="f().phone" (input)="set('phone', $any($event.target).value)" />
       </label>
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
+      <div class="two-col">
+        <label class="field" [class.invalid]="tried() && !f().position.trim()">
+          <span>{{ i18n.t({ th: 'ตำแหน่ง / ยศ', en: 'Position / rank' }) }}</span>
+          <input maxlength="100" [placeholder]="i18n.t({ th: 'เช่น ผบ.หมู่ / หัวหน้าเวร', en: 'e.g. Sergeant / shift lead' })" [value]="f().position" (input)="set('position', $any($event.target).value)" />
+        </label>
+        <label class="field">
+          <span>{{ i18n.t({ th: 'เลขประจำตัว (ไม่บังคับ)', en: 'Staff no. (optional)' }) }}</span>
+          <input maxlength="50" autocomplete="off" [value]="f().staff_no" (input)="set('staff_no', $any($event.target).value)" />
+        </label>
+      </div>
       <label class="field" [class.invalid]="errorCode() === 'GROUP_CODE_INVALID'">
         <span>{{ i18n.t({ th: 'รหัสกลุ่มจากหัวหน้า', en: 'Group code from your head' }) }}</span>
         <input autocomplete="off" autocapitalize="characters" spellcheck="false" [placeholder]="i18n.t({ th: 'เช่น PX7K-2MQ9', en: 'e.g. PX7K-2MQ9' })" [value]="f().group_code" (input)="set('group_code', $any($event.target).value)" />
@@ -55,6 +65,11 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
     </form>
   `,
   styles: `
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
     .grow {
       flex: 1;
     }
@@ -94,7 +109,7 @@ export class AuthSignupOfficer {
     const f = this.f();
     const phone = normalizePhone(f.phone);
     if (!f.terms) return;
-    if (!f.name.trim() || !phone || f.password.length < this.min || !f.group_code.trim()) {
+    if (!f.name.trim() || !phone || f.password.length < this.min || !f.group_code.trim() || !f.position.trim()) {
       this.errorCode.set('INVALID');
       return;
     }
@@ -107,6 +122,8 @@ export class AuthSignupOfficer {
           phone,
           password: f.password,
           group_code: f.group_code.replace(/[\s-]/g, '').toUpperCase(),
+          position: f.position.trim(),
+          staff_no: f.staff_no.trim() || undefined,
           terms_version: terms.version,
         }),
       );

@@ -1,5 +1,6 @@
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsIn, IsOptional, IsString, Length, Matches, MaxLength, MinLength, ValidateNested } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsIn, IsNumber, Max, Min, ValidateIf, IsOptional, IsString, Length, Matches, MaxLength, MinLength, ValidateNested } from 'class-validator';
+import { MUTABLE_NOTIFICATION_TYPES } from '../push/messages.js';
 import { normalizePhone } from './phone.js';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
@@ -25,11 +26,23 @@ const emptyToUndefined = ({ value }: { value: unknown }) => {
   return v === '' ? undefined : v;
 };
 
+/**
+ * ข้อมูลบ้านที่ละเอียดขึ้น (✅ 2026-11-04) — ไม่บังคับที่ API (เว็บบังคับที่ฟอร์ม) · พิกัด/ผู้ติดต่อฉุกเฉินต้องมาเป็นคู่
+ * ใช้ซ้ำใน SignupOwnerDto / AddOwnerRoleDto (class-validator ไม่รองรับสืบทอดหลายชั้น จึงประกาศฟิลด์ซ้ำ)
+ */
 export class SignupOwnerDto extends PasswordField {
   @Transform(trim) @IsString() @Length(1, 100) name!: string;
   @Transform(phone) @IsString() @Matches(PHONE_RE, { message: PHONE_MSG }) phone!: string;
   @Transform(trim) @IsString() @Length(1, 50) house_no!: string;
   @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 100) area?: string;
+  @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 200) address_line?: string;
+  @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 100) subdistrict?: string;
+  @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 100) district?: string;
+  @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 100) province?: string;
+  @ValidateIf((o: { lat?: number; lng?: number }) => o.lat !== undefined || o.lng !== undefined) @IsNumber() @Min(-90) @Max(90) lat?: number;
+  @ValidateIf((o: { lat?: number; lng?: number }) => o.lat !== undefined || o.lng !== undefined) @IsNumber() @Min(-180) @Max(180) lng?: number;
+  @ValidateIf((o: { emergency_name?: string; emergency_phone?: string }) => o.emergency_name !== undefined || o.emergency_phone !== undefined) @Transform(trim) @IsString() @Length(1, 100) emergency_name?: string;
+  @ValidateIf((o: { emergency_name?: string; emergency_phone?: string }) => o.emergency_name !== undefined || o.emergency_phone !== undefined) @Transform(phone) @IsString() @Matches(PHONE_RE, { message: PHONE_MSG }) emergency_phone?: string;
   @IsString() @Length(1, 50) terms_version!: string;
 }
 
@@ -37,6 +50,9 @@ export class SignupOfficerDto extends PasswordField {
   @Transform(trim) @IsString() @Length(1, 100) name!: string;
   @Transform(phone) @IsString() @Matches(PHONE_RE, { message: PHONE_MSG }) phone!: string;
   @Transform(upper) @IsString() @Length(4, 32) group_code!: string;
+  /** ตำแหน่ง/ยศ และเลขประจำตัวในหน่วยงาน (✅ 2026-11-04) */
+  @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 100) position?: string;
+  @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 50) staff_no?: string;
   @IsString() @Length(1, 50) terms_version!: string;
 }
 
@@ -45,6 +61,9 @@ class AgencyInfo {
   @IsIn(['police', 'guard', 'other']) type!: 'police' | 'guard' | 'other';
   /** ช่องทางติดต่อที่ตั้งใจเปิดเผย — แสดงให้คนที่ขอเข้าหน่วยงาน (A11 / A11-b) */
   @Transform(trim) @IsString() @Length(3, 200) contact!: string;
+  @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 300) address?: string;
+  /** เลขทะเบียนหน่วยงาน / ใบอนุญาต (แอดมินใช้ประกอบการอนุมัติ) */
+  @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 100) registration_no?: string;
 }
 
 class HeadInfo extends PasswordField {
@@ -76,6 +95,10 @@ export class PrefsDto {
   @IsOptional() @IsIn(['normal', 'large', 'xlarge']) text_size?: 'normal' | 'large' | 'xlarge';
   @IsOptional() @IsBoolean() simple_home?: boolean;
   @IsOptional() @IsBoolean() night_auto_dark?: boolean;
+  /** โหมดใช้งานง่าย (ตัวใหญ่ ปุ่มใหญ่ หน้าหลักเรียบง่าย) — ทุกบทบาท */
+  @IsOptional() @IsBoolean() easy_mode?: boolean;
+  /** แจ้งเตือนที่ปิดรับ — รับเฉพาะ type ที่ปิดได้ (MUTABLE_NOTIFICATION_TYPES) · ส่งมาเป็นรายการเต็มทุกครั้ง */
+  @IsOptional() @IsArray() @ArrayUnique() @IsIn(MUTABLE_NOTIFICATION_TYPES, { each: true }) muted_types?: (typeof MUTABLE_NOTIFICATION_TYPES)[number][];
 }
 
 export class UpdateMeDto {
@@ -86,6 +109,14 @@ export class UpdateMeDto {
 export class AddOwnerRoleDto {
   @Transform(trim) @IsString() @Length(1, 50) house_no!: string;
   @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 100) area?: string;
+  @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 200) address_line?: string;
+  @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 100) subdistrict?: string;
+  @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 100) district?: string;
+  @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 100) province?: string;
+  @ValidateIf((o: { lat?: number; lng?: number }) => o.lat !== undefined || o.lng !== undefined) @IsNumber() @Min(-90) @Max(90) lat?: number;
+  @ValidateIf((o: { lat?: number; lng?: number }) => o.lat !== undefined || o.lng !== undefined) @IsNumber() @Min(-180) @Max(180) lng?: number;
+  @ValidateIf((o: { emergency_name?: string; emergency_phone?: string }) => o.emergency_name !== undefined || o.emergency_phone !== undefined) @Transform(trim) @IsString() @Length(1, 100) emergency_name?: string;
+  @ValidateIf((o: { emergency_name?: string; emergency_phone?: string }) => o.emergency_name !== undefined || o.emergency_phone !== undefined) @Transform(phone) @IsString() @Matches(PHONE_RE, { message: PHONE_MSG }) emergency_phone?: string;
   @IsString() @Length(1, 50) terms_version!: string;
 }
 
@@ -95,5 +126,7 @@ export class AcceptTermsDto {
 
 export class JoinAgencyDto {
   @Transform(upper) @IsString() @Length(4, 32) group_code!: string;
+  @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 100) position?: string;
+  @IsOptional() @Transform(emptyToUndefined) @IsString() @Length(1, 50) staff_no?: string;
   @IsString() @Length(1, 50) terms_version!: string;
 }

@@ -2,6 +2,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import pg from 'pg';
 import request from 'supertest';
+import { acceptPendingHouses } from './zone-consent.js';
 import { configureApp } from '../src/app-setup.js';
 import { AppModule } from '../src/app.module.js';
 import { PG_POOL } from '../src/db/db.module.js';
@@ -109,6 +110,7 @@ describe('Scheduler (e2e)', () => {
     const head = await readyHead();
     const zone = (await as(head).post('/api/v1/agency/zones', { name: `โซน ${seq++}`, windows: [['00:00', '23:59']] }).expect(201)).body;
     await as(head).put(`/api/v1/agency/zones/${zone.id}/houses`, { box_ids: [b.box_id] }).expect(200);
+    await acceptPendingHouses(pool);
     return { b, owner };
   };
   const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());

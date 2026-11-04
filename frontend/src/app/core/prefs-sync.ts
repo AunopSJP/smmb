@@ -4,8 +4,12 @@ import { firstValueFrom } from 'rxjs';
 import { DisplaySettings } from './display-settings';
 import { Session, type Me, type ServerPrefs } from './session';
 
+const sameList = (a: string[], b: string[] | undefined) => !!b && a.length === b.length && a.every((x) => b.includes(x));
+
 const same = (a: ServerPrefs, b: Partial<ServerPrefs> | undefined) =>
-  !!b && a.theme === b.theme && a.lang === b.lang && a.text_size === b.text_size && a.simple_home === b.simple_home && a.night_auto_dark === b.night_auto_dark;
+  !!b && a.theme === b.theme && a.lang === b.lang && a.text_size === b.text_size && a.simple_home === b.simple_home && a.night_auto_dark === b.night_auto_dark &&
+  a.easy_mode === b.easy_mode &&
+  sameList(a.muted_types, b.muted_types);
 
 /**
  * ภาษา/ธีม/ขนาดตัวอักษรเก็บกับบัญชี (PATCH /me) — server ใช้ `prefs.lang` แปลข้อความแจ้งเตือน

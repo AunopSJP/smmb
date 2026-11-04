@@ -28,6 +28,9 @@ export interface Member {
   phone: string;
   status: MemberStatus;
   is_head: boolean;
+  /** ตำแหน่ง/ยศ · เลขประจำตัว ('' = ไม่ได้กรอก) */
+  position: string;
+  staff_no: string;
   zones: { id: string; name: string }[];
   joined_at: string;
   last_inspection_at: string | null;
@@ -51,6 +54,8 @@ export interface ZoneHouse {
   box_name: string | null;
   area: string | null;
   box_status: BoxStatus;
+  /** รอเจ้าของบ้านกดยอมรับ (ยังไม่อยู่ในโซน · ✅ 2026-11-04) */
+  pending: boolean;
 }
 
 export interface ZoneDetail extends Zone {
@@ -64,6 +69,10 @@ export interface HouseHit {
   box_name: string | null;
   /** หมู่บ้าน/ย่านที่เจ้าของระบุ */
   area: string | null;
+  /** แขวง/ตำบล เขต/อำเภอ ('' = ไม่ได้กรอก) */
+  locality: string;
+  /** หน่วยงานเรามีคำขอรอเจ้าของบ้านอยู่ */
+  pending_mine: boolean;
   box_status: BoxStatus;
   /** โซนที่บ้านนี้อยู่แล้ว · mine = ของหน่วยงานเรา */
   zones: { agency_name: string; zone_name: string; mine: boolean }[];
@@ -147,7 +156,13 @@ export class HeadApi {
     return firstValueFrom(this.http.delete(`/api/v1/agency/zones/${encodeURIComponent(id)}`));
   }
   /** ไม่ใส่คำค้น = บ้านที่ยังไม่มีหน่วยงานไหนดูแล */
-  searchHouses(q = ''): Promise<HouseHit[]> {
-    return this.get<HouseHit[]>(`/api/v1/agency/houses/search${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+  /** unzoned: เฉพาะบ้านที่ยังไม่มีใครดูแล · online: เฉพาะตู้ออนไลน์ (api.md §8.3) */
+  searchHouses(q = '', opt: { unzoned?: boolean; online?: boolean } = {}): Promise<HouseHit[]> {
+    const p = new URLSearchParams();
+    if (q) p.set('q', q);
+    if (opt.unzoned !== undefined) p.set('unzoned', opt.unzoned ? '1' : '0');
+    if (opt.online) p.set('online', '1');
+    const qs = p.toString();
+    return this.get<HouseHit[]>(`/api/v1/agency/houses/search${qs ? `?${qs}` : ''}`);
   }
 }

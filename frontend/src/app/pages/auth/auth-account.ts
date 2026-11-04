@@ -12,6 +12,7 @@ import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { PasswordField, TermsCheck } from './auth-parts';
+import { emptyHouseProfile, HouseFields, houseProfilePayload, houseProfileValid } from '../../shared/house-fields';
 
 // บัญชีที่มีอยู่แล้ว: A14 เปลี่ยนรหัสผ่าน · A15 เพิ่มบทบาทเจ้าของบ้าน · A16 ขอเข้าหน่วยงาน · ส่วน "บัญชี" + สลับบทบาท
 // ไม่มีใน wireframe — เพิ่มตาม api.md §2; actions ใช้ API จริง ส่วน state ของร่างฟอร์มเก็บในเครื่อง
@@ -250,7 +251,7 @@ export class AuthChangePassword {
 
 @Component({
   selector: 'app-auth-add-owner',
-  imports: [PageHeader, TermsCheck],
+  imports: [PageHeader, TermsCheck, HouseFields],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'บัญชีเดิม · ', en: 'Your account · ' }) + phone()" [title]="i18n.t({ th: 'เพิ่มบทบาทเจ้าของบ้าน', en: 'Add homeowner role' })" [back]="backUrl()" />
@@ -265,6 +266,7 @@ export class AuthChangePassword {
         <input maxlength="100" autocomplete="address-level3" [placeholder]="i18n.t({ th: 'เช่น หมู่บ้านสุขใจ', en: 'e.g. Sukjai Village' })" [value]="f().area" (input)="set('area', $any($event.target).value)" />
         <small>{{ i18n.t({ th: 'ช่วยให้เจ้าหน้าที่แยกบ้านเลขที่ซ้ำกันคนละหมู่บ้าน', en: 'Helps officers tell apart the same house number in different villages' }) }}</small>
       </label>
+      <app-house-fields [(value)]="house" [tried]="tried()" />
       <app-terms-check from="A15" [returnTo]="from()" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="!!f().house_no.trim() && !f().terms" />
       @if (errorCode(); as e) {
         <p class="danger-text small" role="alert">{{ i18n.t(errors[e]) }}</p>
@@ -291,6 +293,8 @@ export class AuthAddOwner {
   protected readonly f = this.demo.forms.addOwner;
   protected readonly errorCode = signal<string | null>(null);
   protected readonly busy = signal(false);
+  protected readonly house = signal(emptyHouseProfile());
+  protected readonly tried = signal(false);
 
   protected set<K extends keyof SignupForm>(key: K, value: SignupForm[K]): void {
     this.f.update((f) => ({ ...f, [key]: value }));
@@ -299,11 +303,16 @@ export class AuthAddOwner {
 
   /** ของจริง: POST /me/roles/owner { house_no, terms_version } → 201 Me (มี owner แล้ว) → A07 */
   protected async submit(): Promise<void> {
+    this.tried.set(true);
     if (!this.f().terms || !this.f().house_no.trim() || this.busy()) return;
+    if (!houseProfileValid(this.house())) {
+      this.errorCode.set('INVALID');
+      return;
+    }
     this.busy.set(true);
     try {
       const terms = await firstValueFrom(this.http.get<{ version: string }>('/api/v1/terms/current'));
-      await firstValueFrom(this.http.post('/api/v1/me/roles/owner', { house_no: this.f().house_no.trim(), area: this.f().area.trim() || undefined, terms_version: terms.version }));
+      await firstValueFrom(this.http.post('/api/v1/me/roles/owner', { house_no: this.f().house_no.trim(), area: this.f().area.trim() || undefined, ...houseProfilePayload(this.house()), terms_version: terms.version }));
       await this.realSession.refresh();
       this.realSession.use('owner');
       void this.router.navigate([screenUrl('A07')], { queryParams: { from: this.from() ?? 'O13' }, replaceUrl: true });
@@ -326,6 +335,16 @@ export class AuthAddOwner {
     <app-page-header [caption]="i18n.t({ th: 'บัญชีเดิม · ', en: 'Your account · ' }) + phone()" [title]="i18n.t({ th: 'ขอเข้าหน่วยงาน', en: 'Join an agency' })" [back]="backUrl()" />
     <form class="stack grow" (submit)="$event.preventDefault(); submit()">
       <p class="info-box muted small">{{ i18n.t({ th: 'ใช้บัญชีนี้ต่อ · หัวหน้าต้องยืนยันก่อนจึงจะใช้หน้าเจ้าหน้าที่ได้ · ระหว่างรอใช้งานแบบเดิมได้ตามปกติ', en: 'Keep this account · your head must approve before you get officer screens · meanwhile everything else works as before' }) }}</p>
+      <div class="two-col">
+        <label class="field" [class.invalid]="joinTried() && !f().position.trim()">
+          <span>{{ i18n.t({ th: 'ตำแหน่ง / ยศ', en: 'Position / rank' }) }}</span>
+          <input maxlength="100" [placeholder]="i18n.t({ th: 'เช่น ผบ.หมู่ / หัวหน้าเวร', en: 'e.g. Sergeant / shift lead' })" [value]="f().position" (input)="set('position', $any($event.target).value)" />
+        </label>
+        <label class="field">
+          <span>{{ i18n.t({ th: 'เลขประจำตัว (ไม่บังคับ)', en: 'Staff no. (optional)' }) }}</span>
+          <input maxlength="50" autocomplete="off" [value]="f().staff_no" (input)="set('staff_no', $any($event.target).value)" />
+        </label>
+      </div>
       <label class="field" [class.invalid]="errorCode() === 'GROUP_CODE_INVALID'">
         <span>{{ i18n.t({ th: 'รหัสกลุ่มจากหัวหน้า', en: 'Group code from your head' }) }}</span>
         <input autocomplete="off" autocapitalize="characters" spellcheck="false" [placeholder]="i18n.t({ th: 'เช่น PX7K-2MQ9', en: 'e.g. PX7K-2MQ9' })" [value]="f().group_code" (input)="set('group_code', $any($event.target).value)" />
@@ -338,6 +357,11 @@ export class AuthAddOwner {
     </form>
   `,
   styles: `
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
     .grow {
       flex: 1;
     }
@@ -357,6 +381,8 @@ export class AuthJoinAgency {
   protected readonly errorCode = signal<string | null>(null);
   protected readonly busy = signal(false);
 
+  protected readonly joinTried = signal(false);
+
   protected set<K extends keyof SignupForm>(key: K, value: SignupForm[K]): void {
     this.f.update((f) => ({ ...f, [key]: value }));
     this.errorCode.set(null);
@@ -365,11 +391,16 @@ export class AuthJoinAgency {
   /** ของจริง: POST /me/agency/join { group_code, terms_version } → สถานะ pending (A11) */
   protected async submit(): Promise<void> {
     const groupCode = this.f().group_code.replace(/[\s-]/g, '').toUpperCase();
+    this.joinTried.set(true);
     if (!this.f().terms || !groupCode || this.busy()) return;
+    if (!this.f().position.trim()) {
+      this.errorCode.set('INVALID');
+      return;
+    }
     this.busy.set(true);
     try {
       const terms = await firstValueFrom(this.http.get<{ version: string }>('/api/v1/terms/current'));
-      await firstValueFrom(this.http.post('/api/v1/me/agency/join', { group_code: groupCode, terms_version: terms.version }));
+      await firstValueFrom(this.http.post('/api/v1/me/agency/join', { group_code: groupCode, position: this.f().position.trim(), staff_no: this.f().staff_no.trim() || undefined, terms_version: terms.version }));
       await this.realSession.refresh();
       void this.router.navigateByUrl(screenUrl('A11'), { replaceUrl: true });
     } catch (err) {

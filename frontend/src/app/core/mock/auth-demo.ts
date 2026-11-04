@@ -66,12 +66,18 @@ export interface SignupForm {
   agency_type: 'police' | 'guard' | 'other';
   /** ช่องทางติดต่อหน่วยงาน (สมัครหน่วยงาน) — แสดงให้คนที่ขอเข้า */
   contact: string;
+  /** เจ้าหน้าที่: ตำแหน่ง/ยศ · เลขประจำตัว (✅ 2026-11-04) */
+  position: string;
+  staff_no: string;
+  /** หน่วยงาน: ที่อยู่ · เลขทะเบียน/ใบอนุญาต (✅ 2026-11-04) */
+  agency_address: string;
+  registration_no: string;
   terms: boolean;
 }
 
 export type FormKey = 'owner' | 'officer' | 'agency' | 'addOwner' | 'join';
 
-const emptyForm = (): SignupForm => ({ name: '', phone: '', password: '', house_no: '', area: '', group_code: '', agency_name: '', agency_type: 'police', contact: '', terms: false });
+const emptyForm = (): SignupForm => ({ name: '', phone: '', password: '', house_no: '', area: '', group_code: '', agency_name: '', agency_type: 'police', contact: '', position: '', staff_no: '', agency_address: '', registration_no: '', terms: false });
 
 export type SigninResult =
   | { ok: true; phone: string; roles: DemoAccountRole[]; name: Tr; must_change_password: boolean; pending: DemoAccount['pending'] | null }

@@ -17,6 +17,9 @@ export interface MemberDto {
   phone: string;
   status: MemberStatus;
   is_head: boolean;
+  /** ตำแหน่ง/ยศ · เลขประจำตัว (✅ 2026-11-04 · '' = ไม่ได้กรอก) */
+  position: string;
+  staff_no: string;
   zones: { id: string; name: string }[];
   joined_at: string;
   last_inspection_at: string | null;
@@ -127,10 +130,12 @@ export class AgencyService {
       phone: string;
       status: MemberStatus;
       is_head: boolean;
+      position: string | null;
+      staff_no: string | null;
       created_date: Date;
       zones: { id: string; name: string }[];
     }>(
-      `SELECT u.user_id, u.name, u.display_name, u.phone, m.status, m.is_head, m.created_date,
+      `SELECT u.user_id, u.name, u.display_name, u.phone, m.status, m.is_head, m.position, m.staff_no, m.created_date,
               COALESCE((
                 SELECT json_agg(json_build_object('id', z.zone_id, 'name', z.name) ORDER BY z.name)
                 FROM app.zone_officer_tb zo JOIN app.zone_tb z ON z.zone_id = zo.zone_id
@@ -149,6 +154,8 @@ export class AgencyService {
       phone: r.phone,
       status: r.status,
       is_head: r.is_head,
+      position: r.position ?? '',
+      staff_no: r.staff_no ?? '',
       zones: r.zones,
       joined_at: r.created_date.toISOString(),
       last_inspection_at: null, // มีเมื่อทำการตรวจตู้ (เฟส 3)

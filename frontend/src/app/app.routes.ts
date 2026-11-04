@@ -1,5 +1,5 @@
 import type { CanActivateFn, Route, Routes } from '@angular/router';
-import { guestOnly, homeRedirect, requireRole, requireSignedIn } from './core/session';
+import { guestOnly, homeRedirect, requireRole, requireSignedIn, roleEntry } from './core/session';
 import { AreaShell } from './layout/area-shell';
 import { AREA_PREFIX, SCREENS, type Area } from './screens/registry';
 
@@ -184,6 +184,7 @@ export const routes: Routes = [
   },
   ...(['owner', 'officer', 'head', 'admin', 'rider', 'auth'] as const).map(areaRoute),
   // ลิงก์ใน QR หน้าตู้ (PUBLIC_BASE_URL/b/<token>) — กล้องมือถือเปิดแล้วไปหน้าส่งของของไรเดอร์ (api.md §5)
+  { path: 'in/:role', canActivate: [roleEntry], children: [] },
   { path: 'b/:token', redirectTo: ({ params }) => `/r/deliver?qr=${encodeURIComponent(params['token'])}` },
   // ลิงก์ใน QR เปิดใช้ตู้ (PUBLIC_BASE_URL/a/<16 ตัว>) → หน้าผูกตู้ A07 (api.md §4.1)
   { path: 'a/:token', redirectTo: ({ params }) => `/auth/activate?qr=${encodeURIComponent(params['token'])}` },

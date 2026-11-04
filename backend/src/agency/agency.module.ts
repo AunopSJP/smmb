@@ -5,12 +5,13 @@ import { PushModule } from '../push/push.module.js';
 import { AgencyController } from './agency.controller.js';
 import { AgencyService } from './agency.service.js';
 import { AgencyTodayService } from './agency-today.service.js';
-import { HouseController, ZoneController } from './zone.controller.js';
+import { ZoneRequestService } from './zone-request.service.js';
+import { HouseController, OwnerZoneRequestController, ZoneController } from './zone.controller.js';
 import { ZoneService } from './zone.service.js';
 
 @Module({
   imports: [AuthModule, PushModule, BoxModule],
-  controllers: [AgencyController, ZoneController, HouseController],
-  providers: [AgencyService, ZoneService, AgencyTodayService],
+  controllers: [AgencyController, ZoneController, HouseController, OwnerZoneRequestController],
+  providers: [AgencyService, ZoneService, AgencyTodayService, ZoneRequestService],
 })
 export class AgencyModule {}

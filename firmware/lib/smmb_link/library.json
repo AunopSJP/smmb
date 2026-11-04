@@ -1,0 +1,7 @@
+{
+  "name": "smmb_link",
+  "version": "1.0.0",
+  "description": "SMMB box <-> server link: HMAC-signed HTTPS, boot/report/events, long-poll jobs, commands, OTA",
+  "frameworks": "arduino",
+  "platforms": "espressif32"
+}
