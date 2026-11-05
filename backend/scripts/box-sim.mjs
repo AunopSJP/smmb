@@ -29,10 +29,14 @@ const BASE = String(opt('url', process.env.SMMB_URL ?? 'http://localhost:3000'))
 const BOX = String(opt('box', process.env.SMMB_BOX ?? ''));
 const SECRET = String(opt('secret', process.env.SMMB_SECRET ?? ''));
 
-if (!['boot', 'report', 'poll', 'live', 'event', 'ready', 'result'].includes(cmd) || !/^BX-\d+$/.test(BOX) || !/^[0-9a-f]{64}$/i.test(SECRET)) {
-  console.error('usage: box-sim.mjs <live|boot|report|poll|event|ready|result> --url <server> --box BX-00001 --secret <device_secret 64 hex>');
+if (!['boot', 'report', 'poll', 'live', 'event', 'ready', 'result', 'photo'].includes(cmd) || !/^BX-\d+$/.test(BOX) || !/^[0-9a-f]{64}$/i.test(SECRET)) {
+  console.error('usage: box-sim.mjs <live|boot|report|poll|event|ready|result|photo> --url <server> --box BX-00001 --secret <device_secret 64 hex>');
   process.exit(2);
 }
+
+/** JPEG 1×1 สีเทา (ตู้จำลองไม่มีกล้อง) */
+const SIM_JPEG_B64 =
+  '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
 
 let clockOffset = 0; // ตู้จริงตั้งนาฬิกาจาก server_time ทุกครั้ง
 const nowS = () => Math.floor(Date.now() / 1000) + clockOffset;
@@ -95,6 +99,8 @@ if (cmd === 'boot') {
   await call('POST', `/v1/box/jobs/${opt('job')}/result`, {
     attempt: Number(opt('attempt', 1)), read_ok: typeof text === 'string', qr_text: typeof text === 'string' ? text : null, read_ms: 1500, flash: false,
   });
+} else if (cmd === 'photo') {
+  await call('POST', `/v1/box/jobs/${opt('job')}/photo`, { jpeg_b64: SIM_JPEG_B64 });
 } else if (cmd === 'poll') {
   const wait = Number(opt('wait', 50));
   const fail = opt('fail', false) === true;
@@ -183,6 +189,12 @@ if (cmd === 'live') {
       }
       const v = r.json?.status;
       console.log(v === 'pass' ? '🔔🔔 ผ่าน (ปี๊บสั้น 2)' : v === 'retry' ? '🔔— ลองใหม่ (ปี๊บยาว 1)' : '🔔—🔔—🔔— ไม่ผ่าน (ปี๊บยาว 3)');
+      if (v === 'pass' && job.type === 'inspect') {
+        // Snapface: ตู้จริงถ่ายจากกล้องเวลาสุ่ม 1.5–4 วิหลังผ่าน · ตู้จำลองส่งรูป 1×1 พิกเซล
+        await sleep(1500 + Math.random() * 2500);
+        const p = await call('POST', `/v1/box/jobs/${job.job_id}/photo`, { jpeg_b64: SIM_JPEG_B64 });
+        console.log(`  📷 ส่งรูปเจ้าหน้าที่ → ${p.status}`);
+      }
       if (v !== 'retry') break;
     }
   }

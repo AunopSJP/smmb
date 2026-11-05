@@ -128,6 +128,7 @@ static void linkSetup()
   h.scanQr = hookScanQr;
   h.cameraAutoFlash = cameraAutoFlash;
   h.setPreviewSink = cameraSetPreviewSink;
+  h.snapshotJpeg = cameraSnapshotJpeg; // Snapface หลังตรวจผ่าน
   h.beep = beepByName;
   h.saveConfig = settingsSaveConfig;
   h.wifiReset = hookWifiReset;

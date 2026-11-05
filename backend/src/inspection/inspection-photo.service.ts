@@ -1,13 +1,14 @@
-import { HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import pg from 'pg';
-import { AppError } from '../common/http-exception.filter.js';
 import { PG_POOL } from '../db/db.module.js';
 
-/** ถ่ายได้ภายในกี่นาทีหลังตรวจผ่าน */
-export const PHOTO_WINDOW_MIN = 15;
 /** เก็บรูปกี่วัน (ผู้ใช้กำหนด 2026-11-04 "เก็บประมาณ 1 เดือน") */
 export const PHOTO_KEEP_DAYS = 30;
 export const PHOTO_MAX_BYTES = 400_000;
+/** ตู้ต้องส่งรูปภายในกี่วินาทีหลังตรวจผ่าน (ตู้ถ่ายทันทีหลังผ่าน 1.5–4 วิ) */
+export const BOX_PHOTO_WINDOW_S = 120;
+/** JSON ของตู้จำกัด 120 KB (app-setup) → JPEG ใน base64 ได้ราว 85 KB */
+export const BOX_PHOTO_MAX_BYTES = 85_000;
 
 export type PhotoMime = 'image/jpeg' | 'image/webp';
 
@@ -19,8 +20,9 @@ export function sniffMime(buf: Buffer): PhotoMime | null {
 }
 
 /**
- * Snapface (✅ ผู้ใช้สั่ง 2026-11-04) — เจ้าหน้าที่ถ่ายรูปตัวเองหลังสแกน QR ประจำตัวผ่าน
- * - ถ่ายได้ครั้งเดียวต่อการตรวจ ภายใน 15 นาทีหลังผ่าน · เฉพาะคนที่ตรวจ
+ * Snapface (✅ ผู้ใช้สั่ง 2026-11-04 · เปลี่ยน 2026-11-05 "ทำงานหลังตู้สแกน QR ประจำตัวเสร็จ เจ้าหน้าที่ต้องไม่รู้ว่าถ่ายตอนไหน")
+ * - **กล้องของตู้ถ่าย** หลังตรวจผ่าน (หน่วงเวลาสุ่ม) แล้วส่ง `POST /v1/box/jobs/:job_id/photo` — แอปเจ้าหน้าที่ไม่มีปุ่ม/ไม่บอกว่ามีรูป
+ * - 1 รูปต่อการตรวจ · รับภายใน 2 นาทีหลังผ่าน · เฉพาะตู้ของงานนั้น
  * - ดูได้: เจ้าของตู้ (การตรวจบ้านตัวเอง หลังผูกตู้) และแอดมิน — ทุกครั้งที่เปิดดูบันทึก data_access_log_tb
  * - เก็บ 30 วัน แล้วงานเบื้องหลังลบ (SchedulerService.cleanup)
  * - ไม่เทียบใบหน้า (เป็นหลักฐานป้องปรามการสแกนแทนกัน)
@@ -29,26 +31,19 @@ export function sniffMime(buf: Buffer): PhotoMime | null {
 export class InspectionPhotoService {
   constructor(@Inject(PG_POOL) private readonly pool: pg.Pool) {}
 
-  async save(userId: string, inspectionId: string, buf: unknown): Promise<{ inspection_id: string; saved: true }> {
-    if (!Buffer.isBuffer(buf) || !buf.length) throw new AppError(HttpStatus.BAD_REQUEST, 'PHOTO_INVALID', 'send the photo as image/jpeg or image/webp bytes');
-    if (buf.length > PHOTO_MAX_BYTES) throw new AppError(HttpStatus.PAYLOAD_TOO_LARGE, 'PHOTO_TOO_LARGE', 'photo is too large');
-    const mime = sniffMime(buf);
-    if (!mime) throw new AppError(HttpStatus.BAD_REQUEST, 'PHOTO_INVALID', 'only JPEG or WebP');
-    const { rows } = await this.pool.query<{ status: string; late: boolean }>(
-      `SELECT status, coalesce(checked_date < now() - make_interval(mins => $3), true) AS late
-       FROM app.inspection_tb WHERE inspection_id = $1::uuid AND officer_user_id = $2`,
-      [inspectionId, userId, PHOTO_WINDOW_MIN],
-    );
-    const ins = rows[0];
-    if (!ins) throw new NotFoundException();
-    if (ins.status !== 'passed') throw new AppError(HttpStatus.CONFLICT, 'INSPECTION_NOT_PASSED', 'photo only after the inspection passed');
-    if (ins.late) throw new AppError(HttpStatus.GONE, 'PHOTO_WINDOW_CLOSED', `photo must be taken within ${PHOTO_WINDOW_MIN} minutes`);
+  /** ตู้ส่งรูปของงานตรวจที่เพิ่งผ่าน · ไม่ใช่งานของตู้นี้/ยังไม่ผ่าน/ช้าเกิน/ส่งซ้ำ → false (ตู้ไม่ต้องลองใหม่) */
+  async saveFromBox(boxId: string, jobId: string, buf: Buffer): Promise<boolean> {
+    if (!buf.length || buf.length > BOX_PHOTO_MAX_BYTES || sniffMime(buf) !== 'image/jpeg') return false;
     const { rowCount } = await this.pool.query(
-      `INSERT INTO app.inspection_photo_tb (inspection_id, user_id, mime, photo) VALUES ($1::uuid, $2, $3, $4) ON CONFLICT DO NOTHING`,
-      [inspectionId, userId, mime, buf],
+      `INSERT INTO app.inspection_photo_tb (inspection_id, user_id, mime, photo)
+       SELECT i.inspection_id, i.officer_user_id, 'image/jpeg', $3
+       FROM app.inspection_tb i
+       WHERE i.box_job_id = $1 AND i.box_id = $2 AND i.status = 'passed'
+         AND i.checked_date > now() - make_interval(secs => $4)
+       ON CONFLICT DO NOTHING`,
+      [jobId, boxId, buf, BOX_PHOTO_WINDOW_S],
     );
-    if (!rowCount) throw new AppError(HttpStatus.CONFLICT, 'PHOTO_EXISTS', 'a photo was already saved for this inspection');
-    return { inspection_id: inspectionId, saved: true };
+    return !!rowCount;
   }
 
   /** เจ้าของตู้: เฉพาะการตรวจตู้ของตัวเองหลังวันที่ผูก · อื่น ๆ → 404 */

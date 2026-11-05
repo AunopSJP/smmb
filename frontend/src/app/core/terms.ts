@@ -1,4 +1,4 @@
-// สร้างจาก docs/terms-2026-11-04.md ด้วย docs/scripts/gen-terms.mjs — ห้ามแก้ไฟล์นี้ตรง ๆ
+// สร้างจาก docs/terms-2026-11-05.md ด้วย docs/scripts/gen-terms.mjs — ห้ามแก้ไฟล์นี้ตรง ๆ
 // ของจริงหน้า A13 อ่านจาก GET /api/v1/terms/current (ฉบับเดียวกัน)
 
 export interface TermsPart {
@@ -7,7 +7,7 @@ export interface TermsPart {
   sections: { title: string; items: string[] }[];
 }
 
-export const TERMS_VERSION = '2026-11-04';
+export const TERMS_VERSION = '2026-11-05';
 
 export const TERMS: { th: TermsPart; en: TermsPart } = {
   "th": {
@@ -46,7 +46,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
           "การแจ้งส่งของ (ไม่เก็บว่าไรเดอร์เป็นใคร) · SOS · การยอมรับข้อตกลง · การที่แอดมินเปิดดูข้อมูลส่วนบุคคล",
           "บันทึกเหล่านี้แก้ไขหรือลบไม่ได้ และเก็บไว้ 1 ปี",
           "ข้อมูลบ้านที่เจ้าของบ้านกรอก: ที่อยู่ · หมุดตำแหน่งบ้าน (ถ้าปัก) · ผู้ติดต่อฉุกเฉิน (ถ้ากรอก)",
-          "รูปถ่ายใบหน้าเจ้าหน้าที่ที่ถ่ายในแอปหลังตรวจตู้ผ่าน เพื่อยืนยันว่ามาตรวจด้วยตัวเอง — เก็บ 30 วันแล้วลบ ไม่ใช้เทียบหรือจดจำใบหน้า",
+          "รูปถ่ายเจ้าหน้าที่จากกล้องของตู้ ถ่ายอัตโนมัติ 1 รูปหลังสแกน QR ประจำตัวผ่าน (ไม่แจ้งเวลาที่ถ่าย) เพื่อยืนยันว่ามาตรวจด้วยตัวเอง — เก็บ 30 วันแล้วลบ ไม่ใช้เทียบหรือจดจำใบหน้า",
           "เครื่องที่ใช้เข้าสู่ระบบ (รหัสเครื่องแบบเข้ารหัส และชนิดเบราว์เซอร์) — เจ้าหน้าที่เข้าจากเครื่องใหม่ หัวหน้าจะได้รับแจ้ง"
         ]
       },
@@ -63,7 +63,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
       {
         "title": "6. ตู้และ QR",
         "items": [
-          "ตู้อ่าน QR อย่างเดียว ไม่ถ่ายรูป ไม่อัดเสียง ไม่มีไซเรน (รูปยืนยันตัวเจ้าหน้าที่ถ่ายจากมือถือของเจ้าหน้าที่ ไม่ใช่จากตู้)",
+          "ตู้อ่าน QR และถ่ายรูปยืนยันตัวเจ้าหน้าที่ 1 รูปหลังตรวจผ่านเท่านั้น ไม่ถ่ายรูปเวลาอื่น ไม่อัดเสียง ไม่มีไซเรน",
           "เจ้าหน้าที่ตรวจได้เฉพาะเวลาตรวจที่หน่วยงานตั้ง และต้องยืนยันด้วย QR ประจำตัวที่ตู้สแกน",
           "ตู้ต้องมี Wi-Fi บ้าน (2.4 GHz) และแผงโซลาร์ที่รับแดด · ถ้าตู้ไม่ออนไลน์ การตรวจจะบันทึกไม่ได้"
         ]
@@ -79,7 +79,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
         "title": "8. หน้าที่ของเจ้าหน้าที่และหัวหน้า",
         "items": [
           "เปิดการแจ้งเตือนไว้ตลอด เพื่อไม่พลาด SOS",
-          "ตรวจตู้ด้วยตัวเองเท่านั้น ห้ามให้คนอื่นใช้บัญชีหรือสแกนแทน · ถ่ายรูปยืนยันตัวหลังตรวจผ่าน",
+          "ตรวจตู้ด้วยตัวเองเท่านั้น ห้ามให้คนอื่นใช้บัญชีหรือสแกนแทน · ตู้จะถ่ายรูปยืนยันตัวหลังตรวจผ่าน",
           "สแกน QR หน้าตู้ผ่านแอปเท่านั้น และตรวจเฉพาะบ้านในโซนของตัวเอง",
           "ใช้ข้อมูลที่เห็นเพื่อหน้าที่นี้เท่านั้น · หัวหน้าดูแลสมาชิกและโซนของหน่วยงานตัวเอง"
         ]
@@ -130,7 +130,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
           "Delivery reports (riders are not identified) · SOS · terms acceptance · every time an admin views personal data",
           "These records cannot be edited or deleted and are kept for 1 year",
           "House details the homeowner enters: address · house pin (if set) · emergency contact (if given)",
-          "A face photo the officer takes in the app after an inspection passes, to show they came in person — kept 30 days then deleted, never used for face matching",
+          "A photo of the officer taken automatically by the box camera once the badge QR passes (the exact moment is not shown), to show they came in person — kept 30 days then deleted, never used for face matching",
           "Devices used to sign in (a hashed device code and browser type) — when an officer signs in on a new device, their head is notified"
         ]
       },
@@ -147,7 +147,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
       {
         "title": "6. Mailboxes and QR codes",
         "items": [
-          "The box only reads QR codes — no photos, no audio, no siren (the officer's confirmation photo is taken on the officer's phone, not by the box)",
+          "The box reads QR codes and takes one officer confirmation photo after a passed inspection — no other photos, no audio, no siren",
           "Officers can inspect only during the patrol hours their agency sets, confirmed by their badge QR scanned at the box",
           "The box needs home Wi-Fi (2.4 GHz) and a sunny solar panel · if it is offline, an inspection cannot be recorded"
         ]
@@ -163,7 +163,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
         "title": "8. Officer and head duties",
         "items": [
           "Keep notifications on so you never miss an SOS",
-          "Inspect in person only — never let anyone else use your account or scan for you · take the confirmation photo after each passed inspection",
+          "Inspect in person only — never let anyone else use your account or scan for you · the box takes a confirmation photo after each passed inspection",
           "Scan box QR codes only through the app, and only for houses in your own zones",
           "Use what you see only for this work · heads manage only their own agency's members and zones"
         ]

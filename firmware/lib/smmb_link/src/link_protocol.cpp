@@ -343,6 +343,39 @@ static void setPreview(bool on)
     linkHooks.setPreviewSink(on ? previewSink : nullptr, 2500);
 }
 
+// Snapface (✅ ผู้ใช้สั่ง 2026-11-05): หลังตรวจผ่าน ตู้ถ่ายรูปเจ้าหน้าที่ 1 รูป ณ เวลาสุ่ม แล้วส่ง
+// POST /v1/box/jobs/:id/photo { jpeg_b64 } — ไม่มีเสียง/ไฟบอก · ส่งไม่ได้ก็ทิ้ง (ไม่เก็บไว้ส่งทีหลัง)
+static void sendInspectionPhoto(const String &jobId)
+{
+  if (!linkHooks.snapshotJpeg)
+    return;
+  delay(1500 + esp_random() % 2500);
+  uint8_t *jpeg = nullptr;
+  size_t len = 0;
+  if (!linkHooks.snapshotJpeg(&jpeg, &len) || !jpeg)
+    return;
+  if (len > 0 && len <= 85000)
+  {
+    const size_t outCap = ((len + 2) / 3) * 4 + 4;
+    char *b64 = (char *)malloc(outCap);
+    size_t outLen = 0;
+    if (b64 && mbedtls_base64_encode((unsigned char *)b64, outCap, &outLen, jpeg, len) == 0)
+    {
+      String body;
+      body.reserve(outLen + 24);
+      body = "{\"jpeg_b64\":\"";
+      body.concat(b64, outLen);
+      body += "\"}";
+      free(jpeg);
+      jpeg = nullptr; // คืนหน่วยความจำก่อนส่ง (ESP32-CAM heap น้อย)
+      const LinkResponse r = linkRequest("POST", "/v1/box/jobs/" + jobId + "/photo", body, 8000);
+      Serial.printf("[job] photo %u B → %d\n", (unsigned)len, r.status);
+    }
+    free(b64);
+  }
+  free(jpeg);
+}
+
 static void runJob(JsonObjectConst job)
 {
   const String jobId = job["job_id"] | "";
@@ -432,6 +465,8 @@ static void runJob(JsonObjectConst job)
     {
       linkBeep("pass");
       linkRtc.jobsDone++;
+      if (type == "inspect")
+        sendInspectionPhoto(jobId);
       break;
     }
     if (status == "retry")

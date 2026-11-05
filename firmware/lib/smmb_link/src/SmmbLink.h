@@ -70,6 +70,10 @@ struct LinkHooks
   /** ภาพสดเฉพาะงานทดสอบ: ไลบรารีส่ง sink มา ให้เรียก sink(jpeg,len) ทุก intervalMs ระหว่างสแกน · sink=nullptr = หยุด
    *  งานตรวจจริงไลบรารีส่ง nullptr เสมอ (ตู้ไม่ส่งภาพตอนเจ้าหน้าที่ตรวจ) */
   void (*setPreviewSink)(void (*sink)(const uint8_t *jpeg, size_t len), uint32_t intervalMs) = nullptr;
+  /** Snapface: ถ่าย JPEG 1 เฟรมขณะกล้องยังเปิดอยู่ (ไลบรารีจะ free(*out) เอง) · ≤ 85 KB (เช่น VGA คุณภาพ 12–15)
+   *  ไลบรารีเรียกหลังงานตรวจผ่าน โดยหน่วงเวลาสุ่ม 1.5–4 วิ (ตอนเจ้าหน้าที่ลดมือถือลง) · ห้ามมีเสียง/ไฟบอกตอนถ่าย
+   *  ไม่ใส่ = ไม่ส่งรูป (ตรวจผ่านได้ตามปกติ) */
+  bool (*snapshotJpeg)(uint8_t **out, size_t *len) = nullptr;
   /** ส่งเสียง: "ready" "pass" "retry" "fail" "error" "wifi" (+ ชื่ออื่นจากคำสั่ง beep ของเว็บ) · false = ไม่รู้จักชื่อ */
   bool (*beep)(const char *pattern) = nullptr;
   void (*saveConfig)(const String &json, uint32_t ver) = nullptr; // จำ config ลง flash (โหลดคืนตอนเปิดเครื่อง)

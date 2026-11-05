@@ -5,7 +5,6 @@ import { ApiConfig, apiError, isOffline } from '../../core/api';
 import { I18n, type Tr } from '../../core/i18n';
 import { hhmm, type Inspection, InspectionApi, type OfficerSummary, type ProblemReason, type QrCondition } from '../../core/inspection-api';
 import { screenUrl } from '../../screens/registry';
-import { SelfieCapture } from '../../shared/selfie-capture';
 import { Icon } from '../../shared/icon';
 import { QrImage } from '../../shared/qr-image';
 import { cameraAsked, cameraPermission, markCameraAsked, QrScanner, type ScannerFailure } from '../../shared/qr-scanner';
@@ -932,7 +931,7 @@ export class OfficerBadgeFailed {
 
 @Component({
   selector: 'app-officer-done',
-  imports: [RouterLink, Icon, SelfieCapture],
+  imports: [RouterLink, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pad done" role="status">
@@ -943,7 +942,6 @@ export class OfficerBadgeFailed {
         <p class="small">{{ i18n.t({ th: 'เจ้าของบ้านได้รับแจ้งเตือนแล้ว', en: 'The owner has been notified' }) }}</p>
       </div>
       @if (id()) {
-        <app-selfie-capture [inspectionId]="id()" />
       }
       @if (summary(); as s) {
         <p class="summary">

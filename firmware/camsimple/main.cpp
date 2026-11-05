@@ -31,63 +31,80 @@
 #define PCLK_GPIO_NUM 22
 
 #define PART_BOUNDARY "123456789000000000000987654321"
-static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
-static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
-static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
+static const char *_STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
+static const char *_STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
+static const char *_STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 
 httpd_handle_t stream_httpd = NULL;
 
 // ฟังก์ชันดึงภาพจากกล้องส่งไปที่เบราว์เซอร์
-static esp_err_t stream_handler(httpd_req_t* req) {
-  camera_fb_t* fb = NULL;
+static esp_err_t stream_handler(httpd_req_t *req)
+{
+  camera_fb_t *fb = NULL;
   esp_err_t res = ESP_OK;
   size_t _jpg_buf_len = 0;
-  uint8_t* _jpg_buf = NULL;
+  uint8_t *_jpg_buf = NULL;
   char part_buf[64];
 
   res = httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
-  if (res != ESP_OK) {
+  if (res != ESP_OK)
+  {
     return res;
   }
 
-  while (true) {
+  while (true)
+  {
     fb = esp_camera_fb_get();
-    if (!fb) {
+    if (!fb)
+    {
       Serial.println("Camera capture failed");
       res = ESP_FAIL;
-    } else {
-      if (fb->format != PIXFORMAT_JPEG) {
+    }
+    else
+    {
+      if (fb->format != PIXFORMAT_JPEG)
+      {
         bool jpeg_converted = frame2jpg(fb, 80, &_jpg_buf, &_jpg_buf_len);
         esp_camera_fb_return(fb);
         fb = NULL;
-        if (!jpeg_converted) {
+        if (!jpeg_converted)
+        {
           Serial.println("JPEG compression failed");
           res = ESP_FAIL;
         }
-      } else {
+      }
+      else
+      {
         _jpg_buf_len = fb->len;
         _jpg_buf = fb->buf;
       }
     }
-    if (res == ESP_OK) {
+    if (res == ESP_OK)
+    {
       size_t hlen = snprintf(part_buf, sizeof(part_buf), _STREAM_PART, (unsigned)_jpg_buf_len);
       res = httpd_resp_send_chunk(req, part_buf, hlen);
     }
-    if (res == ESP_OK) {
-      res = httpd_resp_send_chunk(req, (const char*)_jpg_buf, _jpg_buf_len);
+    if (res == ESP_OK)
+    {
+      res = httpd_resp_send_chunk(req, (const char *)_jpg_buf, _jpg_buf_len);
     }
-    if (res == ESP_OK) {
+    if (res == ESP_OK)
+    {
       res = httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY));
     }
-    if (fb) {
+    if (fb)
+    {
       esp_camera_fb_return(fb);
       fb = NULL;
       _jpg_buf = NULL;
-    } else if (_jpg_buf) {
+    }
+    else if (_jpg_buf)
+    {
       free(_jpg_buf);
       _jpg_buf = NULL;
     }
-    if (res != ESP_OK) {
+    if (res != ESP_OK)
+    {
       break;
     }
   }
@@ -95,19 +112,22 @@ static esp_err_t stream_handler(httpd_req_t* req) {
 }
 
 // ฟังก์ชันเริ่มระบบ Web Server
-void startCameraServer() {
+void startCameraServer()
+{
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = 80;
 
   httpd_uri_t uri_stream = {.uri = "/", .method = HTTP_GET, .handler = stream_handler, .user_ctx = NULL};
 
-  if (httpd_start(&stream_httpd, &config) == ESP_OK) {
+  if (httpd_start(&stream_httpd, &config) == ESP_OK)
+  {
     httpd_register_uri_handler(stream_httpd, &uri_stream);
   }
 }
 
-void setup() {
-  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);  // ปิดระบบ Brownout เพื่อป้องกันบอร์ดรีสตาร์ทเองเมื่อไฟไม่พอ
+void setup()
+{
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); // ปิดระบบ Brownout เพื่อป้องกันบอร์ดรีสตาร์ทเองเมื่อไฟไม่พอ
 
   Serial.begin(115200);
   Serial.setDebugOutput(true);
@@ -142,7 +162,8 @@ void setup() {
 
   // เริ่มต้นทำงานของกล้อง
   esp_err_t err = esp_camera_init(&config);
-  if (err != ESP_OK) {
+  if (err != ESP_OK)
+  {
     Serial.printf("Camera init failed with error 0x%x", err);
     return;
   }
@@ -150,17 +171,20 @@ void setup() {
   // เชื่อมต่อ Wi-Fi (ใช้ค่าที่ตู้ตัวจริงบันทึกไว้ใน NVS)
   Preferences prefs;
   String ssid, pass;
-  if (prefs.begin("smmb", true)) {
+  if (prefs.begin("smmb", true))
+  {
     ssid = prefs.getString("ssid", "");
     pass = prefs.getString("pass", "");
     prefs.end();
   }
-  if (!ssid.length()) {
+  if (!ssid.length())
+  {
     Serial.println("no saved Wi-Fi — flash the main firmware (-e esp32cam) and set Wi-Fi first");
     return;
   }
   WiFi.begin(ssid.c_str(), pass.c_str());
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED)
+  {
     delay(500);
     Serial.print(".");
   }
@@ -175,6 +199,7 @@ void setup() {
   Serial.println(WiFi.localIP());
 }
 
-void loop() {
+void loop()
+{
   delay(10000);
 }

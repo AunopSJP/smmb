@@ -24,6 +24,6 @@ import { CodeAttempts } from '../rate-limit/code-attempts.js';
   imports: [AuthModule, PushModule, SosModule],
   controllers: [BoxProtocolController, AdminBoxController, AdminQrController, OwnerBoxController],
   providers: [AdminBoxService, BoxAuthGuard, BoxConfigService, BoxJobService, BoxPreviewService, BoxProtocolService, CodeAttempts, FirmwareService, JobHub, OwnerBoxService, QrIssueService, TechnicianRequestService],
-  exports: [BoxConfigService, BoxJobService, QrIssueService],
+  exports: [BoxAuthGuard, BoxConfigService, BoxJobService, QrIssueService],
 })
 export class BoxModule {}

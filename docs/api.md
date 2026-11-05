@@ -998,7 +998,7 @@ interface ZoneRequest { id: string; box: { id; name; house_no }; agency: { name;
 ### §6.4 Snapface — รูปยืนยันตัวเจ้าหน้าที่
 | Method | Path | สิทธิ์ | Body | ตอบ |
 |---|---|---|---|---|
-| POST | `/inspections/:id/photo` | `officer` (คนที่ตรวจ) | ไบต์ของรูป `Content-Type: image/jpeg` หรือ `image/webp` ≤ 400 KB (ตรวจหัวไฟล์จริง) | 201 · ยังไม่ผ่าน 409 `INSPECTION_NOT_PASSED` · เกิน 15 นาทีหลังผ่าน 410 `PHOTO_WINDOW_CLOSED` · ส่งซ้ำ 409 `PHOTO_EXISTS` · ไม่ใช่รูป 400 `PHOTO_INVALID` · ใหญ่ไป 413 `PHOTO_TOO_LARGE` · การตรวจของคนอื่น 404 |
+| ~~POST~~ | ~~`/inspections/:id/photo`~~ | — | ❌ ตัดออก 2026-11-05 — **กล้องตู้ถ่ายแทน** ผ่าน `POST /v1/box/jobs/:job_id/photo` (โปรโตคอล §2.10) · เจ้าหน้าที่ไม่รู้ว่าถ่ายตอนไหน และแอปเจ้าหน้าที่ไม่บอกว่ามีรูป | — |
 | GET | `/me/inspection-photos/:id` | `owner` (เจ้าของตู้ ตรวจหลังวันผูก) | — | รูป (`Cache-Control: no-store`) · อื่น ๆ 404 · บันทึก `data_access_log_tb` ทุกครั้ง |
 | GET | `/admin/inspection-photos/:id` | `admin` | — | รูป · บันทึก `data_access_log_tb` |
 
@@ -1011,3 +1011,7 @@ interface ZoneRequest { id: string; box: { id; name; house_no }; agency: { name;
 
 ### §14 แจ้งเตือนใหม่ (ปิดรับไม่ได้)
 `zone_join_request` · `zone_join_accepted` · `zone_join_rejected` · `officer_new_device`
+
+### ✅ 2026-11-05 — Snapface ถ่ายจากกล้องตู้ (ข้อตกลง `2026-11-05` = migration `0027` → ทุกบัญชีกดยอมรับใหม่)
+- ผู้ใช้สั่ง: "ทำงานหลังจากที่ตู้สแกน QR ประจำตัวเจ้าหน้าที่เสร็จ และเจ้าหน้าที่ต้องไม่รู้ว่าถ่ายตอนไหน"
+- ตู้ส่ง `POST /v1/box/jobs/:job_id/photo` (โปรโตคอล §2.10) · route ฝั่งเจ้าหน้าที่ถูกลบ · O08 ไม่มีปุ่มถ่ายแล้ว · การดูรูป (`/me/inspection-photos/:id`, `/admin/inspection-photos/:id`) เหมือนเดิม

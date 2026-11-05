@@ -6,13 +6,13 @@ import { SosModule } from '../sos/sos.module.js';
 import { CodeAttempts } from '../rate-limit/code-attempts.js';
 import { InspectionController, OfficerController } from './inspection.controller.js';
 import { InspectionService } from './inspection.service.js';
-import { AdminInspectionPhotoController, InspectionPhotoController, OwnerInspectionPhotoController } from './inspection-photo.controller.js';
+import { AdminInspectionPhotoController, BoxInspectionPhotoController, OwnerInspectionPhotoController } from './inspection-photo.controller.js';
 import { InspectionPhotoService } from './inspection-photo.service.js';
 
 /** ตรวจตู้ (เฟส 3) — ลงทะเบียนตัวตัดสินงาน 'inspect' กับ BoxJobService ตอนเริ่ม */
 @Module({
   imports: [AuthModule, BoxModule, PushModule, SosModule],
-  controllers: [InspectionController, OfficerController, InspectionPhotoController, OwnerInspectionPhotoController, AdminInspectionPhotoController],
+  controllers: [InspectionController, OfficerController, BoxInspectionPhotoController, OwnerInspectionPhotoController, AdminInspectionPhotoController],
   providers: [InspectionService, CodeAttempts, InspectionPhotoService],
   exports: [InspectionService],
 })
