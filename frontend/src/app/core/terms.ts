@@ -12,7 +12,7 @@ export const TERMS_VERSION = '2026-11-05';
 export const TERMS: { th: TermsPart; en: TermsPart } = {
   "th": {
     "title": "ข้อตกลงการใช้งาน Smart Mailbox",
-    "intro": "ฉบับวันที่ 27 ตุลาคม 2026 · ใช้กับทุกคนที่มีบัญชี (เจ้าของบ้าน เจ้าหน้าที่ หัวหน้าหน่วยงาน แอดมิน)",
+    "intro": "ฉบับวันที่ 5 พฤศจิกายน 2026 · ใช้กับทุกคนที่มีบัญชี (เจ้าของบ้าน เจ้าหน้าที่ หัวหน้าหน่วยงาน แอดมิน)",
     "sections": [
       {
         "title": "1. SOS ไม่ได้แทนการโทร 191 / 1669",
@@ -96,7 +96,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
   },
   "en": {
     "title": "Smart Mailbox terms of use",
-    "intro": "Version of 27 October 2026 · applies to everyone with an account (homeowners, officers, agency heads, admins)",
+    "intro": "Version of 5 November 2026 · applies to everyone with an account (homeowners, officers, agency heads, admins)",
     "sections": [
       {
         "title": "1. SOS does not replace calling 191 / 1669",
