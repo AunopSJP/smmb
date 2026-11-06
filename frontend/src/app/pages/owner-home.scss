@@ -26,8 +26,47 @@
   color: inherit;
 }
 .big-text {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 700;
+  margin-block-start: 8px;
+}
+.big-when {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+.patrol {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  .label-row {
+    display: flex;
+    justify-content: space-between;
+  }
+  .strip {
+    position: relative;
+    block-size: 10px;
+    border-radius: 5px;
+    background: var(--line);
+    i {
+      position: absolute;
+      inset-block: 0;
+      background: var(--brand);
+      border-radius: 5px;
+    }
+    .now {
+      position: absolute;
+      inset-block: -3px;
+      inline-size: 2px;
+      background: var(--text);
+    }
+  }
+  .ticks {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+  }
 }
 .mini {
   display: flex;

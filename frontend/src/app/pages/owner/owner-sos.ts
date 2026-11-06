@@ -342,6 +342,9 @@ export class SosCancel {
         @if (sos()?.accepted_by?.phone; as phone) {
           <a class="btn" [href]="'tel:' + phone">{{ i18n.t({ th: 'โทรหาเจ้าหน้าที่ ', en: 'Call the officer ' }) }}{{ phone }}</a>
         }
+        @if (sos()?.accepted_by?.at; as at) {
+          <p class="muted small center adv-only">{{ i18n.t({ th: 'รับเรื่องเมื่อ ', en: 'Accepted at ' }) }}<span class="mono">{{ at.slice(11, 16) }}</span> · {{ i18n.t({ th: 'รหัสเรื่อง ', en: 'Case ' }) }}<span class="mono">{{ id() }}</span></p>
+        }
         <p class="muted small center">{{ i18n.t({ th: 'เบอร์โทรเห็นได้เฉพาะตอน SOS เปิดอยู่', en: 'The number is only shown while the SOS is open' }) }}</p>
         <p class="note"><span class="dot"></span>{{ i18n.t({ th: 'เมื่อเจ้าหน้าที่ปิดเรื่อง จะแจ้งให้ทราบ', en: 'You will be notified when the officer closes it' }) }}</p>
       </div>

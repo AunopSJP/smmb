@@ -1,22 +1,22 @@
 // โทเคนสีและขนาด — docs/smmb-design.md §11
-// ✅ 2026-11-06 ผู้ใช้สั่ง "อย่าแดงจนเกินไป": สีหลักของปุ่ม/ลิงก์/แท็บ = น้ำเงินอมเขียวสงบ (--brand)
-// แดงเก็บไว้เฉพาะ SOS / อันตราย / ข้อผิดพลาด (--sos) และโลโก้ — เปลี่ยนกลับได้ที่โทเคนเหล่านี้ที่เดียว
+// ✅ 2026-11-06 ผู้ใช้สั่ง "ใช้สีแดงเป็นหลักแต่ไม่แดงจ๋า" (ตามแคนวาสดีไซน์ UX/UI): สีหลัก = แดงหม่น #9a2f36
+// ไม่ใช้พื้นหลังชมพู/แดงอ่อน — พื้นรองใช้เทากลาง · SOS ใช้แดงเข้มกว่า (--sos) · เปลี่ยนได้ที่โทเคนเหล่านี้ที่เดียว
 // ธีม: ตามเครื่อง (ค่าเริ่มต้น) / บังคับด้วย <html data-theme="light|dark">
 // ขนาดตัวอักษร: <html data-text-size="normal|large|xlarge">
 
 :root {
-  --brand: #1f6f8b;
-  --brand-dark: #164f64;
-  --brand-light: #e3f0f5;
-  --brand-lighter: #f1f8fb;
-  --sos: #b91c1c;
-  --icon-bg: #eef0f3;
+  --brand: #9a2f36;
+  --brand-dark: #6f1f25;
+  --brand-light: #efefef;
+  --brand-lighter: #f5f5f5;
+  --sos: #9e2227;
+  --icon-bg: #efefef;
 
-  --bg: #f6f7f9;
+  --bg: #f5f5f5;
   --surface: #ffffff;
-  --text: #1a1d21;
-  --text-muted: #5f6670;
-  --ok: #1b7f3b;
+  --text: #1e1e21;
+  --text-muted: #5f5f63;
+  --ok: #1e5c3e;
   --shadow: 0 1px 3px rgb(0 0 0 / 8%), 0 4px 12px rgb(0 0 0 / 6%);
 
   --font: 'Leelawadee UI', 'IBM Plex Sans Thai Looped', 'Noto Sans Thai', system-ui, sans-serif;
@@ -26,11 +26,11 @@
 }
 
 @mixin dark {
-  --brand: #2a7d9c;
-  --brand-dark: #8fcde3;
-  --brand-light: #17313b;
-  --brand-lighter: #12262e;
-  --sos: #dc4b4b;
+  --brand: #c4545c;
+  --brand-dark: #e8a0a5;
+  --brand-light: #2a2b2f;
+  --brand-lighter: #222327;
+  --sos: #e05a60;
   --icon-bg: #2a2e35;
 
   --bg: #121417;
@@ -75,6 +75,59 @@
   }
 }
 
+/* ตามแคนวาสดีไซน์ UX/UI (2026-11-06): โหมดง่าย = การ์ดมน-ใหญ่ ตัวหนา ปุ่มสูง · โหมดละเอียด = แน่นขึ้น ตัวเลข/รหัสใช้ฟอนต์ mono */
+:root[data-mode='easy'] {
+  --radius: 24px;
+  --radius-sm: 20px;
+  --gap: 16px;
+
+  .card {
+    padding: 20px;
+  }
+  .section-title {
+    font-size: 1.125rem;
+  }
+  .chip {
+    font-size: 0.9375rem;
+    padding: 4px 14px;
+  }
+  .kv {
+    font-size: 1.0625rem;
+  }
+  .small {
+    font-size: 0.9375rem;
+  }
+}
+:root[data-mode='advanced'] {
+  --radius: 14px;
+  --radius-sm: 10px;
+  --gap: 10px;
+
+  .card {
+    padding: 12px 14px;
+  }
+  .row {
+    padding: 10px 14px;
+    min-block-size: 48px;
+  }
+  .kv {
+    font-size: 0.8125rem;
+    gap: 6px 14px;
+  }
+  .section-title {
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+  .stat .value {
+    font-size: 1.5rem;
+  }
+}
+.mono {
+  font-family: ui-monospace, 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  font-size: 0.92em;
+}
+
 /* โหมดเห็นรายละเอียด: .adv-only (รหัส/เวอร์ชัน/ข้อมูลเทคนิค) เห็นเฉพาะโหมดละเอียด · โหมดอื่นซ่อน */
 :root:not([data-mode='advanced']) .adv-only {
   display: none !important;
@@ -108,12 +161,12 @@ body {
   --radius: 16px;
   --radius-sm: 12px;
   --gap: 12px;
-  --warn: #9a5b00;
-  --warn-bg: #fff4d6;
+  --warn: #7a4700;
+  --warn-bg: #fff1d6;
   --orange: #c2410c;
   --orange-line: #e8590c;
-  --ok-bg: #dcf5e4;
-  --danger-bg: #f8e9ea;
+  --ok-bg: #ddf3e8;
+  --danger-bg: #f0d5d6;
   --line: rgb(0 0 0 / 7%);
 }
 @media (prefers-color-scheme: dark) {
@@ -1192,20 +1245,20 @@ fieldset {
   --line: #e4e7ec;
   --line-strong: #d0d5dd;
   --icon-bg: #eef1f5;
-  --brand: #1f6f8b;
-  --brand-dark: #164f64;
-  --brand-light: #e3f0f5;
-  --brand-lighter: #f1f8fb;
+  --brand: #9a2f36;
+  --brand-dark: #6f1f25;
+  --brand-light: #efefef;
+  --brand-lighter: #f5f5f5;
   --ok: #127a3a;
   --ok-bg: #e3f6ea;
   --warn: #8a4b00;
   --warn-bg: #fff1d6;
-  --sos: #b42318;
-  --danger-bg: #fdeceb;
+  --sos: #9e2227;
+  --danger-bg: #f0d5d6;
   --radius: 12px;
   --radius-sm: 8px;
   --shadow: 0 1px 2px rgb(16 24 40 / 6%);
-  --focus: 0 0 0 3px rgb(31 111 139 / 25%);
+  --focus: 0 0 0 3px rgb(154 47 54 / 25%);
 }
 @mixin admin-dark {
   --bg: #0e1013;
@@ -1215,10 +1268,10 @@ fieldset {
   --line: #242933;
   --line-strong: #343b48;
   --icon-bg: #20252d;
-  --brand: #2f87a8;
-  --brand-dark: #8fcde3;
-  --brand-light: #162f39;
-  --brand-lighter: #11242b;
+  --brand: #c4545c;
+  --brand-dark: #e8a0a5;
+  --brand-light: #25262a;
+  --brand-lighter: #1d1e22;
   --ok: #4cc777;
   --ok-bg: #132a1c;
   --warn: #f3c25b;
@@ -1226,7 +1279,7 @@ fieldset {
   --sos: #f0706b;
   --danger-bg: #2e1517;
   --shadow: 0 1px 2px rgb(0 0 0 / 40%);
-  --focus: 0 0 0 3px rgb(47 135 168 / 35%);
+  --focus: 0 0 0 3px rgb(196 84 92 / 35%);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .admin-layout {

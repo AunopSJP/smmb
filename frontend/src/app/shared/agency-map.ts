@@ -45,8 +45,8 @@ const DEFAULT_CENTER: LatLng = { lat: 13.7563, lng: 100.5018 };
       box-shadow: 0 2px 6px rgb(0 0 0 / 35%);
     }
     :host ::ng-deep .ag-pin.sel {
-      background: #164f64;
-      outline: 3px solid #e3f0f5;
+      background: #6f1f25;
+      outline: 3px solid #efefef;
     }
     :host ::ng-deep .home-dot {
       inline-size: 18px;

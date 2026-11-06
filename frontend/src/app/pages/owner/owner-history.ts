@@ -104,7 +104,7 @@ const dateTime = (iso: string, lang: 'th' | 'en') =>
           }
         </div>
       }
-      <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'ช่วงเวลา', en: 'Period' })">
+      <div class="segmented chips easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'ช่วงเวลา', en: 'Period' })">
         @for (r of ranges; track r.v) {
           <button type="button" [attr.aria-pressed]="range() === r.v" (click)="pick(r.v)">{{ i18n.t(r.label) }}</button>
         }

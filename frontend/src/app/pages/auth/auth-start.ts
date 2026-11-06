@@ -287,7 +287,7 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
   imports: [Brand, Icon, RouterLink, PasswordField],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-brand />
+    <app-brand [hero]="true" />
     @if (choose(); as roles) {
       <div class="stack">
         <h1>{{ i18n.t({ th: 'เข้าใช้งานเป็น', en: 'Continue as' }) }}</h1>
