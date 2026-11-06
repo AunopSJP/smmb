@@ -323,6 +323,28 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       padding: 6px 8px;
       border-radius: var(--radius-sm);
     }
+    .past-qr summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      cursor: pointer;
+      min-block-size: 40px;
+    }
+    .past-qr .row.past {
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .past-qr .row .btn {
+      inline-size: auto;
+      min-block-size: 36px;
+      padding: 4px 12px;
+    }
+    @media print {
+      .past-qr {
+        display: none;
+      }
+    }
     .qr-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
@@ -845,22 +867,49 @@ export class AdminBoxes implements OnInit {
 
         }
         @if (tab() === 'qr') {
-        <h2 class="section-title">{{ i18n.t({ th: 'QR ของตู้ (พิมพ์ได้)', en: 'Box QR codes (printable)' }) }}</h2>
+        <h2 class="section-title">{{ i18n.t({ th: 'QR ที่ใช้งานอยู่', en: 'QR codes in use' }) }}</h2>
         <div class="qr-grid">
           @for (q of activeQr(); track q.id) {
             <figure class="card">
               <app-qr-image [text]="q.url" level="H" [label]="i18n.t(slot(q.slot))" />
               <figcaption class="small">
-                <strong>{{ i18n.t(slot(q.slot)) }}</strong> v{{ q.version }}<br />
+                <strong>{{ i18n.t(slot(q.slot)) }}</strong> <span class="adv-only">v{{ q.version }}</span><br />
                 {{ q.print_code }}
                 @if (q.slot === 'activate') {
-                  <br /><span class="chip" [class.ok]="q.status === 'active'">{{ q.status === 'active' ? i18n.t({ th: 'ยังไม่ใช้', en: 'unused' }) : i18n.t({ th: 'ใช้แล้ว', en: 'used' }) }}</span>
+                  <br /><span class="chip ok">{{ i18n.t({ th: 'ยังไม่ใช้', en: 'unused' }) }}</span>
                 }
               </figcaption>
             </figure>
+          } @empty {
+            <p class="card muted">{{ i18n.t({ th: 'ยังไม่มี QR ที่ใช้งานอยู่', en: 'No QR code is in use yet' }) }}</p>
           }
         </div>
-        <button type="button" class="btn secondary" (click)="print()">{{ i18n.t({ th: 'พิมพ์หน้านี้', en: 'Print this page' }) }}</button>
+        <button type="button" class="btn secondary" (click)="print()">{{ i18n.t({ th: 'พิมพ์ QR ที่ใช้งานอยู่', en: 'Print the QR codes in use' }) }}</button>
+
+        @if (pastQr().length) {
+          <details class="card past-qr">
+            <summary>
+              <strong>{{ i18n.t({ th: 'QR ที่ใช้แล้วหรือยกเลิกแล้ว', en: 'Used or revoked QR codes' }) }}</strong>
+              <span class="chip">{{ pastQr().length }}</span>
+            </summary>
+            <p class="muted small">{{ i18n.t({ th: 'เก็บไว้ดูประวัติ — ใบเหล่านี้สแกนไม่ได้แล้ว', en: 'Kept for history — these can no longer be scanned' }) }}</p>
+            <div class="list">
+              @for (q of pastQr(); track q.id) {
+                <div class="row past">
+                  <span class="grow">
+                    <strong>{{ i18n.t(slot(q.slot)) }}</strong> <span class="muted small">v{{ q.version }} · {{ q.print_code }}</span>
+                    <span class="muted small block">{{ fwDate(q.issued_at) }}</span>
+                    @if (pastShown() === q.id) {
+                      <app-qr-image [text]="q.url" level="H" [label]="i18n.t(slot(q.slot))" />
+                    }
+                  </span>
+                  <span class="chip" [class.warn]="q.status === 'revoked'">{{ q.status === 'revoked' ? i18n.t({ th: 'ยกเลิกแล้ว', en: 'revoked' }) : i18n.t({ th: 'ใช้แล้ว', en: 'used' }) }}</span>
+                  <button type="button" class="btn secondary small" (click)="pastShown.set(pastShown() === q.id ? null : q.id)">{{ pastShown() === q.id ? i18n.t({ th: 'ซ่อน', en: 'Hide' }) : i18n.t({ th: 'ดู QR', en: 'View' }) }}</button>
+                </div>
+              }
+            </div>
+          </details>
+        }
 
         <h2 class="section-title">{{ i18n.t({ th: 'เขียนลงบอร์ด', en: 'Board provisioning' }) }}</h2>
         <section class="card stack">
@@ -1159,7 +1208,8 @@ export class AdminBoxes implements OnInit {
     }
     .qr-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+      /* มือถือ 2 ใบต่อแถว · จอกว้างขึ้นเรื่อย ๆ ตามพื้นที่ (QR ไม่ใหญ่เต็มจอ) */
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
       gap: 8px;
       min-inline-size: 0;
       > * {
@@ -1169,6 +1219,7 @@ export class AdminBoxes implements OnInit {
         margin: 0;
         padding: 8px;
         text-align: center;
+        max-inline-size: 240px;
       }
       app-qr-image {
         background: #fff;
@@ -1271,7 +1322,13 @@ export class AdminBox implements OnInit {
     const m = /^(.*?)(\d+)$/.exec(this.firmware()[0]?.version ?? '');
     return m ? `${m[1]}${Number(m[2]) + 1}` : '';
   });
-  protected readonly activeQr = computed(() => (this.box()?.qr ?? []).filter((q) => q.status === 'active' || q.slot === 'activate'));
+  /** QR ที่ใช้งานอยู่ตอนนี้ (สถานะ active เท่านั้น — QR เปิดใช้ตู้ที่ใช้แล้วย้ายไปรายการประวัติ) */
+  protected readonly activeQr = computed(() => (this.box()?.qr ?? []).filter((q) => q.status === 'active'));
+  /** ที่ใช้แล้ว/ถูกยกเลิก/รุ่นเก่า — พับเก็บไว้ ใหม่สุดก่อน */
+  protected readonly pastQr = computed(() =>
+    (this.box()?.qr ?? []).filter((q) => q.status !== 'active').sort((a, b) => b.issued_at.localeCompare(a.issued_at)),
+  );
+  protected readonly pastShown = signal<string | null>(null);
   /** URL ที่ตู้ใช้ = origin + apiBase ของเว็บนี้ (ไม่ฮาร์ดโค้ดโดเมน) */
   protected readonly apiUrl = location.origin + inject(ApiConfig).apiBase();
 
