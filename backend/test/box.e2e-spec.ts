@@ -690,6 +690,53 @@ describe('Boxes (e2e)', () => {
       expect(await detail()).toMatchObject({ fw: ver2, fw_target: null, fw_stuck: false });
     });
 
+    it('automatic update: an online box on another version is aimed at the chosen one · busy boxes wait · stuck boxes are not looped', async () => {
+      const [b, idle] = await register(2);
+      const owner = await signupOwner();
+      const ver = `t${run}${seq++}`;
+      await upload(ver, image()).expect(201);
+      await as(owner.cookie).put('/api/v1/admin/firmware/auto', { version: ver }).expect(404);
+      await as(admin.cookie).put('/api/v1/admin/firmware/auto', { version: 'nope' }).expect(404);
+      expect((await as(admin.cookie).get('/api/v1/admin/firmware/auto').expect(200)).body).toEqual({ version: null });
+
+      await box(b, 'POST', '/v1/box/boot', { fw: 'old', config_ver: 0 }).expect(200);
+      await box(idle, 'POST', '/v1/box/boot', { fw: ver, config_ver: 0 }).expect(200); // ใช้เวอร์ชันนี้อยู่แล้ว
+      await box(b, 'GET', '/v1/box/jobs?wait=0').expect(204); // ปิดอยู่ = ไม่อัปเดต
+
+      await as(admin.cookie).put('/api/v1/admin/firmware/auto', { version: ver }).expect(200);
+      expect((await as(admin.cookie).get('/api/v1/admin/firmware/auto').expect(200)).body).toEqual({ version: ver });
+      await as(admin.cookie).delete(`/api/v1/admin/firmware/${ver}`).expect(409); // เป็นเป้าหมายอัตโนมัติ ลบไม่ได้
+
+      // ตู้ที่ไม่ตรงได้คำสั่งเอง · ตู้ที่ตรงอยู่แล้วไม่ได้
+      const res = await box(b, 'POST', '/v1/box/report', { fw: 'old', config_ver: 0 }).expect(200);
+      expect(res.body.command).toMatchObject({ type: 'ota', version: ver });
+      expect((await box(idle, 'POST', '/v1/box/report', { fw: ver, config_ver: 0 }).expect(200)).body.command).toBeUndefined();
+
+      // โหลดแล้วยังรายงานเวอร์ชันเดิม = ไม่เสนอซ้ำ ไม่วน
+      await box(b, 'GET', `/v1/box/firmware/${ver}`).expect(200);
+      expect((await box(b, 'POST', '/v1/box/boot', { fw: 'old', config_ver: 0 }).expect(200)).body.command).toBeUndefined();
+      await box(b, 'GET', '/v1/box/jobs?wait=0').expect(204);
+
+      // ปิดอัตโนมัติ → ลบเวอร์ชันได้ (หลังเคลียร์เป้าหมายของตู้)
+      await as(admin.cookie).put('/api/v1/admin/firmware/auto', { version: null }).expect(200);
+      expect((await as(admin.cookie).get('/api/v1/admin/firmware/auto').expect(200)).body).toEqual({ version: null });
+      await as(admin.cookie).put(`/api/v1/admin/boxes/${b.box_id}/firmware`, { version: null }).expect(204);
+      await as(admin.cookie).delete(`/api/v1/admin/firmware/${ver}`).expect(204);
+    });
+
+    it('automatic update waits while the box has an inspection job open', async () => {
+      const [b] = await register();
+      const ver = `t${run}${seq++}`;
+      await upload(ver, image()).expect(201);
+      await box(b, 'POST', '/v1/box/boot', { fw: 'old', config_ver: 0 }).expect(200);
+      await as(admin.cookie).put('/api/v1/admin/firmware/auto', { version: ver }).expect(200);
+      await as(admin.cookie).post(`/api/v1/admin/boxes/${b.box_id}/test-jobs`).expect(201); // งานที่ยังเปิดอยู่
+      expect((await box(b, 'POST', '/v1/box/report', { fw: 'old', config_ver: 0 }).expect(200)).body.command).toBeUndefined();
+      await pool.query(`UPDATE app.box_job_tb SET expire_date = now() - interval '1 second' WHERE box_id = $1`, [b.box_id]);
+      expect((await box(b, 'POST', '/v1/box/report', { fw: 'old', config_ver: 0 }).expect(200)).body.command).toMatchObject({ type: 'ota', version: ver });
+      await as(admin.cookie).put('/api/v1/admin/firmware/auto', { version: null }).expect(200);
+    });
+
     it('only admins upload/target · bad files are refused · a box can download only what is aimed at it', async () => {
       const [b, other] = await register(2);
       const owner = await signupOwner();

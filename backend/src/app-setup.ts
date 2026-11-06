@@ -34,7 +34,9 @@ export function configureApp(app: NestExpressApplication): void {
   // ลงทะเบียนก่อน app.init() → อยู่ก่อนตัวอ่าน JSON ของ Nest (ตัวนั้นข้ามคำขอที่อ่าน body แล้ว)
   // ภาพสดจากกล้อง (งานทดสอบ) เป็น JSON ที่มี JPEG แบบ base64 → ใหญ่กว่าคำขออื่น
   // อัปโหลดเฟิร์มแวร์ (ไบต์ดิบ ≤ 1.9 MB) โดยแอดมิน — อ่านเป็น Buffer เอง ไม่ผ่านตัวอ่าน JSON
-  app.use('/api/v1/admin/firmware', express.raw({ type: () => true, limit: '2mb' }));
+  const rawFirmware = express.raw({ type: () => true, limit: '2mb' });
+  // เฉพาะการอัปโหลด (POST) — PUT /admin/firmware/auto เป็น JSON ปกติ
+  app.use('/api/v1/admin/firmware', (req: express.Request, res: express.Response, next: express.NextFunction) => (req.method === 'POST' ? rawFirmware(req, res, next) : next()));
   app.use('/v1/box/preview', express.raw({ type: () => true, limit: '120kb' }));
   app.use(/^\/v1\/box\/jobs\/[^/]+\/photo$/, express.raw({ type: () => true, limit: '120kb' }));
   app.use('/v1/box', express.raw({ type: () => true, limit: '16kb' }));

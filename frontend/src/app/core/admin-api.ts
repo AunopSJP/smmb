@@ -312,6 +312,13 @@ export class AdminApi {
   setFirmwareTarget(id: string, version: string | null): Promise<unknown> {
     return firstValueFrom(this.http.put(`/api/v1/admin/boxes/${encodeURIComponent(id)}/firmware`, { version }));
   }
+  /** เวอร์ชันที่ตู้ทุกใบอัปเดตอัตโนมัติ (null = ปิด) */
+  firmwareAuto(): Promise<{ version: string | null }> {
+    return this.get('/api/v1/admin/firmware/auto');
+  }
+  setFirmwareAuto(version: string | null): Promise<{ version: string | null }> {
+    return firstValueFrom(this.http.put<{ version: string | null }>('/api/v1/admin/firmware/auto', { version }));
+  }
   startTest(id: string): Promise<Job> {
     return this.post(`/api/v1/admin/boxes/${encodeURIComponent(id)}/test-jobs`);
   }

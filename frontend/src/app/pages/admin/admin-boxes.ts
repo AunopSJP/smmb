@@ -694,6 +694,27 @@ export class AdminBoxes implements OnInit {
           }
         </section>
 
+        <section class="card stack fw-auto">
+          <strong>{{ i18n.t({ th: 'อัปเดตอัตโนมัติทุกตู้', en: 'Automatic update for every box' }) }}</strong>
+          @if (fwAuto(); as v) {
+            <p class="row">
+              <span class="chip ok">{{ i18n.t({ th: 'เปิดอยู่', en: 'On' }) }}</span>
+              <span>{{ i18n.t({ th: 'ตู้ที่ออนไลน์จะอัปเดตเป็น ', en: 'Online boxes update to ' }) }}<strong>{{ v }}</strong></span>
+            </p>
+            <button type="button" class="btn secondary fw-act" [disabled]="fwAutoBusy()" (click)="setAuto(null)">{{ i18n.t({ th: 'ปิดอัตโนมัติ', en: 'Turn off' }) }}</button>
+          } @else {
+            <p class="muted small">{{ i18n.t({ th: 'ปิดอยู่ · ตู้อัปเดตเมื่อแอดมินกดเท่านั้น', en: 'Off · boxes update only when an admin taps' }) }}</p>
+          }
+          @if (firmware()[0]; as latest) {
+            @if (fwAuto() !== latest.version) {
+              <button type="button" class="btn fw-act" [disabled]="fwAutoBusy()" (click)="setAuto(latest.version)">
+                {{ i18n.t({ th: 'บังคับทุกตู้ใช้ล่าสุด (' + latest.version + ')', en: 'Make every box use the latest (' + latest.version + ')' }) }}
+              </button>
+            }
+          }
+          <p class="muted small">{{ i18n.t({ th: 'ตู้จะโหลดเองเมื่อออนไลน์ · รอถ้ามีงานตรวจค้างอยู่ · ตู้ที่โหลดแล้วยังติดเวอร์ชันเดิมจะขึ้น "อัปเดตค้าง" ไม่วนซ้ำ · ถ้าไฟล์เสียจะกระทบทุกตู้ ทดสอบกับตู้เดียวก่อนเสมอ', en: 'Boxes download it when online · they wait if an inspection is open · a box that downloaded it but still runs the old version is flagged "update stuck", not retried in a loop · a bad file affects every box — test on one box first' }) }}</p>
+        </section>
+
         <div class="list">
           @for (f of firmware(); track f.version) {
             <div class="row">
@@ -1069,6 +1090,12 @@ export class AdminBoxes implements OnInit {
     .fw-ver {
       font-size: 1.5rem;
     }
+    .fw-auto .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
     .fw-pending {
       display: flex;
       align-items: center;
@@ -1221,6 +1248,9 @@ export class AdminBox implements OnInit {
   protected readonly serviceReason = signal('');
   protected readonly serviceBusy = signal(false);
   protected readonly firmware = signal<FirmwareInfo[]>([]);
+  /** เวอร์ชันที่ตั้งให้ทุกตู้อัปเดตอัตโนมัติ (null = ปิด) */
+  protected readonly fwAuto = signal<string | null>(null);
+  protected readonly fwAutoBusy = signal(false);
   protected readonly fwVersion = signal('');
   protected readonly fwFile = signal<File | null>(null);
   protected readonly uploadingFw = signal(false);
@@ -1265,6 +1295,7 @@ export class AdminBox implements OnInit {
     try {
       this.firmware.set(await this.api.firmwareList());
       this.fwLoadError.set(null);
+      void this.api.firmwareAuto().then((r) => this.fwAuto.set(r.version)).catch(() => undefined); // ไม่ให้กระทบรายการเวอร์ชัน
     } catch (e) {
       // ไม่กระทบหน้าอื่น แต่ต้องบอกว่าโหลดไม่ได้ ไม่ใช่ปล่อยให้ดูเหมือนยังไม่มีไฟล์
       const a = apiError(e);
@@ -1436,6 +1467,25 @@ export class AdminBox implements OnInit {
       this.toast.show({ th: 'ลบแล้ว', en: 'Deleted' });
     } catch {
       this.toast.show({ th: 'ลบไม่สำเร็จ · อาจมีตู้รอโหลดเวอร์ชันนี้อยู่ ให้ยกเลิกงานอัปเดตของตู้นั้นก่อน', en: 'Could not delete · a box may be waiting for it — cancel that update first' });
+    }
+  }
+
+  protected async setAuto(version: string | null): Promise<void> {
+    if (this.fwAutoBusy()) return;
+    if (version && !window.confirm(this.i18n.t({
+      th: `ให้ตู้ทุกใบที่ออนไลน์อัปเดตเป็น ${version} ใช่ไหม? ถ้าไฟล์มีปัญหาจะกระทบทุกตู้ ควรทดสอบกับตู้เดียวก่อน`,
+      en: `Make every online box update to ${version}? A bad file affects every box — test on one box first.`,
+    }))) return;
+    this.fwAutoBusy.set(true);
+    try {
+      this.fwAuto.set((await this.api.setFirmwareAuto(version)).version);
+      this.toast.show(version
+        ? { th: `เปิดอัปเดตอัตโนมัติเป็น ${version} แล้ว`, en: `Automatic update to ${version} is on` }
+        : { th: 'ปิดอัปเดตอัตโนมัติแล้ว', en: 'Automatic update is off' });
+    } catch {
+      this.toast.show({ th: 'ตั้งไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not change the setting' });
+    } finally {
+      this.fwAutoBusy.set(false);
     }
   }
 

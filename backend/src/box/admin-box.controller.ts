@@ -197,6 +197,18 @@ export class AdminBoxController {
     return this.firmware.list();
   }
 
+  /** อัปเดตอัตโนมัติ: เวอร์ชันที่ตู้ทุกใบต้องใช้ (null = ปิด) */
+  @Get('firmware/auto')
+  getFirmwareAuto() {
+    return this.firmware.getAuto();
+  }
+
+  /** เปิด/เปลี่ยน/ปิด (version = null) การอัปเดตอัตโนมัติให้ตู้ทุกใบ */
+  @Put('firmware/auto')
+  setFirmwareAuto(@Auth() auth: AuthContext, @Body() body: FirmwareTargetDto) {
+    return this.firmware.setAuto(body.version ?? null, auth.userId);
+  }
+
   /** อัปโหลดไฟล์ .bin (body = ไบต์ดิบ) ตั้งชื่อเวอร์ชันเอง — ต้องตรงกับ FW_VERSION ในไฟล์ ไม่งั้นตู้จะอัปเดตซ้ำ */
   @Post('firmware/:version')
   uploadFirmware(@Auth() auth: AuthContext, @Param() p: FirmwareVersionParam, @Req() req: Request) {

@@ -54,9 +54,37 @@ export class FirmwareService {
     }
   }
 
+  /** เวอร์ชันที่ตั้งให้ตู้ทุกใบอัปเดตอัตโนมัติ (null = ปิด) */
+  async getAuto(): Promise<{ version: string | null }> {
+    const { rows } = await this.pool.query<{ value: string }>(`SELECT value FROM app.setting_tb WHERE setting_key = 'firmware_auto'`);
+    return { version: rows[0]?.value ?? null };
+  }
+
+  /**
+   * เปิด/เปลี่ยน/ปิด (null) การอัปเดตอัตโนมัติ — ตู้ที่ออนไลน์จะรับตอน long-poll/boot/report ครั้งถัดไป
+   * ตู้ที่ยังไม่เคยรายงานเวอร์ชัน (fw ว่าง) ไม่ถูกแตะ · ตู้ที่มีงานตรวจค้างอยู่รอไว้ก่อน (ไม่รีบูตกลางการตรวจ)
+   */
+  async setAuto(version: string | null, userId: string): Promise<{ version: string | null }> {
+    if (version === null) {
+      await this.pool.query(`DELETE FROM app.setting_tb WHERE setting_key = 'firmware_auto'`);
+      return { version: null };
+    }
+    if (!VERSION_RE.test(version)) throw new BadRequestException('bad version');
+    const { rowCount } = await this.pool.query(`SELECT 1 FROM app.firmware_tb WHERE version = $1`, [version]);
+    if (!rowCount) throw new NotFoundException();
+    await this.pool.query(
+      `INSERT INTO app.setting_tb (setting_key, value, updated_by) VALUES ('firmware_auto', $1, $2)
+       ON CONFLICT (setting_key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by`,
+      [version, userId],
+    );
+    return { version };
+  }
+
   /** ลบไฟล์เวอร์ชันเก่า · ถ้ามีตู้ที่รอโหลดเวอร์ชันนี้อยู่ = 409 (ยกเลิกงานอัปเดตของตู้ก่อน) */
   async remove(version: string): Promise<void> {
     if (!VERSION_RE.test(version)) throw new NotFoundException();
+    const auto = await this.pool.query(`SELECT 1 FROM app.setting_tb WHERE setting_key = 'firmware_auto' AND value = $1`, [version]);
+    if (auto.rowCount) throw new ConflictException({ code: 'FIRMWARE_IN_USE', message: 'this version is the automatic update target — turn it off or choose another version first' });
     try {
       const { rowCount } = await this.pool.query(`DELETE FROM app.firmware_tb WHERE version = $1`, [version]);
       if (!rowCount) throw new NotFoundException();
@@ -87,6 +115,17 @@ export class FirmwareService {
    * ตู้โหลดไฟล์ไปแล้วแต่ยังรายงานเวอร์ชันเดิม → เลิกเสนอ (กันวนโหลดซ้ำ) จนกว่าแอดมินจะกดอัปเดตใหม่
    */
   async offerFor(boxId: string): Promise<FirmwareOffer | null> {
+    // อัปเดตอัตโนมัติ: ตู้นี้ไม่มีเป้าหมายค้าง + รายงานเวอร์ชันอื่น + ไม่มีงานตรวจที่ยังเปิดอยู่ → ตั้งเป้าให้เอง
+    // (ถ้าโหลดแล้วยังติด fw_target ค้างอยู่ → ไม่ตั้งซ้ำ จึงไม่วนโหลดไม่รู้จบ · แอดมินเห็นป้าย "อัปเดตค้าง")
+    await this.pool.query(
+      `UPDATE app.box_tb b SET fw_target = s.value, fw_target_requested_by = NULL, fw_target_fetched_date = NULL
+       FROM app.setting_tb s
+       WHERE b.box_id = $1 AND s.setting_key = 'firmware_auto'
+         AND b.fw_target IS NULL AND b.fw IS NOT NULL AND b.fw IS DISTINCT FROM s.value
+         AND EXISTS (SELECT 1 FROM app.firmware_tb f WHERE f.version = s.value)
+         AND NOT EXISTS (SELECT 1 FROM app.box_job_tb j WHERE j.box_id = b.box_id AND j.result IS NULL AND j.expire_date > now())`,
+      [boxId],
+    );
     const { rows } = await this.pool.query<{ version: string; sha256: string; size_bytes: number }>(
       `SELECT f.version, f.sha256, f.size_bytes
        FROM app.box_tb b JOIN app.firmware_tb f ON f.version = b.fw_target
