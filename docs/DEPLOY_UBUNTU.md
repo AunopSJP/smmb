@@ -198,6 +198,8 @@ curl -s -o /dev/null -w "ngsw        %{http_code} %{content_type}
 " $HUB/smmb/ngsw-worker.js
 curl -s -o /dev/null -w "index       %{http_code}
 " $HUB/smmb/
+curl -s -o /dev/null -w "box-jobs    %{http_code}
+" "$HUB/smmb-api/v1/box/jobs?wait=1"
 ```
 
 | บรรทัด | ต้องได้ | ถ้าไม่ตรง |
@@ -206,6 +208,7 @@ curl -s -o /dev/null -w "index       %{http_code}
 | `vapid-key` | `200` | `503` = ขาด `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` ใน `backend/.env` → แจ้งเตือนเปิดไม่ได้ (ปุ่มขึ้น "ทำไม่สำเร็จ") · ห้ามสร้างคีย์ใหม่ถ้ามีคนเปิดแจ้งเตือนไว้แล้ว (ทุกเครื่องต้องเปิดใหม่) |
 | `ngsw` | `200 application/javascript` (หรือ `text/javascript`) | `404` หรือ `text/html` = nginx ไม่ส่งไฟล์ service worker ใต้ `/smmb/` หรือ rsync ไม่ครบ → ล็อกอินไม่ไปหน้าถัดไป/แจ้งเตือนไม่ทำงาน |
 | `index` | `200` | ตรวจ nginx และโฟลเดอร์ `/var/www/smmb/` |
+| `box-jobs` | `401` (ไม่มีลายเซ็น) | **`301` = nginx มี location ที่ลงท้าย `/` (เช่น `/smmb-api/v1/box/jobs/`) + proxy_pass → ตู้ถือ long-poll ไม่ได้ ขึ้น offline** · แก้: ห้ามมี prefix location ใต้ `/smmb-api/v1/box/` ที่ลงท้าย `/` ให้ใช้ regex/exact ตาม `deploy/nginx-smmb.conf` · `GET /v1/box/jobs` (ไม่มี `/` ท้าย) ต้องผ่านถึง backend |
 
 เสร็จแล้วบนเบราว์เซอร์ (ถ้าเคยเปิดไซต์นี้มาก่อนและยังเห็นของเก่า): F12 → Application → Service Workers → Unregister แล้ว Clear site data ครั้งเดียว (เวอร์ชันหลัง 2 พ.ย. 2026 โหลดหน้าใหม่ให้เองเมื่อเจอเวอร์ชันใหม่)
 
