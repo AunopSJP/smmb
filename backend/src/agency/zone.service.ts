@@ -9,6 +9,13 @@ import type { BoxStatus } from '../box/box-config.js';
 import { AgencyService, type MemberDto } from './agency.service.js';
 
 /** api.md §8.3 `Zone` */
+/** จังหวัด + เขต/อำเภอ (+ แขวง/ตำบล) ที่โซนดูแล */
+export interface ZoneArea {
+  province: string;
+  district: string;
+  subdistrict: string | null;
+}
+
 export interface ZoneDto {
   id: string;
   name: string;
@@ -16,6 +23,8 @@ export interface ZoneDto {
   tz: string;
   houses_count: number;
   officers_count: number;
+  /** พื้นที่ครอบคลุม (null = ยังไม่ตั้ง → เพิ่มบ้านไม่ได้) · ✅ 2026-11-06 */
+  area: ZoneArea | null;
   /** หัวหน้าคนที่เรียกอยู่ในโซนนี้ (ป้าย "โซนที่ฉันอยู่" — ตรวจตู้ได้เฉพาะโซนนี้) */
   is_mine: boolean;
   updated_at: string;
@@ -80,6 +89,23 @@ export function normalizeWindows(input: unknown): [string, string][] {
   list.sort((a, b) => a[0].localeCompare(b[0]));
   for (let i = 1; i < list.length; i++) if (list[i][0] < list[i - 1][1]) throw bad('windows must not overlap');
   return list;
+}
+
+export interface ZoneAreaInput {
+  province?: string | null;
+  district?: string | null;
+  subdistrict?: string | null;
+}
+
+/** ว่างทั้งหมด = ไม่ตั้ง (null) · ต้องมีจังหวัด + เขต/อำเภอคู่กัน ไม่งั้น 400 ZONE_AREA_INVALID */
+export function normalizeArea(input?: ZoneAreaInput | null): ZoneArea | null {
+  const t = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 100) : null);
+  const province = t(input?.province);
+  const district = t(input?.district);
+  const subdistrict = t(input?.subdistrict);
+  if (!province && !district && !subdistrict) return null;
+  if (!province || !district) throw new AppError(HttpStatus.BAD_REQUEST, 'ZONE_AREA_INVALID', 'province and district are required together');
+  return { province, district, subdistrict };
 }
 
 const toTime = (hhmm: string) => `${hhmm}:00`;
@@ -168,8 +194,19 @@ export class ZoneService {
    * บอกว่าบ้านนี้อยู่โซนไหนแล้วบ้าง (รวมหน่วยงานอื่น) ให้หัวหน้าเห็นว่ามีใครดูแลอยู่
    * ไม่ใส่คำค้น = บ้านที่ยังไม่มีหน่วยงานไหนดูแล (ไล่ดูแล้วเพิ่มได้เลย โดยไม่ต้องรู้บ้านเลขที่) · ตรงต้นคำขึ้นก่อน
    */
-  async searchHouses(agencyId: string, q?: string, opt: { unzoned?: boolean; online?: boolean } = {}): Promise<HouseSearchDto[]> {
+  async searchHouses(agencyId: string, q?: string, opt: { unzoned?: boolean; online?: boolean; zoneId?: string } = {}): Promise<HouseSearchDto[]> {
     const term = q?.trim() ?? '';
+    // ระบุโซน = เห็นเฉพาะบ้านที่อยู่ในพื้นที่ของโซนนั้น (โซนของหน่วยงานอื่น/ไม่มี → 404 · ยังไม่ตั้งพื้นที่ → ไม่มีผล)
+    let area: ZoneArea | null = null;
+    if (opt.zoneId) {
+      const z = await this.pool.query<{ province: string | null; district: string | null; subdistrict: string | null }>(
+        `SELECT province, district, subdistrict FROM app.zone_tb WHERE zone_id = $1::uuid AND agency_id = $2 AND deleted_date IS NULL`,
+        [opt.zoneId, agencyId],
+      );
+      if (!z.rows[0]) throw new NotFoundException();
+      if (!z.rows[0].province || !z.rows[0].district) return [];
+      area = { province: z.rows[0].province, district: z.rows[0].district, subdistrict: z.rows[0].subdistrict };
+    }
     // ไม่ใส่คำค้นและไม่ระบุตัวกรอง = บ้านที่ยังไม่มีใครดูแล (พฤติกรรมเดิม)
     const unzoned = opt.unzoned ?? term === '';
     const { rows } = await this.pool.query<{
@@ -202,6 +239,9 @@ export class ZoneService {
            OR (b.house_no ILIKE $1 OR b.box_id ILIKE $1 OR replace(b.box_id, '-', '') ILIKE $1 OR b.area ILIKE $1
                OR b.subdistrict ILIKE $1 OR b.district ILIKE $1 OR b.province ILIKE $1 OR b.address_line ILIKE $1)
          )
+         AND ($7::text IS NULL OR (
+           app.norm_place(b.province) = app.norm_place($7) AND app.norm_place(b.district) = app.norm_place($8)
+           AND ($9::text IS NULL OR app.norm_place(b.subdistrict) = app.norm_place($9))))
          AND (NOT $6::boolean OR NOT EXISTS (
            SELECT 1 FROM app.zone_box_tb zb
            JOIN app.zone_tb z ON z.zone_id = zb.zone_id AND z.deleted_date IS NULL
@@ -209,7 +249,7 @@ export class ZoneService {
            WHERE zb.box_id = b.box_id))
        ORDER BY (b.house_no ILIKE $5 OR b.box_id ILIKE $5) DESC, b.house_no NULLS LAST, b.box_id
        LIMIT $2`,
-      [likeContains(term), HOUSE_SEARCH_LIMIT, agencyId, term === '', likeContains(term).slice(1), unzoned],
+      [likeContains(term), HOUSE_SEARCH_LIMIT, agencyId, term === '', likeContains(term).slice(1), unzoned, area?.province ?? null, area?.district ?? null, area?.subdistrict ?? null],
     );
     const status = await this.boxConfigs.statusOf(rows);
     return rows
@@ -226,11 +266,15 @@ export class ZoneService {
       .filter((r) => !opt.online || r.box_status === 'online');
   }
 
-  async create(agencyId: string, userId: string, name: string, windows: unknown): Promise<ZoneDto> {
+  async create(agencyId: string, userId: string, name: string, windows: unknown, area?: ZoneAreaInput): Promise<ZoneDto> {
     const list = normalizeWindows(windows);
+    const a = normalizeArea(area);
     const zoneId = await withTx(this.pool, async (db) => {
       const { rows } = await this.uniqueName(() =>
-        db.query<{ zone_id: string }>(`INSERT INTO app.zone_tb (agency_id, name) VALUES ($1, $2) RETURNING zone_id`, [agencyId, name]),
+        db.query<{ zone_id: string }>(
+          `INSERT INTO app.zone_tb (agency_id, name, province, district, subdistrict) VALUES ($1, $2, $3, $4, $5) RETURNING zone_id`,
+          [agencyId, name, a?.province ?? null, a?.district ?? null, a?.subdistrict ?? null],
+        ),
       );
       await this.writeWindows(db, rows[0].zone_id, list);
       return rows[0].zone_id;
@@ -239,12 +283,16 @@ export class ZoneService {
     return zone;
   }
 
-  async update(agencyId: string, userId: string, zoneId: string, patch: { name?: string; windows?: unknown }): Promise<ZoneDto> {
+  async update(agencyId: string, userId: string, zoneId: string, patch: { name?: string; windows?: unknown; area?: ZoneAreaInput }): Promise<ZoneDto> {
     const list = patch.windows === undefined ? undefined : normalizeWindows(patch.windows);
+    const a = patch.area === undefined ? undefined : normalizeArea(patch.area);
     await withTx(this.pool, async (db) => {
       await this.lock(db, agencyId, zoneId);
       if (patch.name !== undefined) {
         await this.uniqueName(() => db.query(`UPDATE app.zone_tb SET name = $2 WHERE zone_id = $1`, [zoneId, patch.name]));
+      }
+      if (a !== undefined) {
+        await db.query(`UPDATE app.zone_tb SET province = $2, district = $3, subdistrict = $4 WHERE zone_id = $1`, [zoneId, a?.province ?? null, a?.district ?? null, a?.subdistrict ?? null]);
       }
       if (list) {
         await db.query(`DELETE FROM app.zone_window_tb WHERE zone_id = $1`, [zoneId]);
@@ -363,8 +411,11 @@ export class ZoneService {
       houses_count: number;
       officers_count: number;
       is_mine: boolean;
+      province: string | null;
+      district: string | null;
+      subdistrict: string | null;
     }>(
-      `SELECT z.zone_id, z.name, z.tz, z.updated_date,
+      `SELECT z.zone_id, z.name, z.tz, z.updated_date, z.province, z.district, z.subdistrict,
               (SELECT json_agg(json_build_array(to_char(w.start_time, 'HH24:MI'), to_char(w.end_time, 'HH24:MI')) ORDER BY w.start_time)
                  FROM app.zone_window_tb w WHERE w.zone_id = z.zone_id) AS windows,
               (SELECT count(*)::int FROM app.zone_box_tb zb WHERE zb.zone_id = z.zone_id) AS houses_count,
@@ -384,6 +435,7 @@ export class ZoneService {
       tz: r.tz,
       houses_count: r.houses_count,
       officers_count: r.officers_count,
+      area: r.province && r.district ? { province: r.province, district: r.district, subdistrict: r.subdistrict } : null,
       is_mine: r.is_mine,
       updated_at: r.updated_date.toISOString(),
     }));

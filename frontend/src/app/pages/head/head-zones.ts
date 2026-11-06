@@ -14,6 +14,7 @@ import { liveRefresh } from '../../core/live-refresh';
 const MAX_WINDOWS = 4;
 
 const ZONE_ERROR: Record<string, Tr> = {
+  ZONE_AREA_INVALID: { th: 'ต้องใส่จังหวัดและเขต/อำเภอคู่กัน (หรือเว้นว่างทั้งหมด)', en: 'Province and district are required together (or leave all blank)' },
   WINDOWS_INVALID: { th: 'เวลาตรวจไม่ถูกต้อง (ไม่ทับกัน · เริ่มก่อนจบ · ไม่ข้ามเที่ยงคืน · ไม่เกิน 4 ช่วง)', en: 'Invalid patrol hours (no overlap · start before end · no midnight crossing · max 4)' },
   ZONE_NAME_TAKEN: { th: 'มีโซนชื่อนี้แล้ว', en: 'A zone with this name exists' },
   HOUSE_NOT_FOUND: { th: 'มีบ้านที่ยังไม่ผูกตู้ / ไม่พบ', en: 'A house is not bound / not found' },
@@ -129,6 +130,22 @@ export class HeadZones implements OnInit {
           <span>{{ i18n.t({ th: 'ชื่อโซน', en: 'Zone name' }) }}</span>
           <input maxlength="50" [value]="name()" (input)="name.set($any($event.target).value)" />
         </label>
+        <fieldset class="stack area">
+          <legend><strong>{{ i18n.t({ th: 'พื้นที่ที่โซนนี้ดูแล', en: 'Area this zone covers' }) }}</strong></legend>
+          <span class="muted small">{{ i18n.t({ th: 'ตอนเพิ่มบ้าน จะเห็นเฉพาะบ้านที่อยู่ในพื้นที่นี้', en: 'When adding houses you will only see houses inside this area' }) }}</span>
+          <label class="field">
+            <span>{{ i18n.t({ th: 'จังหวัด', en: 'Province' }) }}</span>
+            <input maxlength="100" autocomplete="off" [value]="province()" (input)="province.set($any($event.target).value)" />
+          </label>
+          <label class="field">
+            <span>{{ i18n.t({ th: 'เขต / อำเภอ', en: 'District' }) }}</span>
+            <input maxlength="100" autocomplete="off" [value]="district()" (input)="district.set($any($event.target).value)" />
+          </label>
+          <label class="field">
+            <span>{{ i18n.t({ th: 'แขวง / ตำบล (ไม่บังคับ)', en: 'Sub-district (optional)' }) }}</span>
+            <input maxlength="100" autocomplete="off" [value]="subdistrict()" (input)="subdistrict.set($any($event.target).value)" />
+          </label>
+        </fieldset>
         <div class="head">
           <strong>{{ i18n.t({ th: 'เวลาตรวจ', en: 'Patrol hours' }) }}</strong>
           <span class="muted small">Asia/Bangkok</span>
@@ -174,6 +191,9 @@ export class HeadZones implements OnInit {
               <span class="muted small">{{ i18n.t({ th: 'ยังไม่มีบ้าน', en: 'No houses yet' }) }}</span>
             }
           </div>
+          @if (!areaReady()) {
+            <p class="info-box small" role="status">{{ i18n.t({ th: 'ตั้งจังหวัดและเขต/อำเภอของโซนด้านบนก่อน (แล้วกดบันทึก) จึงจะค้นหาบ้านได้', en: 'Set the zone’s province and district above (and save) before searching for houses' }) }}</p>
+          }
           <form class="add-window" (submit)="$event.preventDefault(); search()">
             <input type="search" [placeholder]="i18n.t({ th: 'บ้านเลขที่ / หมู่บ้าน / รหัสตู้', en: 'House no. / village / box id' })" [value]="q()" (input)="q.set($any($event.target).value)" />
             <button type="submit" class="btn secondary small-btn">{{ i18n.t({ th: 'ค้น', en: 'Search' }) }}</button>
@@ -327,6 +347,9 @@ export class HeadZoneEdit {
   protected readonly members = signal<Member[]>([]);
   protected readonly name = signal('');
   protected readonly windows = signal<[string, string][]>([]);
+  protected readonly province = signal('');
+  protected readonly district = signal('');
+  protected readonly subdistrict = signal('');
   protected readonly from = signal('06:00');
   protected readonly to = signal('09:00');
   protected readonly error = signal<Tr | null>(null);
@@ -356,6 +379,9 @@ export class HeadZoneEdit {
     if (!id || id === 'new') {
       this.name.set('');
       this.windows.set([]);
+      this.province.set('');
+      this.district.set('');
+      this.subdistrict.set('');
       return;
     }
     try {
@@ -363,6 +389,9 @@ export class HeadZoneEdit {
       this.zone.set(z);
       this.name.set(z.name);
       this.windows.set(z.windows);
+      this.province.set(z.area?.province ?? '');
+      this.district.set(z.area?.district ?? '');
+      this.subdistrict.set(z.area?.subdistrict ?? '');
     } catch {
       void this.router.navigateByUrl(screenUrl('L06'));
     }
@@ -388,11 +417,11 @@ export class HeadZoneEdit {
     this.error.set(null);
     try {
       if (this.isNew()) {
-        const z = await this.api.createZone(this.name().trim(), this.windows());
+        const z = await this.api.createZone(this.name().trim(), this.windows(), this.areaBody());
         this.toast.show({ th: 'สร้างโซนแล้ว — เพิ่มบ้านและเจ้าหน้าที่ต่อ', en: 'Zone created — now add houses and officers' });
         void this.router.navigate([screenUrl('L07')], { queryParams: { zone: z.id }, replaceUrl: true });
       } else {
-        await this.api.updateZone(this.zone()!.id, { name: this.name().trim(), windows: this.windows() });
+        await this.api.updateZone(this.zone()!.id, { name: this.name().trim(), windows: this.windows(), ...this.areaBody() });
         this.toast.show({ th: 'บันทึกแล้ว — ตู้ได้เวลาตรวจใหม่ตอนรายงานครั้งถัดไป', en: 'Saved — boxes get the new hours at their next report' });
         await this.load(this.zone()!.id);
       }
@@ -404,19 +433,26 @@ export class HeadZoneEdit {
     }
   }
 
+  /** ว่างทั้งสามช่อง = ล้างพื้นที่ · ต้องมีจังหวัดและเขต/อำเภอคู่กัน */
+  private areaBody(): { province: string; district: string; subdistrict: string } {
+    return { province: this.province().trim(), district: this.district().trim(), subdistrict: this.subdistrict().trim() };
+  }
+
+  protected readonly areaReady = computed(() => !!this.zone()?.area);
+
   protected async search(): Promise<void> {
     const q = this.q().trim();
     if (!q) return this.browse();
     this.mode.set('search');
     this.searchedFor.set(q);
-    this.hits.set(await this.api.searchHouses(q, { unzoned: this.onlyUnzoned(), online: this.onlyOnline() }).catch(() => []));
+    this.hits.set(await this.api.searchHouses(q, { unzoned: this.onlyUnzoned(), online: this.onlyOnline(), zone: this.zone()?.id }).catch(() => []));
     this.searched.set(true);
   }
 
   /** บ้านที่เจ้าของผูกตู้แล้วแต่ยังไม่มีหน่วยงานไหนดูแล */
   protected async browse(): Promise<void> {
     this.mode.set('browse');
-    this.hits.set(await this.api.searchHouses('', { unzoned: true, online: this.onlyOnline() }).catch(() => []));
+    this.hits.set(await this.api.searchHouses('', { unzoned: true, online: this.onlyOnline(), zone: this.zone()?.id }).catch(() => []));
     this.searched.set(true);
   }
 

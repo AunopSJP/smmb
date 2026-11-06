@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { OwnerApi, type BoxAddress, type BoxDetail, type PlanInfo, type ZoneRequest, type TechnicianRequest } from '../../core/owner-api';
 import { Session } from '../../core/session';
 import { Toast } from '../../core/toast';
-import { DisplaySettings, type TextSize, type Theme } from '../../core/display-settings';
+import { DisplaySettings, type TextSize, type Theme, type UiMode } from '../../core/display-settings';
 import { I18n, type Lang, type Tr } from '../../core/i18n';
 import { screenUrl } from '../../screens/registry';
 import { MapPin, type LatLng } from '../../shared/map-pin';
@@ -12,12 +12,15 @@ import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { PushStatus } from '../../shared/push-status';
 import { AccountActions } from '../auth/auth-account';
+import { emptyExtras, extrasFromProfile, extrasPayload, extrasValid, ProfileExtras } from '../../shared/profile-extras';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 
 // ── H13 · ตั้งค่าตู้ ───────────────────────────────────────────
 
 @Component({
   selector: 'app-owner-settings',
-  imports: [RouterLink, PageHeader, Icon, AccountActions, PushStatus, MapPin],
+  imports: [RouterLink, PageHeader, Icon, AccountActions, PushStatus, MapPin, ProfileExtras],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
@@ -53,6 +56,15 @@ import { AccountActions } from '../auth/auth-account';
           }
         </div>
       }
+      <section class="card stack">
+        <strong>{{ i18n.t({ th: 'ข้อมูลของฉันและรายละเอียดบ้าน', en: 'My details and house details' }) }}</strong>
+        <app-profile-extras kind="owner" [(value)]="extras" [tried]="triedExtras()" />
+        <button type="button" class="btn" [disabled]="savingExtras()" (click)="saveExtras()">{{ i18n.t({ th: 'บันทึกข้อมูล', en: 'Save details' }) }}</button>
+      </section>
+      <a class="card link strong" [routerLink]="url('H16')">
+        {{ i18n.t({ th: 'ดูหน่วยงานใกล้บ้านบนแผนที่', en: 'See agencies near you on the map' }) }}
+        <span class="muted small block">{{ i18n.t({ th: 'เลือกว่าบ้านของคุณควรอยู่กับหน่วยงานไหน', en: 'Decide which agency should look after your house' }) }}</span>
+      </a>
       @if (box(); as b) {
         <section class="card">
           <dl class="kv">
@@ -80,7 +92,7 @@ import { AccountActions } from '../auth/auth-account';
                 {{ b.area || '—' }} <button type="button" class="link" (click)="startArea()">{{ i18n.t({ th: 'แก้ไข', en: 'Edit' }) }}</button>
               }
             </dd>
-            <dt>{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd>{{ b.id }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd class="adv-only">{{ b.id }}</dd>
             <dt>{{ i18n.t({ th: 'แบต', en: 'Battery' }) }}</dt>
             <dd>{{ b.battery ? b.battery.pct + '%' : '—' }}{{ b.battery?.charging ? i18n.t({ th: ' · ชาร์จอยู่', en: ' · charging' }) : '' }}</dd>
             <dt>{{ i18n.t({ th: 'ผู้ดูแล', en: 'Covered by' }) }}</dt>
@@ -245,6 +257,10 @@ export class OwnerSettings {
   protected readonly savingAddr = signal(false);
   protected readonly addr = signal<BoxAddress>({ line: '', subdistrict: '', district: '', province: '' });
   protected readonly pin = signal<LatLng | null>(null);
+  private readonly http = inject(HttpClient);
+  protected readonly extras = signal(extrasFromProfile(inject(Session).me()?.profile));
+  protected readonly savingExtras = signal(false);
+  protected readonly triedExtras = signal(false);
   /** โหลดรายการตู้เสร็จแล้ว — ยังไม่มีตู้ = ตั้งค่าตู้ไม่ได้ ให้ผูกตู้ก่อน */
   protected readonly loaded = signal(false);
 
@@ -297,6 +313,26 @@ export class OwnerSettings {
     } finally {
       this.deciding.set(null);
       await this.loadRequests();
+    }
+  }
+
+  /** PATCH /me { profile } — รายละเอียดบ้าน/ข้อมูลส่วนตัว */
+  protected async saveExtras(): Promise<void> {
+    this.triedExtras.set(true);
+    if (this.savingExtras()) return;
+    if (!extrasValid(this.extras(), 'owner')) {
+      this.toast.show({ th: 'กรอกประเภทบ้าน รหัสไปรษณีย์ และจำนวนผู้อยู่อาศัยให้ครบ', en: 'Fill in house type, postal code and number of residents' });
+      return;
+    }
+    this.savingExtras.set(true);
+    try {
+      await firstValueFrom(this.http.patch('/api/v1/me', { profile: extrasPayload(this.extras(), 'owner') }));
+      await this.session.refresh();
+      this.toast.show({ th: 'บันทึกข้อมูลแล้ว', en: 'Saved' });
+    } catch {
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save' });
+    } finally {
+      this.savingExtras.set(false);
     }
   }
 
@@ -803,13 +839,18 @@ export class OwnerTechnician {
         }
       }
 
-      <label class="card toggle">
-        <span>
-          <strong>{{ i18n.t({ th: 'โหมดใช้งานง่าย', en: 'Easy mode' }) }}</strong>
-          <span class="muted small block">{{ i18n.t({ th: 'ตัวอักษรใหญ่ ปุ่มใหญ่ เหลือเฉพาะสิ่งที่ใช้บ่อย (เจ้าของบ้านเห็นหน้าหลักแบบเรียบง่าย)', en: 'Larger text and buttons, only what you use most (owners get a simple home screen)' }) }}</span>
-        </span>
-        <input type="checkbox" class="switch" role="switch" [checked]="display.easyMode()" (change)="display.setEasy($any($event.target).checked)" />
-      </label>
+      <fieldset class="card stack modes">
+        <legend class="head"><strong>{{ i18n.t({ th: 'โหมดการแสดงผล', en: 'Display mode' }) }}</strong></legend>
+        @for (m of modeOptions; track m.value) {
+          <label class="toggle">
+            <span>
+              <strong>{{ i18n.t(m.label) }}</strong>
+              <span class="muted small block">{{ i18n.t(m.hint) }}</span>
+            </span>
+            <input type="radio" name="ui-mode" [value]="m.value" [checked]="display.mode() === m.value" (change)="display.setMode(m.value)" />
+          </label>
+        }
+      </fieldset>
 
       <section class="card stack">
         <h2 class="head"><app-icon name="bell" [size]="20" />{{ i18n.t({ th: 'แจ้งเตือนที่ต้องการรับ', en: 'Notifications to receive' }) }}</h2>
@@ -886,6 +927,11 @@ export class OwnerDisplay {
   ];
 
   /** แจ้งเตือนที่ปิดรับได้ ตามบทบาทของหน้านี้ (type ต้องตรงกับ MUTABLE_NOTIFICATION_TYPES ของ backend) */
+  protected readonly modeOptions: { value: UiMode; label: Tr; hint: Tr }[] = [
+    { value: 'easy', label: { th: 'โหมดง่าย', en: 'Easy' }, hint: { th: 'ตัวใหญ่ ปุ่มใหญ่ เห็นเฉพาะสิ่งที่จำเป็นจริง ๆ ใช้งานไม่ยาก', en: 'Large text and buttons — only what you really need' } },
+    { value: 'default', label: { th: 'โหมดปกติ', en: 'Default' }, hint: { th: 'ใช้งานทั่วไป เห็นมากกว่าโหมดง่าย แต่ไม่แสดงรายละเอียดทางเทคนิค', en: 'Everyday use — more than Easy, without technical details' } },
+    { value: 'advanced', label: { th: 'โหมดละเอียด', en: 'Advanced' }, hint: { th: 'แสดงทุกอย่าง ทุกรายละเอียด (รหัส เวอร์ชัน ข้อมูลเทคนิค)', en: 'Everything, every detail (IDs, versions, technical data)' } },
+  ];
   protected readonly notifyOptions = computed<{ type: string; label: Tr; hint: Tr }[]>(() =>
     this.officer
       ? [{ type: 'sos_taken', label: { th: 'มีเจ้าหน้าที่รับ SOS แล้ว', en: 'SOS taken by another officer' }, hint: { th: 'แจ้งเมื่อเพื่อนร่วมโซนรับเรื่องไปแล้ว', en: 'When a teammate has taken the case' } }]

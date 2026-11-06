@@ -107,6 +107,14 @@ interface Today {
       </a>
       <p class="muted small center">{{ i18n.t({ th: 'ตรวจได้เฉพาะโซนที่คุณอยู่', en: 'You can only inspect zones you belong to' }) }}</p>
       <nav class="list">
+        <a class="row" [routerLink]="url('L10')">
+          <span class="icon-bubble"><app-icon name="pin" [size]="20" /></span>
+          <span class="grow">
+            <strong>{{ i18n.t({ th: 'ข้อมูลหน่วยงาน + หมุดบนแผนที่', en: 'Agency details + map pin' }) }}</strong>
+            <span class="muted small block">{{ i18n.t({ th: 'ที่อยู่ ช่องทางติดต่อ และตำแหน่งที่เจ้าของบ้านเห็น', en: 'Address, contact and the location owners see' }) }}</span>
+          </span>
+          <app-icon name="chevronRight" [size]="18" />
+        </a>
         <a class="row" [routerLink]="url('O13')">
           <span class="icon-bubble"><app-icon name="user" [size]="20" /></span>
           <span class="grow">

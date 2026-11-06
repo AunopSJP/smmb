@@ -28,6 +28,7 @@ export interface Prefs {
   simple_home: boolean;
   night_auto_dark: boolean;
   easy_mode: boolean;
+  ui_mode: 'easy' | 'default' | 'advanced';
   /** type แจ้งเตือนที่ปิดรับ (ปิดได้เฉพาะ MUTABLE_NOTIFICATION_TYPES) */
   muted_types: string[];
 }
@@ -39,6 +40,7 @@ export const DEFAULT_PREFS: Prefs = {
   simple_home: false,
   night_auto_dark: true,
   easy_mode: false,
+  ui_mode: 'default',
   muted_types: [],
 };
 
@@ -60,6 +62,8 @@ export interface Me {
   /** ข้อตกลงเปลี่ยนแล้วยังไม่กดยอมรับ → client ไปหน้า A13 (route อื่นตอบ 403 TERMS_UPDATE_REQUIRED) */
   terms_update_required: boolean;
   perm_version: number;
+  /** รายละเอียดเพิ่มที่ผู้ใช้กรอกเอง (✅ 2026-11-06) — ของตัวเองเท่านั้น */
+  profile: Record<string, unknown>;
 }
 
 const ROLE_ORDER: RequiredRole[] = ['owner', 'officer', 'head', 'admin'];
@@ -114,11 +118,11 @@ export class MeService {
   }
 
   /** แก้ชื่อที่แสดง / การแสดงผล — prefs รวมกับของเดิม (ส่งมาเฉพาะที่เปลี่ยน) · คืน Me ใหม่ */
-  async update(userId: string, patch: { display_name?: string; prefs?: Partial<Prefs> }, sessionId?: string): Promise<Me> {
+  async update(userId: string, patch: { display_name?: string; prefs?: Partial<Prefs>; profile?: object }, sessionId?: string): Promise<Me> {
     const prefs = Object.fromEntries(Object.entries(patch.prefs ?? {}).filter(([, v]) => v !== undefined));
     await this.pool.query(
-      `UPDATE app.user_tb SET prefs = prefs || $2::jsonb, display_name = coalesce($3, display_name) WHERE user_id = $1`,
-      [userId, JSON.stringify(prefs), patch.display_name ?? null],
+      `UPDATE app.user_tb SET prefs = prefs || $2::jsonb, display_name = coalesce($3, display_name), profile = profile || $4::jsonb WHERE user_id = $1`,
+      [userId, JSON.stringify(prefs), patch.display_name ?? null, JSON.stringify(patch.profile ?? {})],
     );
     return this.build(userId, undefined, sessionId);
   }
@@ -135,8 +139,9 @@ export class MeService {
       prefs: Partial<Prefs>;
       must_change_password: boolean;
       perm_version: number;
+      profile: Record<string, unknown>;
     }>(
-      `SELECT user_id, status, name, display_name, phone, prefs, must_change_password, perm_version
+      `SELECT user_id, status, name, display_name, phone, prefs, must_change_password, perm_version, profile
        FROM app.user_tb WHERE user_id = $1 AND deleted_date IS NULL`,
       [userId],
     );
@@ -174,6 +179,7 @@ export class MeService {
       must_change_password: u.must_change_password,
       terms_update_required: termsUpdateRequired,
       perm_version: u.perm_version,
+      profile: u.profile ?? {},
     };
   }
 }

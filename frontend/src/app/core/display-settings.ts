@@ -8,6 +8,8 @@ import type { ServerPrefs } from './session';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type TextSize = 'normal' | 'large' | 'xlarge';
+/** easy = เห็นเฉพาะที่จำเป็น · default = ปกติ · advanced = เห็นรายละเอียดทุกอย่าง */
+export type UiMode = 'easy' | 'default' | 'advanced';
 
 interface Saved {
   theme: Theme;
@@ -17,6 +19,7 @@ interface Saved {
   nightAutoDark?: boolean;
   mutedTypes?: string[];
   easyMode?: boolean;
+  mode?: UiMode;
 }
 
 const bangkokHour = () =>
@@ -39,11 +42,14 @@ export class DisplaySettings {
   /** ธีมมืดอัตโนมัติ 18:00–06:00 — เจ้าหน้าที่/หัวหน้าเท่านั้น (api.md §3 `night_auto_dark`) */
   readonly nightAutoDark = signal(true);
   /** โหมดใช้งานง่าย: ตัวใหญ่ ปุ่มใหญ่ ซ่อนรายละเอียดรอง หน้าหลักเจ้าของบ้านเรียบง่าย (ทุกบทบาท) */
-  readonly easyMode = signal(false);
+  readonly mode = signal<UiMode>('default');
+  readonly easyMode = computed(() => this.mode() === 'easy');
+  readonly advancedMode = computed(() => this.mode() === 'advanced');
 
-  setEasy(on: boolean): void {
-    this.easyMode.set(on);
-    this.simpleHome.set(on);
+  /** เปลี่ยนโหมด · โหมดง่ายใช้หน้าหลักแบบเรียบง่ายด้วย */
+  setMode(m: UiMode): void {
+    this.mode.set(m);
+    this.simpleHome.set(m === 'easy');
   }
 
   /** แจ้งเตือนที่ปิดรับ (เก็บกับบัญชี — server ไม่ส่งให้) */
@@ -76,6 +82,7 @@ export class DisplaySettings {
     simple_home: this.simpleHome(),
     night_auto_dark: this.nightAutoDark(),
     easy_mode: this.easyMode(),
+    ui_mode: this.mode(),
     muted_types: this.mutedTypes(),
   }));
 
@@ -87,7 +94,8 @@ export class DisplaySettings {
     if (p.text_size) this.textSize.set(p.text_size);
     if (p.simple_home !== undefined) this.simpleHome.set(p.simple_home);
     if (p.night_auto_dark !== undefined) this.nightAutoDark.set(p.night_auto_dark);
-    if (p.easy_mode !== undefined) this.easyMode.set(p.easy_mode);
+    if (p.ui_mode) this.mode.set(p.ui_mode);
+    else if (p.easy_mode !== undefined) this.mode.set(p.easy_mode ? 'easy' : 'default');
     if (p.muted_types) this.mutedTypes.set(p.muted_types);
   }
 
@@ -104,7 +112,7 @@ export class DisplaySettings {
       this.simpleHome.set(saved.simpleHome);
       this.nightAutoDark.set(saved.nightAutoDark ?? true);
       this.mutedTypes.set(saved.mutedTypes ?? []);
-      this.easyMode.set(saved.easyMode ?? false);
+      this.mode.set(saved.mode ?? (saved.easyMode ? 'easy' : 'default'));
       this.lang.set(saved.lang);
     }
     const t = setInterval(() => this.hour.set(bangkokHour()), 60_000);
@@ -117,6 +125,7 @@ export class DisplaySettings {
       if (applied === 'system') root.removeAttribute('data-theme');
       else root.setAttribute('data-theme', applied);
       root.setAttribute('data-text-size', this.textSize());
+      root.setAttribute('data-mode', this.mode());
       if (this.easyMode()) root.setAttribute('data-easy', 'true');
       else root.removeAttribute('data-easy');
       root.setAttribute('lang', this.lang());
@@ -128,6 +137,7 @@ export class DisplaySettings {
         nightAutoDark: this.nightAutoDark(),
         mutedTypes: this.mutedTypes(),
         easyMode: this.easyMode(),
+        mode: this.mode(),
       });
     });
   }

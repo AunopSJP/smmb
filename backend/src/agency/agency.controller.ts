@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 import { AccessService } from '../auth/access.service.js';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
@@ -13,8 +13,22 @@ class ListMembersQuery {
   @IsOptional() @IsIn(['pending', 'active', 'disabled']) status?: MemberStatus;
 }
 
+const t = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
+
+/** ส่งมาเฉพาะที่เปลี่ยน · '' = ล้างช่องนั้น (ยกเว้น contact ห้ามว่าง) */
 class AgencyContactDto {
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value)) @IsString() @Length(3, 200) contact!: string;
+  @IsOptional() @Transform(t) @IsString() @Length(3, 200) contact?: string;
+  @IsOptional() @Transform(t) @IsString() @MaxLength(300) address?: string;
+  @IsOptional() @Transform(t) @IsString() @MaxLength(100) subdistrict?: string;
+  @IsOptional() @Transform(t) @IsString() @MaxLength(100) district?: string;
+  @IsOptional() @Transform(t) @IsString() @MaxLength(100) province?: string;
+  @IsOptional() @Transform(t) @ValidateIf((o: { postal_code?: string }) => o.postal_code !== '') @IsString() @Matches(/^[0-9]{5}$/, { message: 'postal_code must be 5 digits' }) postal_code?: string;
+  @IsOptional() @Transform(t) @IsString() @MaxLength(30) phone?: string;
+  @IsOptional() @Transform(t) @IsString() @MaxLength(200) email?: string;
+  @IsOptional() @Transform(t) @IsString() @MaxLength(100) contact_person?: string;
+  @IsOptional() @Transform(t) @IsString() @MaxLength(300) coverage_note?: string;
+  @IsOptional() @ValidateIf((o: { lat?: number | null }) => o.lat !== null) @IsNumber() @Min(-90) @Max(90) lat?: number | null;
+  @IsOptional() @ValidateIf((o: { lng?: number | null }) => o.lng !== null) @IsNumber() @Min(-180) @Max(180) lng?: number | null;
 }
 
 class TodayQuery {
@@ -103,7 +117,8 @@ export class AgencyController {
   @RequireRole('head')
   @Patch()
   async setContact(@Auth() auth: AuthContext, @Body() dto: AgencyContactDto) {
-    return this.agency.setContact(await this.agencyId(auth), dto.contact);
+    await this.agency.updateProfile(await this.agencyId(auth), dto);
+    return this.agency.get(auth.userId);
   }
 
   @RequireRole('head')
@@ -165,5 +180,18 @@ export class AgencyController {
   @Post('members/:user_id/reset-password')
   async resetPassword(@Auth() auth: AuthContext, @Param() p: UserIdParam) {
     return this.agency.resetPassword(await this.agencyId(auth), auth.userId, p.user_id);
+  }
+}
+
+
+/** เจ้าของบ้านดูว่าแต่ละหน่วยงานอยู่ตรงไหน เพื่อเลือกว่าจะให้ใครดูแล (✅ 2026-11-06 · api.md §8.1b) */
+@RequireRole('owner')
+@Controller('api/v1/agencies')
+export class AgencyMapController {
+  constructor(private readonly agency: AgencyService) {}
+
+  @Get('map')
+  map() {
+    return this.agency.publicMap();
   }
 }

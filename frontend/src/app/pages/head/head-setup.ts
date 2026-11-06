@@ -14,6 +14,8 @@ import { Steps, type Step } from '../../shared/steps';
 import { SIGNUP_ERROR } from '../auth/auth-owner';
 import { ContactCard } from '../../shared/contact-card';
 import { PasswordField, TermsCheck } from '../auth/auth-parts';
+import { AgencyFields, agencyDetailPayload, agencyDetailValid, emptyAgencyDetail } from '../../shared/agency-fields';
+import { emptyExtras, extrasPayload, extrasValid, ProfileExtras } from '../../shared/profile-extras';
 
 // หัวหน้า: L01 สมัครหน่วยงาน → L02 รอแอดมิน (L02-b ไม่อนุมัติ) → L03 อนุมัติแล้ว แชร์รหัสกลุ่ม
 // ใช้ API จริง (api.md §2 signup/agency, §8.1, §9.2)
@@ -29,7 +31,7 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
 
 @Component({
   selector: 'app-head-signup',
-  imports: [PageHeader, PasswordField, TermsCheck, RouterLink],
+  imports: [PageHeader, PasswordField, TermsCheck, RouterLink, AgencyFields, ProfileExtras],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [title]="i18n.t({ th: 'สมัครหน่วยงาน', en: 'Register an agency' })" [back]="url('A05')" />
@@ -64,11 +66,13 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
         <span>{{ i18n.t({ th: 'ที่ตั้งหน่วยงาน', en: 'Agency address' }) }}</span>
         <input maxlength="300" autocomplete="street-address" [placeholder]="i18n.t({ th: 'เช่น สภ.เมือง ถ.ราชดำเนิน อ.เมือง จ.เชียงใหม่', en: 'e.g. Muang Police Station, Ratchadamnoen Rd, Chiang Mai' })" [value]="f().agency_address" (input)="set('agency_address', $any($event.target).value)" />
       </label>
+      <app-agency-fields [(value)]="detail" [tried]="tried()" />
       <label class="field">
         <span>{{ i18n.t({ th: 'เลขทะเบียนหน่วยงาน / ใบอนุญาต (ไม่บังคับ)', en: 'Registration / licence no. (optional)' }) }}</span>
         <input maxlength="100" autocomplete="off" [value]="f().registration_no" (input)="set('registration_no', $any($event.target).value)" />
         <small>{{ i18n.t({ th: 'ผู้ดูแลระบบใช้ประกอบการอนุมัติ ไม่แสดงให้คนอื่นเห็น', en: 'Used by the admin when approving · not shown to others' }) }}</small>
       </label>
+      <app-profile-extras kind="head" [(value)]="headExtras" [tried]="tried()" />
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
       <app-terms-check from="L01" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="filled() && !f().terms" />
       @if (errorCode(); as e) {
@@ -116,6 +120,8 @@ export class HeadSignup {
   protected readonly errors = SIGNUP_ERROR;
   protected readonly f = this.demo.forms.agency;
   protected readonly tried = signal(false);
+  protected readonly detail = signal(emptyAgencyDetail());
+  protected readonly headExtras = signal(emptyExtras());
   protected readonly errorCode = signal<string | null>(null);
   protected readonly phoneOk = computed(() => !!normalizePhone(this.f().phone));
   protected readonly contactOk = computed(() => this.f().contact.trim().length >= 3);
@@ -135,7 +141,7 @@ export class HeadSignup {
     const f = this.f();
     const phone = normalizePhone(f.phone);
     if (!f.terms) return;
-    if (!f.agency_name.trim() || !f.name.trim() || !phone || f.password.length < this.min || !this.contactOk() || !f.agency_address.trim()) {
+    if (!f.agency_name.trim() || !f.name.trim() || !phone || f.password.length < this.min || !this.contactOk() || !f.agency_address.trim() || !agencyDetailValid(this.detail()) || !extrasValid(this.headExtras(), 'head')) {
       this.errorCode.set('INVALID');
       return;
     }
@@ -150,8 +156,9 @@ export class HeadSignup {
             contact: f.contact.trim(),
             address: f.agency_address.trim(),
             registration_no: f.registration_no.trim() || undefined,
+            ...agencyDetailPayload(this.detail()),
           },
-          head: { name: f.name.trim(), phone, password: f.password },
+          head: { name: f.name.trim(), phone, password: f.password, ...(Object.keys(extrasPayload(this.headExtras(), 'head')).length ? { profile: extrasPayload(this.headExtras(), 'head') } : {}) },
           terms_version: terms.version,
         }),
       );

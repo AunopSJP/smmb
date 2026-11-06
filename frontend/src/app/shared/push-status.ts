@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal, ty
 import { RouterLink } from '@angular/router';
 import { apiError } from '../core/api';
 import { I18n, type Tr } from '../core/i18n';
-import { PushBlockedError, PushNotifications, type PushBlocker } from '../core/push-notifications';
+import { PushBlockedError, PushNotifications, type DiagStep, type PushBlocker } from '../core/push-notifications';
 import { Session } from '../core/session';
 import { Toast } from '../core/toast';
 import { screenUrl } from '../screens/registry';
@@ -27,6 +27,7 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
         <small>{{ i18n.t({ th: 'มือถือ/คอมพิวเตอร์เครื่องอื่นที่เข้าสู่ระบบบัญชีนี้ ต้องเปิดแยกเครื่องละครั้ง', en: 'Every other phone or computer you sign in on needs to turn it on separately' }) }}</small>
         <div class="row-btns">
           <button type="button" class="btn secondary" [disabled]="busy()" (click)="test()">{{ i18n.t({ th: 'ส่งทดสอบ', en: 'Send a test' }) }}</button>
+          <button type="button" class="btn secondary" [disabled]="busy() || diagBusy()" (click)="diagnose()">{{ i18n.t({ th: 'ตรวจแจ้งเตือน (ละเอียด)', en: 'Check notifications (detailed)' }) }}</button>
           @if (!required()) {
             <button type="button" class="btn secondary" [disabled]="busy()" (click)="turnOff()">{{ i18n.t({ th: 'ปิดบนเครื่องนี้', en: 'Turn off here' }) }}</button>
           }
@@ -58,12 +59,44 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
           @default {
             <button type="button" class="btn" [disabled]="busy()" (click)="turnOn()">{{ i18n.t({ th: 'เปิดแจ้งเตือน', en: 'Turn on notifications' }) }}</button>
             <small>{{ i18n.t({ th: 'เบราว์เซอร์จะถามสิทธิ์ ให้กด "อนุญาต"', en: 'Your browser will ask — tap “Allow”' }) }}</small>
+            <button type="button" class="btn secondary" [disabled]="busy() || diagBusy()" (click)="diagnose()">{{ i18n.t({ th: 'ตรวจแจ้งเตือน (ละเอียด)', en: 'Check notifications (detailed)' }) }}</button>
           }
         }
       </div>
     }
+    @if (diag().length) {
+      <div class="card diag" role="status">
+        <strong>{{ i18n.t({ th: 'ผลการตรวจ', en: 'Check results' }) }}</strong>
+        @for (s of diag(); track $index) {
+          <div class="diag-step" [class.bad]="!s.ok">
+            <span>{{ s.ok ? '✅' : '❌' }} {{ i18n.t(s.label) }}</span>
+            @if (s.detail) { <small>{{ s.detail }}</small> }
+            @if (!s.ok && s.fix) { <small class="fix">{{ i18n.t(s.fix) }}</small> }
+          </div>
+        }
+        @if (diagBusy()) { <small>{{ i18n.t({ th: 'กำลังตรวจ…', en: 'Checking…' }) }}</small> }
+      </div>
+    }
   `,
   styles: `
+    .diag {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-block-start: 8px;
+    }
+    .diag-step {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      small {
+        color: var(--text-muted);
+        overflow-wrap: anywhere;
+      }
+      .fix {
+        color: var(--brand);
+      }
+    }
     .status {
       display: flex;
       flex-direction: column;
@@ -99,6 +132,8 @@ export class PushStatus implements OnInit {
   private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
   protected readonly busy = signal(false);
+  protected readonly diag = signal<DiagStep[]>([]);
+  protected readonly diagBusy = signal(false);
   /** ค่านี้เปลี่ยนเมื่อกดอนุญาต/ปิด (ไม่มี signal ของ Notification.permission) */
   private readonly tick = signal(0);
   /** ผลตรวจฝั่งเบราว์เซอร์ (null = ยังไม่รู้) — server บอกว่าเปิด แต่เบราว์เซอร์ถูกปิดสิทธิ์/ลบ subscription ไปแล้ว ต้องถือว่ายังไม่เปิด */
@@ -140,6 +175,17 @@ export class PushStatus implements OnInit {
           : { th: 'เปิดแจ้งเตือนแล้ว แต่ส่งทดสอบไม่สำเร็จ — กด "ส่งทดสอบ" ในหน้าการแจ้งเตือน', en: 'Notifications are on, but the test failed — tap “Send a test” on the notifications page' },
       );
     });
+  }
+
+  protected async diagnose(): Promise<void> {
+    if (this.diagBusy()) return;
+    this.diagBusy.set(true);
+    this.diag.set([]);
+    try {
+      this.diag.set(await this.push.diagnose((s) => this.diag.set(s)));
+    } finally {
+      this.diagBusy.set(false);
+    }
   }
 
   protected async turnOff(): Promise<void> {

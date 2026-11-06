@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, input, model } from '@angul
 import { I18n } from '../core/i18n';
 import { normalizePhone } from '../core/mock/auth-demo';
 import { MapPin, type LatLng } from './map-pin';
+import { emptyExtras, extrasPayload, extrasValid, ProfileExtras, type ExtrasForm } from './profile-extras';
 
 /** ข้อมูลบ้านที่ละเอียดขึ้น (api.md §2.1 · ✅ 2026-11-04) — ใช้ใน A06 สมัคร และ A15 เพิ่มบทบาทเจ้าของบ้าน */
 export interface HouseProfileForm {
@@ -12,6 +13,8 @@ export interface HouseProfileForm {
   location: LatLng | null;
   emergency_name: string;
   emergency_phone: string;
+  /** รายละเอียดเพิ่ม (✅ 2026-11-06) */
+  extras: ExtrasForm;
 }
 
 export const emptyHouseProfile = (): HouseProfileForm => ({
@@ -22,6 +25,7 @@ export const emptyHouseProfile = (): HouseProfileForm => ({
   location: null,
   emergency_name: '',
   emergency_phone: '',
+  extras: emptyExtras(),
 });
 
 /** ผู้ติดต่อฉุกเฉินต้องกรอกครบคู่ หรือไม่กรอกเลย */
@@ -33,12 +37,12 @@ const emergencyOk = (p: HouseProfileForm) => {
 
 /** ที่อยู่บังคับ (แขวง/ตำบล เขต/อำเภอ จังหวัด) · หมุดและผู้ติดต่อฉุกเฉินไม่บังคับ */
 export function houseProfileValid(p: HouseProfileForm): boolean {
-  return !!(p.address_line.trim() && p.subdistrict.trim() && p.district.trim() && p.province.trim()) && emergencyOk(p);
+  return !!(p.address_line.trim() && p.subdistrict.trim() && p.district.trim() && p.province.trim()) && emergencyOk(p) && extrasValid(p.extras, 'owner');
 }
 
 /** แปลงเป็นฟิลด์ของ API (ค่าว่าง = ไม่ส่ง) */
-export function houseProfilePayload(p: HouseProfileForm): Record<string, string | number> {
-  const out: Record<string, string | number> = {};
+export function houseProfilePayload(p: HouseProfileForm): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
   for (const k of ['address_line', 'subdistrict', 'district', 'province'] as const) if (p[k].trim()) out[k] = p[k].trim();
   if (p.location) {
     out['lat'] = p.location.lat;
@@ -49,12 +53,14 @@ export function houseProfilePayload(p: HouseProfileForm): Record<string, string 
     out['emergency_name'] = p.emergency_name.trim();
     out['emergency_phone'] = phone;
   }
+  const profile = extrasPayload(p.extras, 'owner');
+  if (Object.keys(profile).length) out['profile'] = profile;
   return out;
 }
 
 @Component({
   selector: 'app-house-fields',
-  imports: [MapPin],
+  imports: [MapPin, ProfileExtras],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <label class="field" [class.invalid]="tried() && !value().address_line.trim()">
@@ -81,6 +87,8 @@ export function houseProfilePayload(p: HouseProfileForm): Record<string, string 
       <small>{{ i18n.t({ th: 'เจ้าหน้าที่เห็นตำแหน่งนี้เฉพาะตอนคุณกด SOS เพื่อมาถึงบ้านได้เร็วขึ้น', en: 'Officers see this only during your SOS, so they can reach you faster' }) }}</small>
       <app-map-pin [editable]="true" [value]="value().location" (valueChange)="set('location', $event)" />
     </div>
+
+    <app-profile-extras kind="owner" [value]="value().extras" (valueChange)="set('extras', $event)" [tried]="tried()" />
 
     <fieldset class="field" [class.invalid]="tried() && !emergencyValid()">
       <legend>{{ i18n.t({ th: 'ผู้ติดต่อฉุกเฉิน (ไม่บังคับ)', en: 'Emergency contact (optional)' }) }}</legend>

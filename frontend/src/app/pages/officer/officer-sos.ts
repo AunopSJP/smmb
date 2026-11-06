@@ -4,6 +4,7 @@ import { apiError } from '../../core/api';
 import { I18n, type Tr } from '../../core/i18n';
 import { hhmm } from '../../core/inspection-api';
 import { MapPin } from '../../shared/map-pin';
+import { SosHouseDetails } from '../../shared/profile-extras';
 import { OfficerSosApi, secondsSince, type SosCard } from '../../core/owner-api';
 import { Session } from '../../core/session';
 import { screenUrl } from '../../screens/registry';
@@ -132,7 +133,7 @@ export class OfficerSosList {
 
 @Component({
   selector: 'app-officer-sos-case',
-  imports: [RouterLink, Icon, MapPin],
+  imports: [RouterLink, Icon, MapPin, SosHouseDetails],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = card();
@@ -206,6 +207,7 @@ export class OfficerSosList {
             <dt>{{ i18n.t({ th: 'ขั้น', en: 'Stage' }) }}</dt><dd>{{ c.stage === 'zone' ? i18n.t({ th: 'เจ้าหน้าที่ในโซน', en: 'Zone officers' }) : i18n.t({ th: 'ทุกคนในหน่วยงาน', en: 'Whole agency' }) }}</dd>
             <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt><dd class="danger-text">{{ i18n.t({ th: 'ยังไม่มีคนรับ', en: 'Not accepted yet' }) }}</dd>
           </dl>
+          <app-sos-house-details [house]="c.house" />
         </section>
         @if (c.house?.location; as loc) {
           <section class="card"><app-map-pin [value]="loc" [height]="180" /></section>
@@ -308,7 +310,7 @@ export class OfficerSosCase implements OnInit {
 
 @Component({
   selector: 'app-officer-sos-handling',
-  imports: [RouterLink, Icon, MapPin],
+  imports: [RouterLink, Icon, MapPin, SosHouseDetails],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = card();
@@ -330,6 +332,7 @@ export class OfficerSosCase implements OnInit {
             }
             <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt><dd class="ok">{{ i18n.t({ th: 'เจ้าของบ้านเห็นว่าคุณรับแล้ว', en: 'The owner sees you accepted' }) }}</dd>
           </dl>
+          <app-sos-house-details [house]="c?.house ?? null" />
         </section>
         @if (c?.house?.location; as loc) {
           <section class="card"><app-map-pin [value]="loc" [height]="200" /></section>

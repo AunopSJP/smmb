@@ -249,8 +249,8 @@ function useEvent(type: BoxEvent['type']) {
             <dt>{{ i18n.t({ th: 'วันเวลา', en: 'Date' }) }}</dt><dd>{{ when(h.at) }}</dd>
             <dt>{{ i18n.t({ th: 'เจ้าหน้าที่', en: 'Officer' }) }}</dt><dd>{{ h.officer?.display_name }}</dd>
             <dt>{{ i18n.t({ th: 'หน่วยงาน', en: 'Agency' }) }}</dt><dd>{{ h.officer?.agency_name }}</dd>
-            <dt>{{ i18n.t({ th: 'QR ที่สแกน', en: 'QR scanned' }) }}</dt><dd>{{ h.qr_slot === 2 ? i18n.t({ th: 'QR สำรอง', en: 'Backup QR' }) : i18n.t({ th: 'QR หน้าตู้', en: 'Front QR' }) }}</dd>
-            <dt>{{ i18n.t({ th: 'วิธี', en: 'Method' }) }}</dt><dd>{{ h.method === 'code' ? i18n.t({ th: 'พิมพ์รหัส', en: 'Typed code' }) : i18n.t({ th: 'สแกน', en: 'Scan' }) }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'QR ที่สแกน', en: 'QR scanned' }) }}</dt><dd class="adv-only">{{ h.qr_slot === 2 ? i18n.t({ th: 'QR สำรอง', en: 'Backup QR' }) : i18n.t({ th: 'QR หน้าตู้', en: 'Front QR' }) }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'วิธี', en: 'Method' }) }}</dt><dd class="adv-only">{{ h.method === 'code' ? i18n.t({ th: 'พิมพ์รหัส', en: 'Typed code' }) : i18n.t({ th: 'สแกน', en: 'Scan' }) }}</dd>
             <dt>{{ i18n.t({ th: 'ตู้ยืนยัน', en: 'Box confirmed' }) }}</dt><dd class="ok">{{ i18n.t({ th: 'ผ่าน', en: 'Passed' }) }}</dd>
           </dl>
         </section>
@@ -299,7 +299,7 @@ export class OwnerInspection {
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'วันเวลา', en: 'Date' }) }}</dt><dd>{{ when(h.at) }}</dd>
             <dt>{{ i18n.t({ th: 'แจ้งโดย', en: 'Reported by' }) }}</dt><dd>{{ i18n.t({ th: 'ไรเดอร์', en: 'Rider' }) }}</dd>
-            <dt>{{ i18n.t({ th: 'วิธี', en: 'Method' }) }}</dt><dd>{{ h.method === 'code' ? i18n.t({ th: 'พิมพ์รหัสใต้ QR', en: 'Typed the code' }) : i18n.t({ th: 'สแกน QR หน้าตู้', en: 'Scanned the front QR' }) }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'วิธี', en: 'Method' }) }}</dt><dd class="adv-only">{{ h.method === 'code' ? i18n.t({ th: 'พิมพ์รหัสใต้ QR', en: 'Typed the code' }) : i18n.t({ th: 'สแกน QR หน้าตู้', en: 'Scanned the front QR' }) }}</dd>
           </dl>
         </section>
         <p class="muted small">{{ i18n.t({ th: 'ระบบไม่เก็บข้อมูลตัวตนของไรเดอร์', en: 'No rider identity is stored' }) }}</p>

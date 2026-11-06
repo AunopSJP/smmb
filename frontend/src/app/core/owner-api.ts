@@ -112,7 +112,13 @@ export interface SosCard {
   house_no: string;
   owner: { name: string; phone: string } | null;
   /** ที่อยู่ + หมุดบ้าน — มีเฉพาะตอน SOS ยังเปิดอยู่ (✅ 2026-11-04) */
-  house: { address: string; area: string; location: { lat: number; lng: number } | null } | null;
+  house: {
+    address: string;
+    area: string;
+    location: { lat: number; lng: number } | null;
+    /** รายละเอียดบ้านที่เจ้าของกรอก (✅ 2026-11-06 · เห็นเฉพาะตอน SOS เปิด) */
+    details?: { house_type: string | null; village: string | null; residents: number | null; care: string[]; landmark: string | null; emergency_relation: string | null; contact_time: string | null };
+  } | null;
   accepted_by: { display_name: string; agency_name: string } | null;
   mine: boolean;
 }

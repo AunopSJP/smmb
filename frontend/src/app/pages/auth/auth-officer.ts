@@ -13,6 +13,7 @@ import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { ContactCard } from '../../shared/contact-card';
+import { emptyExtras, extrasPayload, extrasValid, ProfileExtras } from '../../shared/profile-extras';
 import { PasswordField, TermsCheck } from './auth-parts';
 import { SIGNUP_ERROR } from './auth-owner';
 import { TERMS, TERMS_VERSION } from '../../core/terms';
@@ -23,7 +24,7 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
 
 @Component({
   selector: 'app-auth-signup-officer',
-  imports: [PageHeader, PasswordField, TermsCheck, RouterLink],
+  imports: [PageHeader, PasswordField, TermsCheck, RouterLink, ProfileExtras],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [title]="i18n.t({ th: 'สมัครเจ้าหน้าที่', en: 'Officer sign-up' })" [back]="url('A05')" />
@@ -47,6 +48,15 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
           <input maxlength="50" autocomplete="off" [value]="f().staff_no" (input)="set('staff_no', $any($event.target).value)" />
         </label>
       </div>
+      <app-profile-extras kind="officer" [(value)]="extras" [tried]="tried()" />
+      <fieldset class="field" [class.invalid]="tried() && !emergencyOk()">
+        <legend>{{ i18n.t({ th: 'ผู้ติดต่อฉุกเฉินของคุณ (ไม่บังคับ)', en: 'Your emergency contact (optional)' }) }}</legend>
+        <div class="two-col">
+          <input maxlength="100" [attr.aria-label]="i18n.t({ th: 'ชื่อผู้ติดต่อ', en: 'Contact name' })" [placeholder]="i18n.t({ th: 'ชื่อ', en: 'Name' })" [value]="emName()" (input)="emName.set($any($event.target).value)" />
+          <input type="tel" inputmode="tel" [attr.aria-label]="i18n.t({ th: 'เบอร์ผู้ติดต่อ', en: 'Contact phone' })" [placeholder]="i18n.t({ th: 'เบอร์โทร', en: 'Phone' })" [value]="emPhone()" (input)="emPhone.set($any($event.target).value)" />
+        </div>
+        <small>{{ i18n.t({ th: 'กรอกทั้งชื่อและเบอร์ หรือเว้นว่างทั้งคู่ · หัวหน้าหน่วยงานเห็นเพื่อใช้ตอนเกิดเหตุกับคุณ', en: 'Fill in both, or leave both empty · your agency head can see it for emergencies involving you' }) }}</small>
+      </fieldset>
       <label class="field" [class.invalid]="errorCode() === 'GROUP_CODE_INVALID'">
         <span>{{ i18n.t({ th: 'รหัสกลุ่มจากหัวหน้า', en: 'Group code from your head' }) }}</span>
         <input autocomplete="off" autocapitalize="characters" spellcheck="false" [placeholder]="i18n.t({ th: 'เช่น PX7K-2MQ9', en: 'e.g. PX7K-2MQ9' })" [value]="f().group_code" (input)="set('group_code', $any($event.target).value)" />
@@ -91,6 +101,14 @@ export class AuthSignupOfficer {
   protected readonly errors = SIGNUP_ERROR;
   protected readonly f = this.demo.forms.officer;
   protected readonly tried = signal(false);
+  protected readonly extras = signal(emptyExtras());
+  protected readonly emName = signal('');
+  protected readonly emPhone = signal('');
+  protected readonly emergencyOk = computed(() => {
+    const n = this.emName().trim();
+    const p = this.emPhone().trim();
+    return (!n && !p) || (!!n && !!normalizePhone(p));
+  });
   protected readonly errorCode = signal<string | null>(null);
   protected readonly phoneOk = computed(() => !!normalizePhone(this.f().phone));
   protected readonly filled = computed(() => {
@@ -109,7 +127,7 @@ export class AuthSignupOfficer {
     const f = this.f();
     const phone = normalizePhone(f.phone);
     if (!f.terms) return;
-    if (!f.name.trim() || !phone || f.password.length < this.min || !f.group_code.trim() || !f.position.trim()) {
+    if (!f.name.trim() || !phone || f.password.length < this.min || !f.group_code.trim() || !f.position.trim() || !this.emergencyOk() || !extrasValid(this.extras(), 'officer')) {
       this.errorCode.set('INVALID');
       return;
     }
@@ -124,6 +142,8 @@ export class AuthSignupOfficer {
           group_code: f.group_code.replace(/[\s-]/g, '').toUpperCase(),
           position: f.position.trim(),
           staff_no: f.staff_no.trim() || undefined,
+          ...(this.emName().trim() && normalizePhone(this.emPhone()) ? { emergency_name: this.emName().trim(), emergency_phone: normalizePhone(this.emPhone()) } : {}),
+          ...(Object.keys(extrasPayload(this.extras(), 'officer')).length ? { profile: extrasPayload(this.extras(), 'officer') } : {}),
           terms_version: terms.version,
         }),
       );

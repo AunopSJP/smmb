@@ -91,7 +91,7 @@ export class AuthService {
     const hash = await this.passwords.hash(dto.password);
     return withTx(this.pool, async (db) => {
       await this.terms.assertCurrent(db, dto.terms_version);
-      const userId = await this.insertUser(db, { name: dto.name, phone: dto.phone, houseNo: dto.house_no, area: dto.area, profile: dto, hash });
+      const userId = await this.insertUser(db, { name: dto.name, phone: dto.phone, houseNo: dto.house_no, area: dto.area, profile: dto, extras: dto.profile, hash });
       await db.query(`INSERT INTO app.user_role_tb (user_id, role) VALUES ($1, 'owner')`, [userId]);
       await this.account.giveDefaultPlan(db, userId);
       await this.terms.accept(db, userId, dto.terms_version, meta);
@@ -105,7 +105,13 @@ export class AuthService {
     const { result, agencyId } = await withTx(this.pool, async (db) => {
       await this.terms.assertCurrent(db, dto.terms_version);
       const agencyId = await this.findAgencyByGroupCode(db, dto.group_code);
-      const userId = await this.insertUser(db, { name: dto.name, phone: dto.phone, hash });
+      const userId = await this.insertUser(db, {
+        name: dto.name,
+        phone: dto.phone,
+        profile: { emergency_name: dto.emergency_name, emergency_phone: dto.emergency_phone },
+        extras: dto.profile,
+        hash,
+      });
       await db.query(`INSERT INTO app.agency_member_tb (agency_id, user_id, position, staff_no) VALUES ($1, $2, $3, $4)`, [
         agencyId,
         userId,
@@ -124,10 +130,16 @@ export class AuthService {
     const hash = await this.passwords.hash(dto.head.password);
     const result = await withTx(this.pool, async (db) => {
       await this.terms.assertCurrent(db, dto.terms_version);
-      const userId = await this.insertUser(db, { name: dto.head.name, phone: dto.head.phone, hash });
+      const userId = await this.insertUser(db, { name: dto.head.name, phone: dto.head.phone, extras: dto.head.profile, hash });
       const { rows } = await db.query<{ agency_id: string }>(
-        `INSERT INTO app.agency_tb (name, type, contact, address, registration_no) VALUES ($1, $2, $3, $4, $5) RETURNING agency_id`,
-        [dto.agency.name, dto.agency.type, dto.agency.contact, dto.agency.address ?? null, dto.agency.registration_no ?? null],
+        `INSERT INTO app.agency_tb (name, type, contact, address, registration_no, subdistrict, district, province, postal_code, phone, email, contact_person, coverage_note, lat, lng)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING agency_id`,
+        [
+          dto.agency.name, dto.agency.type, dto.agency.contact, dto.agency.address ?? null, dto.agency.registration_no ?? null,
+          dto.agency.subdistrict ?? null, dto.agency.district ?? null, dto.agency.province ?? null, dto.agency.postal_code ?? null,
+          dto.agency.phone ?? null, dto.agency.email ?? null, dto.agency.contact_person ?? null, dto.agency.coverage_note ?? null,
+          dto.agency.lat ?? null, dto.agency.lng ?? null,
+        ],
       );
       await db.query(`INSERT INTO app.agency_member_tb (agency_id, user_id, is_head) VALUES ($1, $2, true)`, [
         rows[0].agency_id,
@@ -162,9 +174,9 @@ export class AuthService {
       await db.query(
         `UPDATE app.user_tb SET house_no = $2, area = coalesce($3, area),
            address_line = $4, subdistrict = $5, district = $6, province = $7, house_lat = $8, house_lng = $9,
-           emergency_name = $10, emergency_phone = $11, perm_version = perm_version + 1
+           emergency_name = $10, emergency_phone = $11, profile = profile || $12::jsonb, perm_version = perm_version + 1
          WHERE user_id = $1`,
-        [userId, dto.house_no, dto.area ?? null, ...profileParams(dto)],
+        [userId, dto.house_no, dto.area ?? null, ...profileParams(dto), JSON.stringify(dto.profile ?? {})],
       );
       await this.account.giveDefaultPlan(db, userId);
       await this.terms.accept(db, userId, dto.terms_version, meta);
@@ -310,14 +322,14 @@ export class AuthService {
 
   private async insertUser(
     db: Db,
-    u: { name: string; phone: string; houseNo?: string; area?: string; profile?: HouseProfile; hash: string },
+    u: { name: string; phone: string; houseNo?: string; area?: string; profile?: HouseProfile; extras?: object; hash: string },
   ): Promise<string> {
     try {
       const { rows } = await db.query<{ user_id: string }>(
         `INSERT INTO app.user_tb (phone, name, display_name, house_no, area, password_hash,
-           address_line, subdistrict, district, province, house_lat, house_lng, emergency_name, emergency_phone)
-         VALUES ($1, $2, $2, $3, $5, $4, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING user_id`,
-        [u.phone, u.name, u.houseNo ?? null, u.hash, u.area ?? null, ...profileParams(u.profile ?? {})],
+           address_line, subdistrict, district, province, house_lat, house_lng, emergency_name, emergency_phone, profile)
+         VALUES ($1, $2, $2, $3, $5, $4, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb) RETURNING user_id`,
+        [u.phone, u.name, u.houseNo ?? null, u.hash, u.area ?? null, ...profileParams(u.profile ?? {}), JSON.stringify(u.extras ?? {})],
       );
       return rows[0].user_id;
     } catch (err) {

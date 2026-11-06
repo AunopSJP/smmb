@@ -25,6 +25,38 @@ export interface MemberDto {
   last_inspection_at: string | null;
 }
 
+/** ข้อมูลละเอียดของหน่วยงาน (✅ 2026-11-06) — จังหวัด/เขตใช้เทียบกับโซน · lat/lng แสดงบนแผนที่ให้เจ้าของบ้าน */
+export interface AgencyProfile {
+  address: string | null;
+  subdistrict: string | null;
+  district: string | null;
+  province: string | null;
+  postal_code: string | null;
+  phone: string | null;
+  email: string | null;
+  contact_person: string | null;
+  coverage_note: string | null;
+  registration_no: string | null;
+  lat: number | null;
+  lng: number | null;
+}
+
+export type AgencyProfilePatch = Partial<Omit<AgencyProfile, 'registration_no'>> & { contact?: string };
+
+/** api.md §8.1b — แผนที่หน่วยงานให้เจ้าของบ้าน */
+export interface AgencyMapItem {
+  id: string;
+  name: string;
+  type: string;
+  address: string | null;
+  locality: string | null;
+  phone: string | null;
+  contact: string | null;
+  coverage_note: string | null;
+  lat: number;
+  lng: number;
+}
+
 /** api.md §8.1 */
 export interface AgencyDto {
   id: string;
@@ -34,6 +66,7 @@ export interface AgencyDto {
   group_code: string | null;
   reject_reason: string | null;
   contact: string | null;
+  profile: AgencyProfile;
   heads: { id: string; display_name: string }[];
 }
 
@@ -85,8 +118,21 @@ export class AgencyService {
       group_code: string | null;
       reject_reason: string | null;
       contact: string | null;
+      address: string | null;
+      subdistrict: string | null;
+      district: string | null;
+      province: string | null;
+      postal_code: string | null;
+      phone: string | null;
+      email: string | null;
+      contact_person: string | null;
+      coverage_note: string | null;
+      registration_no: string | null;
+      lat: string | null;
+      lng: string | null;
     }>(
-      `SELECT a.agency_id, a.name, a.type, a.status, a.group_code, a.reject_reason, a.contact
+      `SELECT a.agency_id, a.name, a.type, a.status, a.group_code, a.reject_reason, a.contact,
+              a.address, a.subdistrict, a.district, a.province, a.postal_code, a.phone, a.email, a.contact_person, a.coverage_note, a.registration_no, a.lat, a.lng
        FROM app.agency_member_tb m JOIN app.agency_tb a ON a.agency_id = m.agency_id
        WHERE m.user_id = $1 AND m.is_head AND m.status IN ('active', 'pending', 'rejected')`,
       [userId],
@@ -107,8 +153,74 @@ export class AgencyService {
       group_code: a.status === 'approved' ? a.group_code : null,
       reject_reason: a.status === 'rejected' ? a.reject_reason : null,
       contact: a.contact,
+      profile: {
+        address: a.address, subdistrict: a.subdistrict, district: a.district, province: a.province, postal_code: a.postal_code,
+        phone: a.phone, email: a.email, contact_person: a.contact_person, coverage_note: a.coverage_note, registration_no: a.registration_no,
+        lat: a.lat === null ? null : Number(a.lat), lng: a.lng === null ? null : Number(a.lng),
+      },
       heads: heads.rows.map((h) => ({ id: h.user_id, display_name: h.display_name })),
     };
+  }
+
+  /**
+   * แก้ข้อมูลหน่วยงาน — ส่งมาเฉพาะที่เปลี่ยน · ค่าว่าง ('') = ล้าง (ยกเว้น contact) · พิกัด lat/lng ต้องมาคู่กัน (null ทั้งคู่ = ล้างหมุด)
+   */
+  async updateProfile(agencyId: string, patch: AgencyProfilePatch): Promise<void> {
+    const cols = ['contact', 'address', 'subdistrict', 'district', 'province', 'postal_code', 'phone', 'email', 'contact_person', 'coverage_note'] as const;
+    const sets: string[] = [];
+    const params: unknown[] = [agencyId];
+    for (const col of cols) {
+      const raw = patch[col];
+      if (raw === undefined) continue;
+      const val = raw === '' || raw === null ? null : String(raw);
+      if (col === 'contact' && val === null) continue; // ช่องทางติดต่อห้ามว่าง
+      params.push(val);
+      sets.push(`${col} = $${params.length}`);
+    }
+    if (patch.lat !== undefined || patch.lng !== undefined) {
+      const both = patch.lat != null && patch.lng != null;
+      const none = patch.lat == null && patch.lng == null;
+      if (!both && !none) throw new AppError(HttpStatus.BAD_REQUEST, 'PIN_INVALID', 'lat and lng must be given together');
+      params.push(none ? null : patch.lat, none ? null : patch.lng);
+      sets.push(`lat = $${params.length - 1}`, `lng = $${params.length}`);
+    }
+    if (!sets.length) return;
+    await this.pool.query(`UPDATE app.agency_tb SET ${sets.join(', ')} WHERE agency_id = $1`, params);
+  }
+
+  /** แสดงบนแผนที่ของเจ้าของบ้าน — เฉพาะหน่วยงานที่อนุมัติแล้วและตั้งหมุดไว้ · เป็นข้อมูลที่หน่วยงานตั้งใจเปิดเผย (ไม่มีข้อมูลสมาชิก/ตู้) */
+  async publicMap(): Promise<AgencyMapItem[]> {
+    const { rows } = await this.pool.query<{
+      agency_id: string;
+      name: string;
+      type: string;
+      address: string | null;
+      subdistrict: string | null;
+      district: string | null;
+      province: string | null;
+      phone: string | null;
+      contact: string | null;
+      coverage_note: string | null;
+      lat: string;
+      lng: string;
+    }>(
+      `SELECT a.agency_id, a.name, a.type, a.address, a.subdistrict, a.district, a.province, a.phone, a.contact, a.coverage_note, a.lat, a.lng
+       FROM app.agency_tb a
+       WHERE a.status = 'approved' AND a.lat IS NOT NULL AND a.lng IS NOT NULL
+       ORDER BY a.name LIMIT 500`,
+    );
+    return rows.map((r) => ({
+      id: r.agency_id,
+      name: r.name,
+      type: r.type,
+      address: r.address,
+      locality: [r.subdistrict, r.district, r.province].filter(Boolean).join(' ') || null,
+      phone: r.phone,
+      contact: r.contact,
+      coverage_note: r.coverage_note,
+      lat: Number(r.lat),
+      lng: Number(r.lng),
+    }));
   }
 
   /** แก้ช่องทางติดต่อของหน่วยงาน (แสดงให้คนที่ขอเข้า) */

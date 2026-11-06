@@ -22,6 +22,12 @@ export class PushController {
     return { public_key: this.push.publicKey };
   }
 
+  /** ตรวจว่าทำไมแจ้งเตือนไม่เด้ง: เซิร์ฟเวอร์ตั้งกุญแจครบไหม · มีกี่เครื่องที่ผูกกับบัญชีนี้ · ใช้ส่งได้ไหม · ส่งสำเร็จล่าสุดเมื่อไหร่ */
+  @Get('status')
+  status(@Auth() auth: AuthContext) {
+    return this.push.status(auth.userId, auth.sessionId);
+  }
+
   @Post('subscriptions')
   async subscribe(@Auth() auth: AuthContext, @Body() dto: SubscribeDto) {
     await this.push.subscribe(auth.userId, auth.sessionId, {

@@ -1,7 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { SwPush } from '@angular/service-worker';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
+import type { Tr } from './i18n';
 
 /** ทำไมเปิดแจ้งเตือนไม่ได้ — หน้าจอเลือกข้อความจากค่านี้ */
 export type PushBlocker =
@@ -97,6 +98,131 @@ export class PushNotifications {
     return { sent: res.sent ?? 0, removed: res.removed ?? 0, failed: res.failed ?? 0, failure_status: res.failure_status };
   }
 
+  /**
+   * ตรวจทีละขั้นว่าแจ้งเตือนขาดที่ไหน (ไว้ให้ผู้ใช้/ผู้ดูแลกดดู ไม่ต้องเปิด DevTools)
+   * สิทธิ์ → service worker → subscription ในเบราว์เซอร์ → เซิร์ฟเวอร์รู้จักเครื่องนี้ → เซิร์ฟเวอร์ส่งได้ → service worker รับได้
+   */
+  async diagnose(onStep: (steps: DiagStep[]) => void): Promise<DiagStep[]> {
+    const steps: DiagStep[] = [];
+    const add = (s: DiagStep) => {
+      steps.push(s);
+      onStep([...steps]);
+    };
+    const blocker = this.blocker();
+
+    // 1) เบราว์เซอร์ + สิทธิ์
+    const perm = typeof Notification === 'undefined' ? 'unsupported' : Notification.permission;
+    add(
+      !blocker && perm === 'granted'
+        ? { ok: true, label: { th: 'เบราว์เซอร์อนุญาตแจ้งเตือน', en: 'The browser allows notifications' } }
+        : {
+            ok: false,
+            label: { th: 'เบราว์เซอร์ยังไม่พร้อมรับแจ้งเตือน', en: 'The browser is not ready for notifications' },
+            detail: `${blocker ?? 'permission'}=${perm}`,
+            fix: blocker === 'denied' || perm === 'denied'
+              ? { th: 'เคยกดไม่อนุญาตไว้ → เปิดสิทธิ์แจ้งเตือนของไซต์นี้ในตั้งค่าเบราว์เซอร์', en: 'You blocked it earlier — allow notifications for this site in the browser settings' }
+              : blocker === 'ios-not-installed'
+                ? { th: 'iPhone ต้องเพิ่มเว็บลงหน้าจอหลักแล้วเปิดจากไอคอน', en: 'On iPhone, add the site to your Home Screen and open it from the icon' }
+                : blocker === 'line-browser'
+                  ? { th: 'เปิดในเบราว์เซอร์ของ LINE ไม่ได้ ใช้ Safari หรือ Chrome', en: 'Not possible inside LINE — use Safari or Chrome' }
+                  : { th: 'กดปุ่ม "เปิดแจ้งเตือน" แล้วกด อนุญาต', en: 'Tap “Turn on notifications” and choose Allow' },
+          },
+    );
+    if (blocker) return steps;
+
+    // 2) service worker
+    let reg: ServiceWorkerRegistration | undefined;
+    try {
+      reg = await navigator.serviceWorker.getRegistration();
+    } catch {
+      reg = undefined;
+    }
+    const state = reg?.active?.state ?? (reg?.installing ? 'installing' : reg?.waiting ? 'waiting' : 'none');
+    add(
+      state === 'activated'
+        ? { ok: true, label: { th: 'Service worker ทำงานอยู่', en: 'The service worker is running' }, detail: reg!.scope }
+        : {
+            ok: false,
+            label: { th: 'Service worker ยังไม่ทำงาน', en: 'The service worker is not running' },
+            detail: state,
+            fix: { th: 'โหลดหน้าใหม่ แล้วรอประมาณ 30 วินาที จากนั้นกดตรวจอีกครั้ง · ถ้ายังไม่ได้ ให้ล้างข้อมูลเว็บของไซต์นี้ (Clear site data) แล้วเปิดใหม่', en: 'Reload and wait about 30 seconds, then check again · if it still fails, clear this site’s data and reopen' },
+          },
+    );
+
+    // 3) subscription ในเบราว์เซอร์
+    const sub = await this.current();
+    add(
+      sub
+        ? { ok: true, label: { th: 'เครื่องนี้ลงทะเบียนกับ push service แล้ว', en: 'This device is registered with the push service' }, detail: new URL(sub.endpoint).host }
+        : {
+            ok: false,
+            label: { th: 'เครื่องนี้ยังไม่ได้ลงทะเบียนกับ push service', en: 'This device is not registered with the push service' },
+            fix: { th: 'กด "เปิดแจ้งเตือน"', en: 'Tap “Turn on notifications”' },
+          },
+    );
+
+    // 4) เซิร์ฟเวอร์
+    let st: PushServerStatus | null = null;
+    try {
+      st = await firstValueFrom(this.http.get<PushServerStatus>('/api/v1/me/push/status'));
+    } catch {
+      st = null;
+    }
+    if (!st) {
+      add({ ok: false, label: { th: 'ติดต่อเซิร์ฟเวอร์ไม่ได้', en: 'Cannot reach the server' }, fix: { th: 'ตรวจอินเทอร์เน็ตแล้วลองใหม่', en: 'Check your connection and try again' } });
+      return steps;
+    }
+    const mine = st.subscriptions.find((x) => x.this_device);
+    const serverOk = st.configured && st.keys_match !== false;
+    add(
+      !st.configured
+        ? { ok: false, label: { th: 'เซิร์ฟเวอร์ยังไม่ได้ตั้งกุญแจแจ้งเตือน (VAPID)', en: 'The server has no push keys (VAPID)' }, fix: { th: 'แจ้งผู้ดูแลระบบ', en: 'Tell the admin' } }
+        : st.keys_match === false
+          ? { ok: false, label: { th: 'กุญแจแจ้งเตือนของเซิร์ฟเวอร์ไม่เป็นคู่กัน', en: 'The server’s push keys do not match' }, fix: { th: 'แจ้งผู้ดูแลระบบ (ต้องสร้างกุญแจคู่ใหม่ แล้วทุกเครื่องเปิดแจ้งเตือนใหม่)', en: 'Tell the admin (a new key pair is needed; every device must turn it on again)' } }
+          : mine?.usable
+            ? { ok: true, label: { th: 'เซิร์ฟเวอร์รู้จักเครื่องนี้', en: 'The server knows this device' }, detail: mine.last_ok_at ? `ส่งสำเร็จล่าสุด ${new Date(mine.last_ok_at).toLocaleString()}` : 'ยังไม่เคยส่งสำเร็จ' }
+            : {
+                ok: false,
+                label: mine ? { th: 'การลงทะเบียนของเครื่องนี้หมดอายุ (เซสชันถูกเตะ/หมดอายุ)', en: 'This device’s registration expired (the session ended)' } : { th: 'เซิร์ฟเวอร์ยังไม่รู้จักเครื่องนี้', en: 'The server does not know this device yet' },
+                fix: { th: 'กด "ปิดบนเครื่องนี้" แล้ว "เปิดแจ้งเตือน" ใหม่', en: 'Tap “Turn off here”, then “Turn on notifications”' },
+              },
+    );
+    if (!serverOk || !mine?.usable) return steps;
+
+    // 5–6) ส่งทดสอบ + รอให้ service worker รับ
+    let received = false;
+    const wait = this.swPush.isEnabled
+      ? firstValueFrom(this.swPush.messages.pipe(timeout({ first: 9000 })))
+          .then(() => (received = true))
+          .catch(() => false)
+      : Promise.resolve(false);
+    const r = await this.sendTest().catch(() => null);
+    add(
+      r && r.sent > 0
+        ? { ok: true, label: { th: 'เซิร์ฟเวอร์ส่งถึง push service แล้ว', en: 'The server handed it to the push service' } }
+        : {
+            ok: false,
+            label: { th: 'เซิร์ฟเวอร์ส่งแจ้งเตือนไม่สำเร็จ', en: 'The server could not send the notification' },
+            detail: r ? `sent=${r.sent} removed=${r.removed} failed=${r.failed} status=${r.failure_status ?? '-'}` : 'request failed',
+            fix: r?.failure_status === 401 || r?.failure_status === 403
+              ? { th: 'push service ปฏิเสธกุญแจ → แจ้งผู้ดูแลระบบ (กุญแจ VAPID ไม่ตรงกับที่เครื่องสมัครไว้) ลอง "ปิดแล้วเปิดใหม่"', en: 'The push service refused the key — tell the admin; try turning it off and on' }
+              : { th: 'ลอง "ปิดแล้วเปิดใหม่" ถ้ายังไม่ได้แจ้งผู้ดูแลระบบ', en: 'Try turning it off and on; tell the admin if it persists' },
+          },
+    );
+    if (!r || r.sent === 0) return steps;
+    await wait;
+    add(
+      received
+        ? { ok: true, label: { th: 'Service worker รับแจ้งเตือนแล้ว', en: 'The service worker received it' }, detail: 'ถ้าไม่เห็นเด้ง ดูว่าปิดโหมดห้ามรบกวน/ประหยัดแบตอยู่ไหม และเปิดสิทธิ์แจ้งเตือนของเบราว์เซอร์/แอปในตั้งค่าเครื่อง' }
+        : {
+            ok: false,
+            label: { th: 'Service worker ไม่ได้รับแจ้งเตือนภายใน 9 วินาที', en: 'The service worker did not receive it within 9 seconds' },
+            fix: { th: 'อินเทอร์เน็ตของเครื่องอาจบล็อก push (เช่น เครือข่ายองค์กร/VPN) หรือเบราว์เซอร์ถูกจำกัดพื้นหลัง · ลองสลับเป็นข้อมูลมือถือ และปิดโหมดประหยัดแบต', en: 'The network may block push (corporate network / VPN) or the browser is restricted in the background — try mobile data and turn off battery saver' },
+          },
+    );
+    return steps;
+  }
+
   private async subscription(): Promise<PushSubscription> {
     const { public_key } = await firstValueFrom(this.http.get<{ public_key: string }>('/api/v1/me/push/vapid-key'));
     const existing = await this.current();
@@ -116,6 +242,19 @@ export function sameKey(actual: ArrayBuffer | null | undefined, expectedB64Url: 
   const raw = atob((expectedB64Url + pad).replace(/-/g, '+').replace(/_/g, '/'));
   const a = new Uint8Array(actual);
   return a.length === raw.length && a.every((v, i) => v === raw.charCodeAt(i));
+}
+
+export interface PushServerStatus {
+  configured: boolean;
+  keys_match: boolean | null;
+  subscriptions: { host: string; device_label: string | null; this_device: boolean; usable: boolean; last_ok_at: string | null; failed_count: number }[];
+}
+
+export interface DiagStep {
+  ok: boolean;
+  label: Tr;
+  detail?: string;
+  fix?: Tr;
 }
 
 export interface PushTestResult {

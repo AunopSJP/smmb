@@ -17,6 +17,21 @@ export interface Agency {
   group_code: string | null;
   reject_reason: string | null;
   contact: string | null;
+  /** ข้อมูลละเอียด (✅ 2026-11-06) */
+  profile?: {
+    address: string | null;
+    subdistrict: string | null;
+    district: string | null;
+    province: string | null;
+    postal_code: string | null;
+    phone: string | null;
+    email: string | null;
+    contact_person: string | null;
+    coverage_note: string | null;
+    registration_no: string | null;
+    lat: number | null;
+    lng: number | null;
+  };
   heads: { id: string; display_name: string }[];
 }
 
@@ -36,6 +51,12 @@ export interface Member {
   last_inspection_at: string | null;
 }
 
+export interface ZoneAreaInput {
+  province?: string;
+  district?: string;
+  subdistrict?: string;
+}
+
 /** api.md §8.3 */
 export interface Zone {
   id: string;
@@ -44,6 +65,8 @@ export interface Zone {
   tz: string;
   houses_count: number;
   officers_count: number;
+  /** พื้นที่ที่โซนดูแล (null = ยังไม่ตั้ง → ค้นบ้านไม่ได้) */
+  area: { province: string; district: string; subdistrict: string | null } | null;
   is_mine: boolean;
   updated_at: string;
 }
@@ -140,10 +163,10 @@ export class HeadApi {
   zone(id: string): Promise<ZoneDetail> {
     return this.get<ZoneDetail>(`/api/v1/agency/zones/${encodeURIComponent(id)}`);
   }
-  createZone(name: string, windows: [string, string][]): Promise<Zone> {
-    return firstValueFrom(this.http.post<Zone>('/api/v1/agency/zones', { name, windows }));
+  createZone(name: string, windows: [string, string][], area: ZoneAreaInput = {}): Promise<Zone> {
+    return firstValueFrom(this.http.post<Zone>('/api/v1/agency/zones', { name, windows, ...area }));
   }
-  updateZone(id: string, patch: { name?: string; windows?: [string, string][] }): Promise<Zone> {
+  updateZone(id: string, patch: { name?: string; windows?: [string, string][] } & ZoneAreaInput): Promise<Zone> {
     return firstValueFrom(this.http.patch<Zone>(`/api/v1/agency/zones/${encodeURIComponent(id)}`, patch));
   }
   setHouses(id: string, boxIds: string[]): Promise<ZoneHouse[]> {
@@ -157,8 +180,9 @@ export class HeadApi {
   }
   /** ไม่ใส่คำค้น = บ้านที่ยังไม่มีหน่วยงานไหนดูแล */
   /** unzoned: เฉพาะบ้านที่ยังไม่มีใครดูแล · online: เฉพาะตู้ออนไลน์ (api.md §8.3) */
-  searchHouses(q = '', opt: { unzoned?: boolean; online?: boolean } = {}): Promise<HouseHit[]> {
+  searchHouses(q = '', opt: { unzoned?: boolean; online?: boolean; zone?: string } = {}): Promise<HouseHit[]> {
     const p = new URLSearchParams();
+    if (opt.zone) p.set('zone', opt.zone);
     if (q) p.set('q', q);
     if (opt.unzoned !== undefined) p.set('unzoned', opt.unzoned ? '1' : '0');
     if (opt.online) p.set('online', '1');

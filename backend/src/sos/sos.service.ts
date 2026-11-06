@@ -35,7 +35,13 @@ export interface SosCardDto {
   /** ✅ เห็นชื่อ + เบอร์เจ้าของบ้านเฉพาะตอน SOS ยังเปิดอยู่ */
   owner: { name: string; phone: string } | null;
   /** ✅ 2026-11-04 ที่อยู่ + หมุดบ้าน — เห็นเฉพาะตอน SOS ยังเปิดอยู่ (กฎเดียวกับเบอร์) · null = ปิดแล้ว/ไม่มีข้อมูล */
-  house: { address: string; area: string; location: { lat: number; lng: number } | null } | null;
+  house: {
+    address: string;
+    area: string;
+    location: { lat: number; lng: number } | null;
+    /** ✅ 2026-11-06 รายละเอียดบ้านที่เจ้าของกรอก (เฉพาะตอน SOS เปิด · เลือกเฉพาะฟิลด์ที่ช่วยเจ้าหน้าที่ตอนไปถึง) */
+    details: { house_type: string | null; village: string | null; residents: number | null; care: string[]; landmark: string | null; emergency_relation: string | null; contact_time: string | null };
+  } | null;
   accepted_by: { display_name: string; agency_name: string } | null;
   /** ฉันเป็นคนรับเรื่องนี้ */
   mine: boolean;
@@ -52,6 +58,7 @@ interface CaseRow {
   owner_user_id: string;
   owner_name: string;
   owner_phone: string;
+  owner_profile: Record<string, unknown> | null;
   status: SosStatus;
   stage: SosStage;
   stage_changed_date: Date;
@@ -66,7 +73,7 @@ interface CaseRow {
 
 const CASE_SQL = `
   SELECT c.sos_case_id, c.box_id, b.house_no, b.area,
-         concat_ws(' ', b.address_line, b.subdistrict, b.district, b.province) AS address, b.lat, b.lng, c.owner_user_id, o.name AS owner_name, o.phone AS owner_phone,
+         concat_ws(' ', b.address_line, b.subdistrict, b.district, b.province) AS address, b.lat, b.lng, c.owner_user_id, o.name AS owner_name, o.phone AS owner_phone, o.profile AS owner_profile,
          c.status, c.stage, c.stage_changed_date, c.created_date, c.accepted_by,
          a.display_name AS accepted_name, a.phone AS accepted_phone, ag.name AS accepted_agency, c.accepted_date, c.close_note
   FROM app.sos_case_tb c
@@ -74,6 +81,20 @@ const CASE_SQL = `
   JOIN app.user_tb o ON o.user_id = c.owner_user_id
   LEFT JOIN app.user_tb a ON a.user_id = c.accepted_by
   LEFT JOIN app.agency_tb ag ON ag.agency_id = c.accepted_agency_id`;
+
+/** เลือกเฉพาะฟิลด์ที่เจ้าหน้าที่ควรเห็นตอน SOS (ไม่ส่งทั้งก้อน — กฎข้อ 12) */
+function houseDetails(p: Record<string, unknown> | null | undefined): NonNullable<SosCardDto['house']>['details'] {
+  const s = (v: unknown) => (typeof v === 'string' && v ? v : null);
+  return {
+    house_type: s(p?.house_type),
+    village: s(p?.village),
+    residents: typeof p?.residents === 'number' ? p.residents : null,
+    care: Array.isArray(p?.care) ? (p.care as unknown[]).filter((x): x is string => typeof x === 'string') : [],
+    landmark: s(p?.landmark),
+    emergency_relation: s(p?.emergency_relation),
+    contact_time: s(p?.contact_time),
+  };
+}
 
 const live = (s: SosStatus) => s === 'open' || s === 'accepted';
 
@@ -410,6 +431,7 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
             address: c.address ?? '',
             area: c.area ?? '',
             location: c.lat !== null && c.lng !== null ? { lat: Number(c.lat), lng: Number(c.lng) } : null,
+            details: houseDetails(c.owner_profile),
           }
         : null,
       accepted_by: c.accepted_by ? { display_name: c.accepted_name ?? '', agency_name: c.accepted_agency ?? '' } : null,

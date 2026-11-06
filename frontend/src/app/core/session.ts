@@ -21,6 +21,8 @@ export interface Me {
   prefs: ServerPrefs;
   must_change_password: boolean;
   terms_update_required: boolean;
+  /** รายละเอียดเพิ่มที่ผู้ใช้กรอกเอง (api.md §3 · ✅ 2026-11-06) */
+  profile?: Record<string, unknown>;
 }
 
 export interface ServerPrefs {
@@ -30,6 +32,7 @@ export interface ServerPrefs {
   simple_home: boolean;
   night_auto_dark: boolean;
   easy_mode: boolean;
+  ui_mode?: 'easy' | 'default' | 'advanced';
   /** type แจ้งเตือนที่ปิดรับ (ปิดได้เฉพาะบางประเภท · api.md §3) */
   muted_types: string[];
 }

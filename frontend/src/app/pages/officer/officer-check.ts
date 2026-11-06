@@ -821,7 +821,7 @@ export class OfficerBadge implements OnInit {
   readonly id = input<string>('');
   protected readonly ins = signal<Inspection | null>(null);
   protected readonly qr = signal<string | null>(null);
-  protected readonly left = signal(30);
+  protected readonly left = signal(15);
   private expiresAt = 0;
   private poll: ReturnType<typeof setInterval> | null = null;
   private clock: ReturnType<typeof setInterval> | null = null;
@@ -840,11 +840,11 @@ export class OfficerBadge implements OnInit {
   async ngOnInit(): Promise<void> {
     await this.keepScreenOn();
     await this.refreshBadge();
-    // นับถอยหลัง · เหลือ ≤ 2 วิ ขอ QR ใหม่ล่วงหน้า (ตู้อ่าน QR ที่หมดอายุแล้วไม่ผ่าน)
+    // นับถอยหลัง · QR อายุ 15 วิ · เหลือ ≤ 6 วิ ขอใหม่ล่วงหน้า (เปลี่ยนทุก ~9 วิ ตู้ยังมี QR ที่ใช้ได้อ่านตลอด)
     this.clock = setInterval(() => {
       const s = Math.max(0, Math.ceil((this.expiresAt - Date.now()) / 1000));
       this.left.set(s);
-      if (s <= 2) void this.refreshBadge();
+      if (s <= 6) void this.refreshBadge();
     }, 500);
     const tick = async () => {
       const ins = await this.api.get(this.id()).catch(() => null);
@@ -929,11 +929,28 @@ export class OfficerBadgeFailed {
 
 // ── O08 · ตรวจแล้ว ───────────────────────────────────────────
 
+/**
+ * หลังตู้ตอบ "ผ่าน" ตู้ยังทำงานต่ออีกไม่กี่วินาที (ผู้ใช้สั่ง 2026-11-06: ให้เจ้าหน้าที่ยืนอยู่หน้าตู้จนตู้ทำงานครบ)
+ * ตู้รอ 1.5–4 วิ + ส่งข้อมูล ~1–2 วิ → 8 วิพอ · ข้อความบนจอต้องไม่บอกว่าตู้ทำอะไร
+ */
+const HOLD_MS = 8000;
+
 @Component({
   selector: 'app-officer-done',
   imports: [RouterLink, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
+    @if (holding()) {
+      <!-- ช่วงสั้น ๆ หลังตู้ตอบผ่าน: ให้เจ้าหน้าที่ยืนหน้าตู้ต่ออีกครู่ (ตู้ยังทำงานอยู่) — ไม่บอกว่าตู้ทำอะไร -->
+      <div class="pad done" role="status" aria-live="polite">
+        <div class="result">
+          <span class="spinner" aria-hidden="true"></span>
+          <h1>{{ i18n.t({ th: 'กำลังบันทึกผลการตรวจ…', en: 'Saving the inspection…' }) }}</h1>
+          <p class="small">{{ i18n.t({ th: 'กรุณายืนอยู่หน้าตู้จนกว่าจะเสร็จ', en: 'Please stay in front of the mailbox until it finishes' }) }}</p>
+          <div class="bar" aria-hidden="true"><span [style.width.%]="progress()"></span></div>
+        </div>
+      </div>
+    } @else {
     <div class="pad done" role="status">
       <div class="result">
         <span class="big-icon white"><app-icon name="check" [size]="36" /></span>
@@ -958,6 +975,7 @@ export class OfficerBadgeFailed {
         <a class="btn outline-light" [routerLink]="url('O01')">{{ i18n.t({ th: 'กลับหน้าสรุป', en: 'Back to summary' }) }}</a>
       </div>
     </div>
+    }
   `,
   styles: `
     .done {
@@ -966,6 +984,39 @@ export class OfficerBadgeFailed {
     }
     .result h1 {
       font-size: 1.75rem;
+    }
+    .spinner {
+      display: inline-block;
+      width: 56px;
+      height: 56px;
+      border: 5px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .spinner {
+        animation-duration: 3s;
+      }
+    }
+    .bar {
+      margin: 16px auto 0;
+      width: min(260px, 70%);
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.3);
+      overflow: hidden;
+      span {
+        display: block;
+        height: 100%;
+        background: #fff;
+        transition: width 0.25s linear;
+      }
     }
     .house {
       font-size: 1.125rem;
@@ -989,10 +1040,33 @@ export class OfficerDone implements OnInit {
   readonly id = input<string>('');
   protected readonly ins = signal<Inspection | null>(null);
   protected readonly summary = signal<OfficerSummary | null>(null);
+  /** นับจากที่ตู้ตอบ "ผ่าน" · ตู้ยังมีงานต่ออีกไม่กี่วินาที (ดู HOLD_MS) */
+  protected readonly holding = signal(false);
+  protected readonly progress = signal(0);
+  private readonly destroyRef = inject(DestroyRef);
 
   async ngOnInit(): Promise<void> {
     const [ins, summary] = await Promise.all([this.api.get(this.id()).catch(() => null), this.api.summary().catch(() => null)]);
     this.ins.set(ins);
     this.summary.set(summary);
+    this.hold(ins?.checked_at ? Date.parse(ins.checked_at) : NaN);
+  }
+
+  /** ค้างหน้า "กำลังบันทึก" จนครบ HOLD_MS นับจากเวลาที่ผ่าน (เปิดหน้านี้ทีหลัง/รีเฟรช = ไม่ค้างซ้ำ) */
+  private hold(checkedAt: number): void {
+    const elapsed = Number.isFinite(checkedAt) ? Date.now() - checkedAt : 0;
+    const start = Math.min(Math.max(elapsed, 0), HOLD_MS);
+    if (!Number.isFinite(checkedAt) || elapsed >= HOLD_MS) return;
+    const t0 = Date.now() - start;
+    this.holding.set(true);
+    const timer = setInterval(() => {
+      const spent = Date.now() - t0;
+      this.progress.set(Math.min(100, (spent / HOLD_MS) * 100));
+      if (spent >= HOLD_MS) {
+        clearInterval(timer);
+        this.holding.set(false);
+      }
+    }, 250);
+    this.destroyRef.onDestroy(() => clearInterval(timer));
   }
 }

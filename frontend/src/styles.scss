@@ -73,6 +73,11 @@
   }
 }
 
+/* โหมดเห็นรายละเอียด: .adv-only (รหัส/เวอร์ชัน/ข้อมูลเทคนิค) เห็นเฉพาะโหมดละเอียด · โหมดอื่นซ่อน */
+:root:not([data-mode='advanced']) .adv-only {
+  display: none !important;
+}
+
 *,
 *::before,
 *::after {

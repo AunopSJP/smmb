@@ -175,7 +175,7 @@ export class HeadMembers implements OnInit {
             <dt>{{ i18n.t({ th: 'ชื่อ', en: 'Name' }) }}</dt><dd>{{ m.name }}</dd>
             <dt>{{ i18n.t({ th: 'เบอร์', en: 'Phone' }) }}</dt><dd><a [href]="'tel:' + m.phone">{{ m.phone }}</a></dd>
             <dt>{{ i18n.t({ th: 'ตำแหน่ง / ยศ', en: 'Position' }) }}</dt><dd>{{ m.position || '—' }}</dd>
-            <dt>{{ i18n.t({ th: 'เลขประจำตัว', en: 'Staff no.' }) }}</dt><dd>{{ m.staff_no || '—' }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'เลขประจำตัว', en: 'Staff no.' }) }}</dt><dd class="adv-only">{{ m.staff_no || '—' }}</dd>
             <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt>
             <dd>{{ m.status === 'active' ? i18n.t({ th: 'ใช้งาน', en: 'Active' }) : i18n.t({ th: 'ปิดสิทธิ์', en: 'Disabled' }) }}{{ m.is_head ? ' · ' + i18n.t({ th: 'หัวหน้า', en: 'Head' }) : '' }}</dd>
             <dt>{{ i18n.t({ th: 'โซน', en: 'Zones' }) }}</dt><dd>{{ zones(m) }}</dd>

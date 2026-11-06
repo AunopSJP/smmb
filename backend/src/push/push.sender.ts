@@ -19,6 +19,8 @@ export interface PushSendOptions {
 export interface PushSender {
   readonly enabled: boolean;
   readonly publicKey: string;
+  /** กุญแจ VAPID สาธารณะ/ส่วนตัวเป็นคู่กันไหม (ไม่รู้ = undefined) */
+  readonly keysMatch?: boolean;
   send(target: PushTarget, payload: string, opts: PushSendOptions): Promise<void>;
 }
 
@@ -40,6 +42,7 @@ export class WebPushSender implements PushSender {
   private readonly logger = new Logger('WebPush');
   readonly enabled: boolean;
   readonly publicKey: string;
+  readonly keysMatch: boolean;
   private readonly vapid: { subject: string; publicKey: string; privateKey: string };
 
   constructor(config: ConfigService<Env, true>) {
@@ -48,6 +51,7 @@ export class WebPushSender implements PushSender {
     const subject = config.get('VAPID_SUBJECT', { infer: true }) || 'mailto:admin@example.com';
     this.vapid = { subject, publicKey: this.publicKey, privateKey };
     this.enabled = Boolean(this.publicKey && privateKey);
+    this.keysMatch = this.enabled && vapidKeysMatch(this.publicKey, privateKey);
     if (!this.enabled) this.logger.warn('VAPID keys not set — Web Push is disabled');
     else {
       if (!vapidKeysMatch(this.publicKey, privateKey)) {

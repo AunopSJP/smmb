@@ -21,6 +21,14 @@ export interface PushMessage {
   notificationId?: string;
 }
 
+export interface PushStatusDto {
+  /** server ตั้ง VAPID ครบไหม */
+  configured: boolean;
+  /** กุญแจสาธารณะ/ส่วนตัวเป็นคู่กันไหม (false = push service ตอบ 403 ทุกครั้ง) */
+  keys_match: boolean | null;
+  subscriptions: { host: string; device_label: string | null; this_device: boolean; usable: boolean; last_ok_at: string | null; failed_count: number }[];
+}
+
 export interface SendResult {
   sent: number;
   removed: number;
@@ -61,6 +69,47 @@ export class PushService {
          failed_count = 0`,
       [sub.endpoint, userId, sessionId, sub.p256dh, sub.auth, sub.deviceLabel ?? null],
     );
+  }
+
+  /**
+   * สถานะแจ้งเตือนของบัญชีนี้ (ไว้ตรวจว่าทำไมไม่เด้ง) — เฉพาะของตัวเอง · ไม่ส่ง endpoint เต็ม (บอกแค่ชื่อโฮสต์ของ push service)
+   * usable = session ของเครื่องนั้นยังใช้ได้ (ถ้าไม่ → เซิร์ฟเวอร์จะไม่ส่งให้เครื่องนั้น)
+   */
+  async status(userId: string, sessionId: string): Promise<PushStatusDto> {
+    const { rows } = await this.pool.query<{
+      endpoint: string;
+      device_label: string | null;
+      session_id: string | null;
+      last_ok_date: Date | null;
+      failed_count: number;
+      usable: boolean;
+    }>(
+      `SELECT p.endpoint, p.device_label, p.session_id, p.last_ok_date, p.failed_count,
+              (s.session_id IS NOT NULL AND s.revoked_date IS NULL AND s.expire_date > now() AND s.token_version = u.token_version AND u.status = 'active') AS usable
+       FROM app.push_subscription_tb p
+       JOIN app.user_tb u ON u.user_id = p.user_id
+       LEFT JOIN app.session_tb s ON s.session_id = p.session_id
+       WHERE p.user_id = $1 ORDER BY p.created_date DESC LIMIT 20`,
+      [userId],
+    );
+    return {
+      configured: this.sender.enabled,
+      keys_match: this.sender.keysMatch ?? null,
+      subscriptions: rows.map((r) => ({
+        host: (() => {
+          try {
+            return new URL(r.endpoint).host;
+          } catch {
+            return '?';
+          }
+        })(),
+        device_label: r.device_label,
+        this_device: r.session_id === sessionId,
+        usable: r.usable,
+        last_ok_at: r.last_ok_date?.toISOString() ?? null,
+        failed_count: r.failed_count,
+      })),
+    };
   }
 
   /** ลบได้เฉพาะของตัวเอง — endpoint ของคนอื่นตอบเหมือนไม่มี */

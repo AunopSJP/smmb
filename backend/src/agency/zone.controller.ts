@@ -18,13 +18,20 @@ class ZoneListQuery {
   @IsOptional() @IsIn(['mine', 'all']) zone?: ZoneFilter;
 }
 
-class CreateZoneDto {
+class AreaFields {
+  /** จังหวัด + เขต/อำเภอ ต้องมาคู่กัน (แขวง/ตำบลไม่บังคับ) · ส่ง "" ทั้งหมด = ล้างพื้นที่ */
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(100) province?: string;
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(100) district?: string;
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(100) subdistrict?: string;
+}
+
+class CreateZoneDto extends AreaFields {
   @Transform(trim) @IsString() @Length(1, 50) name!: string;
   /** [["06:00","09:00"], …] — ตรวจละเอียดใน normalizeWindows (400 WINDOWS_INVALID) */
   @IsArray() windows!: unknown[];
 }
 
-class UpdateZoneDto {
+class UpdateZoneDto extends AreaFields {
   @IsOptional() @Transform(trim) @IsString() @Length(1, 50) name?: string;
   @IsOptional() @IsArray() windows?: unknown[];
 }
@@ -40,6 +47,8 @@ class HouseSearchQuery {
   @IsOptional() @IsIn(['0', '1']) unzoned?: '0' | '1';
   /** '1' = เฉพาะตู้ที่ออนไลน์ตอนนี้ */
   @IsOptional() @IsIn(['0', '1']) online?: '0' | '1';
+  /** ระบุโซนที่กำลังเพิ่มบ้าน → เห็นเฉพาะบ้านที่อยู่ในพื้นที่ของโซนนั้น · โซนไม่ใช่ของหน่วยงาน 404 */
+  @IsOptional() @IsUUID() zone?: string;
 }
 
 class SetOfficersDto {
@@ -60,6 +69,7 @@ export class HouseController {
     return this.zones.searchHouses(await this.access.load(auth.userId).then((a) => a.agency!.id), q.q, {
       unzoned: q.unzoned === undefined ? undefined : q.unzoned === '1',
       online: q.online === '1',
+      zoneId: q.zone,
     });
   }
 }
@@ -85,7 +95,7 @@ export class ZoneController {
   @RequireRole('head')
   @Post()
   async create(@Auth() auth: AuthContext, @Body() dto: CreateZoneDto) {
-    return this.zones.create(await this.agencyId(auth), auth.userId, dto.name, dto.windows);
+    return this.zones.create(await this.agencyId(auth), auth.userId, dto.name, dto.windows, { province: dto.province, district: dto.district, subdistrict: dto.subdistrict });
   }
 
   @RequireRole('head')
@@ -97,7 +107,12 @@ export class ZoneController {
   @RequireRole('head')
   @Patch(':id')
   async update(@Auth() auth: AuthContext, @Param() p: ZoneIdParam, @Body() dto: UpdateZoneDto) {
-    return this.zones.update(await this.agencyId(auth), auth.userId, p.id, dto);
+    const touchesArea = dto.province !== undefined || dto.district !== undefined || dto.subdistrict !== undefined;
+    return this.zones.update(await this.agencyId(auth), auth.userId, p.id, {
+      name: dto.name,
+      windows: dto.windows,
+      area: touchesArea ? { province: dto.province, district: dto.district, subdistrict: dto.subdistrict } : undefined,
+    });
   }
 
   @RequireRole('head')

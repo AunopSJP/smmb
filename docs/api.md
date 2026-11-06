@@ -94,9 +94,9 @@ client **ห้ามเดาจาก `message`** ให้ดู `code` เ�
 | `signup/officer` / `/me/roles/owner` / `/me/agency/join` | 10 ครั้ง/นาที ต่อ IP (กันเดารหัสกลุ่ม) | 429 |
 | พิมพ์รหัสใต้ QR (ทุก route ที่รับ `code`) | ผิด 3 ครั้งติดกัน (ต่อ IP) → รอ 30 วิ · ผิดอีกรอบรอเพิ่มเป็น 2 เท่า สูงสุด 15 นาที · ถูก 1 ครั้งนับใหม่ | 429 `CODE_ATTEMPTS_EXCEEDED` |
 | `POST /public/deliveries` + ปุ่มหน้าตู้ (ไรเดอร์) | **5 ครั้ง/ชั่วโมง ต่อตู้** นับรวมทั้ง QR และปุ่ม | 429 `DELIVERY_LIMIT` → หน้า `R03-c` · ปุ่ม: ตู้ได้ `status: "limited"` |
-| `GET /inspections/:id/badge` | 4 ครั้ง/นาที ต่อการตรวจ (ขอใหม่ทุก 30 วิ + เผื่อ) | 429 |
+| `GET /inspections/:id/badge` | 20 ครั้ง/นาที ต่อการตรวจ (ขอใหม่ทุก ~9 วิ + เผื่อ) | 429 |
 
-**ตัวเลขอื่นที่ใช้ (✅ 2026-10-27)**: session 30 วัน ต่ออายุเมื่อใช้ · รหัสผ่าน 8–128 ตัว · delivery ticket 10 นาที · ไรเดอร์พิมพ์แทนสแกน 3 ครั้งใน 7 วัน = QR น่าสงสัย · หน้ารอตู้/รอ SOS poll ทุก 1 วิ · job ตรวจ 60 วิ · QR ประจำตัวเปลี่ยนทุก 30 วิ · ลองสแกน 3 ครั้ง · เวลาตรวจไม่เกิน 4 ช่วงต่อโซน · แบตต่ำ < 20% · QR ใกล้ครบอายุ ≥ 11 เดือน · ตู้หลุดกลางเวลาตรวจ > 10 นาที · ตู้เงียบ > 26 ชม. · เก็บ log 1 ปี · ค่าตั้งค่าตู้ (§9.5): `scan_timeout_s` 10–60 · `max_attempts` 1–5 · `longpoll_wait_s` 20–55
+**ตัวเลขอื่นที่ใช้ (✅ 2026-10-27)**: session 30 วัน ต่ออายุเมื่อใช้ · รหัสผ่าน 8–128 ตัว · delivery ticket 10 นาที · ไรเดอร์พิมพ์แทนสแกน 3 ครั้งใน 7 วัน = QR น่าสงสัย · หน้ารอตู้/รอ SOS poll ทุก 1 วิ · job ตรวจ 60 วิ · QR ประจำตัวอายุ 15 วิ เปลี่ยนทุก ~9 วิ (เซิร์ฟเวอร์เผื่อ 4 วิ) · ลองสแกน 3 ครั้ง · เวลาตรวจไม่เกิน 4 ช่วงต่อโซน · แบตต่ำ < 20% · QR ใกล้ครบอายุ ≥ 11 เดือน · ตู้หลุดกลางเวลาตรวจ > 10 นาที · ตู้เงียบ > 26 ชม. · เก็บ log 1 ปี · ค่าตั้งค่าตู้ (§9.5): `scan_timeout_s` 10–60 · `max_attempts` 1–5 · `longpoll_wait_s` 20–55
 
 > ⚠️ **ต้องตั้ง `TRUST_PROXY` ตอนขึ้นเซิร์ฟเวอร์จริง** (มี reverse proxy หน้า NestJS) ไม่งั้น IP ใน log/rate limit เป็น IP ของ proxy หมด
 
@@ -222,6 +222,7 @@ interface Prefs {
 | GET | `/me/push/vapid-key` | public | — | `{ public_key }` · 503 `PUSH_UNAVAILABLE` ถ้า server ไม่ได้ตั้ง VAPID key |
 | POST | `/me/push/subscriptions` | login | `PushSubscriptionJSON` (`{ endpoint, keys: { p256dh, auth }, expirationTime? }`) + `{ device_label? }` | 201 `{ ok: true }` · endpoint เดิม = ย้ายมาเป็นของ session นี้ (ไม่สร้างซ้ำ) · 400 ถ้า endpoint ไม่ใช่ push service ที่รู้จัก |
 | DELETE | `/me/push/subscriptions` | login | `{ endpoint }` | 200 · endpoint ของคนอื่น = ไม่เกิดอะไร (ไม่บอกว่ามี) |
+| GET | `/me/push/status` | login | — | `{ configured, keys_match, subscriptions: [{ host, device_label, this_device, usable, last_ok_at, failed_count }] }` ตรวจว่าทำไมแจ้งเตือนไม่เด้ง (ของตัวเองเท่านั้น · ไม่ส่ง endpoint เต็ม) · `usable:false` = session ของเครื่องนั้นหมดอายุ/ถูกเตะ → เซิร์ฟเวอร์ไม่ส่งให้ · ✅ 2026-11-06 |
 | POST | `/me/push/test` | login | — | 202 `{ sent, removed, failed, failure_status? }` ส่งแจ้งเตือนทดสอบ 1 ครั้ง**ถึงเครื่องนี้** (`sent`=0 และ `removed`=0 → เครื่องนี้ยังไม่ผูกกับ session · `removed`>0 → push service บอกว่า subscription ตายแล้ว ให้เปิดใหม่ · `failed`>0 → push service ปฏิเสธ `failure_status` 401/403 = กุญแจ VAPID ไม่ตรง) (ขั้น "เปิดแจ้งเตือน" `A03`) · ไม่เก็บลงหน้าแจ้งเตือน |
 
 - ✅ (2026-10-27) **subscription ผูกกับ session ของเครื่องนั้น** — ออกจากระบบ / ถูกเตะ / session หมดอายุ → เครื่องนั้นหยุดได้รับแจ้งเตือน (มือถือที่ใช้ร่วมกันไม่เห็น SOS ของคนที่ออกไปแล้ว) · `Me.push.subscribed` = เครื่องนี้ (session นี้) มี subscription · `PUSH_REQUIRED` = ไม่มีเครื่องไหนที่ยังรับได้เลย
@@ -471,10 +472,10 @@ interface Inspection {
 |---|---|---|---|
 | GET | `/inspections/:id` | `officer` (ผู้สร้าง) | `Inspection` — ใช้ poll ทุก 1 วิ ถ้าไม่ใช้ SSE |
 | GET | `/inspections/:id/stream` | `officer` (ผู้สร้าง) | **SSE** `event: status` `data: Inspection` ทุกครั้งที่สถานะเปลี่ยน (❓ เลือก SSE หรือ poll — โปรโตคอลตู้ §7 ข้อ 5) |
-| GET | `/inspections/:id/badge` | `officer` (ผู้สร้าง) | `{ qr: "SMMB-O2.<j>.<u>.<e>.<sig>", expires_at }` (สั้น ~47 ตัวอักษร — โปรโตคอล §3.3) — **ขอใหม่ทุก 30 วิ** ระหว่างอยู่หน้า `O06` · 409 `NOT_READY` ถ้าตู้ยังไม่ ready · 410 `INSPECTION_CLOSED` |
+| GET | `/inspections/:id/badge` | `officer` (ผู้สร้าง) | `{ qr: "SMMB-O2.<j>.<u>.<e>.<sig>", expires_at }` (สั้น ~47 ตัวอักษร — โปรโตคอล §3.3) — **ขอใหม่ทุก ~9 วิ (อายุ 15 วิ · เซิร์ฟเวอร์เผื่อ 4 วิ)** ระหว่างอยู่หน้า `O06` · 409 `NOT_READY` ถ้าตู้ยังไม่ ready · 410 `INSPECTION_CLOSED` |
 | POST | `/inspections/:id/box-problem` | `officer` (ผู้สร้าง) | `{ reason: "no_light" \| "no_response" \| "scan_failed_3" \| "other", note? }` → 201 แจ้งเจ้าของบ้าน + แอดมิน → กลับ `O01` |
 
-- QR ประจำตัว**สร้างที่ server เท่านั้น** (ไม่มีรหัสลับในมือถือ) · payload `{ j: job_id, u: user_id, e: หมดอายุ }` · ผูกกับ job ของตู้นี้ → เอาไปใช้ตู้อื่นไม่ได้ · หมดอายุ 30 วิ → ถ่ายรูปเก็บไว้ใช้ไม่ได้
+- QR ประจำตัว**สร้างที่ server เท่านั้น** (ไม่มีรหัสลับในมือถือ) · payload `{ j: job_id, u: user_id, e: หมดอายุ }` · ผูกกับ job ของตู้นี้ → เอาไปใช้ตู้อื่นไม่ได้ · หมดอายุ 15 วิ (+เผื่อ 4 วิ) → ถ่ายรูปเก็บไว้ใช้ไม่ได้ (✅ 2026-11-06 ปรับจาก 30 วิ)
 - ตู้ไม่ ready ภายใน ~30 วิ (แอปนับเอง) → `O05-b` "ตู้ไม่ตอบ ดูไฟที่ตู้" → `box-problem`
 - ผลจากตู้มาทาง API ของตู้ (§13.5) แล้ว server อัปเดต `Inspection`:
   - `passed` → `O08` "ตรวจแล้ว 22:15" + แจ้งเจ้าของบ้าน + อัปเดตหน้าสรุปของทั้งโซน
@@ -1017,3 +1018,41 @@ interface ZoneRequest { id: string; box: { id; name; house_no }; agency: { name;
 ### ✅ 2026-11-05 — Snapface ถ่ายจากกล้องตู้ (ข้อตกลง `2026-11-05` = migration `0027` → ทุกบัญชีกดยอมรับใหม่)
 - ผู้ใช้สั่ง: "ทำงานหลังจากที่ตู้สแกน QR ประจำตัวเจ้าหน้าที่เสร็จ และเจ้าหน้าที่ต้องไม่รู้ว่าถ่ายตอนไหน"
 - ตู้ส่ง `POST /v1/box/jobs/:job_id/photo` (โปรโตคอล §2.10) · route ฝั่งเจ้าหน้าที่ถูกลบ · O08 ไม่มีปุ่มถ่ายแล้ว · การดูรูป (`/me/inspection-photos/:id`, `/admin/inspection-photos/:id`) เหมือนเดิม
+
+
+---
+
+## ✅ 2026-11-06 — โหมดแสดงผล 3 ระดับ · พื้นที่โซน · หน่วยงานบนแผนที่ · ข้อมูลสมัครละเอียด · ตรวจแจ้งเตือน (migration `0028`–`0030`)
+
+### §3 `Prefs.ui_mode` — โหมดการแสดงผล
+`ui_mode: "easy" | "default" | "advanced"` (ค่าเริ่มต้น `default`) ผ่าน `PATCH /me { prefs: { ui_mode } }` · `easy` = เห็นเฉพาะที่จำเป็น ตัวใหญ่ ปุ่มใหญ่ · `default` = ปกติ ไม่แสดงรายละเอียดทางเทคนิค · `advanced` = แสดงทุกอย่าง (องค์ประกอบที่ติด `.adv-only` ในหน้าเว็บ) · `easy_mode` ยังคงไว้ให้ client รุ่นเก่า (= `ui_mode === "easy"`)
+
+### §3 `Me.profile` + `PATCH /me { profile }` — รายละเอียดเพิ่มของผู้ใช้ (ของตัวเองเท่านั้น)
+`profile` (รวมกับของเดิม ส่งมาเฉพาะที่เปลี่ยน): `title` (`mr|mrs|ms|other`) · `first_name` · `last_name` · `nickname` · `email` · `postal_code` (5 หลัก) · เจ้าของบ้าน: `house_type` (`house|townhome|village|condo|shop|other`) · `village` · `residents` (1–99) · `care[]` (`elderly|children|disabled|bedridden|pregnant|pets`) · `landmark` · `emergency_relation` · `contact_time` · เจ้าหน้าที่: `rank` · ค่าผิด → 400 · **ไม่เก็บเลขบัตรประชาชน**
+ส่งตอนสมัครได้เช่นกัน: `signup/owner`, `me/roles/owner`, `signup/officer` (`profile` + `emergency_name`/`emergency_phone` เป็นคู่), `signup/agency` (`head.profile`)
+
+### §2.x `signup/agency` — `agency` เพิ่ม
+`subdistrict` · `district` · `province` · `postal_code` · `phone` · `email` · `contact_person` · `coverage_note` · `lat`+`lng` (คู่กัน)
+
+### §8.1 หน่วยงาน — `Agency.profile` + `PATCH /agency`
+- `GET /agency` → `profile: { address, subdistrict, district, province, postal_code, phone, email, contact_person, coverage_note, registration_no, lat, lng }`
+- `PATCH /agency` (หัวหน้า) รับ `contact` + ฟิลด์ข้างบน ส่งมาเฉพาะที่เปลี่ยน · `""` = ล้างช่องนั้น (`contact` ห้ามว่าง) · `lat`/`lng` ต้องมาคู่กัน (`null` ทั้งคู่ = ล้างหมุด) ไม่งั้น 400 `PIN_INVALID` → คืน `Agency`
+
+### §8.1b แผนที่หน่วยงาน (เจ้าของบ้าน)
+| Method | Path | สิทธิ์ | ตอบ |
+|---|---|---|---|
+| GET | `/agencies/map` | `owner` | `[{ id, name, type, address, locality, phone, contact, coverage_note, lat, lng }]` เฉพาะหน่วยงานที่**อนุมัติแล้วและปักหมุดไว้** (≤ 500) · เป็นข้อมูลที่หน่วยงานตั้งใจเปิดเผย (ไม่มีสมาชิก/ตู้/เลขทะเบียน/อีเมล) · เว็บ `H16` |
+
+### §8.3 โซน — `area` + ตัวกรองบ้านตามพื้นที่
+- `Zone.area: { province, district, subdistrict | null } | null` · `POST/PATCH /agency/zones` รับ `province`, `district`, `subdistrict` (จังหวัด+เขต/อำเภอต้องมาคู่กัน · ว่างทั้งหมด = ล้าง · ผิด 400 `ZONE_AREA_INVALID`)
+- `GET /agency/houses/search?zone=<uuid>` → เห็นเฉพาะบ้านที่ `province`/`district`(/`subdistrict`) ตรงกับพื้นที่ของโซนนั้น (เทียบแบบไม่สนคำนำหน้า "จ./เขต/แขวง/อำเภอ/ตำบล" ช่องว่าง ตัวพิมพ์) · โซนที่ยังไม่ตั้งพื้นที่ → `[]` · โซนของหน่วยงานอื่น/ไม่มี 404 · ไม่ส่ง `zone` = พฤติกรรมเดิม
+- `PUT …/houses` **ไม่บังคับ**พื้นที่ (ตัวกรองคือการช่วยค้นหา ไม่ใช่สิทธิ์)
+
+### §7.2 `SosCard.house.details` — รายละเอียดบ้านตอน SOS เปิด
+`details: { house_type, village, residents, care[], landmark, emergency_relation, contact_time }` — เลือกฟิลด์ที่ช่วยเจ้าหน้าที่ตอนไปถึงเท่านั้น (ไม่ส่ง `profile` ทั้งก้อน) · กฎเดียวกับเบอร์/ที่อยู่ (เห็นเฉพาะตอน SOS เปิด)
+
+### §6.2 QR ประจำตัว
+อายุ **15 วิ** (เดิม 30) · เว็บขอใหม่เมื่อเหลือ ≤ 6 วิ (เปลี่ยนทุก ~9 วิ) · เซิร์ฟเวอร์เผื่อ 4 วิหลังหมดอายุ · `GET /inspections/:id/badge` จำกัด 20 ครั้ง/นาที
+
+### §3 `GET /me/push/status` — ตรวจทำไมแจ้งเตือนไม่เด้ง
+ดูแถว `/me/push/status` ในตาราง Web Push · เว็บมีปุ่ม "ตรวจแจ้งเตือน (ละเอียด)" ที่ตรวจทีละขั้น: สิทธิ์ → service worker → subscription → เซิร์ฟเวอร์รู้จักเครื่อง → ส่งถึง push service → service worker รับ
