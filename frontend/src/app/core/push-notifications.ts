@@ -61,7 +61,7 @@ export class PushNotifications {
    */
   private async current(): Promise<PushSubscription | null> {
     if (!this.swPush.isEnabled) return null;
-    return Promise.race([firstValueFrom(this.swPush.subscription), new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000))]);
+    return Promise.race([firstValueFrom(this.swPush.subscription), new Promise<null>((resolve) => setTimeout(() => resolve(null), 12000))]);
   }
 
   /** A03 ขอ permission ก่อนล็อกอิน · สร้าง subscription ไว้ แต่ยังไม่ส่งข้อมูลให้ server */

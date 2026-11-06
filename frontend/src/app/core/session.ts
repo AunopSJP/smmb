@@ -51,6 +51,7 @@ export class Session {
   private readonly push = inject(PushNotifications);
   readonly me = signal<Me | null>(null);
   private loaded: Promise<Me | null> | null = null;
+  private syncing = false;
 
   /** โหลดครั้งเดียวต่อการเปิดแอป (guard เรียก) */
   ensure(): Promise<Me | null> {
@@ -105,6 +106,14 @@ export class Session {
   private set(me: Me | null): void {
     this.me.set(me);
     if (!me) return;
+    // เครื่องนี้เคยอนุญาตแจ้งเตือนแล้ว แต่ session ปัจจุบันยังไม่ถูกผูก (ล็อกอินใหม่ / เปิดแอปหลังเซสชันเก่าหมด) → ผูกให้เอง
+    if (!me.push.subscribed && typeof Notification !== 'undefined' && Notification.permission === 'granted' && !this.syncing) {
+      this.syncing = true;
+      void this.push
+        .syncExisting()
+        .catch(() => undefined)
+        .finally(() => (this.syncing = false));
+    }
     const current = this.demo.role();
     const role = me.roles.includes(current) ? current : (me.roles.find((r) => r !== 'officer' || !me.roles.includes('head')) ?? me.roles[0] ?? 'owner');
     this.demo.signIn(role, me.roles, me.phone);

@@ -1,4 +1,4 @@
-// สร้างจาก docs/terms-2026-11-05.md ด้วย docs/scripts/gen-terms.mjs — ห้ามแก้ไฟล์นี้ตรง ๆ
+// สร้างจาก docs/terms-2026-11-06.md ด้วย docs/scripts/gen-terms.mjs — ห้ามแก้ไฟล์นี้ตรง ๆ
 // ของจริงหน้า A13 อ่านจาก GET /api/v1/terms/current (ฉบับเดียวกัน)
 
 export interface TermsPart {
@@ -7,12 +7,12 @@ export interface TermsPart {
   sections: { title: string; items: string[] }[];
 }
 
-export const TERMS_VERSION = '2026-11-05';
+export const TERMS_VERSION = '2026-11-06';
 
 export const TERMS: { th: TermsPart; en: TermsPart } = {
   "th": {
     "title": "ข้อตกลงการใช้งาน Smart Mailbox",
-    "intro": "ฉบับวันที่ 5 พฤศจิกายน 2026 · ใช้กับทุกคนที่มีบัญชี (เจ้าของบ้าน เจ้าหน้าที่ หัวหน้าหน่วยงาน แอดมิน)",
+    "intro": "ฉบับวันที่ 6 พฤศจิกายน 2026 · ใช้กับทุกคนที่มีบัญชี (เจ้าของบ้าน เจ้าหน้าที่ หัวหน้าหน่วยงาน แอดมิน)",
     "sections": [
       {
         "title": "1. SOS ไม่ได้แทนการโทร 191 / 1669",
@@ -46,6 +46,8 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
           "การแจ้งส่งของ (ไม่เก็บว่าไรเดอร์เป็นใคร) · SOS · การยอมรับข้อตกลง · การที่แอดมินเปิดดูข้อมูลส่วนบุคคล",
           "บันทึกเหล่านี้แก้ไขหรือลบไม่ได้ และเก็บไว้ 1 ปี",
           "ข้อมูลบ้านที่เจ้าของบ้านกรอก: ที่อยู่ · หมุดตำแหน่งบ้าน (ถ้าปัก) · ผู้ติดต่อฉุกเฉิน (ถ้ากรอก)",
+          "ข้อมูลเพิ่มเติมตอนสมัคร (ไม่บังคับ): คำนำหน้า อีเมล ประเภทบ้าน จำนวนผู้อยู่อาศัย ผู้ที่ต้องดูแลเป็นพิเศษ (เช่น ผู้สูงอายุ เด็กเล็ก ผู้ป่วยติดเตียง) และจุดสังเกตหน้าบ้าน — เก็บเพื่อให้เจ้าหน้าที่ช่วยได้ตรงจุดตอนเกิดเหตุ ระบบไม่เก็บเลขบัตรประชาชน",
+          "ข้อมูลเจ้าหน้าที่และหน่วยงานตอนสมัคร: ยศ/ตำแหน่ง รหัสประจำตัว ที่อยู่ เบอร์โทร อีเมล และหมุดตำแหน่งหน่วยงาน",
           "รูปถ่ายเจ้าหน้าที่จากกล้องของตู้ ถ่ายอัตโนมัติ 1 รูปหลังสแกน QR ประจำตัวผ่าน (ไม่แจ้งเวลาที่ถ่าย) เพื่อยืนยันว่ามาตรวจด้วยตัวเอง — เก็บ 30 วันแล้วลบ ไม่ใช้เทียบหรือจดจำใบหน้า",
           "เครื่องที่ใช้เข้าสู่ระบบ (รหัสเครื่องแบบเข้ารหัส และชนิดเบราว์เซอร์) — เจ้าหน้าที่เข้าจากเครื่องใหม่ หัวหน้าจะได้รับแจ้ง"
         ]
@@ -53,9 +55,10 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
       {
         "title": "5. ใครเห็นข้อมูลอะไร",
         "items": [
-          "เจ้าหน้าที่และหัวหน้าเห็นบ้านเลขที่และชื่อตู้ ไม่เห็นชื่อหรือเบอร์ของเจ้าของบ้าน ยกเว้นระหว่างที่ SOS ของบ้านนั้นเปิดอยู่ ซึ่งจะเห็นชื่อ เบอร์ ที่อยู่ และหมุดตำแหน่งบ้านด้วย",
+          "เจ้าหน้าที่และหัวหน้าเห็นบ้านเลขที่และชื่อตู้ ไม่เห็นชื่อหรือเบอร์ของเจ้าของบ้าน ยกเว้นระหว่างที่ SOS ของบ้านนั้นเปิดอยู่ ซึ่งจะเห็นชื่อ เบอร์ ที่อยู่ หมุดตำแหน่งบ้าน จำนวนผู้อยู่อาศัย ผู้ที่ต้องดูแลเป็นพิเศษ และจุดสังเกตหน้าบ้านด้วย",
           "หัวหน้าหน่วยงานขอเพิ่มบ้านเข้าโซนได้ แต่บ้านจะเข้าโซนเมื่อเจ้าของบ้านกดยอมรับเท่านั้น",
           "เจ้าของบ้านเห็นชื่อ หน่วยงาน และรูปยืนยันตัวของเจ้าหน้าที่ที่มาตรวจบ้านตัวเอง (รูปเก็บ 30 วัน) และเห็นเบอร์ของคนที่รับ SOS ระหว่างที่ SOS เปิดอยู่",
+          "เจ้าของบ้านเห็นหมุดตำแหน่งและข้อมูลติดต่อของหน่วยงานที่แอดมินอนุมัติแล้ว เพื่อเลือกว่าจะให้หน่วยงานไหนดูแลบ้าน",
           "ไรเดอร์เห็นแค่บ้านเลขที่ · ช่องทางติดต่อที่หน่วยงานกรอกตอนสมัคร แสดงให้คนที่ขอเข้าหน่วยงานเห็น",
           "แอดมินเห็นข้อมูลทั้งระบบเพื่อดูแลและแก้ปัญหา และทุกครั้งที่เปิดดูข้อมูลส่วนบุคคลจะถูกบันทึก"
         ]
@@ -96,7 +99,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
   },
   "en": {
     "title": "Smart Mailbox terms of use",
-    "intro": "Version of 5 November 2026 · applies to everyone with an account (homeowners, officers, agency heads, admins)",
+    "intro": "Version of 6 November 2026 · applies to everyone with an account (homeowners, officers, agency heads, admins)",
     "sections": [
       {
         "title": "1. SOS does not replace calling 191 / 1669",
@@ -130,6 +133,8 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
           "Delivery reports (riders are not identified) · SOS · terms acceptance · every time an admin views personal data",
           "These records cannot be edited or deleted and are kept for 1 year",
           "House details the homeowner enters: address · house pin (if set) · emergency contact (if given)",
+          "Optional sign-up details: title, email, house type, number of residents, people who need extra care (e.g. elderly, small children, bedridden) and a landmark near the house — kept so officers can help properly in an emergency. National ID numbers are not collected",
+          "Officer and agency sign-up details: rank/position, staff number, address, phone, email and the agency pin",
           "A photo of the officer taken automatically by the box camera once the badge QR passes (the exact moment is not shown), to show they came in person — kept 30 days then deleted, never used for face matching",
           "Devices used to sign in (a hashed device code and browser type) — when an officer signs in on a new device, their head is notified"
         ]
@@ -137,9 +142,10 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
       {
         "title": "5. Who sees what",
         "items": [
-          "Officers and heads see house numbers and box names, not the homeowner's name or phone — except while that house's SOS is open, when they also see the address and house pin",
+          "Officers and heads see house numbers and box names, not the homeowner's name or phone — except while that house's SOS is open, when they also see the address, house pin, number of residents, people who need extra care and the landmark",
           "An agency head can ask to add a house to a zone, but it joins only after the homeowner accepts",
           "Homeowners see the name, agency and confirmation photo of the officer who checked their own house (photos kept 30 days), and the phone of whoever accepted their SOS while it is open",
+          "Homeowners can see the pin and contact details of approved agencies, to choose which one looks after their house",
           "Riders see only the house number · the contact an agency enters at sign-up is shown to people asking to join it",
           "Admins see the whole system to keep it running, and every view of personal data is logged"
         ]

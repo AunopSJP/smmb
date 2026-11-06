@@ -15,7 +15,8 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(() => inject(ApiConfig).load()),
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),
-      registrationStrategy: 'registerWhenStable:30000',
+      // ลงทะเบียนทันที: เดิมรอแอปนิ่งสูงสุด 30 วิ → ผูกเครื่องกับ session ใหม่ตอนล็อกอินพลาด (ยังไม่มี service worker) แจ้งเตือนเลยไม่ถึง
+      registrationStrategy: 'registerImmediately',
     }),
   ],
 };

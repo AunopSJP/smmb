@@ -192,6 +192,22 @@ export class QrPrintSheet {
           <p class="row muted">{{ loadFailed() ? i18n.t({ th: 'โหลดรายการ QR ไม่สำเร็จ — รีเฟรชหน้า', en: 'Could not load QR cases — refresh the page' }) : loaded() ? i18n.t({ th: 'QR ทุกใบปกติ ไม่มีเคสที่ต้องจัดการ', en: 'Every QR is fine — no cases to handle' }) : i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
         }
       </div>
+      @if (closed().length) {
+        <details class="closed-cases">
+          <summary>{{ i18n.t({ th: 'เคสที่ปิดแล้ว', en: 'Closed cases' }) }} ({{ closed().length }})</summary>
+          <div class="list">
+            @for (c of closed(); track c.id) {
+              <a class="row closed-row" [routerLink]="link(c).path" [queryParams]="link(c).query">
+                <span>
+                  <strong>{{ c.house_no }}</strong>
+                  <span class="muted small block">{{ c.box_id }} · {{ i18n.t(slot[c.slot]) }} · {{ i18n.t(health[c.health].label) }}</span>
+                </span>
+                <span class="muted small">{{ date(c.updated_at) }}</span>
+              </a>
+            }
+          </div>
+        </details>
+      }
       <p class="muted small">{{ i18n.t({ th: 'ตรวจอัตโนมัติทุกคืน 23:00 · QR ที่อาจปลอมแจ้งทันที · รายการรีเฟรชเองทุก 10 วินาที', en: 'Checked every night at 23:00 · possible fakes are reported at once · refreshes every 10 s' }) }}</p>
     </div>
   `,
@@ -218,6 +234,17 @@ export class QrPrintSheet {
     }
     .block {
       display: block;
+    }
+    .closed-cases summary {
+      cursor: pointer;
+      font-weight: 600;
+      padding-block: 8px;
+    }
+    .closed-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
     }
     .n {
       margin-inline-start: 4px;
@@ -274,6 +301,11 @@ export class AdminQr {
   protected readonly picked = signal(new Set<AdminQrHealth>());
 
   private readonly open = computed(() => this.state.issues().filter((c) => !c.resolved));
+  /** เคสที่ปิดแล้ว — พับเก็บไว้ ใหม่สุดก่อน */
+  protected readonly closed = computed(() => this.state.issues().filter((c) => c.resolved).sort((a, b) => b.updated_at.localeCompare(a.updated_at)));
+  protected date(iso: string): string {
+    return fmtDate(iso, this.i18n.lang());
+  }
   protected readonly counts = computed(() => {
     const out: Record<AdminQrHealth, number> = { maybe_fake: 0, damaged: 0, suspicious: 0, expiring: 0 };
     for (const c of this.open()) out[c.health]++;

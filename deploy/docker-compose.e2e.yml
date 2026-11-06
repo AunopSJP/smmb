@@ -1,0 +1,17 @@
+# ฐานข้อมูลชั่วคราวสำหรับรันเทสต์ e2e เท่านั้น — ข้อมูลอยู่ใน RAM (tmpfs) หายเมื่อปิด · ไม่แตะฐานข้อมูลจริง
+# ใช้: docker compose -f deploy/docker-compose.e2e.yml up -d --wait   ·   ปิด: ... down
+# พอร์ต 55432 (ไม่ชนกับ Postgres จริงที่ 5432)
+services:
+  postgres-e2e:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: smmb
+      POSTGRES_PASSWORD: smmb_e2e_only
+      POSTGRES_DB: smmb_e2e
+      TZ: UTC
+    ports: ["127.0.0.1:55432:5432"]
+    tmpfs: ["/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smmb -d smmb_e2e"]
+      interval: 3s
+      retries: 20

@@ -9,7 +9,7 @@ import { NotificationService } from '../push/notification.service.js';
 
 const TICK_MS = 60_000;
 /** ไม่มี long-poll เกินนี้ระหว่างเวลาตรวจ = ตู้หลุด (design §8) */
-export const OFFLINE_AFTER_MS = 10 * 60_000;
+export const OFFLINE_AFTER_MS = 3 * 60_000;
 /** QR หมดอายุ 12 เดือน — เตือนเมื่ออายุ ≥ 11 เดือน (design §8 ข้อ 6) */
 const QR_EXPIRING_AFTER = '11 months';
 /** ไม่มีใครสแกนใบหน้าตู้เกินนี้ ทั้งที่บ้านอยู่ในโซน → น่าสงสัย (design §8 ข้อ 4) */
@@ -82,7 +82,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   // ── ตู้หลุดระหว่างเวลาตรวจ ─────────────────────────────────────────────
 
   /**
-   * ตู้ที่มีเจ้าของ เปิดบริการ อยู่ในเวลาตรวจเกิน 5 นาที แต่ไม่มี long-poll เกิน 10 นาที (หรือไม่เคย) → แจ้งเจ้าของบ้าน + แอดมิน ครั้งเดียวต่อช่วง
+   * ตู้ที่มีเจ้าของ เปิดบริการ อยู่ในเวลาตรวจเกิน 5 นาที แต่ไม่มี long-poll เกิน 3 นาที (หรือไม่เคย) → แจ้งเจ้าของบ้าน + แอดมิน ครั้งเดียวต่อช่วง
    * ออกนอกเวลาตรวจหรือตู้กลับมาถือ long-poll → ล้างเครื่องหมาย (รอบตรวจถัดไปแจ้งได้อีก)
    */
   async watchOffline(now = new Date()): Promise<number> {
