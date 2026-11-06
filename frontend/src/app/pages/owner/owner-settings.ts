@@ -29,6 +29,7 @@ import { firstValueFrom } from 'rxjs';
       [bell]="url('H14')"
     />
     <div class="stack grow">
+      <!-- 1) เรื่องที่ต้องทำก่อน -->
       <app-push-status [compact]="true" />
       @for (r of zoneRequests(); track r.id) {
         <section class="card stack request" role="status">
@@ -56,32 +57,10 @@ import { firstValueFrom } from 'rxjs';
           }
         </div>
       }
-      <section class="card stack">
-        <div class="row-head">
-          <span class="grow">
-            <strong>{{ i18n.t({ th: 'ข้อมูลของฉันและรายละเอียดบ้าน', en: 'My details and house details' }) }}</strong>
-            <span class="muted small block">{{ extrasSummary() }}</span>
-          </span>
-          <button type="button" class="btn secondary small" (click)="showExtras.set(!showExtras())" [attr.aria-expanded]="showExtras()">
-            {{ showExtras() ? i18n.t({ th: 'ซ่อน', en: 'Hide' }) : i18n.t({ th: 'แก้ไข', en: 'Edit' }) }}
-          </button>
-        </div>
-        @if (showExtras()) {
-          <app-profile-extras kind="owner" [(value)]="extras" [tried]="triedExtras()" />
-          <button type="button" class="btn" [disabled]="savingExtras()" (click)="saveExtras()">{{ i18n.t({ th: 'บันทึกข้อมูล', en: 'Save details' }) }}</button>
-        }
-      </section>
-      <nav class="list">
-        <a class="row" [routerLink]="url('H16')">
-          <span class="icon-bubble"><app-icon name="pin" [size]="20" /></span>
-          <span class="grow">
-            <strong>{{ i18n.t({ th: 'หน่วยงานใกล้บ้านบนแผนที่', en: 'Agencies near you on the map' }) }}</strong>
-            <span class="muted small block">{{ i18n.t({ th: 'ดูว่าแต่ละหน่วยงานอยู่ตรงไหน แล้วเลือกว่าควรให้ใครดูแลบ้าน', en: 'See where each agency is and choose who should look after your house' }) }}</span>
-          </span>
-          <app-icon name="chevronRight" [size]="18" />
-        </a>
-      </nav>
+
+      <!-- 2) ตู้ของฉัน -->
       @if (box(); as b) {
+        <h2 class="group">{{ i18n.t({ th: 'ตู้ของฉัน', en: 'My mailbox' }) }}</h2>
         <section class="card">
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'ชื่อตู้', en: 'Name' }) }}</dt>
@@ -109,7 +88,7 @@ import { firstValueFrom } from 'rxjs';
               }
             </dd>
             <dt class="adv-only">{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd class="adv-only">{{ b.id }}</dd>
-            <dt>{{ i18n.t({ th: 'แบต', en: 'Battery' }) }}</dt>
+            <dt>{{ i18n.t({ th: 'แบตเตอรี่', en: 'Battery' }) }}</dt>
             <dd>{{ b.battery ? b.battery.pct + '%' : '—' }}{{ b.battery?.charging ? i18n.t({ th: ' · ชาร์จอยู่', en: ' · charging' }) : '' }}</dd>
             <dt>{{ i18n.t({ th: 'ผู้ดูแล', en: 'Covered by' }) }}</dt>
             <dd>{{ b.coverage.agency_names.join(', ') || i18n.t({ th: 'ยังไม่มีเจ้าหน้าที่ดูแล', en: 'No agency yet' }) }}</dd>
@@ -127,36 +106,65 @@ import { firstValueFrom } from 'rxjs';
           </dl>
         </section>
 
-        <section class="card stack">
-          <h2 class="sec">{{ i18n.t({ th: 'ที่อยู่และหมุดบ้าน', en: 'Address and house pin' }) }}</h2>
-          @if (editingAddr()) {
-            <label class="field"><span>{{ i18n.t({ th: 'ที่อยู่ (ซอย / ถนน / หมู่)', en: 'Address (soi / road / moo)' }) }}</span>
-              <input maxlength="200" [value]="addr().line" (input)="setAddr('line', $any($event.target).value)" /></label>
-            <div class="two">
-              <label class="field"><span>{{ i18n.t({ th: 'แขวง / ตำบล', en: 'Subdistrict' }) }}</span>
-                <input maxlength="100" [value]="addr().subdistrict" (input)="setAddr('subdistrict', $any($event.target).value)" /></label>
-              <label class="field"><span>{{ i18n.t({ th: 'เขต / อำเภอ', en: 'District' }) }}</span>
-                <input maxlength="100" [value]="addr().district" (input)="setAddr('district', $any($event.target).value)" /></label>
+        <!-- 3) ข้อมูลที่กรอกไว้ (พับเก็บ แตะเพื่อแก้) -->
+        <h2 class="group">{{ i18n.t({ th: 'ข้อมูลที่กรอกไว้', en: 'Your details' }) }}</h2>
+        <div class="folds">
+          <details class="fold" [open]="showAddr()" (toggle)="showAddr.set($any($event.target).open)">
+            <summary>
+              <span class="icon-bubble"><app-icon name="pin" [size]="20" /></span>
+              <span class="grow">
+                <strong>{{ i18n.t({ th: 'ที่อยู่และหมุดบ้าน', en: 'Address and house pin' }) }}</strong>
+                <span class="muted small block">{{ addressText(b) || i18n.t({ th: 'ยังไม่ได้กรอกที่อยู่', en: 'No address yet' }) }}</span>
+              </span>
+              <app-icon name="chevronRight" [size]="18" class="chev" />
+            </summary>
+            <div class="fold-body stack">
+              @if (editingAddr()) {
+                <label class="field"><span>{{ i18n.t({ th: 'ที่อยู่ (ซอย / ถนน / หมู่)', en: 'Address (soi / road / moo)' }) }}</span>
+                  <input maxlength="200" [value]="addr().line" (input)="setAddr('line', $any($event.target).value)" /></label>
+                <div class="two">
+                  <label class="field"><span>{{ i18n.t({ th: 'แขวง / ตำบล', en: 'Subdistrict' }) }}</span>
+                    <input maxlength="100" [value]="addr().subdistrict" (input)="setAddr('subdistrict', $any($event.target).value)" /></label>
+                  <label class="field"><span>{{ i18n.t({ th: 'เขต / อำเภอ', en: 'District' }) }}</span>
+                    <input maxlength="100" [value]="addr().district" (input)="setAddr('district', $any($event.target).value)" /></label>
+                </div>
+                <label class="field"><span>{{ i18n.t({ th: 'จังหวัด', en: 'Province' }) }}</span>
+                  <input maxlength="100" [value]="addr().province" (input)="setAddr('province', $any($event.target).value)" /></label>
+                <app-map-pin [editable]="true" [(value)]="pin" />
+                <div class="two">
+                  <button type="button" class="btn secondary" (click)="editingAddr.set(false)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
+                  <button type="button" class="btn" [disabled]="savingAddr()" (click)="saveAddr()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
+                </div>
+              } @else {
+                @if (b.location) {
+                  <app-map-pin [value]="b.location" [height]="180" />
+                } @else {
+                  <p class="muted small">{{ i18n.t({ th: 'ยังไม่ได้ปักหมุด — ปักไว้ช่วยให้เจ้าหน้าที่มาถึงเร็วขึ้นตอน SOS', en: 'No pin yet — a pin helps officers reach you faster during an SOS' }) }}</p>
+                }
+                <button type="button" class="btn secondary" (click)="startAddr()">{{ i18n.t({ th: 'แก้ไขที่อยู่และหมุด', en: 'Edit address and pin' }) }}</button>
+              }
             </div>
-            <label class="field"><span>{{ i18n.t({ th: 'จังหวัด', en: 'Province' }) }}</span>
-              <input maxlength="100" [value]="addr().province" (input)="setAddr('province', $any($event.target).value)" /></label>
-            <app-map-pin [editable]="true" [(value)]="pin" />
-            <div class="two">
-              <button type="button" class="btn secondary" (click)="editingAddr.set(false)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
-              <button type="button" class="btn" [disabled]="savingAddr()" (click)="saveAddr()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
+          </details>
+
+          <details class="fold" [open]="showExtras()" (toggle)="showExtras.set($any($event.target).open)">
+            <summary>
+              <span class="icon-bubble"><app-icon name="user" [size]="20" /></span>
+              <span class="grow">
+                <strong>{{ i18n.t({ th: 'ข้อมูลของฉันและรายละเอียดบ้าน', en: 'My details and house details' }) }}</strong>
+                <span class="muted small block">{{ extrasSummary() }}</span>
+              </span>
+              <app-icon name="chevronRight" [size]="18" class="chev" />
+            </summary>
+            <div class="fold-body stack">
+              <app-profile-extras kind="owner" [(value)]="extras" [tried]="triedExtras()" />
+              <button type="button" class="btn" [disabled]="savingExtras()" (click)="saveExtras()">{{ i18n.t({ th: 'บันทึกข้อมูล', en: 'Save details' }) }}</button>
             </div>
-          } @else {
-            <p>{{ addressText(b) || i18n.t({ th: 'ยังไม่ได้กรอกที่อยู่', en: 'No address yet' }) }}</p>
-            @if (b.location) {
-              <app-map-pin [value]="b.location" [height]="180" />
-            } @else {
-              <p class="muted small">{{ i18n.t({ th: 'ยังไม่ได้ปักหมุด — ปักไว้ช่วยให้เจ้าหน้าที่มาถึงเร็วขึ้นตอน SOS', en: 'No pin yet — a pin helps officers reach you faster during an SOS' }) }}</p>
-            }
-            <button type="button" class="btn secondary" (click)="startAddr()">{{ i18n.t({ th: 'แก้ไขที่อยู่และหมุด', en: 'Edit address and pin' }) }}</button>
-          }
-        </section>
+          </details>
+        </div>
       }
 
+      <!-- 4) เมนูตั้งค่า -->
+      <h2 class="group">{{ i18n.t({ th: 'ตั้งค่าและบริการ', en: 'Settings and services' }) }}</h2>
       <nav class="list">
         @for (m of menu(); track m.code) {
           @if (m.needsBox && loaded() && !boxes().length) {
@@ -184,6 +192,7 @@ import { firstValueFrom } from 'rxjs';
         }
       </nav>
 
+      <!-- 5) บัญชี -->
       <app-account-actions current="owner" from="H13" />
 
       <button type="button" class="btn secondary signout" (click)="signout()">
@@ -198,15 +207,44 @@ import { firstValueFrom } from 'rxjs';
     .sec {
       font-size: 1rem;
     }
-    .row-head {
+    .group {
+      margin: 12px 4px 0;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: var(--text-muted);
+    }
+    .folds {
+      display: flex;
+      flex-direction: column;
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .fold + .fold {
+      border-block-start: 1px solid var(--line);
+    }
+    .fold summary {
       display: flex;
       align-items: center;
       gap: 12px;
+      padding: 14px 16px;
+      min-block-size: 56px;
+      cursor: pointer;
+      list-style: none;
     }
-    .row-head .btn {
-      inline-size: auto;
-      min-block-size: 40px;
-      padding: 6px 16px;
+    .fold summary::-webkit-details-marker {
+      display: none;
+    }
+    .fold .chev {
+      transition: transform 0.15s;
+    }
+    .fold[open] .chev {
+      transform: rotate(90deg);
+    }
+    .fold-body {
+      padding: 4px 16px 16px;
     }
     .two {
       display: grid;
@@ -287,6 +325,7 @@ export class OwnerSettings {
   protected readonly extras = signal(extrasFromProfile(inject(Session).me()?.profile));
   protected readonly savingExtras = signal(false);
   protected readonly showExtras = signal(false);
+  protected readonly showAddr = signal(false);
   /** บรรทัดสรุปตอนพับอยู่ — บอกว่ากรอกครบหรือยัง */
   protected readonly extrasSummary = computed(() => {
     const f = this.extras();
@@ -445,6 +484,7 @@ export class OwnerSettings {
   protected readonly menu = computed<{ code: string; icon: IconName; title: Tr; sub: Tr; badge?: Tr; needsBox?: boolean }[]>(() => {
     const pushOn = this.session.me()?.push.subscribed === true;
     return [
+    { code: 'H16', icon: 'pin', title: { th: 'หน่วยงานใกล้บ้านบนแผนที่', en: 'Agencies near you on the map' }, sub: { th: 'ดูว่าอยู่ตรงไหน แล้วเลือกว่าให้ใครดูแลบ้าน', en: 'See where each agency is and pick who looks after you' } },
     { code: 'H13-b', icon: 'layers', title: { th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' }, sub: { th: 'กดสั่งจากเว็บ ตู้จะเข้าโหมดตั้งค่าเอง', en: 'Tap here — the mailbox enters setup mode by itself' }, needsBox: true },
     { code: 'H13-c', icon: 'user', title: { th: 'แจ้งช่าง', en: 'Request a technician' }, sub: { th: 'ให้ช่างนัดมาตั้งค่า / ซ่อม', en: 'A technician will set up or repair' }, needsBox: true },
     { code: 'H14', icon: 'bell', title: { th: 'การแจ้งเตือน', en: 'Notifications' }, sub: pushOn ? { th: 'เครื่องนี้รับแจ้งเตือนอยู่', en: 'This device gets notifications' } : { th: 'เครื่องนี้ยังไม่ได้เปิด — แตะเพื่อเปิด', en: 'Off on this device — tap to turn on' }, ...(pushOn ? { badge: { th: 'เปิด', en: 'On' } } : {}) },

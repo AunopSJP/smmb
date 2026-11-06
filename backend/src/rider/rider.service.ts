@@ -78,6 +78,7 @@ export class RiderService {
     if (!box.service_active || !box.owner_user_id) throw new AppError(HttpStatus.FORBIDDEN, 'BOX_SERVICE_CLOSED', 'this mailbox is not in service');
 
     // เพดานต่อตู้: lock แถวตู้ก่อนนับ (กันส่งพร้อมกันหลายคำขอแล้วเกินเพดาน)
+    let deliveryId = '';
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -90,12 +91,11 @@ export class RiderService {
         await client.query('ROLLBACK');
         throw new AppError(HttpStatus.TOO_MANY_REQUESTS, 'DELIVERY_LIMIT', 'too many deliveries for this mailbox, try later');
       }
-      await client.query(`INSERT INTO app.delivery_tb (box_id, box_qr_code_id, method, ticket_id) VALUES ($1, $2, $3, $4)`, [
-        box.box_id,
-        t.q,
-        t.m,
-        t.n,
-      ]);
+      const ins = await client.query<{ delivery_id: string }>(
+        `INSERT INTO app.delivery_tb (box_id, box_qr_code_id, method, ticket_id) VALUES ($1, $2, $3, $4) RETURNING delivery_id`,
+        [box.box_id, t.q, t.m, t.n],
+      );
+      deliveryId = ins.rows[0].delivery_id;
       await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK').catch(() => undefined);
@@ -109,7 +109,7 @@ export class RiderService {
       await this.notifications.notify([box.owner_user_id], {
         type: 'delivered',
         data: { box_id: box.box_id, box_name: box.name, method: t.m, at: new Date().toISOString() },
-        link: '/home',
+        link: `/home/history/delivery?id=${deliveryId}`,
       });
     } catch (err) {
       this.logger.error(`delivered notification failed: ${(err as Error).message}`);

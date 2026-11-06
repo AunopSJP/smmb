@@ -369,7 +369,7 @@ export class InspectionService implements OnModuleInit {
     let after: (() => Promise<void>) | undefined;
     if (ins && status === 'pass') {
       await db.query(`UPDATE app.inspection_tb SET status = 'passed', checked_date = now() WHERE inspection_id = $1`, [ins.inspection_id]);
-      after = () => this.notifyInspected(job.box_id, ins.agency_name, ins.display_name);
+      after = () => this.notifyInspected(job.box_id, ins.agency_name, ins.display_name, ins.inspection_id);
     } else if (ins && status === 'fail') {
       await db.query(`UPDATE app.inspection_tb SET status = 'failed' WHERE inspection_id = $1`, [ins.inspection_id]);
     }
@@ -489,7 +489,7 @@ export class InspectionService implements OnModuleInit {
     );
   }
 
-  private async notifyInspected(boxId: string, agencyName: string, officerName: string): Promise<void> {
+  private async notifyInspected(boxId: string, agencyName: string, officerName: string, inspectionId: string): Promise<void> {
     const { rows } = await this.pool.query<{ owner_user_id: string | null; name: string | null }>(
       `SELECT owner_user_id, name FROM app.box_tb WHERE box_id = $1`,
       [boxId],
@@ -500,7 +500,7 @@ export class InspectionService implements OnModuleInit {
       this.notifications.notify([owner], {
         type: 'inspected',
         data: { box_id: boxId, box_name: rows[0].name, agency_name: agencyName, officer_name: officerName, at: new Date().toISOString() },
-        link: '/home',
+        link: `/home/history/inspection?id=${inspectionId}`,
         tag: `inspected-${boxId}`,
       }),
     );

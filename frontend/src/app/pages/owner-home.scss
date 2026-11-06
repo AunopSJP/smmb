@@ -88,6 +88,13 @@
   -webkit-touch-callout: none;
   touch-action: none;
 
+  /* ระหว่างส่ง SOS ปุ่มต้องยังเป็นสีแดง (เดิมเป็นสีเทาของปุ่มที่ถูกปิด) */
+  &:disabled {
+    background: var(--sos);
+    color: #fff;
+    opacity: 0.85;
+  }
+
   &.simple-sos {
     min-block-size: 96px;
     font-size: 1.5rem;
@@ -106,6 +113,8 @@
 
 /* H03-e นับถอยหลังกดค้าง */
 .hold {
+  /* หน้านับถอยหลังทับปุ่มทั้งจอ — ต้องไม่รับการสัมผัส ไม่งั้นนิ้วที่กดอยู่ถูกนับว่า "ออกจากปุ่ม" แล้วยกเลิกทันที (เห็นเป็นหน้าแดงวูบแล้วหาย) */
+  pointer-events: none;
   position: fixed;
   inset: 0;
   z-index: 10;

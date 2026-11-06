@@ -61,6 +61,12 @@ export class PushNotifications {
    */
   private async current(): Promise<PushSubscription | null> {
     if (!this.swPush.isEnabled) return null;
+    // ถามเบราว์เซอร์ตรง ๆ (service worker ที่พร้อมแล้ว) — ไม่รอ stream ของ SwPush ที่อาจช้า/ไม่ emit
+    // เดิมรอ stream แค่ 4 วิ แล้วนับว่า "ไม่มี subscription" → หน้าจอเด้งให้กดเปิดแจ้งเตือนซ้ำทั้งที่เปิดไว้แล้ว
+    if (typeof navigator !== 'undefined' && navigator.serviceWorker?.ready) {
+      const reg = await Promise.race([navigator.serviceWorker.ready, new Promise<null>((resolve) => setTimeout(() => resolve(null), 12000))]);
+      return reg ? await reg.pushManager.getSubscription() : null;
+    }
     return Promise.race([firstValueFrom(this.swPush.subscription), new Promise<null>((resolve) => setTimeout(() => resolve(null), 12000))]);
   }
 
@@ -157,7 +163,9 @@ export class PushNotifications {
         : {
             ok: false,
             label: { th: 'เครื่องนี้ยังไม่ได้ลงทะเบียนกับ push service', en: 'This device is not registered with the push service' },
-            fix: { th: 'กด "เปิดแจ้งเตือน"', en: 'Tap “Turn on notifications”' },
+            fix: isBrave()
+              ? { th: 'Brave: เปิดที่ brave://settings/privacy → เปิด "Use Google Services for push messaging" แล้วเปิดเบราว์เซอร์ใหม่ จากนั้นกด "เปิดแจ้งเตือน"', en: 'Brave: open brave://settings/privacy → turn on “Use Google Services for push messaging”, restart Brave, then tap “Turn on notifications”' }
+              : { th: 'กด "เปิดแจ้งเตือน"', en: 'Tap “Turn on notifications”' },
           },
     );
 
@@ -263,6 +271,9 @@ export interface PushTestResult {
   failed: number;
   failure_status?: number;
 }
+
+/** Brave ปิดบริการ push ของ Google ไว้เป็นค่าเริ่มต้น → สมัครแจ้งเตือนไม่ได้จนกว่าจะเปิดในตั้งค่า */
+export const isBrave = (): boolean => typeof navigator !== 'undefined' && !!(navigator as Navigator & { brave?: unknown }).brave;
 
 export class PushBlockedError extends Error {
   constructor(readonly reason: PushBlocker) {

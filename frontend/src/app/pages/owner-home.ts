@@ -155,7 +155,8 @@ const REFRESH_MS = 10_000;
         } @else {
           <ul class="list">
             @for (e of b.latest_events; track e.id) {
-              <li class="row">
+              <li>
+               <a class="row" [routerLink]="url(e.type === 'inspected' ? 'H12-b' : 'H12-c')" [queryParams]="{ id: e.id }">
                 @if (e.type === 'inspected') {
                   <span class="icon-bubble"><app-icon name="shield" [size]="20" /></span>
                   <span class="grow">
@@ -170,6 +171,8 @@ const REFRESH_MS = 10_000;
                   </span>
                 }
                 <span class="muted small">{{ day(e.at) }} {{ time(e.at) }}</span>
+                <app-icon name="chevronRight" [size]="18" />
+               </a>
               </li>
             }
           </ul>
@@ -347,6 +350,8 @@ export class OwnerHome implements OnDestroy {
   protected startHold(event: Event): void {
     event.preventDefault();
     if (this.timer || this.sending()) return; // ปุ่มคีย์บอร์ดค้างส่ง keydown ซ้ำ
+    // ล็อกการสัมผัสไว้กับปุ่ม: นิ้วเลื่อนเล็กน้อยก็ไม่ถูกนับว่าออกจากปุ่ม
+    if (event instanceof PointerEvent) (event.currentTarget as Element | null)?.setPointerCapture?.(event.pointerId);
     const started = Date.now();
     this.heldMs.set(0);
     this.holding.set(true);

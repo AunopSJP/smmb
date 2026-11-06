@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal, ty
 import { RouterLink } from '@angular/router';
 import { apiError } from '../core/api';
 import { I18n, type Tr } from '../core/i18n';
-import { PushBlockedError, PushNotifications, type DiagStep, type PushBlocker } from '../core/push-notifications';
+import { isBrave, PushBlockedError, PushNotifications, type DiagStep, type PushBlocker } from '../core/push-notifications';
 import { Session } from '../core/session';
 import { Toast } from '../core/toast';
 import { screenUrl } from '../screens/registry';
@@ -221,6 +221,7 @@ export class PushStatus implements OnInit {
     if (e.status >= 400) return { th: `เซิร์ฟเวอร์ไม่รับ (${tail}) — ปิดแล้วเปิดใหม่ หากยังไม่ได้ แจ้งผู้ดูแลระบบ`, en: `The server refused it (${tail}) — turn it off and on; if it persists, tell the admin` };
     // ไม่ใช่ error จากเซิร์ฟเวอร์ → มักเป็นฝั่งเบราว์เซอร์ (service worker ยังไม่พร้อม / push service ของเบราว์เซอร์ปฏิเสธ)
     const name = error instanceof Error ? error.name : 'unknown';
+    if (isBrave()) return { th: 'Brave ยังไม่เปิดบริการแจ้งเตือน → พิมพ์ brave://settings/privacy ในช่องที่อยู่ → เปิด "Use Google Services for push messaging" → ปิดแล้วเปิด Brave ใหม่ → กดเปิดแจ้งเตือนอีกครั้ง', en: 'Brave has push turned off → open brave://settings/privacy → turn on “Use Google Services for push messaging” → restart Brave → try again' };
     return { th: `เบราว์เซอร์สมัครแจ้งเตือนไม่สำเร็จ (${name}) — โหลดหน้าใหม่ หรือล้างข้อมูลเว็บของไซต์นี้แล้วลองอีกครั้ง`, en: `The browser could not subscribe (${name}) — reload, or clear this site’s data, then try again` };
   }
 

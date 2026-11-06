@@ -246,7 +246,7 @@ export class BoxProtocolService {
   private async notifyLowBattery(boxId: string, ownerId: string | null, name: string | null, pct: number): Promise<void> {
     const data = { box_id: boxId, box_name: name, battery_pct: pct };
     try {
-      if (ownerId) await this.notifications.notify([ownerId], { type: 'low_battery', data, link: '/', tag: `battery-${boxId}` });
+      if (ownerId) await this.notifications.notify([ownerId], { type: 'low_battery', data, link: '/home', tag: `battery-${boxId}` });
       const admins = await this.pool.query<{ user_id: string }>(
         `SELECT r.user_id FROM app.user_role_tb r JOIN app.user_tb u ON u.user_id = r.user_id
          WHERE r.role = 'admin' AND r.status = 'active' AND u.status = 'active' AND u.deleted_date IS NULL`,
