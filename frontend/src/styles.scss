@@ -1,12 +1,14 @@
 // โทเคนสีและขนาด — docs/smmb-design.md §11
+// ✅ 2026-11-06 ผู้ใช้สั่ง "อย่าแดงจนเกินไป": สีหลักของปุ่ม/ลิงก์/แท็บ = น้ำเงินอมเขียวสงบ (--brand)
+// แดงเก็บไว้เฉพาะ SOS / อันตราย / ข้อผิดพลาด (--sos) และโลโก้ — เปลี่ยนกลับได้ที่โทเคนเหล่านี้ที่เดียว
 // ธีม: ตามเครื่อง (ค่าเริ่มต้น) / บังคับด้วย <html data-theme="light|dark">
 // ขนาดตัวอักษร: <html data-text-size="normal|large|xlarge">
 
 :root {
-  --brand: #b4232c;
-  --brand-dark: #7f1a21;
-  --brand-light: #f8e9ea;
-  --brand-lighter: #fbf4f4;
+  --brand: #1f6f8b;
+  --brand-dark: #164f64;
+  --brand-light: #e3f0f5;
+  --brand-lighter: #f1f8fb;
   --sos: #b91c1c;
   --icon-bg: #eef0f3;
 
@@ -24,10 +26,10 @@
 }
 
 @mixin dark {
-  --brand: #d4505a;
-  --brand-dark: #ee8b90;
-  --brand-light: #35191b;
-  --brand-lighter: #281617;
+  --brand: #2a7d9c;
+  --brand-dark: #8fcde3;
+  --brand-light: #17313b;
+  --brand-lighter: #12262e;
   --sos: #dc4b4b;
   --icon-bg: #2a2e35;
 
@@ -168,11 +170,15 @@ button {
 }
 
 /* รายการในการ์ด — แถวคั่นเส้นบาง */
+/* ใช้กับ <ul> ได้ — ไม่ให้มีเว้นซ้ายและจุดนำหน้าของเบราว์เซอร์ */
 .list {
   background: var(--surface);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow: hidden;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 
   > * + * {
     border-block-start: 1px solid var(--line);
@@ -709,6 +715,84 @@ app-area-shell main > :not(router-outlet) {
   color: var(--ok);
 }
 
+// ── ฟอร์มยาว: แบ่งเป็นกลุ่ม (การ์ด + หัวข้อ) · ช่องคู่จัดเรียงเองตามความกว้าง ───────────
+.form-section {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  min-inline-size: 0;
+}
+// อยู่ในการ์ดอยู่แล้ว (เช่น หน้าตั้งค่า) → ไม่ซ้อนการ์ดซ้อนการ์ด
+.card .form-section {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.form-title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--brand-dark);
+}
+.form-hint {
+  margin: -8px 0 0;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+/* ช่องคู่: จอกว้างพอ = สองคอลัมน์ · จอแคบ = เรียงลงเอง · ช่องที่ป้ายยาวไม่ทำให้ช่องข้างเยื้อง */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+// กลุ่มช่องกรอก: ไม่ใช้กรอบเดิมของเบราว์เซอร์ (หัวข้อกลุ่มเป็นตัวหนา)
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+
+  > legend {
+    padding: 0;
+    margin-block-end: 8px;
+    font-weight: 700;
+    font-size: 0.9375rem;
+  }
+}
+
+// ── ตัวเลือกแบบเม็ดยา (ติ๊กได้หลายข้อ) ───────────────────────────
+.chip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1.5px solid var(--line-strong, color-mix(in srgb, var(--text-muted) 40%, transparent));
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.9375rem;
+  cursor: pointer;
+
+  input {
+    inline-size: 18px;
+    block-size: 18px;
+    min-block-size: 0;
+    padding: 0;
+    margin: 0;
+    accent-color: var(--brand);
+  }
+  &:has(input:checked) {
+    border-color: var(--brand);
+    background: var(--brand-light);
+    color: var(--brand-dark);
+    font-weight: 700;
+  }
+}
+
 // ── ช่องกรอก (ค้นหา / ตัวเลข / รหัส / ข้อความ) ─────────────────
 .field {
   display: flex;
@@ -719,7 +803,8 @@ app-area-shell main > :not(router-outlet) {
     font-weight: 700;
     font-size: 0.9375rem;
   }
-  input,
+  input:not([type='checkbox']):not([type='radio']),
+  select,
   textarea {
     inline-size: 100%;
     min-block-size: 52px;
@@ -735,6 +820,7 @@ app-area-shell main > :not(router-outlet) {
     resize: vertical;
   }
   input:focus-visible,
+  select:focus-visible,
   textarea:focus-visible {
     outline: 2px solid var(--brand);
     outline-offset: 1px;
@@ -1106,10 +1192,10 @@ app-area-shell main > :not(router-outlet) {
   --line: #e4e7ec;
   --line-strong: #d0d5dd;
   --icon-bg: #eef1f5;
-  --brand: #b4232c;
-  --brand-dark: #8e1a22;
-  --brand-light: #fce9ea;
-  --brand-lighter: #fbf4f4;
+  --brand: #1f6f8b;
+  --brand-dark: #164f64;
+  --brand-light: #e3f0f5;
+  --brand-lighter: #f1f8fb;
   --ok: #127a3a;
   --ok-bg: #e3f6ea;
   --warn: #8a4b00;
@@ -1119,7 +1205,7 @@ app-area-shell main > :not(router-outlet) {
   --radius: 12px;
   --radius-sm: 8px;
   --shadow: 0 1px 2px rgb(16 24 40 / 6%);
-  --focus: 0 0 0 3px rgb(180 35 44 / 22%);
+  --focus: 0 0 0 3px rgb(31 111 139 / 25%);
 }
 @mixin admin-dark {
   --bg: #0e1013;
@@ -1129,10 +1215,10 @@ app-area-shell main > :not(router-outlet) {
   --line: #242933;
   --line-strong: #343b48;
   --icon-bg: #20252d;
-  --brand: #e05a63;
-  --brand-dark: #f0868d;
-  --brand-light: #2d181a;
-  --brand-lighter: #1c1516;
+  --brand: #2f87a8;
+  --brand-dark: #8fcde3;
+  --brand-light: #162f39;
+  --brand-lighter: #11242b;
   --ok: #4cc777;
   --ok-bg: #132a1c;
   --warn: #f3c25b;
@@ -1140,7 +1226,7 @@ app-area-shell main > :not(router-outlet) {
   --sos: #f0706b;
   --danger-bg: #2e1517;
   --shadow: 0 1px 2px rgb(0 0 0 / 40%);
-  --focus: 0 0 0 3px rgb(224 90 99 / 30%);
+  --focus: 0 0 0 3px rgb(47 135 168 / 35%);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .admin-layout {

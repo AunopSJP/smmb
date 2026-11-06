@@ -49,14 +49,20 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
         </label>
       </div>
       <app-profile-extras kind="officer" [(value)]="extras" [tried]="tried()" />
-      <fieldset class="field" [class.invalid]="tried() && !emergencyOk()">
-        <legend>{{ i18n.t({ th: 'ผู้ติดต่อฉุกเฉินของคุณ (ไม่บังคับ)', en: 'Your emergency contact (optional)' }) }}</legend>
+      <section class="form-section" [class.invalid]="tried() && !emergencyOk()">
+        <h2 class="form-title">{{ i18n.t({ th: 'ผู้ติดต่อฉุกเฉินของคุณ (ไม่บังคับ)', en: 'Your emergency contact (optional)' }) }}</h2>
         <div class="two-col">
-          <input maxlength="100" [attr.aria-label]="i18n.t({ th: 'ชื่อผู้ติดต่อ', en: 'Contact name' })" [placeholder]="i18n.t({ th: 'ชื่อ', en: 'Name' })" [value]="emName()" (input)="emName.set($any($event.target).value)" />
-          <input type="tel" inputmode="tel" [attr.aria-label]="i18n.t({ th: 'เบอร์ผู้ติดต่อ', en: 'Contact phone' })" [placeholder]="i18n.t({ th: 'เบอร์โทร', en: 'Phone' })" [value]="emPhone()" (input)="emPhone.set($any($event.target).value)" />
+          <label class="field">
+            <span>{{ i18n.t({ th: 'ชื่อผู้ติดต่อ', en: 'Contact name' }) }}</span>
+            <input maxlength="100" autocomplete="off" [value]="emName()" (input)="emName.set($any($event.target).value)" />
+          </label>
+          <label class="field">
+            <span>{{ i18n.t({ th: 'เบอร์โทร', en: 'Phone' }) }}</span>
+            <input type="tel" inputmode="tel" autocomplete="off" [value]="emPhone()" (input)="emPhone.set($any($event.target).value)" />
+          </label>
         </div>
-        <small>{{ i18n.t({ th: 'กรอกทั้งชื่อและเบอร์ หรือเว้นว่างทั้งคู่ · หัวหน้าหน่วยงานเห็นเพื่อใช้ตอนเกิดเหตุกับคุณ', en: 'Fill in both, or leave both empty · your agency head can see it for emergencies involving you' }) }}</small>
-      </fieldset>
+        <p class="form-hint">{{ i18n.t({ th: 'กรอกทั้งชื่อและเบอร์ หรือเว้นว่างทั้งคู่ · หัวหน้าหน่วยงานเห็นเพื่อใช้ตอนเกิดเหตุกับคุณ', en: 'Fill in both, or leave both empty · your agency head can see it for emergencies involving you' }) }}</p>
+      </section>
       <label class="field" [class.invalid]="errorCode() === 'GROUP_CODE_INVALID'">
         <span>{{ i18n.t({ th: 'รหัสกลุ่มจากหัวหน้า', en: 'Group code from your head' }) }}</span>
         <input autocomplete="off" autocapitalize="characters" spellcheck="false" [placeholder]="i18n.t({ th: 'เช่น PX7K-2MQ9', en: 'e.g. PX7K-2MQ9' })" [value]="f().group_code" (input)="set('group_code', $any($event.target).value)" />
@@ -77,8 +83,9 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
   styles: `
     .two-col {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr));
+      gap: 12px;
+      align-items: end;
     }
     .grow {
       flex: 1;

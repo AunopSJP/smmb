@@ -213,7 +213,7 @@ export class OfficerSosList {
           <section class="card"><app-map-pin [value]="loc" [height]="180" /></section>
         }
         @if (failed()) {
-          <p class="card on-red danger-text" role="alert">{{ i18n.t({ th: 'รับเรื่องไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t accept — try again' }) }}</p>
+          <p class="card on-red danger-text" role="alert">{{ i18n.t({ th: 'รับเรื่องไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t accept — try again' }) }}</p>
         }
         <div class="stack push-end">
           <button type="button" class="btn on-color big" [disabled]="busy()" (click)="accept()">{{ i18n.t({ th: 'รับเรื่อง', en: 'Accept' }) }}</button>
@@ -414,7 +414,7 @@ const OUTCOMES: { v: string; label: Tr }[] = [
         <textarea rows="4" maxlength="480" [value]="note()" (input)="note.set($any($event.target).value)" [placeholder]="i18n.t({ th: 'เช่น ตรวจรอบบ้านแล้ว ไม่พบสิ่งผิดปกติ', en: 'e.g. Checked around the house, nothing unusual' })"></textarea>
       </label>
       @if (failed()) {
-        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ปิดเรื่องไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t close — try again' }) }}</p>
+        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ปิดเรื่องไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t close — try again' }) }}</p>
       }
       <button type="submit" class="btn green big push-end" [disabled]="busy()">{{ i18n.t({ th: 'ยืนยันปิดเรื่อง', en: 'Confirm and close' }) }}</button>
     </form>

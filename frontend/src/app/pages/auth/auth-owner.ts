@@ -40,6 +40,8 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
   template: `
     <app-page-header [caption]="i18n.t({ th: 'ขั้น 1 จาก 2', en: 'Step 1 of 2' })" [title]="i18n.t({ th: 'สมัครเจ้าของบ้าน', en: 'Homeowner sign-up' })" [back]="url('A05')" />
     <form class="stack grow" (submit)="$event.preventDefault(); submit()">
+      <section class="form-section">
+        <h2 class="form-title">{{ i18n.t({ th: 'ข้อมูลบัญชี', en: 'Your account' }) }}</h2>
       <label class="field" [class.invalid]="tried() && !f().name.trim()">
         <span>{{ i18n.t({ th: 'ชื่อ - นามสกุล', en: 'Full name' }) }}</span>
         <input autocomplete="name" [value]="f().name" (input)="set('name', $any($event.target).value)" />
@@ -50,6 +52,9 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
         <small>{{ i18n.t({ th: 'ใช้เข้าสู่ระบบ · เจ้าหน้าที่เห็นเฉพาะตอนคุณกด SOS', en: 'Used to sign in · officers see it only during your SOS' }) }}</small>
       </label>
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
+      </section>
+      <section class="form-section">
+        <h2 class="form-title">{{ i18n.t({ th: 'บ้านของคุณ', en: 'Your house' }) }}</h2>
       <label class="field" [class.invalid]="tried() && !f().house_no.trim()">
         <span>{{ i18n.t({ th: 'บ้านเลขที่', en: 'House number' }) }}</span>
         <input autocomplete="address-line1" [value]="f().house_no" (input)="set('house_no', $any($event.target).value)" />
@@ -59,6 +64,7 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
         <input maxlength="100" autocomplete="address-level3" [placeholder]="i18n.t({ th: 'เช่น หมู่บ้านสุขใจ', en: 'e.g. Sukjai Village' })" [value]="f().area" (input)="set('area', $any($event.target).value)" />
         <small>{{ i18n.t({ th: 'ช่วยให้เจ้าหน้าที่แยกบ้านเลขที่ซ้ำกันคนละหมู่บ้าน', en: 'Helps officers tell apart the same house number in different villages' }) }}</small>
       </label>
+      </section>
       <app-house-fields [(value)]="house" [tried]="tried()" />
       <app-terms-check from="A06" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="filled() && !f().terms" />
 
@@ -314,7 +320,7 @@ export class AuthActivate implements OnInit {
         // ยังไม่มีบทบาทเจ้าของบ้าน / ยังไม่ล็อกอิน
         this.message.set({ th: 'บัญชีนี้ยังไม่ใช่เจ้าของบ้าน — เพิ่มบทบาทเจ้าของบ้านก่อน', en: 'This account isn’t a homeowner yet — add the homeowner role first' });
       } else {
-        this.message.set({ th: 'ผูกตู้ไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t bind the box — try again' });
+        this.message.set({ th: 'ผูกตู้ไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t bind the box — try again' });
       }
     } finally {
       this.busy.set(false);
@@ -347,7 +353,7 @@ export class AuthActivate implements OnInit {
         }
       </div>
       @if (failed()) {
-        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save — try again' }) }}</p>
+        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save — try again' }) }}</p>
       }
       <button type="submit" class="btn push-end" [disabled]="!valid()">{{ i18n.t({ th: 'บันทึกชื่อตู้', en: 'Save name' }) }}</button>
     </form>

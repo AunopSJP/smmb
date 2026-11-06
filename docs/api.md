@@ -1056,3 +1056,7 @@ interface ZoneRequest { id: string; box: { id; name; house_no }; agency: { name;
 
 ### §3 `GET /me/push/status` — ตรวจทำไมแจ้งเตือนไม่เด้ง
 ดูแถว `/me/push/status` ในตาราง Web Push · เว็บมีปุ่ม "ตรวจแจ้งเตือน (ละเอียด)" ที่ตรวจทีละขั้น: สิทธิ์ → service worker → subscription → เซิร์ฟเวอร์รู้จักเครื่อง → ส่งถึง push service → service worker รับ
+
+
+### §9.5 ค่าตั้งค่าตู้ — `wifi_power_save` (✅ 2026-11-06)
+ค่าทับเฉพาะตู้ `PUT /admin/boxes/:box_id/config` รับ `wifi_power_save: boolean` เพิ่ม (ค่ากลางเป็น `false` เสมอ) · ตู้ที่เปิด = ใช้โหมดประหยัดไฟของ Wi-Fi (modem sleep) กินไฟน้อยลงมาก ตู้ยังถือ long-poll และตื่นทันทีเมื่อสแกน · ปิดไว้สำหรับตู้ที่ Wi-Fi อ่อน (RSSI < -75) เพราะอาจทำให้แพ็กเก็ตหายและตู้หลุดออนไลน์ · `config_ver` ของตู้ที่ไม่ได้ตั้งไม่เปลี่ยน

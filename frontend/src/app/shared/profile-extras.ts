@@ -122,9 +122,9 @@ export const careLabel = (v: string, i18n: I18n): string => {
   selector: 'app-profile-extras',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <fieldset class="group">
-      <legend>{{ i18n.t({ th: 'ข้อมูลส่วนตัว', en: 'Personal details' }) }}</legend>
-      <div class="two">
+    <section class="group form-section">
+      <h2 class="form-title">{{ i18n.t({ th: 'ข้อมูลส่วนตัว', en: 'Personal details' }) }}</h2>
+      <div class="form-grid">
         <label class="field">
           <span>{{ i18n.t({ th: 'คำนำหน้า', en: 'Title' }) }}</span>
           <select [value]="value().title" (change)="set('title', $any($event.target).value)">
@@ -137,7 +137,7 @@ export const careLabel = (v: string, i18n: I18n): string => {
           <input maxlength="40" [value]="value().nickname" (input)="set('nickname', $any($event.target).value)" />
         </label>
       </div>
-      <div class="two">
+      <div class="form-grid">
         <label class="field">
           <span>{{ i18n.t({ th: 'ชื่อจริง', en: 'First name' }) }}</span>
           <input maxlength="60" autocomplete="given-name" [value]="value().first_name" (input)="set('first_name', $any($event.target).value)" />
@@ -152,22 +152,22 @@ export const careLabel = (v: string, i18n: I18n): string => {
         <input type="email" inputmode="email" maxlength="200" autocomplete="email" [value]="value().email" (input)="set('email', $any($event.target).value)" />
         @if (emailBad()) { <small class="err">{{ i18n.t({ th: 'รูปแบบอีเมลไม่ถูกต้อง', en: 'That email looks wrong' }) }}</small> }
       </label>
-    </fieldset>
+    </section>
 
     @if (kind() === 'officer') {
-      <fieldset class="group">
-        <legend>{{ i18n.t({ th: 'ข้อมูลการปฏิบัติงาน', en: 'Duty details' }) }}</legend>
+      <section class="group form-section">
+        <h2 class="form-title">{{ i18n.t({ th: 'ข้อมูลการปฏิบัติงาน', en: 'Duty details' }) }}</h2>
         <label class="field">
           <span>{{ i18n.t({ th: 'ยศ / ระดับ (ถ้ามี)', en: 'Rank / grade (if any)' }) }}</span>
           <input maxlength="100" [value]="value().rank" (input)="set('rank', $any($event.target).value)" />
         </label>
-      </fieldset>
+      </section>
     }
 
     @if (kind() === 'owner') {
-      <fieldset class="group">
-        <legend>{{ i18n.t({ th: 'รายละเอียดบ้าน', en: 'House details' }) }}</legend>
-        <div class="two">
+      <section class="group form-section">
+        <h2 class="form-title">{{ i18n.t({ th: 'รายละเอียดบ้าน', en: 'House details' }) }}</h2>
+        <div class="form-grid">
           <label class="field" [class.invalid]="tried() && !value().house_type">
             <span>{{ i18n.t({ th: 'ประเภทบ้าน', en: 'House type' }) }}</span>
             <select [value]="value().house_type" (change)="set('house_type', $any($event.target).value)">
@@ -201,7 +201,7 @@ export const careLabel = (v: string, i18n: I18n): string => {
           <span>{{ i18n.t({ th: 'จุดสังเกต / วิธีเข้าบ้าน (ไม่บังคับ)', en: 'Landmark / how to find the house (optional)' }) }}</span>
           <input maxlength="200" [placeholder]="i18n.t({ th: 'เช่น ตรงข้ามร้านสะดวกซื้อ ประตูสีฟ้า', en: 'e.g. opposite the convenience store, blue gate' })" [value]="value().landmark" (input)="set('landmark', $any($event.target).value)" />
         </label>
-        <div class="two">
+        <div class="form-grid">
           <label class="field">
             <span>{{ i18n.t({ th: 'ผู้ติดต่อฉุกเฉินเป็นใคร (เช่น ลูก)', en: 'Emergency contact is your… (e.g. child)' }) }}</span>
             <input maxlength="60" [value]="value().emergency_relation" (input)="set('emergency_relation', $any($event.target).value)" />
@@ -211,30 +211,13 @@ export const careLabel = (v: string, i18n: I18n): string => {
             <input maxlength="100" [placeholder]="i18n.t({ th: 'เช่น หลัง 18:00', en: 'e.g. after 6 pm' })" [value]="value().contact_time" (input)="set('contact_time', $any($event.target).value)" />
           </label>
         </div>
-      </fieldset>
+      </section>
     }
   `,
   styles: `
     :host {
       display: grid;
       gap: 14px;
-    }
-    .group {
-      border: 0;
-      padding: 0;
-      margin: 0;
-      display: grid;
-      gap: 12px;
-    }
-    legend {
-      padding: 0;
-      margin-block-end: 6px;
-      font-weight: 700;
-    }
-    .two {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
     }
     .chips {
       display: flex;

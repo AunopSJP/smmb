@@ -83,7 +83,7 @@ export class HeadAgencyProfile {
       await this.api.loadAgency();
       this.toast.show({ th: 'บันทึกแล้ว', en: 'Saved' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save' });
     } finally {
       this.busy.set(false);
     }

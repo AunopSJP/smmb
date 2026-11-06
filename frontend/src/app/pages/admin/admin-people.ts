@@ -155,7 +155,7 @@ export class AdminAgencyRequests implements OnInit {
       this.approved.set({ name: d.name, code: showGroupCode(d.group_code) });
       await this.load();
     } catch {
-      this.toast.show({ th: 'อนุมัติไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t approve — try again' });
+      this.toast.show({ th: 'อนุมัติไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t approve — try again' });
     } finally {
       this.busy.set(false);
     }
@@ -174,7 +174,7 @@ export class AdminAgencyRequests implements OnInit {
       this.toast.show({ th: 'ไม่อนุมัติแล้ว', en: 'Rejected' });
       await this.load();
     } catch {
-      this.toast.show({ th: 'ทำรายการไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t do it — try again' });
+      this.toast.show({ th: 'ทำรายการไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t do it — try again' });
     } finally {
       this.busy.set(false);
     }
@@ -599,7 +599,7 @@ export class AdminUsers implements OnInit {
       await this.search();
     } catch (err) {
       const e = apiError(err);
-      this.error.set(e.code === 'CANNOT_CHANGE_SELF' ? { th: 'ปิดบัญชีตัวเองไม่ได้', en: 'Can’t disable yourself' } : { th: 'ทำรายการไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t do it' });
+      this.error.set(e.code === 'CANNOT_CHANGE_SELF' ? { th: 'ปิดบัญชีตัวเองไม่ได้', en: 'Can’t disable yourself' } : { th: 'ทำรายการไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t do it' });
     } finally {
       this.busy.set(false);
     }

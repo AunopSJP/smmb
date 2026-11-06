@@ -84,8 +84,9 @@ static bool wifiConnect()
   if (!settingsHasWifi())
     return false;
   WiFi.mode(WIFI_STA);
-  // ปิด modem sleep: ตู้ถือ long-poll ตลอดอยู่แล้ว และบน Wi-Fi อ่อนโหมดประหยัดไฟทำให้แพ็กเก็ตหายจน TLS ค้าง (ตู้หลุดออนไลน์)
-  WiFi.setSleep(false);
+  // ค่าเริ่มต้นปิด modem sleep: บน Wi-Fi อ่อนโหมดประหยัดไฟทำให้แพ็กเก็ตหายจน TLS ค้าง (ตู้หลุดออนไลน์)
+  // แอดมินเปิดได้เฉพาะตู้ที่สัญญาณดี (config `wifi_power_save`) — กินไฟน้อยลงมาก ตู้ยังถือ long-poll ตื่นทันทีเมื่อสแกน
+  WiFi.setSleep(boxConfig.wifiPowerSave);
   if (wifiJoin(nullptr))
   {
     Serial.printf("[wifi] connected \"%s\" IP %s RSSI %d ch %d\n", settings.wifiSsid.c_str(), WiFi.localIP().toString().c_str(),

@@ -31,6 +31,8 @@ struct BoxConfig
   uint8_t maxAttempts = 3;
   bool flashWhenDark = true;
   uint8_t longpollWaitS = 50;
+  /** ประหยัดไฟ Wi-Fi (modem sleep) — ค่าเริ่มต้นปิด (เสถียรกว่าบน Wi-Fi อ่อน) · เซิร์ฟเวอร์ตั้งเฉพาะตู้ที่สัญญาณดี */
+  bool wifiPowerSave = false;
 };
 /** config ปัจจุบัน (ไลบรารีอัปเดตเองเมื่อเซิร์ฟเวอร์ส่งมา · ฝั่งแอปโหลดค่าที่จำไว้ตอนเปิดเครื่องด้วย linkParseConfig) */
 extern BoxConfig boxConfig;

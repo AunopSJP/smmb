@@ -15,7 +15,7 @@ const MEMBER_ERROR: Record<string, Tr> = {
   CANNOT_CHANGE_SELF: { th: 'ทำกับบัญชีตัวเองไม่ได้', en: 'You can’t do this to yourself' },
   LAST_HEAD: { th: 'ต้องมีหัวหน้าอย่างน้อย 1 คน', en: 'At least one head is required' },
   RESET_NEEDS_ADMIN: { th: 'คนนี้เป็นเจ้าของบ้าน/หัวหน้าด้วย — ให้ผู้ดูแลระบบรีเซ็ต', en: 'This person is also an owner/head — ask the admin to reset' },
-  MEMBER_STATE_INVALID: { th: 'สถานะสมาชิกเปลี่ยนไปแล้ว โปรดโหลดหน้าใหม่', en: 'The member changed — reload' },
+  MEMBER_STATE_INVALID: { th: 'สถานะสมาชิกเปลี่ยนไปแล้ว โหลดหน้าใหม่', en: 'The member changed — reload' },
   MEMBER_NOT_PENDING: { th: 'คำขอนี้ถูกจัดการไปแล้ว', en: 'This request was already handled' },
 };
 
@@ -153,7 +153,7 @@ export class HeadMembers implements OnInit {
       this.toast.show(ok ? { th: 'อนุมัติ ' + m.display_name + ' แล้ว — ใส่เข้าโซนต่อได้', en: 'Approved ' + m.display_name + ' — add them to a zone' } : { th: 'ปฏิเสธแล้ว', en: 'Declined' });
       await this.load();
     } catch (err) {
-      this.toast.show(MEMBER_ERROR[apiError(err).code ?? ''] ?? { th: 'ทำรายการไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t do it — try again' });
+      this.toast.show(MEMBER_ERROR[apiError(err).code ?? ''] ?? { th: 'ทำรายการไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t do it — try again' });
     } finally {
       this.busy.set(false);
     }
@@ -276,7 +276,7 @@ export class HeadMember {
       else this.toast.show({ th: 'บันทึกแล้ว', en: 'Saved' });
       await this.load(m.id);
     } catch (err) {
-      this.toast.show(MEMBER_ERROR[apiError(err).code ?? ''] ?? { th: 'ทำรายการไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t do it — try again' });
+      this.toast.show(MEMBER_ERROR[apiError(err).code ?? ''] ?? { th: 'ทำรายการไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t do it — try again' });
     } finally {
       this.busy.set(false);
     }

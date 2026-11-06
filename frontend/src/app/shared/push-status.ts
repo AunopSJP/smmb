@@ -108,7 +108,7 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
         border-color: var(--ok);
       }
       &.warn {
-        border-color: var(--brand);
+        border-color: var(--warn);
       }
     }
     .row-btns {
@@ -165,7 +165,7 @@ export class PushStatus implements OnInit {
       const ok = (await this.push.isActive().catch(() => false)) && this.session.me()?.push.subscribed === true;
       this.deviceOk.set(ok);
       if (!ok) {
-        this.toast.show({ th: 'ยังเปิดแจ้งเตือนไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Notifications are not on yet — try again' });
+        this.toast.show({ th: 'ยังเปิดแจ้งเตือนไม่สำเร็จ ลองอีกครั้ง', en: 'Notifications are not on yet — try again' });
         return;
       }
       const r = await this.push.sendTest().catch(() => null);
@@ -205,7 +205,7 @@ export class PushStatus implements OnInit {
           : r.removed > 0
             ? { th: 'การลงทะเบียนแจ้งเตือนของเครื่องนี้หมดอายุแล้ว — ปิดแล้วเปิดใหม่', en: 'This device’s subscription expired — turn notifications off and on again' }
             : r.failed > 0
-              ? { th: `เซิร์ฟเวอร์ส่งไม่สำเร็จ (${r.failure_status ?? 'เครือข่าย'}) — ปิดแล้วเปิดใหม่ หากยังไม่ได้ โปรดแจ้งผู้ดูแลระบบ`, en: `The server could not deliver it (${r.failure_status ?? 'network'}) — turn it off and on; if it persists, tell the admin` }
+              ? { th: `เซิร์ฟเวอร์ส่งไม่สำเร็จ (${r.failure_status ?? 'เครือข่าย'}) — ปิดแล้วเปิดใหม่ หากยังไม่ได้ แจ้งผู้ดูแลระบบ`, en: `The server could not deliver it (${r.failure_status ?? 'network'}) — turn it off and on; if it persists, tell the admin` }
               : { th: 'เครื่องนี้ยังไม่ได้ผูกกับบัญชี — ปิดแจ้งเตือนแล้วเปิดใหม่', en: 'This device is not linked to your account yet — turn notifications off and on again' };
       this.toast.show(msg);
     });
@@ -215,10 +215,10 @@ export class PushStatus implements OnInit {
   private failureText(error: unknown): Tr {
     const e = apiError(error);
     const tail = (e.code ?? (e.status ? `HTTP ${e.status}` : ''));
-    if (e.code === 'PUSH_UNAVAILABLE') return { th: 'เซิร์ฟเวอร์ยังไม่ได้ตั้งค่าแจ้งเตือน (VAPID) — โปรดแจ้งผู้ดูแลระบบ', en: 'The server has no push keys configured (VAPID) — tell the admin' };
+    if (e.code === 'PUSH_UNAVAILABLE') return { th: 'เซิร์ฟเวอร์ยังไม่ได้ตั้งค่าแจ้งเตือน (VAPID) — แจ้งผู้ดูแลระบบ', en: 'The server has no push keys configured (VAPID) — tell the admin' };
     if (e.status === 0 && error instanceof HttpErrorResponse) return { th: 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Can’t reach the server — check your connection' };
     if (e.status === 401) return { th: 'หมดเวลาเข้าสู่ระบบ — เข้าสู่ระบบใหม่แล้วลองอีกครั้ง', en: 'Your session expired — sign in again' };
-    if (e.status >= 400) return { th: `เซิร์ฟเวอร์ไม่รับ (${tail}) — ปิดแล้วเปิดใหม่ หากยังไม่ได้ โปรดแจ้งผู้ดูแลระบบ`, en: `The server refused it (${tail}) — turn it off and on; if it persists, tell the admin` };
+    if (e.status >= 400) return { th: `เซิร์ฟเวอร์ไม่รับ (${tail}) — ปิดแล้วเปิดใหม่ หากยังไม่ได้ แจ้งผู้ดูแลระบบ`, en: `The server refused it (${tail}) — turn it off and on; if it persists, tell the admin` };
     // ไม่ใช่ error จากเซิร์ฟเวอร์ → มักเป็นฝั่งเบราว์เซอร์ (service worker ยังไม่พร้อม / push service ของเบราว์เซอร์ปฏิเสธ)
     const name = error instanceof Error ? error.name : 'unknown';
     return { th: `เบราว์เซอร์สมัครแจ้งเตือนไม่สำเร็จ (${name}) — โหลดหน้าใหม่ หรือล้างข้อมูลเว็บของไซต์นี้แล้วลองอีกครั้ง`, en: `The browser could not subscribe (${name}) — reload, or clear this site’s data, then try again` };

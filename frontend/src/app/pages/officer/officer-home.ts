@@ -24,7 +24,7 @@ const REFRESH_MS = 5_000;
     <div class="stack">
       @if (error()) {
         <p class="card err" role="alert">
-          {{ i18n.t({ th: 'โหลดข้อมูลไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t load — try again' }) }}
+          {{ i18n.t({ th: 'โหลดข้อมูลไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t load — try again' }) }}
           <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button>
         </p>
       }

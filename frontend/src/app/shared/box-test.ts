@@ -163,7 +163,7 @@ export class BoxTest {
           ? { th: 'ตู้นี้มีงานค้างอยู่ รอ 1 นาทีแล้วลองอีกครั้ง', en: 'This box already has an open job — wait a minute' }
           : e.status === 404
             ? { th: 'ไม่พบตู้นี้', en: 'Box not found' }
-            : { th: 'สร้างงานไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t create the job — try again' },
+            : { th: 'สร้างงานไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t create the job — try again' },
       );
     } finally {
       this.starting.set(false);

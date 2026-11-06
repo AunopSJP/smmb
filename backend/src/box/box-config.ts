@@ -8,6 +8,8 @@ export interface BoxConfigDefaults {
   max_attempts: number;
   flash_when_dark: boolean;
   longpoll_wait_s: number;
+  /** ✅ 2026-11-06 โหมดประหยัดไฟของ Wi-Fi ตู้ (modem sleep) — ตู้ถือ long-poll ตลอดอยู่แล้ว เปิดแล้วกินไฟน้อยลงมาก แต่บน Wi-Fi อ่อนอาจทำให้แพ็กเก็ตหาย · ค่าเริ่มต้นปิด (ตั้งเฉพาะตู้ที่สัญญาณดี) */
+  wifi_power_save: boolean;
 }
 
 /** สิ่งที่ตู้ได้ใน `config` (โปรโตคอล §2.1) */
@@ -31,6 +33,7 @@ export const DEFAULT_CONFIG: BoxConfigDefaults = {
   max_attempts: 3,
   flash_when_dark: true,
   longpoll_wait_s: 50,
+  wifi_power_save: false,
 };
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -40,6 +43,7 @@ export function pickOverride(raw: Record<string, unknown>): Partial<BoxConfigDef
   const out: Partial<BoxConfigDefaults> = {};
   if (typeof raw.report_at === 'string' && HHMM.test(raw.report_at)) out.report_at = raw.report_at;
   if (typeof raw.flash_when_dark === 'boolean') out.flash_when_dark = raw.flash_when_dark;
+  if (typeof raw.wifi_power_save === 'boolean') out.wifi_power_save = raw.wifi_power_save;
   for (const key of ['scan_timeout_s', 'max_attempts', 'longpoll_wait_s'] as const) {
     const v = raw[key];
     const [min, max] = CONFIG_LIMITS[key];
@@ -54,6 +58,7 @@ export function resolveDefaults(...layers: Record<string, unknown>[]): BoxConfig
   for (const layer of layers) {
     if (typeof layer.report_at === 'string' && HHMM.test(layer.report_at)) out.report_at = layer.report_at;
     if (typeof layer.flash_when_dark === 'boolean') out.flash_when_dark = layer.flash_when_dark;
+    if (typeof layer.wifi_power_save === 'boolean') out.wifi_power_save = layer.wifi_power_save;
     for (const key of ['scan_timeout_s', 'max_attempts', 'longpoll_wait_s'] as const) {
       const v = layer[key];
       const [min, max] = CONFIG_LIMITS[key];
@@ -97,6 +102,8 @@ export function configVersion(config: BoxConfig, generation = 0): number {
     config.max_attempts,
     config.flash_when_dark,
     config.longpoll_wait_s,
+    // ใส่เฉพาะตอนเปิด → config_ver ของตู้ที่ไม่ได้ตั้งไม่เปลี่ยน (ไม่ต้องดึงค่าใหม่ทั้งฝูง)
+    ...(config.wifi_power_save ? [true] : []),
   ]);
   const n = parseInt(createHash('sha256').update(canonical).digest('hex').slice(0, 8), 16) & 0x7fffffff;
   return n === 0 ? 1 : n;

@@ -216,7 +216,7 @@ export class UserPlan {
       this.toast.show({ th: 'เปลี่ยนแพ็กเกจแล้ว', en: 'Plan changed' });
     } catch (err) {
       const code = apiError(err).code;
-      this.error.set(code === 'NOT_OWNER' ? PLAN_ERROR.NOT_OWNER : code === 'PLAN_INACTIVE' ? PLAN_ERROR.PLAN_INACTIVE : code === 'PLAN_END_MUST_BE_FUTURE' ? PLAN_ERROR.BAD_END : { th: 'เปลี่ยนแพ็กเกจไม่สำเร็จ · โปรดโหลดข้อมูลใหม่', en: 'Could not change the plan · reload and try again' });
+      this.error.set(code === 'NOT_OWNER' ? PLAN_ERROR.NOT_OWNER : code === 'PLAN_INACTIVE' ? PLAN_ERROR.PLAN_INACTIVE : code === 'PLAN_END_MUST_BE_FUTURE' ? PLAN_ERROR.BAD_END : { th: 'เปลี่ยนแพ็กเกจไม่สำเร็จ · โหลดข้อมูลใหม่', en: 'Could not change the plan · reload and try again' });
     } finally {
       this.saving.set(false);
     }

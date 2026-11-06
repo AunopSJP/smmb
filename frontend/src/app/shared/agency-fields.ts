@@ -63,7 +63,7 @@ export function agencyDetailPayload(f: AgencyDetailForm, clearEmpty = false): Re
   imports: [MapPin],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="two">
+    <div class="form-grid">
       <label class="field">
         <span>{{ i18n.t({ th: 'แขวง / ตำบล (ไม่บังคับ)', en: 'Subdistrict (optional)' }) }}</span>
         <input maxlength="100" [value]="value().subdistrict" (input)="set('subdistrict', $any($event.target).value)" />
@@ -73,7 +73,7 @@ export function agencyDetailPayload(f: AgencyDetailForm, clearEmpty = false): Re
         <input maxlength="100" [value]="value().district" (input)="set('district', $any($event.target).value)" />
       </label>
     </div>
-    <div class="two">
+    <div class="form-grid">
       <label class="field" [class.invalid]="tried() && !value().province.trim()">
         <span>{{ i18n.t({ th: 'จังหวัด', en: 'Province' }) }}</span>
         <input maxlength="100" autocomplete="address-level1" [value]="value().province" (input)="set('province', $any($event.target).value)" />
@@ -83,7 +83,7 @@ export function agencyDetailPayload(f: AgencyDetailForm, clearEmpty = false): Re
         <input inputmode="numeric" maxlength="5" autocomplete="postal-code" [value]="value().postal_code" (input)="set('postal_code', $any($event.target).value.replace(/\\D/g, ''))" />
       </label>
     </div>
-    <div class="two">
+    <div class="form-grid">
       <label class="field" [class.invalid]="tried() && value().phone.trim().length < 3">
         <span>{{ i18n.t({ th: 'เบอร์โทรหน่วยงาน', en: 'Agency phone' }) }}</span>
         <input type="tel" inputmode="tel" maxlength="30" [value]="value().phone" (input)="set('phone', $any($event.target).value)" />
@@ -111,11 +111,6 @@ export function agencyDetailPayload(f: AgencyDetailForm, clearEmpty = false): Re
     :host {
       display: grid;
       gap: 14px;
-    }
-    .two {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
     }
   `,
 })

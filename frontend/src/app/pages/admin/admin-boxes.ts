@@ -457,7 +457,7 @@ export class AdminBoxes implements OnInit {
       this.toast.show({ th: 'ลงทะเบียนตู้แล้ว', en: 'Boxes registered' });
       await this.load();
     } catch {
-      this.toast.show({ th: 'สร้างไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t create — try again' });
+      this.toast.show({ th: 'สร้างไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t create — try again' });
     } finally {
       this.busy.set(false);
     }
@@ -575,6 +575,15 @@ export class AdminBoxes implements OnInit {
                 <option value="on">{{ i18n.t({ th: 'เปิด', en: 'On' }) }}</option>
                 <option value="off">{{ i18n.t({ th: 'ปิด', en: 'Off' }) }}</option>
               </select>
+            </label>
+            <label class="field">
+              <span>{{ i18n.t({ th: 'ประหยัดไฟ Wi-Fi ของตู้', en: 'Wi-Fi power saving' }) }} · {{ b.config.config['wifi_power_save'] ? i18n.t({ th: 'เปิด', en: 'on' }) : i18n.t({ th: 'ปิด', en: 'off' }) }}</span>
+              <select [value]="ovPs()" (change)="ovPs.set($any($event.target).value)">
+                <option value="">{{ i18n.t({ th: 'ใช้ค่ากลาง (ปิด)', en: 'Shared value (off)' }) }}</option>
+                <option value="on">{{ i18n.t({ th: 'เปิด — ตู้ที่สัญญาณ Wi-Fi ดี (กินไฟน้อยลงมาก)', en: 'On — boxes with a good Wi-Fi signal (much lower power)' }) }}</option>
+                <option value="off">{{ i18n.t({ th: 'ปิด — ตู้ที่สัญญาณอ่อน (เสถียรกว่า)', en: 'Off — boxes with a weak signal (more stable)' }) }}</option>
+              </select>
+              <small>{{ i18n.t({ th: 'ตู้ยังตื่นทันทีเมื่อสแกน · ถ้าเปิดแล้วตู้หลุดออนไลน์บ่อย ให้ปิด', en: 'The box still wakes on a scan · turn it off if the box drops offline' }) }}</small>
             </label>
             @if (ovError(); as e) {
               <p class="danger-text small" role="alert">{{ i18n.t(e) }}</p>
@@ -1208,6 +1217,7 @@ export class AdminBox implements OnInit {
   protected readonly ovAttempts = signal('');
   protected readonly ovLongpoll = signal('');
   protected readonly ovFlash = signal('');
+  protected readonly ovPs = signal('');
   protected readonly ovError = signal<Tr | null>(null);
   protected readonly savingOverride = signal(false);
   private ovLoadedFor: string | null = null;
@@ -1239,7 +1249,7 @@ export class AdminBox implements OnInit {
       await this.api.requestBeep(id, pattern);
       await this.reload();
     } catch {
-      this.toast.show({ th: 'สั่งทดสอบเสียงไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not start the buzzer test — try again' });
+      this.toast.show({ th: 'สั่งทดสอบเสียงไม่สำเร็จ ลองอีกครั้ง', en: 'Could not start the buzzer test — try again' });
     } finally {
       this.beepBusy.set(false);
     }
@@ -1341,6 +1351,7 @@ export class AdminBox implements OnInit {
     this.ovAttempts.set(o.max_attempts === undefined ? '' : String(o.max_attempts));
     this.ovLongpoll.set(o.longpoll_wait_s === undefined ? '' : String(o.longpoll_wait_s));
     this.ovFlash.set(o.flash_when_dark === undefined ? '' : o.flash_when_dark ? 'on' : 'off');
+    this.ovPs.set(o.wifi_power_save === undefined ? '' : o.wifi_power_save ? 'on' : 'off');
   }
 
   /** PUT /admin/boxes/:id/config — ส่งเฉพาะช่องที่กรอก (ช่องว่าง = ใช้ค่ากลาง) · ตู้ได้ค่าใหม่ทันทีที่ long-poll */
@@ -1367,13 +1378,14 @@ export class AdminBox implements OnInit {
     if (attempts !== undefined) body.max_attempts = attempts;
     if (longpoll !== undefined) body.longpoll_wait_s = longpoll;
     if (this.ovFlash()) body.flash_when_dark = this.ovFlash() === 'on';
+    if (this.ovPs()) body.wifi_power_save = this.ovPs() === 'on';
     this.savingOverride.set(true);
     try {
       await this.api.setBoxConfig(id, body);
       await this.reload();
       this.toast.show({ th: 'บันทึกแล้ว · ตู้ได้ค่าใหม่ทันทีที่ติดต่อ', en: 'Saved · the box picks it up at its next contact' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not save' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Could not save' });
     } finally {
       this.savingOverride.set(false);
     }
@@ -1417,7 +1429,7 @@ export class AdminBox implements OnInit {
       await this.reload();
       this.toast.show({ th: 'ส่งคำสั่งแล้ว · รอตู้ออนไลน์เพื่อรับ', en: 'Request sent · waiting for the box to be online' });
     } catch {
-      this.toast.show({ th: 'สั่งไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not send — try again' });
+      this.toast.show({ th: 'สั่งไม่สำเร็จ ลองอีกครั้ง', en: 'Could not send — try again' });
     } finally {
       this.resetBusy.set(false);
     }
@@ -1432,7 +1444,7 @@ export class AdminBox implements OnInit {
       await this.reload();
       this.toast.show({ th: 'ยกเลิกคำสั่งแล้ว', en: 'Request cancelled' });
     } catch {
-      this.toast.show({ th: 'ยกเลิกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not cancel — try again' });
+      this.toast.show({ th: 'ยกเลิกไม่สำเร็จ ลองอีกครั้ง', en: 'Could not cancel — try again' });
     } finally {
       this.resetBusy.set(false);
     }
@@ -1449,7 +1461,7 @@ export class AdminBox implements OnInit {
       await this.reload();
       this.toast.show(active ? { th: 'เปิดบริการแล้ว', en: 'Switched on' } : { th: 'ปิดบริการแล้ว · แจ้งเจ้าของบ้านแล้ว', en: 'Switched off · the owner was notified' });
     } catch {
-      this.toast.show({ th: 'ทำรายการไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not change it' });
+      this.toast.show({ th: 'ทำรายการไม่สำเร็จ ลองอีกครั้ง', en: 'Could not change it' });
     } finally {
       this.serviceBusy.set(false);
     }
@@ -1483,7 +1495,7 @@ export class AdminBox implements OnInit {
         ? { th: `เปิดอัปเดตอัตโนมัติเป็น ${version} แล้ว`, en: `Automatic update to ${version} is on` }
         : { th: 'ปิดอัปเดตอัตโนมัติแล้ว', en: 'Automatic update is off' });
     } catch {
-      this.toast.show({ th: 'ตั้งไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not change the setting' });
+      this.toast.show({ th: 'ตั้งไม่สำเร็จ ลองอีกครั้ง', en: 'Could not change the setting' });
     } finally {
       this.fwAutoBusy.set(false);
     }
@@ -1499,7 +1511,7 @@ export class AdminBox implements OnInit {
         ? { th: `สั่ง ${id} อัปเดตเป็น ${version} แล้ว`, en: `${id} will update to ${version}` }
         : { th: 'ยกเลิกการอัปเดตแล้ว', en: 'Update cancelled' });
     } catch {
-      this.toast.show({ th: 'สั่งไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not send the update' });
+      this.toast.show({ th: 'สั่งไม่สำเร็จ ลองอีกครั้ง', en: 'Could not send the update' });
     }
   }
 

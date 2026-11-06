@@ -331,7 +331,7 @@ export class OwnerHome implements OnDestroy {
       await this.api.confirmQrBackupPlaced(boxId);
       await this.load();
     } catch {
-      this.toast.show({ th: 'บันทึกไม่สำเร็จ · โปรดโหลดหน้าใหม่', en: 'Could not save · reload and try again' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ · โหลดหน้าใหม่', en: 'Could not save · reload and try again' });
     } finally {
       this.confirmingQr.set(false);
     }

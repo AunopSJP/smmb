@@ -56,7 +56,7 @@ async function startInspection(api: InspectionApi, router: Router, body: Paramet
       default:
         return isOffline(e)
           ? { th: 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ ตรวจสอบสัญญาณแล้วลองอีกครั้ง (ไม่บันทึกแบบออฟไลน์)', en: 'No connection — check your signal and retry (nothing is saved offline)' }
-          : { th: 'เกิดข้อผิดพลาด โปรดลองอีกครั้ง', en: 'Something went wrong — try again' };
+          : { th: 'เกิดข้อผิดพลาด ลองอีกครั้ง', en: 'Something went wrong — try again' };
     }
   }
 }
@@ -536,7 +536,7 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
           }
         </fieldset>
         @if (failed()) {
-          <p class="err small" role="alert">{{ i18n.t({ th: 'ส่งไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t send — try again' }) }}</p>
+          <p class="err small" role="alert">{{ i18n.t({ th: 'ส่งไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t send — try again' }) }}</p>
         }
         <p class="muted small">{{ i18n.t({ th: 'ระบบจะแจ้งเจ้าของบ้านและผู้ดูแลระบบให้', en: 'We will tell the owner and the admin' }) }}</p>
         <div class="stack push-end">
@@ -696,7 +696,7 @@ interface WakeLockSentinelLike {
     <div class="pad">
       @if ((ins()?.attempt ?? 1) > 1) {
         <p class="retry" role="alert">
-          <strong>{{ i18n.t({ th: 'ตู้อ่านไม่ผ่าน โปรดลองอีกครั้ง', en: 'The box couldn’t read it — try again' }) }}</strong><br />
+          <strong>{{ i18n.t({ th: 'ตู้อ่านไม่ผ่าน ลองอีกครั้ง', en: 'The box couldn’t read it — try again' }) }}</strong><br />
           <span class="small">{{ i18n.t({ th: 'ลองขยับให้ใกล้ขึ้น หรือเอียงจอเลี่ยงแสงสะท้อน', en: 'Move closer, or tilt to avoid glare' }) }}</span>
         </p>
       } @else {

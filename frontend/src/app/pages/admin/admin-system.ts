@@ -237,7 +237,7 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
         }
       </ul>
       @if (error()) {
-        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดประวัติไม่สำเร็จ · โปรดลองอีกครั้ง', en: 'Could not load logs · try again' }) }}</p>
+        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดประวัติไม่สำเร็จ · ลองอีกครั้ง', en: 'Could not load logs · try again' }) }}</p>
         <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button>
       }
       <p class="muted small">{{ i18n.t({ th: 'บันทึกทุกการสแกน/พิมพ์รหัส แม้ไม่ผ่าน · ลบหรือแก้ไม่ได้', en: 'Every scan or typed code is logged, even failures · cannot be edited' }) }}</p>

@@ -63,11 +63,13 @@ export function houseProfilePayload(p: HouseProfileForm): Record<string, unknown
   imports: [MapPin, ProfileExtras],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
+    <section class="form-section">
+      <h2 class="form-title">{{ i18n.t({ th: 'ที่อยู่และตำแหน่งบ้าน', en: 'Address and location' }) }}</h2>
     <label class="field" [class.invalid]="tried() && !value().address_line.trim()">
       <span>{{ i18n.t({ th: 'ที่อยู่ (ซอย / ถนน / หมู่)', en: 'Address (soi / road / moo)' }) }}</span>
       <input maxlength="200" autocomplete="address-line2" [placeholder]="i18n.t({ th: 'เช่น ซอยสุขใจ 3 ถนนพหลโยธิน', en: 'e.g. Soi Sukjai 3, Phahonyothin Rd' })" [value]="value().address_line" (input)="set('address_line', $any($event.target).value)" />
     </label>
-    <div class="two">
+    <div class="form-grid">
       <label class="field" [class.invalid]="tried() && !value().subdistrict.trim()">
         <span>{{ i18n.t({ th: 'แขวง / ตำบล', en: 'Subdistrict' }) }}</span>
         <input maxlength="100" [value]="value().subdistrict" (input)="set('subdistrict', $any($event.target).value)" />
@@ -88,26 +90,29 @@ export function houseProfilePayload(p: HouseProfileForm): Record<string, unknown
       <app-map-pin [editable]="true" [value]="value().location" (valueChange)="set('location', $event)" />
     </div>
 
+    </section>
+
     <app-profile-extras kind="owner" [value]="value().extras" (valueChange)="set('extras', $event)" [tried]="tried()" />
 
-    <fieldset class="field" [class.invalid]="tried() && !emergencyValid()">
-      <legend>{{ i18n.t({ th: 'ผู้ติดต่อฉุกเฉิน (ไม่บังคับ)', en: 'Emergency contact (optional)' }) }}</legend>
-      <div class="two">
-        <input maxlength="100" [attr.aria-label]="i18n.t({ th: 'ชื่อผู้ติดต่อ', en: 'Contact name' })" [placeholder]="i18n.t({ th: 'ชื่อ', en: 'Name' })" [value]="value().emergency_name" (input)="set('emergency_name', $any($event.target).value)" />
-        <input type="tel" inputmode="tel" [attr.aria-label]="i18n.t({ th: 'เบอร์ผู้ติดต่อ', en: 'Contact phone' })" [placeholder]="i18n.t({ th: 'เบอร์โทร', en: 'Phone' })" [value]="value().emergency_phone" (input)="set('emergency_phone', $any($event.target).value)" />
+    <section class="form-section" [class.invalid]="tried() && !emergencyValid()">
+      <h2 class="form-title">{{ i18n.t({ th: 'ผู้ติดต่อฉุกเฉิน (ไม่บังคับ)', en: 'Emergency contact (optional)' }) }}</h2>
+      <div class="form-grid">
+        <label class="field">
+          <span>{{ i18n.t({ th: 'ชื่อผู้ติดต่อ', en: 'Contact name' }) }}</span>
+          <input maxlength="100" autocomplete="off" [value]="value().emergency_name" (input)="set('emergency_name', $any($event.target).value)" />
+        </label>
+        <label class="field">
+          <span>{{ i18n.t({ th: 'เบอร์โทร', en: 'Phone' }) }}</span>
+          <input type="tel" inputmode="tel" autocomplete="off" [value]="value().emergency_phone" (input)="set('emergency_phone', $any($event.target).value)" />
+        </label>
       </div>
-      <small>{{ i18n.t({ th: 'กรอกทั้งชื่อและเบอร์ หรือเว้นว่างทั้งคู่', en: 'Fill in both name and phone, or leave both empty' }) }}</small>
-    </fieldset>
+      <p class="form-hint">{{ i18n.t({ th: 'กรอกทั้งชื่อและเบอร์ หรือเว้นว่างทั้งคู่', en: 'Fill in both name and phone, or leave both empty' }) }}</p>
+    </section>
   `,
   styles: `
     :host {
       display: grid;
       gap: 14px;
-    }
-    .two {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
     }
     fieldset {
       border: 0;

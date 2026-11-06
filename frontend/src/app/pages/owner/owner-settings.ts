@@ -57,14 +57,30 @@ import { firstValueFrom } from 'rxjs';
         </div>
       }
       <section class="card stack">
-        <strong>{{ i18n.t({ th: 'ข้อมูลของฉันและรายละเอียดบ้าน', en: 'My details and house details' }) }}</strong>
-        <app-profile-extras kind="owner" [(value)]="extras" [tried]="triedExtras()" />
-        <button type="button" class="btn" [disabled]="savingExtras()" (click)="saveExtras()">{{ i18n.t({ th: 'บันทึกข้อมูล', en: 'Save details' }) }}</button>
+        <div class="row-head">
+          <span class="grow">
+            <strong>{{ i18n.t({ th: 'ข้อมูลของฉันและรายละเอียดบ้าน', en: 'My details and house details' }) }}</strong>
+            <span class="muted small block">{{ extrasSummary() }}</span>
+          </span>
+          <button type="button" class="btn secondary small" (click)="showExtras.set(!showExtras())" [attr.aria-expanded]="showExtras()">
+            {{ showExtras() ? i18n.t({ th: 'ซ่อน', en: 'Hide' }) : i18n.t({ th: 'แก้ไข', en: 'Edit' }) }}
+          </button>
+        </div>
+        @if (showExtras()) {
+          <app-profile-extras kind="owner" [(value)]="extras" [tried]="triedExtras()" />
+          <button type="button" class="btn" [disabled]="savingExtras()" (click)="saveExtras()">{{ i18n.t({ th: 'บันทึกข้อมูล', en: 'Save details' }) }}</button>
+        }
       </section>
-      <a class="card link strong" [routerLink]="url('H16')">
-        {{ i18n.t({ th: 'ดูหน่วยงานใกล้บ้านบนแผนที่', en: 'See agencies near you on the map' }) }}
-        <span class="muted small block">{{ i18n.t({ th: 'เลือกว่าบ้านของคุณควรอยู่กับหน่วยงานไหน', en: 'Decide which agency should look after your house' }) }}</span>
-      </a>
+      <nav class="list">
+        <a class="row" [routerLink]="url('H16')">
+          <span class="icon-bubble"><app-icon name="pin" [size]="20" /></span>
+          <span class="grow">
+            <strong>{{ i18n.t({ th: 'หน่วยงานใกล้บ้านบนแผนที่', en: 'Agencies near you on the map' }) }}</strong>
+            <span class="muted small block">{{ i18n.t({ th: 'ดูว่าแต่ละหน่วยงานอยู่ตรงไหน แล้วเลือกว่าควรให้ใครดูแลบ้าน', en: 'See where each agency is and choose who should look after your house' }) }}</span>
+          </span>
+          <app-icon name="chevronRight" [size]="18" />
+        </a>
+      </nav>
       @if (box(); as b) {
         <section class="card">
           <dl class="kv">
@@ -182,6 +198,16 @@ import { firstValueFrom } from 'rxjs';
     .sec {
       font-size: 1rem;
     }
+    .row-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .row-head .btn {
+      inline-size: auto;
+      min-block-size: 40px;
+      padding: 6px 16px;
+    }
     .two {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -260,6 +286,13 @@ export class OwnerSettings {
   private readonly http = inject(HttpClient);
   protected readonly extras = signal(extrasFromProfile(inject(Session).me()?.profile));
   protected readonly savingExtras = signal(false);
+  protected readonly showExtras = signal(false);
+  /** บรรทัดสรุปตอนพับอยู่ — บอกว่ากรอกครบหรือยัง */
+  protected readonly extrasSummary = computed(() => {
+    const f = this.extras();
+    if (!extrasValid(f, 'owner')) return this.i18n.t({ th: 'ยังกรอกไม่ครบ — แตะ "แก้ไข" เพื่อเติม', en: 'Not complete yet — tap “Edit” to finish' });
+    return this.i18n.t({ th: 'กรอกครบแล้ว', en: 'Complete' });
+  });
   protected readonly triedExtras = signal(false);
   /** โหลดรายการตู้เสร็จแล้ว — ยังไม่มีตู้ = ตั้งค่าตู้ไม่ได้ ให้ผูกตู้ก่อน */
   protected readonly loaded = signal(false);
@@ -309,7 +342,7 @@ export class OwnerSettings {
       const b = this.box();
       if (b && accept) await this.open(b.id);
     } catch {
-      this.toast.show({ th: 'ทำรายการไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t do that — try again' });
+      this.toast.show({ th: 'ทำรายการไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t do that — try again' });
     } finally {
       this.deciding.set(null);
       await this.loadRequests();
@@ -329,8 +362,9 @@ export class OwnerSettings {
       await firstValueFrom(this.http.patch('/api/v1/me', { profile: extrasPayload(this.extras(), 'owner') }));
       await this.session.refresh();
       this.toast.show({ th: 'บันทึกข้อมูลแล้ว', en: 'Saved' });
+      this.showExtras.set(false);
     } catch {
-      this.toast.show({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save' });
     } finally {
       this.savingExtras.set(false);
     }
@@ -364,7 +398,7 @@ export class OwnerSettings {
       await this.open(b.id);
       this.toast.show({ th: 'บันทึกที่อยู่แล้ว', en: 'Address saved' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save' });
     } finally {
       this.savingAddr.set(false);
     }
@@ -386,7 +420,7 @@ export class OwnerSettings {
       await this.open(b.id);
       this.toast.show({ th: 'บันทึกย่านแล้ว', en: 'Area saved' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save' });
     }
   }
 
@@ -401,7 +435,7 @@ export class OwnerSettings {
       this.boxes.update((list) => list.map((x) => (x.id === b.id ? { ...x, name: this.draft().trim() } : x)));
       this.toast.show({ th: 'เปลี่ยนชื่อตู้แล้ว', en: 'Renamed' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save' });
     }
   }
 
@@ -605,7 +639,7 @@ export class OwnerWifi {
       this.confirming.set(false);
       await this.refresh(b.id);
     } catch {
-      this.toast.show({ th: 'สั่งไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not send the command — try again' });
+      this.toast.show({ th: 'สั่งไม่สำเร็จ ลองอีกครั้ง', en: 'Could not send the command — try again' });
     } finally {
       this.busy.set(false);
     }
@@ -675,7 +709,7 @@ export class OwnerWifi {
             <textarea maxlength="1000" rows="3" [value]="note()" (input)="setNote($event)"></textarea>
           </label>
         </section>
-        @if (error()) { <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดหรือส่งคำขอไม่สำเร็จ อาจมีคำขอที่ยังเปิดอยู่แล้ว โปรดโหลดหน้าใหม่', en: 'Could not load or send the request. An open request may already exist; reload the page.' }) }}</p> }
+        @if (error()) { <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดหรือส่งคำขอไม่สำเร็จ อาจมีคำขอที่ยังเปิดอยู่แล้ว โหลดหน้าใหม่', en: 'Could not load or send the request. An open request may already exist; reload the page.' }) }}</p> }
         <button type="button" class="btn end" [disabled]="sending() || !boxId()" (click)="submit()">
           {{ sending() ? i18n.t({ th: 'กำลังส่ง…', en: 'Sending…' }) : i18n.t({ th: 'ส่งคำขอช่าง', en: 'Send request' }) }}
         </button>

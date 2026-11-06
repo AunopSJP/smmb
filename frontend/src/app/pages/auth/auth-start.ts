@@ -260,7 +260,7 @@ export class AuthNotifications {
     } catch (error) {
       const message = error instanceof PushBlockedError
         ? { th: 'เบราว์เซอร์นี้เปิดแจ้งเตือนไม่ได้ · เปิดจากเบราว์เซอร์ปกติและตรวจสิทธิ์การแจ้งเตือน', en: 'Notifications are blocked here · use a supported browser and check its notification permission' }
-        : { th: 'เปิดแจ้งเตือนไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not enable notifications. Try again.' };
+        : { th: 'เปิดแจ้งเตือนไม่สำเร็จ ลองอีกครั้ง', en: 'Could not enable notifications. Try again.' };
       this.toast.show(message);
     }
   }
@@ -448,7 +448,7 @@ export class AuthSignin implements OnInit {
       default:
         return status === 0
           ? { title: { th: 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้', en: 'Can’t reach the server' }, sub: { th: 'ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Check your connection and retry' } }
-          : { title: { th: 'เข้าสู่ระบบไม่สำเร็จ', en: 'Couldn’t sign in' }, sub: { th: 'โปรดลองอีกครั้ง', en: 'Please try again' } };
+          : { title: { th: 'เข้าสู่ระบบไม่สำเร็จ', en: 'Couldn’t sign in' }, sub: { th: 'ลองอีกครั้ง', en: 'Please try again' } };
     }
   }
 

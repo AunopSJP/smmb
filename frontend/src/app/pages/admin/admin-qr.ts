@@ -189,7 +189,7 @@ export class QrPrintSheet {
             <span class="go desktop-only">{{ i18n.t({ th: 'จัดการ', en: 'Open' }) }}</span>
           </a>
         } @empty {
-          <p class="row muted">{{ loadFailed() ? i18n.t({ th: 'โหลดรายการ QR ไม่สำเร็จ — โปรดรีเฟรชหน้า', en: 'Could not load QR cases — refresh the page' }) : loaded() ? i18n.t({ th: 'QR ทุกใบปกติ ไม่มีเคสที่ต้องจัดการ', en: 'Every QR is fine — no cases to handle' }) : i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
+          <p class="row muted">{{ loadFailed() ? i18n.t({ th: 'โหลดรายการ QR ไม่สำเร็จ — รีเฟรชหน้า', en: 'Could not load QR cases — refresh the page' }) : loaded() ? i18n.t({ th: 'QR ทุกใบปกติ ไม่มีเคสที่ต้องจัดการ', en: 'Every QR is fine — no cases to handle' }) : i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
         }
       </div>
       <p class="muted small">{{ i18n.t({ th: 'ตรวจอัตโนมัติทุกคืน 23:00 · QR ที่อาจปลอมแจ้งทันที · รายการรีเฟรชเองทุก 10 วินาที', en: 'Checked every night at 23:00 · possible fakes are reported at once · refreshes every 10 s' }) }}</p>

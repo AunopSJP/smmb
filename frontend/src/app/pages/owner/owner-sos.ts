@@ -272,7 +272,7 @@ export class SosNoOfficer {
           <app-icon name="alert" [size]="20" />{{ i18n.t({ th: 'กดผิด', en: 'Pressed by mistake' }) }}
         </button>
         @if (failed()) {
-          <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ยกเลิกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t cancel — try again' }) }}</p>
+          <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ยกเลิกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t cancel — try again' }) }}</p>
         }
         <a class="btn" [routerLink]="url('H09')" [queryParams]="{ id: id() }">{{ i18n.t({ th: 'ไม่ยกเลิก รอเจ้าหน้าที่ต่อ', en: 'Keep waiting for an officer' }) }}</a>
       </section>

@@ -91,6 +91,7 @@ bool linkParseConfig(const String &json, BoxConfig &out)
   c.maxAttempts = constrain((int)(doc["max_attempts"] | 3), 1, 5);
   c.flashWhenDark = doc["flash_when_dark"] | true;
   c.longpollWaitS = constrain((int)(doc["longpoll_wait_s"] | 50), 10, 55);
+  c.wifiPowerSave = doc["wifi_power_save"] | false;
   out = c;
   return true;
 }
@@ -108,6 +109,8 @@ static void absorbConfig(JsonVariantConst doc)
     {
       c.ver = ver;
       boxConfig = c;
+      if (WiFi.status() == WL_CONNECTED)
+        WiFi.setSleep(boxConfig.wifiPowerSave); // เปลี่ยนทันทีที่ได้ค่าใหม่
       if (linkHooks.saveConfig)
         linkHooks.saveConfig(cfg, ver);
       Serial.printf("[config] v%u · %u window(s) · report %02u:%02u\n", ver, boxConfig.windowCount, boxConfig.reportAt / 60,

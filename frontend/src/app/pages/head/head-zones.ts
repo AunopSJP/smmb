@@ -427,7 +427,7 @@ export class HeadZoneEdit {
       }
     } catch (err) {
       const e = apiError(err);
-      this.error.set(ZONE_ERROR[e.code ?? ''] ?? { th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save' });
+      this.error.set(ZONE_ERROR[e.code ?? ''] ?? { th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save' });
     } finally {
       this.busy.set(false);
     }
@@ -526,7 +526,7 @@ export class HeadZoneEdit {
         this.houseIds = null;
         await this.load(z.id).catch(() => undefined);
         const e = apiError(err);
-        this.toast.show(ZONE_ERROR[e.code ?? ''] ?? { th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save — try again' });
+        this.toast.show(ZONE_ERROR[e.code ?? ''] ?? { th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save — try again' });
       }
     });
     return this.houseSave;
@@ -558,7 +558,7 @@ export class HeadZoneEdit {
       } catch {
         this.officerIds = null;
         await this.load(z.id).catch(() => undefined);
-        this.toast.show({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save — try again' });
+        this.toast.show({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save — try again' });
       }
     });
     return this.officerSave;
@@ -571,7 +571,7 @@ export class HeadZoneEdit {
       await this.api.removeZone(z.id);
       void this.router.navigateByUrl(screenUrl('L06'));
     } catch {
-      this.toast.show({ th: 'ลบไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t delete' });
+      this.toast.show({ th: 'ลบไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t delete' });
     }
   }
 }

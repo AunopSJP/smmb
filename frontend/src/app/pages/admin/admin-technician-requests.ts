@@ -18,7 +18,7 @@ import { screenUrl } from '../../screens/registry';
           <button type="button" [attr.aria-pressed]="filter() === option.value" (click)="filter.set(option.value); load()">{{ i18n.t(option.label) }}</button>
         }
       </div>
-      @if (error()) { <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดหรือบันทึกคำขอไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not load or save requests. Try again.' }) }}</p> }
+      @if (error()) { <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดหรือบันทึกคำขอไม่สำเร็จ ลองอีกครั้ง', en: 'Could not load or save requests. Try again.' }) }}</p> }
       <div class="reqs">
         @for (request of rows(); track request.id) {
           <article class="panel request">

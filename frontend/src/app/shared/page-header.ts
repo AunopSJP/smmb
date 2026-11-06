@@ -37,7 +37,7 @@ import { Icon } from './icon';
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 8px 0 4px;
+      padding: 8px 0 12px;
     }
     .text {
       flex: 1;

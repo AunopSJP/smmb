@@ -50,7 +50,7 @@ export class BoxConfigService {
     };
   }
 
-  async setDefaults(config: BoxConfigDefaults, adminId: string): Promise<BoxConfigDefaultsDto> {
+  async setDefaults(config: Omit<BoxConfigDefaults, 'wifi_power_save'>, adminId: string): Promise<BoxConfigDefaultsDto> {
     await this.pool.query(`UPDATE app.box_config_tb SET config = $1, updated_by = $2 WHERE box_config_id = 1`, [config, adminId]);
     return this.defaultsDto();
   }

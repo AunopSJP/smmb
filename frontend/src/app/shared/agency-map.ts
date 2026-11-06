@@ -45,16 +45,16 @@ const DEFAULT_CENTER: LatLng = { lat: 13.7563, lng: 100.5018 };
       box-shadow: 0 2px 6px rgb(0 0 0 / 35%);
     }
     :host ::ng-deep .ag-pin.sel {
-      background: #9b0f16;
-      outline: 3px solid #fde5e6;
+      background: #164f64;
+      outline: 3px solid #e3f0f5;
     }
     :host ::ng-deep .home-dot {
       inline-size: 18px;
       block-size: 18px;
       border-radius: 50%;
-      background: #1769e0;
+      background: #e8590c;
       border: 3px solid #fff;
-      box-shadow: 0 0 0 2px #1769e0;
+      box-shadow: 0 0 0 2px #e8590c;
     }
   `,
 })

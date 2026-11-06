@@ -304,7 +304,7 @@ export class HeadLog implements OnInit {
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
-      this.toast.show({ th: 'ส่งออกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Could not export — try again' });
+      this.toast.show({ th: 'ส่งออกไม่สำเร็จ ลองอีกครั้ง', en: 'Could not export — try again' });
     } finally {
       this.exporting.set(false);
     }

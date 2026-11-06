@@ -36,6 +36,8 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
   template: `
     <app-page-header [title]="i18n.t({ th: 'สมัครหน่วยงาน', en: 'Register an agency' })" [back]="url('A05')" />
     <form class="stack grow" (submit)="$event.preventDefault(); submit()">
+      <section class="form-section">
+        <h2 class="form-title">{{ i18n.t({ th: 'ข้อมูลหน่วยงาน', en: 'Agency details' }) }}</h2>
       <label class="field" [class.invalid]="tried() && !f().agency_name.trim()">
         <span>{{ i18n.t({ th: 'ชื่อหน่วยงาน', en: 'Agency name' }) }}</span>
         <input autocomplete="organization" [value]="f().agency_name" (input)="set('agency_name', $any($event.target).value)" />
@@ -48,15 +50,6 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
           }
         </div>
       </fieldset>
-      <label class="field" [class.invalid]="tried() && !f().name.trim()">
-        <span>{{ i18n.t({ th: 'ชื่อหัวหน้า (ยศ)', en: 'Head’s name (with rank)' }) }}</span>
-        <input autocomplete="name" [value]="f().name" (input)="set('name', $any($event.target).value)" />
-      </label>
-      <label class="field" [class.invalid]="tried() && !phoneOk()">
-        <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
-        <input type="tel" inputmode="tel" autocomplete="tel" [value]="f().phone" (input)="set('phone', $any($event.target).value)" />
-        <small>{{ i18n.t({ th: 'ใช้เข้าสู่ระบบ · ผู้ดูแลระบบใช้ติดต่อตอนตรวจคำขอ', en: 'Used to sign in · the admin may call while reviewing' }) }}</small>
-      </label>
       <label class="field" [class.invalid]="tried() && !contactOk()">
         <span>{{ i18n.t({ th: 'ช่องทางติดต่อหน่วยงาน', en: 'Agency contact' }) }}</span>
         <input maxlength="200" [placeholder]="i18n.t({ th: 'เช่น สถานี 02-111-2222', en: 'e.g. Station 02-111-2222' })" [value]="f().contact" (input)="set('contact', $any($event.target).value)" />
@@ -66,14 +59,30 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
         <span>{{ i18n.t({ th: 'ที่ตั้งหน่วยงาน', en: 'Agency address' }) }}</span>
         <input maxlength="300" autocomplete="street-address" [placeholder]="i18n.t({ th: 'เช่น สภ.เมือง ถ.ราชดำเนิน อ.เมือง จ.เชียงใหม่', en: 'e.g. Muang Police Station, Ratchadamnoen Rd, Chiang Mai' })" [value]="f().agency_address" (input)="set('agency_address', $any($event.target).value)" />
       </label>
-      <app-agency-fields [(value)]="detail" [tried]="tried()" />
       <label class="field">
         <span>{{ i18n.t({ th: 'เลขทะเบียนหน่วยงาน / ใบอนุญาต (ไม่บังคับ)', en: 'Registration / licence no. (optional)' }) }}</span>
         <input maxlength="100" autocomplete="off" [value]="f().registration_no" (input)="set('registration_no', $any($event.target).value)" />
         <small>{{ i18n.t({ th: 'ผู้ดูแลระบบใช้ประกอบการอนุมัติ ไม่แสดงให้คนอื่นเห็น', en: 'Used by the admin when approving · not shown to others' }) }}</small>
       </label>
+      </section>
+      <section class="form-section">
+        <h2 class="form-title">{{ i18n.t({ th: 'ที่ตั้งและช่องทางติดต่อ', en: 'Location and contact' }) }}</h2>
+        <app-agency-fields [(value)]="detail" [tried]="tried()" />
+      </section>
       <app-profile-extras kind="head" [(value)]="headExtras" [tried]="tried()" />
+      <section class="form-section">
+        <h2 class="form-title">{{ i18n.t({ th: 'ผู้สมัคร (หัวหน้าหน่วยงาน)', en: 'Applicant (agency head)' }) }}</h2>
+      <label class="field" [class.invalid]="tried() && !f().name.trim()">
+        <span>{{ i18n.t({ th: 'ชื่อหัวหน้า (ยศ)', en: 'Head’s name (with rank)' }) }}</span>
+        <input autocomplete="name" [value]="f().name" (input)="set('name', $any($event.target).value)" />
+      </label>
+      <label class="field" [class.invalid]="tried() && !phoneOk()">
+        <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
+        <input type="tel" inputmode="tel" autocomplete="tel" [value]="f().phone" (input)="set('phone', $any($event.target).value)" />
+        <small>{{ i18n.t({ th: 'ใช้เข้าสู่ระบบ · ผู้ดูแลระบบใช้ติดต่อตอนตรวจคำขอ', en: 'Used to sign in · the admin may call while reviewing' }) }}</small>
+      </label>
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
+      </section>
       <app-terms-check from="L01" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="filled() && !f().terms" />
       @if (errorCode(); as e) {
         <p class="danger-text small" role="alert">
@@ -378,7 +387,7 @@ export class HeadApproved implements OnInit {
       this.editingContact.set(false);
       this.toast.show({ th: 'บันทึกช่องทางติดต่อแล้ว', en: 'Contact saved' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง', en: 'Couldn’t save — try again' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save — try again' });
     }
   }
   private readonly toast = inject(Toast);

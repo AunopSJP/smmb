@@ -72,6 +72,8 @@ export interface BoxConfigOverride {
   max_attempts: number;
   flash_when_dark: boolean;
   longpoll_wait_s: number;
+  /** ประหยัดไฟ Wi-Fi ของตู้นี้ (ไม่ตั้ง = ปิด) */
+  wifi_power_save: boolean;
 }
 
 export interface BoxConfig {
@@ -80,6 +82,7 @@ export interface BoxConfig {
   max_attempts: number;
   flash_when_dark: boolean;
   longpoll_wait_s: number;
+  wifi_power_save?: boolean;
   windows?: [string, string][];
 }
 
