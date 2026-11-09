@@ -1,5 +1,5 @@
 .page {
-  padding-block-end: 104px; /* เผื่อปุ่ม SOS ที่ลอยอยู่ */
+  padding-block-end: 8px;
 }
 .status {
   display: flex;
@@ -227,7 +227,7 @@
 .sos-bar {
   position: sticky;
   inset-block-end: 76px;
-  margin-block-start: auto;
+  margin-block-start: 8px;
   z-index: 1;
 }
 .sos {
