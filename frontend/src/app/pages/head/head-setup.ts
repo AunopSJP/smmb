@@ -34,8 +34,26 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
   imports: [PageHeader, PasswordField, TermsCheck, RouterLink, AgencyFields, ProfileExtras],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [title]="i18n.t({ th: 'สมัครหน่วยงาน', en: 'Register an agency' })" [back]="url('A05')" />
-    <form class="stack grow" (submit)="$event.preventDefault(); submit()">
+    <app-page-header [caption]="i18n.t({ th: 'ขั้น ' + step() + ' จาก 3', en: 'Step ' + step() + ' of 3' })" [title]="i18n.t({ th: 'สมัครหน่วยงาน', en: 'Register an agency' })" [back]="step() === 1 ? url('A05') : undefined" />
+    <span class="progress" role="progressbar" aria-valuemin="1" aria-valuemax="3" [attr.aria-valuenow]="step()"><span [style.width.%]="(step() / 3) * 100"></span></span>
+    <form class="stack grow" (submit)="$event.preventDefault(); step() < 3 ? next() : submit()">
+      @if (step() === 1) {
+      <section class="form-section">
+        <h2 class="form-title">{{ i18n.t({ th: 'ผู้สมัคร (หัวหน้าหน่วยงาน)', en: 'Applicant (agency head)' }) }}</h2>
+      <label class="field" [class.invalid]="tried() && !f().name.trim()">
+        <span>{{ i18n.t({ th: 'ชื่อหัวหน้า (ยศ)', en: 'Head’s name (with rank)' }) }}</span>
+        <input autocomplete="name" [value]="f().name" (input)="set('name', $any($event.target).value)" />
+      </label>
+      <label class="field" [class.invalid]="tried() && !phoneOk()">
+        <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
+        <input type="tel" inputmode="tel" autocomplete="tel" [value]="f().phone" (input)="set('phone', $any($event.target).value)" />
+        <small>{{ i18n.t({ th: 'ใช้เข้าสู่ระบบ · ผู้ดูแลระบบใช้ติดต่อตอนตรวจคำขอ', en: 'Used to sign in · the admin may call while reviewing' }) }}</small>
+      </label>
+      <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
+      </section>
+      <app-profile-extras kind="head" [(value)]="headExtras" [tried]="tried()" />
+      }
+      @if (step() === 2) {
       <section class="form-section">
         <h2 class="form-title">{{ i18n.t({ th: 'ข้อมูลหน่วยงาน', en: 'Agency details' }) }}</h2>
       <label class="field" [class.invalid]="tried() && !f().agency_name.trim()">
@@ -69,21 +87,10 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
         <h2 class="form-title">{{ i18n.t({ th: 'ที่ตั้งและช่องทางติดต่อ', en: 'Location and contact' }) }}</h2>
         <app-agency-fields [(value)]="detail" [tried]="tried()" />
       </section>
-      <app-profile-extras kind="head" [(value)]="headExtras" [tried]="tried()" />
-      <section class="form-section">
-        <h2 class="form-title">{{ i18n.t({ th: 'ผู้สมัคร (หัวหน้าหน่วยงาน)', en: 'Applicant (agency head)' }) }}</h2>
-      <label class="field" [class.invalid]="tried() && !f().name.trim()">
-        <span>{{ i18n.t({ th: 'ชื่อหัวหน้า (ยศ)', en: 'Head’s name (with rank)' }) }}</span>
-        <input autocomplete="name" [value]="f().name" (input)="set('name', $any($event.target).value)" />
-      </label>
-      <label class="field" [class.invalid]="tried() && !phoneOk()">
-        <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
-        <input type="tel" inputmode="tel" autocomplete="tel" [value]="f().phone" (input)="set('phone', $any($event.target).value)" />
-        <small>{{ i18n.t({ th: 'ใช้เข้าสู่ระบบ · ผู้ดูแลระบบใช้ติดต่อตอนตรวจคำขอ', en: 'Used to sign in · the admin may call while reviewing' }) }}</small>
-      </label>
-      <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
-      </section>
+      }
+      @if (step() === 3) {
       <app-terms-check from="L01" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="filled() && !f().terms" />
+      }
       @if (errorCode(); as e) {
         <p class="danger-text small" role="alert">
           {{ i18n.t(errors[e]) }}
@@ -92,7 +99,14 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
           }
         </p>
       }
-      <button type="submit" class="btn push-end" [disabled]="!f().terms || busy()">{{ i18n.t({ th: 'ส่งคำขอหน่วยงาน', en: 'Send agency request' }) }}</button>
+      @if (step() < 3) {
+        <button type="button" class="btn push-end" (click)="next()">{{ i18n.t({ th: 'ถัดไป', en: 'Next' }) }}</button>
+      } @else {
+        <button type="submit" class="btn push-end" [disabled]="!f().terms || busy()">{{ i18n.t({ th: 'ส่งคำขอหน่วยงาน', en: 'Send agency request' }) }}</button>
+      }
+      @if (step() > 1) {
+        <button type="button" class="btn secondary" (click)="step.set(step() - 1)">{{ i18n.t({ th: 'ย้อนกลับ', en: 'Back' }) }}</button>
+      }
     </form>
   `,
   styles: `
@@ -114,6 +128,20 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
       color: inherit;
       font-weight: 700;
     }
+    .progress {
+      display: block;
+      block-size: 6px;
+      border-radius: 3px;
+      background: var(--line);
+      overflow: hidden;
+      margin-block: 4px;
+      span {
+        display: block;
+        block-size: 100%;
+        background: var(--brand);
+        transition: width 0.2s;
+      }
+    }
   `,
 })
 export class HeadSignup {
@@ -129,6 +157,8 @@ export class HeadSignup {
   protected readonly errors = SIGNUP_ERROR;
   protected readonly f = this.demo.forms.agency;
   protected readonly tried = signal(false);
+  /** 1 บัญชีหัวหน้า · 2 ข้อมูลหน่วยงาน · 3 ข้อตกลง (ตามแคนวาสดีไซน์) */
+  protected readonly step = signal(1);
   protected readonly detail = signal(emptyAgencyDetail());
   protected readonly headExtras = signal(emptyExtras());
   protected readonly errorCode = signal<string | null>(null);
@@ -142,6 +172,15 @@ export class HeadSignup {
   protected set<K extends keyof SignupForm>(key: K, value: SignupForm[K]): void {
     this.f.update((f) => ({ ...f, [key]: value }));
     this.errorCode.set(null);
+  }
+
+  protected next(): void {
+    this.tried.set(true);
+    const f = this.f();
+    if (this.step() === 1 && (!f.name.trim() || !normalizePhone(f.phone) || f.password.length < this.min || !extrasValid(this.headExtras(), 'head'))) return;
+    if (this.step() === 2 && (!f.agency_name.trim() || !this.contactOk() || !f.agency_address.trim() || !agencyDetailValid(this.detail()))) return;
+    this.tried.set(false);
+    this.step.update((n) => n + 1);
   }
 
   /** POST /auth/signup/agency { agency: { name, type, contact }, head: { name, phone, password }, terms_version } → ล็อกอินแล้ว รอแอดมินอนุมัติ */

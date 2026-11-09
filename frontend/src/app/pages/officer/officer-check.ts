@@ -8,6 +8,9 @@ import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { QrImage } from '../../shared/qr-image';
 import { cameraAsked, cameraPermission, markCameraAsked, QrScanner, type ScannerFailure } from '../../shared/qr-scanner';
+import { CodeKeypad } from '../../shared/code-keypad';
+import { DisplaySettings } from '../../core/display-settings';
+import { cleanCode, formatCode } from '../../core/rider-rules';
 
 /** ตู้ยังไม่พร้อมภายในกี่วินาที → ถามว่าได้ยินเสียงตู้ไหม (api.md §6.3) */
 const WAKE_TIMEOUT_S = 30;
@@ -200,7 +203,7 @@ const CAMERA_NOTE: Record<string, Tr> = {
 
 @Component({
   selector: 'app-officer-code',
-  imports: [RouterLink, Icon],
+  imports: [RouterLink, Icon, CodeKeypad],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pad">
@@ -221,10 +224,10 @@ const CAMERA_NOTE: Record<string, Tr> = {
             autocomplete="off"
             autocapitalize="characters"
             spellcheck="false"
-            inputmode="text"
+            [attr.inputmode]="display.easyMode() ? 'none' : 'text'"
             maxlength="9"
-            [value]="value()"
-            (input)="value.set(normalize(code.value)); code.value = value(); error.set(null)"
+            [value]="fmt(value())"
+            (input)="value.set(normalize(code.value)); code.value = fmt(value()); error.set(null)"
             [attr.aria-invalid]="!!error()"
             aria-describedby="code-hint"
           />
@@ -236,6 +239,9 @@ const CAMERA_NOTE: Record<string, Tr> = {
             }
           </span>
         </label>
+        @if (display.easyMode()) {
+          <app-code-keypad (key)="press($event)" (back)="backspace()" />
+        }
         <button type="submit" class="btn push-end" [disabled]="busy()">
           {{ busy() ? i18n.t({ th: 'กำลังตรวจสอบ…', en: 'Checking…' }) : i18n.t({ th: 'ตรวจสอบรหัส', en: 'Check the code' }) }}
         </button>
@@ -306,7 +312,18 @@ export class OfficerCode {
 
   /** ไม่สนตัวเล็กใหญ่ / ขีด / ช่องว่าง (api.md §5) */
   protected normalize(v: string): string {
-    return v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+    return cleanCode(v);
+  }
+
+  protected readonly fmt = formatCode;
+  protected readonly display = inject(DisplaySettings);
+  protected press(c: string): void {
+    this.value.set(cleanCode(this.value() + c));
+    this.error.set(null);
+  }
+  protected backspace(): void {
+    this.value.set(this.value().slice(0, -1));
+    this.error.set(null);
   }
 
   protected async check(e: Event): Promise<void> {

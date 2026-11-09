@@ -38,8 +38,10 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
   imports: [RouterLink, PageHeader, PasswordField, TermsCheck, HouseFields],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'ขั้น 1 จาก 2', en: 'Step 1 of 2' })" [title]="i18n.t({ th: 'สมัครเจ้าของบ้าน', en: 'Homeowner sign-up' })" [back]="url('A05')" />
-    <form class="stack grow" (submit)="$event.preventDefault(); submit()">
+    <app-page-header [caption]="i18n.t({ th: 'ขั้น ' + step() + ' จาก 3', en: 'Step ' + step() + ' of 3' })" [title]="i18n.t({ th: 'สมัครเจ้าของบ้าน', en: 'Homeowner sign-up' })" [back]="step() === 1 ? url('A05') : undefined" />
+    <span class="progress" role="progressbar" aria-valuemin="1" aria-valuemax="3" [attr.aria-valuenow]="step()"><span [style.width.%]="(step() / 3) * 100"></span></span>
+    <form class="stack grow" (submit)="$event.preventDefault(); step() < 3 ? next() : submit()">
+      @if (step() === 1) {
       <section class="form-section">
         <h2 class="form-title">{{ i18n.t({ th: 'ข้อมูลบัญชี', en: 'Your account' }) }}</h2>
       <label class="field" [class.invalid]="tried() && !f().name.trim()">
@@ -53,6 +55,8 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
       </label>
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
       </section>
+      }
+      @if (step() === 2) {
       <section class="form-section">
         <h2 class="form-title">{{ i18n.t({ th: 'บ้านของคุณ', en: 'Your house' }) }}</h2>
       <label class="field" [class.invalid]="tried() && !f().house_no.trim()">
@@ -66,7 +70,10 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
       </label>
       </section>
       <app-house-fields [(value)]="house" [tried]="tried()" />
+      }
+      @if (step() === 3) {
       <app-terms-check from="A06" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="filled() && !f().terms" />
+      }
 
       @if (error(); as e) {
         <p class="danger-text small" role="alert">
@@ -76,7 +83,14 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
           }
         </p>
       }
-      <button type="submit" class="btn push-end" [disabled]="!f().terms || busy()">{{ i18n.t({ th: 'สมัครและไปผูกตู้', en: 'Sign up and add my mailbox' }) }}</button>
+      @if (step() < 3) {
+        <button type="button" class="btn push-end" (click)="next()">{{ i18n.t({ th: 'ถัดไป', en: 'Next' }) }}</button>
+      } @else {
+        <button type="submit" class="btn push-end" [disabled]="!f().terms || busy()">{{ i18n.t({ th: 'สมัครและไปผูกตู้', en: 'Sign up and add my mailbox' }) }}</button>
+      }
+      @if (step() > 1) {
+        <button type="button" class="btn secondary" (click)="step.set(step() - 1)">{{ i18n.t({ th: 'ย้อนกลับ', en: 'Back' }) }}</button>
+      }
     </form>
   `,
   styles: `
@@ -86,6 +100,20 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
     a {
       color: inherit;
       font-weight: 700;
+    }
+    .progress {
+      display: block;
+      block-size: 6px;
+      border-radius: 3px;
+      background: var(--line);
+      overflow: hidden;
+      margin-block: 4px;
+      span {
+        display: block;
+        block-size: 100%;
+        background: var(--brand);
+        transition: width 0.2s;
+      }
     }
   `,
 })
@@ -102,6 +130,8 @@ export class AuthSignupOwner implements OnInit {
   readonly state = input<string>();
   protected readonly f = this.demo.forms.owner;
   protected readonly tried = signal(false);
+  /** ขั้นของฟอร์ม 1 บัญชี · 2 บ้าน · 3 ข้อตกลง (ตามแคนวาสดีไซน์) */
+  protected readonly step = signal(1);
   /** ที่อยู่ + หมุด + ผู้ติดต่อฉุกเฉิน (✅ 2026-11-04) */
   protected readonly house = signal(emptyHouseProfile());
   protected readonly errorCode = signal<string | null>(null);
@@ -114,6 +144,7 @@ export class AuthSignupOwner implements OnInit {
 
   ngOnInit(): void {
     if (this.state() === 'no-terms') {
+      this.step.set(3);
       this.f.set({ ...this.f(), name: 'สมศรี ใจดี', phone: '089-123-4567', password: 'demo-pass', house_no: '99/9', terms: false });
     }
   }
@@ -121,6 +152,15 @@ export class AuthSignupOwner implements OnInit {
   protected set<K extends keyof SignupForm>(key: K, value: SignupForm[K]): void {
     this.f.update((f) => ({ ...f, [key]: value }));
     this.errorCode.set(null);
+  }
+
+  protected next(): void {
+    this.tried.set(true);
+    const f = this.f();
+    if (this.step() === 1 && (!f.name.trim() || !normalizePhone(f.phone) || f.password.length < this.min)) return;
+    if (this.step() === 2 && (!f.house_no.trim() || !houseProfileValid(this.house()))) return;
+    this.tried.set(false);
+    this.step.update((n) => n + 1);
   }
 
   /** POST /auth/signup/owner { name, phone, password, house_no, terms_version } → ได้ cookie = ล็อกอินแล้ว */
@@ -196,7 +236,7 @@ const ACTIVATE_STEPS: Step[] = [
         </div>
       }
       @default {
-        <app-page-header [caption]="i18n.t({ th: 'ขั้น 2 จาก 2', en: 'Step 2 of 2' })" [title]="i18n.t({ th: 'ผูกตู้กับบัญชี', en: 'Add your mailbox' })" [back]="backUrl()" />
+        <app-page-header [caption]="i18n.t({ th: 'ผูกตู้', en: 'Link a mailbox' })" [title]="i18n.t({ th: 'ผูกตู้กับบัญชี', en: 'Add your mailbox' })" [back]="backUrl()" />
         <div class="stack grow">
           <app-steps [steps]="steps" [current]="1" />
           @if (needSignin()) {
@@ -339,7 +379,7 @@ export class AuthActivate implements OnInit {
   imports: [PageHeader, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'ขั้น 2 จาก 2', en: 'Step 2 of 2' })" [title]="i18n.t({ th: 'ตั้งชื่อตู้', en: 'Name your mailbox' })" [back]="backUrl()" />
+    <app-page-header [caption]="i18n.t({ th: 'ผูกตู้', en: 'Link a mailbox' })" [title]="i18n.t({ th: 'ตั้งชื่อตู้', en: 'Name your mailbox' })" [back]="backUrl()" />
     <form class="stack grow" (submit)="$event.preventDefault(); save()">
       <p class="ok-text found"><app-icon name="check" [size]="18" /> {{ i18n.t({ th: 'พบตู้ ', en: 'Found mailbox ' }) }}{{ boxId() }}{{ i18n.t({ th: ' แล้ว', en: '' }) }}</p>
       <label class="field" [class.invalid]="!valid()">

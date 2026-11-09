@@ -100,16 +100,16 @@ const REFRESH_MS = 5_000;
           </a>
         }
 
-        <h2 class="section-title">{{ i18n.t({ th: 'บ้านในโซนของฉัน', en: 'Houses in my zone' }) }}</h2>
+        <h2 class="section-title easy-hide">{{ i18n.t({ th: 'บ้านในโซนของฉัน', en: 'Houses in my zone' }) }}</h2>
         @if (!s.houses.length) {
-          <p class="card muted small">
+          <p class="card muted small easy-hide">
             {{ i18n.t({ th: 'ยังไม่มีบ้านในโซนของคุณ — หัวหน้าเป็นคนใส่บ้านและเจ้าหน้าที่เข้าโซน', en: 'No houses in your zone yet — your head assigns houses and officers' }) }}
           </p>
         } @else {
-          <ul class="list">
+          <ul class="list easy-hide">
             @for (h of s.houses; track h.box_id) {
               <li class="row">
-                <strong class="grow">{{ h.house_no }}<span class="muted small"> {{ h.box_name }}</span></strong>
+                <strong class="grow">{{ h.house_no }}<span class="muted small"> {{ h.box_name }}</span><span class="muted small mono adv-only"> {{ h.box_id }}</span></strong>
                 @if (h.checked_at) {
                   <span class="done">
                     <app-icon name="check" [size]="18" />

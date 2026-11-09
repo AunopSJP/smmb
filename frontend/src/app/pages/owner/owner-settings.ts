@@ -88,14 +88,14 @@ import { firstValueFrom } from 'rxjs';
               }
             </dd>
             <dt class="adv-only">{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd class="adv-only">{{ b.id }}</dd>
-            <dt>{{ i18n.t({ th: 'แบตเตอรี่', en: 'Battery' }) }}</dt>
-            <dd>{{ b.battery ? b.battery.pct + '%' : '—' }}{{ b.battery?.charging ? i18n.t({ th: ' · ชาร์จอยู่', en: ' · charging' }) : '' }}</dd>
+            <dt class="easy-hide">{{ i18n.t({ th: 'แบตเตอรี่', en: 'Battery' }) }}</dt>
+            <dd class="easy-hide">{{ b.battery ? b.battery.pct + '%' : '—' }}{{ b.battery?.charging ? i18n.t({ th: ' · ชาร์จอยู่', en: ' · charging' }) : '' }}</dd>
             <dt>{{ i18n.t({ th: 'ผู้ดูแล', en: 'Covered by' }) }}</dt>
             <dd>{{ b.coverage.agency_names.join(', ') || i18n.t({ th: 'ยังไม่มีเจ้าหน้าที่ดูแล', en: 'No agency yet' }) }}</dd>
             <dt>{{ i18n.t({ th: 'เวลาตรวจ', en: 'Patrol hours' }) }}</dt>
             <dd>{{ windows(b) }}</dd>
-            <dt>{{ i18n.t({ th: 'แพ็กเกจ', en: 'Plan' }) }}</dt>
-            <dd>
+            <dt class="easy-hide">{{ i18n.t({ th: 'แพ็กเกจ', en: 'Plan' }) }}</dt>
+            <dd class="easy-hide">
               @if (plan(); as p) {
                 {{ p.name || '—' }}
                 <span class="muted small block" [class.warn-text]="p.status === 'expiring' || p.status === 'expired'">{{ planNote(p) }}</span>
@@ -107,8 +107,8 @@ import { firstValueFrom } from 'rxjs';
         </section>
 
         <!-- 3) ข้อมูลที่กรอกไว้ (พับเก็บ แตะเพื่อแก้) -->
-        <h2 class="group">{{ i18n.t({ th: 'ข้อมูลที่กรอกไว้', en: 'Your details' }) }}</h2>
-        <div class="folds">
+        <h2 class="group easy-hide">{{ i18n.t({ th: 'ข้อมูลที่กรอกไว้', en: 'Your details' }) }}</h2>
+        <div class="folds easy-hide">
           <details class="fold" [open]="showAddr()" (toggle)="showAddr.set($any($event.target).open)">
             <summary>
               <span class="icon-bubble"><app-icon name="pin" [size]="20" /></span>

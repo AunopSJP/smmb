@@ -72,8 +72,8 @@ export const TABS: Partial<Record<Area, TabDef[]>> = {
   admin: [
     { code: 'D01', icon: 'home', label: { th: 'ภาพรวม', en: 'Overview' } },
     { code: 'D03', icon: 'box', label: { th: 'ตู้', en: 'Boxes' } },
-    { code: 'D05', icon: 'scan', label: { th: 'QR', en: 'QR' } },
-    { code: 'D11', icon: 'list', label: { th: 'ประวัติ', en: 'History' } },
+    { code: 'D09', icon: 'user', label: { th: 'ผู้ใช้', en: 'Users' } },
+    { code: 'D16', icon: 'settings', label: { th: 'ระบบ', en: 'System' } },
   ],
 };
 
@@ -174,7 +174,8 @@ export const SCREENS: ScreenDef[] = [
   s('D07', 'admin', 'qr/waiting-owner', 'รอเจ้าของบ้าน', 'Waiting for the owner', { noTabs: true, next: ['D08'] }),
   s('D07-b', 'admin', 'qr/reissued', 'ใช้ใบสำรองแล้ว · ออกใหม่ 2 ใบ', 'Backup used · reissue 2', { noTabs: true, next: ['D08'] }),
   s('D08', 'admin', 'qr/fixed', 'แก้แล้ว', 'Fixed', { noTabs: true, next: ['D05'] }),
-  s('D09', 'admin', 'users', 'ผู้ใช้', 'Users', { noTabs: true }),
+  s('D09', 'admin', 'users', 'ผู้ใช้', 'Users'),
+  s('D16', 'admin', 'system', 'ระบบ', 'System', { next: ['D05', 'D15', 'D13', 'D10', 'D14', 'D11', 'D12'] }),
   s('D10', 'admin', 'config', 'ค่าตั้งค่าตู้', 'Mailbox config', { noTabs: true }),
   s('D11', 'admin', 'history', 'Log ทั้งหมด', 'All logs'),
   s('D02', 'admin', 'agencies/pending', 'คำขอหน่วยงาน', 'Agency requests', { noTabs: true }),

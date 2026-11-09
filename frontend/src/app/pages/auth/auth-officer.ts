@@ -27,17 +27,19 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
   imports: [PageHeader, PasswordField, TermsCheck, RouterLink, ProfileExtras],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [title]="i18n.t({ th: 'สมัครเจ้าหน้าที่', en: 'Officer sign-up' })" [back]="url('A05')" />
-    <form class="stack grow" (submit)="$event.preventDefault(); submit()">
+    <app-page-header [caption]="i18n.t({ th: 'ขั้น ' + step() + ' จาก 2', en: 'Step ' + step() + ' of 2' })" [title]="i18n.t({ th: 'สมัครเจ้าหน้าที่', en: 'Officer sign-up' })" [back]="step() === 1 ? url('A05') : undefined" />
+    <span class="progress" role="progressbar" aria-valuemin="1" aria-valuemax="2" [attr.aria-valuenow]="step()"><span [style.width.%]="(step() / 2) * 100"></span></span>
+    <form class="stack grow" (submit)="$event.preventDefault(); step() < 2 ? next() : submit()">
+      @if (step() === 1) {
+      <label class="field" [class.invalid]="errorCode() === 'GROUP_CODE_INVALID'">
+        <span>{{ i18n.t({ th: 'รหัสกลุ่มจากหัวหน้า', en: 'Group code from your head' }) }}</span>
+        <input autocomplete="off" autocapitalize="characters" spellcheck="false" [placeholder]="i18n.t({ th: 'เช่น PX7K-2MQ9', en: 'e.g. PX7K-2MQ9' })" [value]="f().group_code" (input)="set('group_code', $any($event.target).value)" />
+        <small>{{ i18n.t({ th: 'ได้จากหัวหน้าหน่วยงาน', en: 'Your agency head gives you this' }) }}</small>
+      </label>
       <label class="field" [class.invalid]="tried() && !f().name.trim()">
         <span>{{ i18n.t({ th: 'ชื่อ - นามสกุล (ยศ)', en: 'Full name (with rank)' }) }}</span>
         <input autocomplete="name" [value]="f().name" (input)="set('name', $any($event.target).value)" />
       </label>
-      <label class="field" [class.invalid]="tried() && !phoneOk()">
-        <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
-        <input type="tel" inputmode="tel" autocomplete="tel" [value]="f().phone" (input)="set('phone', $any($event.target).value)" />
-      </label>
-      <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
       <div class="two-col">
         <label class="field" [class.invalid]="tried() && !f().position.trim()">
           <span>{{ i18n.t({ th: 'ตำแหน่ง / ยศ', en: 'Position / rank' }) }}</span>
@@ -63,12 +65,15 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
         </div>
         <p class="form-hint">{{ i18n.t({ th: 'กรอกทั้งชื่อและเบอร์ หรือเว้นว่างทั้งคู่ · หัวหน้าหน่วยงานเห็นเพื่อใช้ตอนเกิดเหตุกับคุณ', en: 'Fill in both, or leave both empty · your agency head can see it for emergencies involving you' }) }}</p>
       </section>
-      <label class="field" [class.invalid]="errorCode() === 'GROUP_CODE_INVALID'">
-        <span>{{ i18n.t({ th: 'รหัสกลุ่มจากหัวหน้า', en: 'Group code from your head' }) }}</span>
-        <input autocomplete="off" autocapitalize="characters" spellcheck="false" [placeholder]="i18n.t({ th: 'เช่น PX7K-2MQ9', en: 'e.g. PX7K-2MQ9' })" [value]="f().group_code" (input)="set('group_code', $any($event.target).value)" />
-        <small>{{ i18n.t({ th: 'ได้จากหัวหน้าหน่วยงาน', en: 'Your agency head gives you this' }) }}</small>
+      }
+      @if (step() === 2) {
+      <label class="field" [class.invalid]="tried() && !phoneOk()">
+        <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
+        <input type="tel" inputmode="tel" autocomplete="tel" [value]="f().phone" (input)="set('phone', $any($event.target).value)" />
       </label>
+      <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
       <app-terms-check from="A10" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="filled() && !f().terms" />
+      }
       @if (errorCode(); as e) {
         <p class="danger-text small" role="alert">
           {{ i18n.t(errors[e]) }}
@@ -77,7 +82,12 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
           }
         </p>
       }
-      <button type="submit" class="btn push-end" [disabled]="!f().terms || busy()">{{ i18n.t({ th: 'ส่งคำขอสมัคร', en: 'Send request' }) }}</button>
+      @if (step() < 2) {
+        <button type="button" class="btn push-end" (click)="next()">{{ i18n.t({ th: 'ถัดไป', en: 'Next' }) }}</button>
+      } @else {
+        <button type="submit" class="btn push-end" [disabled]="!f().terms || busy()">{{ i18n.t({ th: 'ส่งคำขอสมัคร', en: 'Send request' }) }}</button>
+        <button type="button" class="btn secondary" (click)="step.set(1)">{{ i18n.t({ th: 'ย้อนกลับ', en: 'Back' }) }}</button>
+      }
     </form>
   `,
   styles: `
@@ -94,6 +104,20 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
       color: inherit;
       font-weight: 700;
     }
+    .progress {
+      display: block;
+      block-size: 6px;
+      border-radius: 3px;
+      background: var(--line);
+      overflow: hidden;
+      margin-block: 4px;
+      span {
+        display: block;
+        block-size: 100%;
+        background: var(--brand);
+        transition: width 0.2s;
+      }
+    }
   `,
 })
 export class AuthSignupOfficer {
@@ -108,6 +132,8 @@ export class AuthSignupOfficer {
   protected readonly errors = SIGNUP_ERROR;
   protected readonly f = this.demo.forms.officer;
   protected readonly tried = signal(false);
+  /** 1 ข้อมูลและรหัสกลุ่ม · 2 เบอร์/รหัสผ่าน/ข้อตกลง (ตามแคนวาสดีไซน์) */
+  protected readonly step = signal(1);
   protected readonly extras = signal(emptyExtras());
   protected readonly emName = signal('');
   protected readonly emPhone = signal('');
@@ -126,6 +152,14 @@ export class AuthSignupOfficer {
   protected set<K extends keyof SignupForm>(key: K, value: SignupForm[K]): void {
     this.f.update((f) => ({ ...f, [key]: value }));
     this.errorCode.set(null);
+  }
+
+  protected next(): void {
+    this.tried.set(true);
+    const f = this.f();
+    if (!f.group_code.trim() || !f.name.trim() || !f.position.trim() || !this.emergencyOk() || !extrasValid(this.extras(), 'officer')) return;
+    this.tried.set(false);
+    this.step.set(2);
   }
 
   /** POST /auth/signup/officer { name, phone, password, group_code, terms_version } → ล็อกอินแล้ว แต่ยังไม่มีบทบาท officer จนกว่าหัวหน้ายืนยัน */
@@ -160,6 +194,7 @@ export class AuthSignupOfficer {
     } catch (err) {
       const e = apiError(err);
       this.errorCode.set(e.code === 'PHONE_TAKEN' || e.code === 'GROUP_CODE_INVALID' ? e.code : 'INVALID');
+      if (e.code === 'GROUP_CODE_INVALID') this.step.set(1);
     } finally {
       this.busy.set(false);
     }
@@ -355,8 +390,8 @@ export class AuthPushRequired {
     <app-page-header caption="Smart Mailbox" [title]="t().title" [back]="update() ? undefined : backUrl()" />
     <div class="stack grow">
       <p class="muted small">{{ t().intro }}</p>
-      @for (sec of t().sections; track sec.title; let first = $first) {
-        <section class="card sec" [class.first]="first">
+      @for (sec of t().sections; track sec.title; let first = $first; let i = $index) {
+        <section class="card sec" [class.first]="first" [class.easy-hide]="i > 1">
           <h2>{{ sec.title }}</h2>
           <ul>
             @for (item of sec.items; track $index) {
@@ -365,7 +400,8 @@ export class AuthPushRequired {
           </ul>
         </section>
       }
-      <p class="muted small">{{ i18n.t({ th: 'ฉบับ ', en: 'Version ' }) }}{{ version }}</p>
+      <p class="muted small">{{ i18n.t({ th: 'ฉบับ ', en: 'Version ' }) }}<span class="mono">{{ version }}</span></p>
+      <p class="muted small easy-only">{{ i18n.t({ th: 'โหมดง่ายแสดงเฉพาะสาระสำคัญ — อ่านฉบับเต็มได้ในโหมดปกติ', en: 'Easy mode shows the key points only — read the full text in normal mode' }) }}</p>
       <button type="button" class="btn push-end" (click)="accept()">{{ i18n.t({ th: 'ยอมรับ', en: 'Accept' }) }}</button>
     </div>
   `,

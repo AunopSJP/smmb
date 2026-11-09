@@ -4,9 +4,11 @@ import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { apiError } from '../../core/api';
 import { I18n } from '../../core/i18n';
-import { DELIVERY_LIMIT_PER_HOUR, normalizeCode } from '../../core/rider-rules';
+import { DELIVERY_LIMIT_PER_HOUR, formatCode, normalizeCode } from '../../core/rider-rules';
 import { screenUrl } from '../../screens/registry';
 import { Brand } from '../../shared/brand';
+import { CodeKeypad } from '../../shared/code-keypad';
+import { DisplaySettings } from '../../core/display-settings';
 import { Icon } from '../../shared/icon';
 
 // ไรเดอร์ — ไม่ต้องสมัคร ไม่ล็อกอิน ไม่เก็บข้อมูลตัวตน (api.md §5)
@@ -65,7 +67,7 @@ export class RiderApi {
 
 @Component({
   selector: 'app-rider-code',
-  imports: [Brand],
+  imports: [Brand, CodeKeypad],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-brand />
@@ -85,9 +87,10 @@ export class RiderApi {
           autocapitalize="characters"
           spellcheck="false"
           maxlength="12"
+          [attr.inputmode]="display.easyMode() ? 'none' : null"
           [placeholder]="i18n.t({ th: 'เช่น H4KD-9TRW', en: 'e.g. H4KD-9TRW' })"
           [value]="code()"
-          (input)="code.set($any($event.target).value)"
+          (input)="code.set(fmt($any($event.target).value)); $any($event.target).value = code()"
         />
       </label>
       @if (locked()) {
@@ -97,7 +100,10 @@ export class RiderApi {
       } @else if (offline()) {
         <p class="danger-text small" role="alert">{{ i18n.t({ th: 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ ลองอีกครั้ง', en: 'No connection — try again' }) }}</p>
       }
-      <button type="submit" class="btn dark push-end" [disabled]="!ready() || busy()">{{ i18n.t({ th: 'ไปหน้าส่งของ', en: 'Continue' }) }}</button>
+      @if (display.easyMode()) {
+        <app-code-keypad (key)="press($event)" (back)="backspace()" />
+      }
+      <button type="submit" class="btn push-end" [disabled]="!ready() || busy()">{{ i18n.t({ th: 'ไปหน้าส่งของ', en: 'Continue' }) }}</button>
     </form>
   `,
   styles: `
@@ -128,6 +134,14 @@ export class RiderCode {
   private readonly api = inject(RiderApi);
   private readonly router = inject(Router);
   protected readonly code = signal('');
+  protected readonly fmt = formatCode;
+  protected readonly display = inject(DisplaySettings);
+  protected press(c: string): void {
+    this.code.set(formatCode(this.code() + c));
+  }
+  protected backspace(): void {
+    this.code.set(formatCode(normalizeCode(this.code()).slice(0, -1)));
+  }
   protected readonly ready = computed(() => normalizeCode(this.code()).length === 8);
   protected readonly busy = signal(false);
   protected readonly locked = signal(false);
@@ -192,7 +206,7 @@ export class RiderCode {
     } @else {
       <div class="stack grow">
         <p>{{ i18n.t({ th: 'สแกน QR หน้าตู้ด้วยกล้องมือถือ หรือพิมพ์รหัสใต้ QR', en: 'Scan the QR on the box with your phone camera, or type the code under it' }) }}</p>
-        <a class="btn dark push-end" [routerLink]="url('R01')">{{ i18n.t({ th: 'พิมพ์รหัสใต้ QR', en: 'Type the code' }) }}</a>
+        <a class="btn push-end" [routerLink]="url('R01')">{{ i18n.t({ th: 'พิมพ์รหัสใต้ QR', en: 'Type the code' }) }}</a>
       </div>
     }
   `,
@@ -293,7 +307,7 @@ export class RiderDeliver implements OnInit {
         </p>
       </div>
       <div class="stack push-end">
-        <a class="btn dark" [routerLink]="url('R01')">{{ i18n.t({ th: 'พิมพ์รหัสใหม่', en: 'Type the code again' }) }}</a>
+        <a class="btn" [routerLink]="url('R01')">{{ i18n.t({ th: 'พิมพ์รหัสใหม่', en: 'Type the code again' }) }}</a>
         <p class="muted small center">{{ i18n.t({ th: 'สแกนใหม่ได้ด้วยกล้องมือถือ', en: 'You can rescan with your phone camera' }) }}</p>
       </div>
     </div>

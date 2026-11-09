@@ -79,7 +79,7 @@ const RESULT_TEXT: Record<string, Tr> = {
         <button type="button" [attr.aria-pressed]="!onlyProblems()" (click)="setProblems(false)">{{ i18n.t({ th: 'ทั้งหมด', en: 'All' }) }}</button>
         <button type="button" [attr.aria-pressed]="onlyProblems()" (click)="setProblems(true)">{{ i18n.t({ th: 'เฉพาะที่มีปัญหา', en: 'Problems only' }) }}</button>
       </div>
-      <details class="filters" [open]="filtersActive()">
+      <details class="filters easy-hide" [open]="filtersActive()">
         <summary>
           {{ i18n.t({ th: 'ตัวกรอง', en: 'Filters' }) }}
           @if (filtersActive()) {
@@ -133,6 +133,7 @@ const RESULT_TEXT: Record<string, Tr> = {
             <span class="grow">
               <strong>{{ l.house_no ?? l.box_id ?? '—' }} · {{ time(l.at) }}</strong>
               <span class="muted small block">{{ sub(l) }}</span>
+              <span class="muted small block mono adv-only">{{ l.box_id }} · {{ l.result }}</span>
             </span>
             <span class="chip" [class.ok]="ok" [class.danger]="!ok">{{ i18n.t(resultText(l)) }}</span>
           </li>

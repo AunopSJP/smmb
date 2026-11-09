@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
+import { DisplaySettings } from '../../core/display-settings';
 import { I18n } from '../../core/i18n';
 import { screenUrl } from '../../screens/registry';
 import { RiderCode, RiderApi } from './rider';
@@ -11,6 +12,7 @@ const createRiderCode = (api: { open: ReturnType<typeof vi.fn> }, router: { navi
       { provide: RiderApi, useValue: api },
       { provide: Router, useValue: router },
       { provide: I18n, useValue: { t: (message: { th: string }) => message.th } },
+      { provide: DisplaySettings, useValue: { easyMode: () => false } },
     ],
   });
   TestBed.overrideComponent(RiderCode, {

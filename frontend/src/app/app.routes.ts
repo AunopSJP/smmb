@@ -106,6 +106,7 @@ const BUILT: Record<string, Loader> = {
   D13: () => admin.people().then((m) => m.AdminAgencies),
   D14: () => admin.plans().then((m) => m.AdminPlans),
   D15: () => import('./pages/admin/admin-technician-requests').then((m) => m.AdminTechnicianRequests),
+  D16: () => import('./pages/admin/admin-hub').then((m) => m.AdminHub),
   T01: () => admin.tech().then((m) => m.TechChecklist),
   T02: () => admin.tech().then((m) => m.TechWifi),
   'T02-b': () => admin.tech().then((m) => m.TechLights),

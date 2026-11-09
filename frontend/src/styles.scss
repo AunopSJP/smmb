@@ -129,6 +129,9 @@
 }
 
 /* โหมดเห็นรายละเอียด: .adv-only (รหัส/เวอร์ชัน/ข้อมูลเทคนิค) เห็นเฉพาะโหมดละเอียด · โหมดอื่นซ่อน */
+:root:not([data-mode='easy']) .easy-only {
+  display: none !important;
+}
 :root:not([data-mode='advanced']) .adv-only {
   display: none !important;
 }
@@ -673,13 +676,12 @@ app-area-shell main > :not(router-outlet) {
   background: var(--icon-bg);
   color: var(--text-muted);
 
-  &.warn {
-    background: var(--warn-bg);
-    color: var(--warn);
-  }
+  /* ตามแคนวาสดีไซน์: วงกลมขาวมีเงา ไอคอนสีธีม (ไม่ใช้พื้นชมพู/เหลืองอ่อน) */
+  &.warn,
   &.danger {
-    background: var(--danger-bg);
-    color: var(--sos);
+    background: var(--surface);
+    color: var(--brand);
+    box-shadow: var(--shadow);
   }
   &.ok {
     background: var(--ok-bg);
