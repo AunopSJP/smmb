@@ -325,37 +325,131 @@ export class OwnerDelivery {
   }
 }
 
-// ── H12-d · ตู้ไม่ออนไลน์ (เปิดจากแจ้งเตือน) ─────────────────────
+// ── H12-d · ตู้ไม่ออนไลน์ (เปิดจากแจ้งเตือน · ตามแคนวาสดีไซน์ OwnOffline) ────────────
 
 @Component({
   selector: 'app-owner-offline',
-  imports: [PageHeader, RouterLink],
+  imports: [PageHeader, RouterLink, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'ประวัติ', en: 'History' })" [title]="i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' })" [back]="url('H12')" />
-    <div class="stack">
-      <div class="info-box">
-        <strong>{{ i18n.t({ th: 'ถึงเวลาตรวจแล้วตู้ไม่ติดต่อเซิร์ฟเวอร์', en: 'Patrol time started but the box did not connect' }) }}</strong>
-        <ol>
-          <li>{{ i18n.t({ th: 'Wi-Fi บ้านยังใช้ได้ไหม (เปลี่ยนรหัส / เราเตอร์ดับ)', en: 'Is the home Wi-Fi working? (password changed / router off)' }) }}</li>
-          <li>{{ i18n.t({ th: 'แผงโซลาร์โดนบังไหม — แบตอาจหมด', en: 'Is the solar panel shaded? The battery may be empty' }) }}</li>
-          <li>{{ i18n.t({ th: 'เปลี่ยน Wi-Fi: ดูหน้าตั้งค่าตู้', en: 'Changed Wi-Fi: see mailbox settings' }) }}</li>
+    <app-page-header [title]="i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' })" [back]="url('H12')" />
+    <div class="stack grow">
+      <section class="hero-warn">
+        <span class="circ"><app-icon name="wifi" [size]="30" /></span>
+        <strong>{{ headline() }}</strong>
+        <span>{{ i18n.t({ th: 'ระหว่างนี้ตรวจตู้และรับของไม่ได้ SOS ยังใช้ได้ตามปกติ', en: 'Until it is back, inspections and parcels cannot be recorded. SOS still works.' }) }}</span>
+      </section>
+      <section class="card stack">
+        <strong>{{ i18n.t({ th: 'ลองเช็กตามนี้ก่อน', en: 'Try these first' }) }}</strong>
+        <ol class="steps">
+          <li><span class="n">1</span><span><strong>{{ i18n.t({ th: 'ตรวจไฟของตู้', en: 'Check the box power' }) }}</strong><small>{{ i18n.t({ th: 'มีคนถอดปลั๊กหรือปิดสวิตช์หรือเปล่า', en: 'Was it unplugged or switched off?' }) }}</small></span></li>
+          <li><span class="n">2</span><span><strong>{{ i18n.t({ th: 'ตรวจ Wi-Fi บ้าน', en: 'Check your home Wi-Fi' }) }}</strong><small>{{ i18n.t({ th: 'ลองรีสตาร์ตเราเตอร์ ตู้ต่อได้เฉพาะ 2.4 GHz', en: 'Restart the router — the box only works on 2.4 GHz' }) }}</small></span></li>
+          <li><span class="n">3</span><span><strong>{{ i18n.t({ th: 'รอสักครู่', en: 'Wait a little' }) }}</strong><small>{{ i18n.t({ th: 'แผงโซลาร์ต้องได้รับแดดในตอนกลางวัน', en: 'The solar panel needs daylight' }) }}</small></span></li>
         </ol>
+      </section>
+      <section class="card last">
+        <span class="muted small">{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</span>
+        <strong>{{ lastText() }}</strong>
+      </section>
+      <div class="stack push-end">
+        <a class="btn" [routerLink]="url('H13-c')">{{ i18n.t({ th: 'แจ้งช่างมาดู', en: 'Ask a technician' }) }}</a>
+        <a class="btn secondary" [routerLink]="url('H13-b')">{{ i18n.t({ th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' }) }}</a>
       </div>
-      <p class="muted small">{{ i18n.t({ th: 'ระหว่างตู้ไม่ออนไลน์ การตรวจจะบันทึกไม่ได้', en: 'While offline, inspections cannot be recorded' }) }}</p>
-      <a class="btn" [routerLink]="url('H13-b')">{{ i18n.t({ th: 'วิธีเปลี่ยน Wi-Fi', en: 'How to change Wi-Fi' }) }}</a>
     </div>
   `,
   styles: `
-    ol {
-      margin: 6px 0 0;
-      padding-inline-start: 20px;
+    .grow {
+      flex: 1;
+    }
+    .hero-warn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      text-align: center;
+      padding: 20px;
+      border-radius: 22px;
+      background: var(--ib-warn-bg);
+      color: var(--ib-warn-fg);
+    }
+    .circ {
+      display: grid;
+      place-items: center;
+      inline-size: 64px;
+      block-size: 64px;
+      border-radius: 50%;
+      background: #9a5b00;
+      color: #fff;
+    }
+    .hero-warn strong {
+      font-size: 1.25rem;
+      line-height: 1.3;
+    }
+    .steps {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .steps li {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .steps .n {
+      display: grid;
+      place-items: center;
+      flex: none;
+      inline-size: 28px;
+      block-size: 28px;
+      border-radius: 50%;
+      background: var(--ib-bg);
+      color: var(--ib-fg);
+      font-weight: 700;
+      font-size: 0.8125rem;
+    }
+    .steps small {
+      display: block;
+      color: var(--text-muted);
+    }
+    .last {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
   `,
 })
 export class OwnerOffline {
   protected readonly i18n = inject(I18n);
+  private readonly api = inject(OwnerApi);
   protected readonly url = screenUrl;
+  private readonly box = signal<{ name: string; last_seen_at: string | null; battery: { pct: number } | null } | null>(null);
+
+  protected readonly headline = computed(() => {
+    const b = this.box();
+    const name = b?.name ?? this.i18n.t({ th: 'ตู้', en: 'The mailbox' });
+    const m = b?.last_seen_at ? Math.max(1, Math.round((Date.now() - new Date(b.last_seen_at).getTime()) / 60000)) : null;
+    return m === null
+      ? this.i18n.t({ th: name + 'ยังไม่เคยติดต่อมา', en: name + ' has not connected yet' })
+      : this.i18n.t({ th: name + 'ไม่ติดต่อมา ' + m + ' นาที', en: name + ' last connected ' + m + ' min ago' });
+  });
+
+  protected readonly lastText = computed(() => {
+    const b = this.box();
+    if (!b?.last_seen_at) return '—';
+    const batt = b.battery ? ' · ' + this.i18n.t({ th: 'แบต ', en: 'battery ' }) + b.battery.pct + '%' : '';
+    return new Date(b.last_seen_at).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' }) + batt;
+  });
+
+  constructor() {
+    void this.api
+      .boxes()
+      .then((list) => (list[0] ? this.api.box(list[0].id) : null))
+      .then((b) => this.box.set(b))
+      .catch(() => undefined);
+  }
 }
 
 // ── H12-e · เลือกช่วงวันที่ — ใช้ปุ่มช่วงเวลาในหน้า H12 แทน ──────────

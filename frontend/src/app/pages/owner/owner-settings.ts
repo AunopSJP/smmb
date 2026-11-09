@@ -58,6 +58,9 @@ import { firstValueFrom } from 'rxjs';
         </div>
       }
 
+      @if (boxes().length) {
+        <a class="btn secondary" [routerLink]="url('A07')" [queryParams]="{ from: 'H13' }">{{ i18n.t({ th: '+ ผูกตู้เพิ่ม', en: '+ Link another mailbox' }) }}</a>
+      }
       <!-- 2) ตู้ของฉัน -->
       @if (box(); as b) {
         <h2 class="group">{{ i18n.t({ th: 'ตู้ของฉัน', en: 'My mailbox' }) }}</h2>
@@ -739,7 +742,8 @@ export class OwnerWifi {
         </dl>
       </section>
       } @else {
-        <p class="muted">{{ i18n.t({ th: 'เลือกเรื่องที่ต้องการให้ช่างช่วย ระบบจะส่งคำขอให้ทีมงานและแจ้งสถานะกลับในหน้านี้', en: 'Choose what you need help with. The team will receive the request and update its status here.' }) }}</p>
+        <p class="muted">{{ i18n.t({ th: 'ช่างจะนัดวันเวลามาตั้งค่าหรือซ่อมตู้ให้ ไม่มีค่าใช้จ่ายในช่วงทดลอง', en: 'A technician will book a time to set up or repair the box — free during the trial.' }) }}</p>
+        <h2 class="section-title">{{ i18n.t({ th: 'ต้องการให้ช่างทำอะไร', en: 'What do you need?' }) }}</h2>
         <section class="card stack">
           @for (option of reasons; track option.value) {
             <label class="choice"><input type="radio" name="reason" [value]="option.value" [checked]="reason() === option.value" (change)="reason.set(option.value)" />{{ i18n.t(option.label) }}</label>
@@ -751,7 +755,7 @@ export class OwnerWifi {
         </section>
         @if (error()) { <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดหรือส่งคำขอไม่สำเร็จ อาจมีคำขอที่ยังเปิดอยู่แล้ว โหลดหน้าใหม่', en: 'Could not load or send the request. An open request may already exist; reload the page.' }) }}</p> }
         <button type="button" class="btn end" [disabled]="sending() || !boxId()" (click)="submit()">
-          {{ sending() ? i18n.t({ th: 'กำลังส่ง…', en: 'Sending…' }) : i18n.t({ th: 'ส่งคำขอช่าง', en: 'Send request' }) }}
+          {{ sending() ? i18n.t({ th: 'กำลังส่ง…', en: 'Sending…' }) : i18n.t({ th: 'ส่งคำขอ', en: 'Send request' }) }}
         </button>
       }
       }
@@ -802,9 +806,9 @@ export class OwnerTechnician {
   protected readonly error = signal(false);
   protected readonly activeRequest = computed(() => this.requests().find((request) => request.status !== 'done') ?? null);
   protected readonly reasons = [
-    { value: 'wifi_change' as const, label: { th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' } },
-    { value: 'repair' as const, label: { th: 'ตู้ชำรุด / ไม่ออนไลน์', en: 'Repair / mailbox offline' } },
-    { value: 'other' as const, label: { th: 'เรื่องอื่น', en: 'Other' } },
+    { value: 'repair' as const, label: { th: 'ตู้ไม่ออนไลน์ / ต่อ Wi-Fi ไม่ได้', en: 'Mailbox offline / cannot connect to Wi-Fi' } },
+    { value: 'wifi_change' as const, label: { th: 'ย้ายตู้ / เปลี่ยน Wi-Fi บ้าน', en: 'Move the box / change home Wi-Fi' } },
+    { value: 'other' as const, label: { th: 'QR หน้าตู้เสีย กล้องหรือเสียงปี๊บผิดปกติ หรือเรื่องอื่น', en: 'Damaged QR, camera or beeper problem, or something else' } },
   ];
 
   /** โหลดรายการตู้เสร็จแล้ว — ยังไม่มีตู้ = แจ้งช่างไม่ได้ ให้ผูกตู้ก่อน */

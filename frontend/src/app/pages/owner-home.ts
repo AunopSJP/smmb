@@ -191,6 +191,7 @@ const REFRESH_MS = 10_000;
 
         <div class="title-row easy-hide">
           <h2 class="section-title">{{ i18n.t({ th: 'เหตุการณ์ล่าสุด', en: 'Recent activity' }) }}</h2>
+          <a class="see-all" [routerLink]="url('H12')">{{ i18n.t({ th: 'ดูทั้งหมด', en: 'See all' }) }}</a>
         </div>
         @if (!b.latest_events.length) {
           <section class="empty easy-hide">

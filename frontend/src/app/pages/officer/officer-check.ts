@@ -441,7 +441,7 @@ export class OfficerQrCondition implements OnInit {
         </p>
         <p class="info-box">
           <strong class="ok-text"><app-icon name="check" [size]="14" /> {{ i18n.t({ th: 'แจ้งผู้ดูแลระบบแล้วอัตโนมัติ', en: 'Admin alerted automatically' }) }}</strong><br />
-          <span class="muted">{{ i18n.t({ th: 'ถ้าเป็น QR หน้าตู้ ลองพิมพ์รหัสใต้ QR แทน', en: 'If this is the mailbox QR, try typing the code under it' }) }}</span>
+          <span class="muted">{{ i18n.t({ th: 'ควรทำ: ถ่ายภาพตู้ไว้เป็นหลักฐาน แล้วแจ้งหัวหน้า ระบบบันทึกและแจ้งผู้ดูแลให้แล้ว · ถ้าเป็น QR หน้าตู้ ลองพิมพ์รหัสใต้ QR แทน', en: 'What to do: photograph the box as evidence and tell your head. The system has logged it and alerted the admin · if this is the mailbox QR, try typing the code under it' }) }}</span>
         </p>
       </div>
       <div class="stack push-end">
