@@ -61,13 +61,13 @@ export const TABS: Partial<Record<Area, TabDef[]>> = {
   officer: [
     { code: 'O01', icon: 'home', label: { th: 'หน้าสรุป', en: 'Summary' } },
     { code: 'O12', icon: 'alert', label: { th: 'SOS', en: 'SOS' } },
-    { code: 'O13', icon: 'user', label: { th: 'บัญชี', en: 'Account' } },
+    { code: 'O13', icon: 'settings', label: { th: 'ตั้งค่า', en: 'Settings' } },
   ],
   head: [
-    { code: 'L04', icon: 'home', label: { th: 'หน้าหลัก', en: 'Home' } },
-    { code: 'L05', icon: 'user', label: { th: 'สมาชิก', en: 'Members' } },
+    { code: 'L04', icon: 'home', label: { th: 'ภาพรวม', en: 'Overview' } },
     { code: 'L06', icon: 'pin', label: { th: 'โซน', en: 'Zones' } },
-    { code: 'L08', icon: 'list', label: { th: 'ประวัติ', en: 'History' } },
+    { code: 'L05', icon: 'user', label: { th: 'สมาชิก', en: 'Members' } },
+    { code: 'L11', icon: 'settings', label: { th: 'ตั้งค่า', en: 'Settings' } },
   ],
   admin: [
     { code: 'D01', icon: 'home', label: { th: 'ภาพรวม', en: 'Overview' } },
@@ -160,6 +160,7 @@ export const SCREENS: ScreenDef[] = [
   s('L07-c', 'head', 'zones/officers', 'เพิ่มเจ้าหน้าที่', 'Add officers', { noTabs: true }),
   s('L08', 'head', 'history', 'Log การตรวจ', 'Inspection log'),
   s('L10', 'head', 'profile', 'ข้อมูลหน่วยงาน', 'Agency details', { noTabs: true }),
+  s('L11', 'head', 'settings', 'ตั้งค่า', 'Settings', { next: ['L10', 'L08', 'L09', 'O13-b', 'O13'] }),
   s('L09', 'head', 'notifications', 'แจ้งเตือน', 'Notifications', { noTabs: true }),
   s('L02', 'head', 'setup/pending', 'รอแอดมินอนุมัติ', 'Waiting for admin', { states: ['L02-b'], noTabs: true, next: ['L03'], waitingDecision: true }),
   s('L03', 'head', 'setup/approved', 'อนุมัติแล้ว · แชร์รหัสกลุ่ม', 'Approved · share the group code', { next: ['L04'] }),

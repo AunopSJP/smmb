@@ -36,8 +36,8 @@ import { Icon } from './icon';
     header {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 8px 0 12px;
+      gap: 10px;
+      padding: 10px 0 8px;
     }
     .text {
       flex: 1;
@@ -49,7 +49,8 @@ import { Icon } from './icon';
     }
     h1 {
       font-size: 1.375rem;
-      line-height: 1.3;
+      font-weight: 700;
+      line-height: 1.25;
     }
     .bell {
       position: relative;
@@ -102,8 +103,8 @@ import { Icon } from './icon';
       display: grid;
       place-items: center;
       flex: none;
-      inline-size: 48px;
-      block-size: 48px;
+      inline-size: 44px;
+      block-size: 44px;
       border-radius: 50%;
       background: var(--surface);
       box-shadow: var(--shadow);

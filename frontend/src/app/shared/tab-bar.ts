@@ -45,11 +45,11 @@ import { Icon } from './icon';
       align-items: center;
       gap: 2px;
       min-inline-size: 0;
-      padding: 10px 4px 12px;
-      font-size: 0.8125rem;
+      padding: 8px 4px 10px;
+      font-size: 0.75rem;
       text-decoration: none;
       color: var(--text-muted);
-      min-block-size: 64px;
+      min-block-size: 60px;
       text-align: center;
       overflow-wrap: anywhere;
     }

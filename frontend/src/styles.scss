@@ -161,8 +161,8 @@ body {
 // ── ชิ้นส่วนร่วม (ตาม wireframe) ─────────────────────────────
 
 :root {
-  --radius: 16px;
-  --radius-sm: 12px;
+  --radius: 18px;
+  --radius-sm: 14px;
   --gap: 12px;
   --warn: #7a4700;
   --warn-bg: #fff1d6;
@@ -171,6 +171,15 @@ body {
   --ok-bg: #ddf3e8;
   --danger-bg: #f0d5d6;
   --line: rgb(0 0 0 / 7%);
+  /* วงไอคอน/ชิปตามแคนวาสดีไซน์ (พื้นเทา ไม่ใช้ชมพู) */
+  --ib-bg: #efefef;
+  --ib-fg: #7e2328;
+  --ib-warn-bg: #fff1d6;
+  --ib-warn-fg: #8a5200;
+  --ib-danger-bg: #f0f0f0;
+  --ib-danger-fg: #8e1b1b;
+  --ib-ok-bg: #ddf3e8;
+  --ib-ok-fg: #1e7a4c;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
@@ -181,6 +190,14 @@ body {
     --ok-bg: #173523;
     --danger-bg: #35191b;
     --line: rgb(255 255 255 / 8%);
+    --ib-bg: #2a2b2f;
+    --ib-fg: #e8a0a5;
+    --ib-warn-bg: #3a2e12;
+    --ib-warn-fg: #f3c25b;
+    --ib-danger-bg: #2a2b2f;
+    --ib-danger-fg: #f0868b;
+    --ib-ok-bg: #173523;
+    --ib-ok-fg: #4cc777;
   }
 }
 :root[data-theme='dark'] {
@@ -191,6 +208,14 @@ body {
   --ok-bg: #173523;
   --danger-bg: #35191b;
   --line: rgb(255 255 255 / 8%);
+  --ib-bg: #2a2b2f;
+  --ib-fg: #e8a0a5;
+  --ib-warn-bg: #3a2e12;
+  --ib-warn-fg: #f3c25b;
+  --ib-danger-bg: #2a2b2f;
+  --ib-danger-fg: #f0868b;
+  --ib-ok-bg: #173523;
+  --ib-ok-fg: #4cc777;
 }
 
 h1,
@@ -276,7 +301,7 @@ button.row:active {
   min-block-size: 52px;
   padding: 12px 16px;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: 16px;
   font: inherit;
   font-weight: 700;
   font-size: 1rem;
@@ -290,8 +315,8 @@ button.row:active {
   }
   &.secondary {
     background: var(--surface);
-    color: var(--text);
-    box-shadow: inset 0 0 0 1.5px var(--text);
+    color: var(--brand);
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text-muted) 40%, transparent);
   }
   &.big {
     min-block-size: 68px;
@@ -304,25 +329,25 @@ button.row:active {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 10px;
+  padding: 3px 10px;
   border-radius: 999px;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 700;
   white-space: nowrap;
-  background: var(--icon-bg);
-  color: var(--text-muted);
+  background: var(--ib-bg);
+  color: var(--ib-fg);
 
   &.ok {
-    background: var(--ok-bg);
-    color: var(--ok);
+    background: var(--ib-ok-bg);
+    color: var(--ib-ok-fg);
   }
   &.warn {
-    background: var(--warn-bg);
-    color: var(--warn);
+    background: var(--ib-warn-bg);
+    color: var(--ib-warn-fg);
   }
   &.danger {
-    background: var(--danger-bg);
-    color: var(--sos);
+    background: var(--ib-danger-bg);
+    color: var(--ib-danger-fg);
   }
 }
 
@@ -332,21 +357,21 @@ button.row:active {
   flex: none;
   inline-size: 40px;
   block-size: 40px;
-  border-radius: 50%;
-  background: var(--icon-bg);
-  color: var(--text-muted);
+  border-radius: 12px;
+  background: var(--ib-bg);
+  color: var(--ib-fg);
 
   &.warn {
-    background: var(--warn-bg);
-    color: var(--warn);
+    background: var(--ib-warn-bg);
+    color: var(--ib-warn-fg);
   }
   &.danger {
-    background: var(--danger-bg);
-    color: var(--sos);
+    background: var(--ib-danger-bg);
+    color: var(--ib-danger-fg);
   }
   &.ok {
-    background: var(--ok-bg);
-    color: var(--ok);
+    background: var(--ib-ok-bg);
+    color: var(--ib-ok-fg);
   }
 }
 
@@ -429,34 +454,54 @@ app-area-shell main > :not(router-outlet) {
 /* ปุ่มเลือกแบบกลุ่ม (ธีม / ภาษา / ช่วงวันที่) */
 .segmented {
   display: flex;
-  gap: 8px;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--ib-bg);
 
   button {
     flex: 1;
-    min-block-size: 44px;
-    padding: 8px 10px;
-    border-radius: var(--radius-sm);
-    border: 1.5px solid var(--line);
-    background: var(--surface);
-    color: var(--text);
+    min-block-size: 38px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
     font: inherit;
-    font-weight: 700;
+    font-size: 0.875rem;
     cursor: pointer;
   }
   button[aria-pressed='true'] {
-    border-color: var(--brand);
-    background: var(--brand-light);
+    background: var(--surface);
     color: var(--brand);
+    font-weight: 700;
+    box-shadow: 0 1px 2px rgb(20 38 46 / 15%);
+  }
+  /* ตัวกรองแบบแคปซูล */
+  &.chips {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0;
+    background: transparent;
+    border-radius: 0;
   }
   &.chips button {
     flex: none;
-    min-block-size: 36px;
-    padding: 4px 14px;
+    min-block-size: 34px;
+    padding: 0 14px;
     border-radius: 999px;
-    font-size: 0.875rem;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+    font-weight: 400;
   }
-  &.chips {
-    flex-wrap: wrap;
+  &.chips button[aria-pressed='true'] {
+    background: var(--ib-bg);
+    border-color: var(--brand);
+    color: var(--ib-fg);
+    font-weight: 700;
+    box-shadow: none;
   }
 }
 
