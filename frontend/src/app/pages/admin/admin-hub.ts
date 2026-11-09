@@ -13,6 +13,8 @@ interface HubItem {
   hint: Tr;
   /** ตัวเลขที่ต้องดู (จากภาพรวม) — ไม่มี = ไม่โชว์ */
   count?: (o: AdminOverview) => number;
+  /** query string ของหน้าปลายทาง */
+  query?: Record<string, string>;
 }
 
 /** D16 ระบบและตั้งค่า — ศูนย์รวมเมนูผู้ดูแล (ตามแคนวาสดีไซน์ UX/UI 2026-11-06): เฝ้าระวัง + ตั้งค่า · ใช้หน้าเดิมทั้งหมด */
@@ -22,9 +24,11 @@ const WATCH: HubItem[] = [
   { code: 'D13', icon: 'layers', title: { th: 'หน่วยงาน', en: 'Agencies' }, hint: { th: 'อนุมัติและสร้างหน่วยงาน', en: 'Approve and create agencies' }, count: (o) => o.agencies_pending },
 ];
 const SETTINGS: HubItem[] = [
+  { code: 'D17', icon: 'layers', title: { th: 'เฟิร์มแวร์', en: 'Firmware' }, hint: { th: 'รุ่นของตู้ และอัปเดตอัตโนมัติ', en: 'Box versions and auto update' } },
   { code: 'D10', icon: 'settings', title: { th: 'ตั้งค่าตู้', en: 'Mailbox config' }, hint: { th: 'เวลารายงาน การสแกน ค่ากลาง', en: 'Reporting, scanning, defaults' } },
   { code: 'D14', icon: 'target', title: { th: 'แพ็กเกจ', en: 'Plans' }, hint: { th: 'ช่วงทดลองมีแค่แพ็กเกจฟรี', en: 'Trial has only the free plan' } },
   { code: 'D11', icon: 'list', title: { th: 'บันทึกทั้งหมด', en: 'All logs' }, hint: { th: 'ประวัติการสแกน/ส่งของ/SOS', en: 'Scans, deliveries, SOS' } },
+  { code: 'D11', icon: 'shield', title: { th: 'บันทึกการเข้าถึงข้อมูล', en: 'Data access log' }, hint: { th: 'ใครเปิดดูเบอร์/รหัสลับ แก้ลบไม่ได้', en: 'Who opened phones/secrets, cannot be edited' }, query: { type: 'data_access' } },
   { code: 'D12', icon: 'bell', title: { th: 'แจ้งเตือน', en: 'Notifications' }, hint: { th: 'แจ้งเตือนของผู้ดูแล', en: 'Admin notifications' } },
 ];
 
@@ -55,8 +59,8 @@ const SETTINGS: HubItem[] = [
       </nav>
       <h2 class="section-title">{{ i18n.t({ th: 'ตั้งค่า', en: 'Settings' }) }}</h2>
       <nav class="list">
-        @for (it of settings; track it.code) {
-          <a class="row" [routerLink]="url(it.code)">
+        @for (it of settings; track it.title.th) {
+          <a class="row" [routerLink]="url(it.code)" [queryParams]="it.query ?? null">
             <span class="icon-bubble"><app-icon [name]="it.icon" [size]="20" /></span>
             <span class="grow">
               <strong>{{ i18n.t(it.title) }}</strong>

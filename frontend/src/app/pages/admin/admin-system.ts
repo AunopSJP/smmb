@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal, type OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, type OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AdminApi, type AdminLog, type AdminLogType, type BoxConfig } from '../../core/admin-api';
 import { I18n, type Tr } from '../../core/i18n';
@@ -314,7 +314,14 @@ export class AdminLogs {
     return this.allRows().filter((l) => !p.size || p.has(l.type));
   });
 
+  /** ?type=data_access ฯลฯ — เลือกประเภทไว้ให้ตั้งแต่เปิดหน้า (ใช้จากหน้า "ระบบ") */
+  readonly type = input<string>();
+
   constructor() {
+    effect(() => {
+      const t = this.type();
+      if (t && t in LOG_TYPE) this.picked.set(new Set([t as AdminLogType]));
+    });
     void this.load();
   }
 

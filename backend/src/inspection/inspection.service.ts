@@ -76,6 +76,18 @@ export type ProblemReason = (typeof PROBLEM_REASONS)[number];
 /** token ใน QR หน้าตู้ `BX00042-1-K7M2QX` */
 const FRONT_TOKEN = /^BX(\d{5,10})-([12])-([A-Z2-9]{6})$/;
 
+/** แถวประวัติการสแกนของตัวเอง */
+export interface MyLogDto {
+  id: string;
+  at: string;
+  box_id: string | null;
+  house_no: string | null;
+  qr_kind: 'front' | 'activate' | 'badge';
+  method: 'scan' | 'code';
+  result: string;
+}
+const MY_LOG_PAGE = 30;
+
 /**
  * ตรวจตู้ (api.md §6 · design §6) — ตัดสินที่ server เท่านั้น (CLAUDE.md กฎข้อ 4)
  * ลำดับเช็กตอนสแกน QR หน้าตู้: QR ของระบบ → ยังใช้ได้ → ในโซน → ในเวลาตรวจ → ตู้เปิดบริการ → ตู้ออนไลน์
@@ -198,6 +210,37 @@ export class InspectionService implements OnModuleInit {
   }
 
   // ── ระหว่างตรวจ ───────────────────────────────────────────────────────
+
+  /**
+   * ประวัติการสแกนของตัวเอง (api.md §6.7 · `OffHistory`) — เห็นเฉพาะของตัวเอง: สแกน/พิมพ์รหัสของตัวเอง + ผลที่ตู้อ่าน QR ประจำตัวของการตรวจของตัวเอง
+   * บันทึกทุกครั้งแม้ไม่ผ่าน (กฎข้อ 6) · ไม่มีข้อมูลเจ้าของบ้าน (กฎข้อ 7)
+   */
+  async myLogs(userId: string, page: number): Promise<{ data: MyLogDto[]; page: number; per_page: number }> {
+    const limit = MY_LOG_PAGE;
+    const { rows } = await this.pool.query<{ scan_log_id: string; created_date: Date; box_id: string | null; house_no: string | null; qr_kind: MyLogDto['qr_kind']; method: MyLogDto['method']; result: string }>(
+      `SELECT l.scan_log_id, l.created_date, l.box_id, b.house_no, l.qr_kind, l.method, l.result
+       FROM app.scan_log_tb l
+       LEFT JOIN app.inspection_tb i ON i.inspection_id = l.inspection_id
+       LEFT JOIN app.box_tb b ON b.box_id = l.box_id
+       WHERE (l.actor_kind = 'officer' AND l.user_id = $1) OR (l.actor_kind = 'box' AND i.officer_user_id = $1)
+       ORDER BY l.created_date DESC, l.scan_log_id DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, limit, (Math.max(1, page) - 1) * limit],
+    );
+    return {
+      data: rows.map((r) => ({
+        id: String(r.scan_log_id),
+        at: r.created_date.toISOString(),
+        box_id: r.box_id,
+        house_no: r.house_no,
+        qr_kind: r.qr_kind,
+        method: r.method,
+        result: r.result,
+      })),
+      page,
+      per_page: limit,
+    };
+  }
 
   async get(userId: string, id: string, db: Db = this.pool): Promise<InspectionDto> {
     const { rows } = await db.query<{

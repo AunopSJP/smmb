@@ -414,6 +414,7 @@ interface PlanInfo {
 | method | path | สิทธิ์ | ตอบ |
 |---|---|---|---|
 | GET | `/officer/summary` | `officer` | `OfficerSummary` (`O01*`) |
+| GET | `/officer/logs` | `officer` | `?page` (หน้าละ 30) → ✅ 2026-11-09 `{ data: [{ id, at, box_id, house_no, qr_kind: "front"\|"activate"\|"badge", method: "scan"\|"code", result }], page, per_page }` ใหม่สุดก่อน (หน้า "ประวัติ" ของเจ้าหน้าที่/หัวหน้า) — **เฉพาะของตัวเอง**: การสแกน/พิมพ์รหัสของตัวเอง + ผลที่ตู้อ่าน QR ประจำตัวของการตรวจของตัวเอง (รวมที่ไม่ผ่าน · กฎข้อ 6) · ไม่มีชื่อเจ้าของบ้าน/เบอร์ (กฎข้อ 7) |
 | GET | `/officer/houses` | `officer` | `?zone_id&status=unchecked\|checked` → บ้านในโซนของฉัน (เรียงตามลำดับเดิน 💡) · ❌ **ไม่ใช้** (2026-10-30): หน้า O01 ใช้ตัวเลข `houses_total` / `houses_checked` + บ้านถัดไปจาก `GET /officer/summary` · ไม่มีหน้ารายชื่อบ้านให้เดิน |
 
 ```ts

@@ -42,6 +42,11 @@ export class InspectionApi {
     return firstValueFrom(this.http.get<OfficerSummary>('/api/v1/officer/summary'));
   }
 
+  /** ประวัติการสแกนของตัวเอง (api.md §6.1 `GET /officer/logs`) */
+  logs(page = 1): Promise<{ data: MyLog[]; page: number; per_page: number }> {
+    return firstValueFrom(this.http.get<{ data: MyLog[]; page: number; per_page: number }>(`/api/v1/officer/logs?page=${page}`));
+  }
+
   start(body: { qr_text: string; scan_ms: number } | { code: string }): Promise<Inspection> {
     return firstValueFrom(this.http.post<Inspection>('/api/v1/inspections', body));
   }
@@ -64,5 +69,15 @@ export class InspectionApi {
 }
 
 /** เวลาไทย HH:mm */
+export interface MyLog {
+  id: string;
+  at: string;
+  box_id: string | null;
+  house_no: string | null;
+  qr_kind: 'front' | 'activate' | 'badge';
+  method: 'scan' | 'code';
+  result: string;
+}
+
 export const hhmm = (iso: string | null | undefined): string =>
   iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' }) : '';

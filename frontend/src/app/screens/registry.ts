@@ -60,6 +60,7 @@ export const TABS: Partial<Record<Area, TabDef[]>> = {
   ],
   officer: [
     { code: 'O01', icon: 'home', label: { th: 'หน้าสรุป', en: 'Summary' } },
+    { code: 'O15', icon: 'list', label: { th: 'ประวัติ', en: 'History' } },
     { code: 'O12', icon: 'alert', label: { th: 'SOS', en: 'SOS' } },
     { code: 'O13', icon: 'settings', label: { th: 'ตั้งค่า', en: 'Settings' } },
   ],
@@ -146,7 +147,8 @@ export const SCREENS: ScreenDef[] = [
   s('O09', 'officer', 'sos/case', 'SOS · รับเรื่อง', 'SOS · accept', { fullscreen: true, states: ['O09-b', 'O09-c'], next: ['O10'] }),
   s('O10', 'officer', 'sos/handling', 'กำลังดูแล SOS', 'Handling SOS', { fullscreen: true, next: ['O11'] }),
   s('O11', 'officer', 'sos/close', 'ปิดเรื่อง + หมายเหตุ', 'Close with a note', { fullscreen: true, next: ['O12'] }),
-  s('O13', 'officer', 'account', 'บัญชี', 'Account', { next: ['O13-b'] }),
+  s('O13', 'officer', 'account', 'ตั้งค่า', 'Settings', { next: ['O13-b'] }),
+  s('O15', 'officer', 'history', 'ประวัติการสแกน', 'My scan history'),
   s('O13-b', 'officer', 'account/display', 'การแสดงผล', 'Display'),
   s('O14', 'officer', 'notifications', 'แจ้งเตือน', 'Notifications', { noTabs: true }),
 
@@ -176,7 +178,8 @@ export const SCREENS: ScreenDef[] = [
   s('D07-b', 'admin', 'qr/reissued', 'ใช้ใบสำรองแล้ว · ออกใหม่ 2 ใบ', 'Backup used · reissue 2', { noTabs: true, next: ['D08'] }),
   s('D08', 'admin', 'qr/fixed', 'แก้แล้ว', 'Fixed', { noTabs: true, next: ['D05'] }),
   s('D09', 'admin', 'users', 'ผู้ใช้', 'Users'),
-  s('D16', 'admin', 'system', 'ระบบ', 'System', { next: ['D05', 'D15', 'D13', 'D10', 'D14', 'D11', 'D12'] }),
+  s('D16', 'admin', 'system', 'ระบบ', 'System', { next: ['D05', 'D15', 'D13', 'D17', 'D10', 'D14', 'D11', 'D12'] }),
+  s('D17', 'admin', 'firmware', 'เฟิร์มแวร์', 'Firmware', { noTabs: true }),
   s('D10', 'admin', 'config', 'ค่าตั้งค่าตู้', 'Mailbox config', { noTabs: true }),
   s('D11', 'admin', 'history', 'Log ทั้งหมด', 'All logs'),
   s('D02', 'admin', 'agencies/pending', 'คำขอหน่วยงาน', 'Agency requests', { noTabs: true }),

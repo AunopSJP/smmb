@@ -1,5 +1,5 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Ip, Param, Post } from '@nestjs/common';
-import { Transform } from 'class-transformer';
+import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Ip, Param, Post, Query } from '@nestjs/common';
+import { Transform, Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
@@ -17,6 +17,10 @@ class StartDto {
   @IsOptional() @IsString() @MaxLength(300) qr_text?: string;
   @IsOptional() @IsString() @MaxLength(20) code?: string;
   @IsOptional() @IsInt() @Min(0) @Max(600_000) scan_ms?: number;
+}
+
+class MyLogsQuery {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page: number = 1;
 }
 
 class QrConditionDto {
@@ -75,5 +79,11 @@ export class OfficerController {
   @Get('summary')
   summary(@Auth() auth: AuthContext) {
     return this.inspections.summary(auth.userId);
+  }
+
+  /** ประวัติการสแกนของตัวเอง (หน้า "ประวัติ" ของเจ้าหน้าที่) */
+  @Get('logs')
+  logs(@Auth() auth: AuthContext, @Query() q: MyLogsQuery) {
+    return this.inspections.myLogs(auth.userId, q.page);
   }
 }
