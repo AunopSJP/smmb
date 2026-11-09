@@ -93,7 +93,7 @@ import { Icon, type IconName } from '../shared/icon';
     main {
       max-inline-size: 480px;
       margin: 0 auto;
-      padding: 24px 16px 40px;
+      padding: calc(24px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
       display: flex;
       flex-direction: column;
       gap: 12px;

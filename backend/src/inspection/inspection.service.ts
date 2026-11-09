@@ -7,7 +7,7 @@ import { PG_POOL } from '../db/db.module.js';
 import { withTx, type Db } from '../db/tx.js';
 import { NotificationService } from '../push/notification.service.js';
 import { CodeAttempts } from '../rate-limit/code-attempts.js';
-import { BOX_TZ, localMinutes, mergeWindows, minutesIntoWindow } from '../box/box-config.js';
+import { BOX_TZ, boxStatus, localMinutes, mergeWindows, minutesIntoWindow } from '../box/box-config.js';
 import { BoxConfigService } from '../box/box-config.service.js';
 import { badgeToken, readBadge } from '../box/box-crypto.js';
 import { BoxJobService, type AttemptBody, type Verdict } from '../box/box-job.service.js';
@@ -50,6 +50,23 @@ export interface OfficerSummaryDto {
   houses: { box_id: string; house_no: string; box_name: string; checked_at: string | null }[];
   /** SOS ที่ยังไม่มีคนรับ + ที่ฉันรับอยู่ (O01-b / O01-c) */
   open_sos: SosCardDto[];
+}
+
+/** API.md §6.8 — รายละเอียดตู้สำหรับเจ้าหน้าที่ (เฉพาะตู้ในโซนของตัวเอง) */
+export interface OfficerBoxDetailDto {
+  box: {
+    id: string;
+    house_no: string;
+    name: string;
+    area: string | null;
+    status: ReturnType<typeof boxStatus>;
+    service_active: boolean;
+    battery: { pct: number; charging: boolean | null; reported_at: string | null } | null;
+    last_seen_at: string | null;
+    last_poll_at: string | null;
+  };
+  zones: { id: string; name: string }[];
+  recent: { id: string; checked_at: string; officer_name: string; agency_name: string }[];
 }
 
 interface QrRow {
@@ -375,6 +392,54 @@ export class InspectionService implements OnModuleInit {
       next_house: next ? { box_id: next.box_id, house_no: next.house_no, box_name: next.box_name } : null,
       houses,
       open_sos: await this.sos.activeFor(userId),
+    };
+  }
+
+  /** รายละเอียดตู้ (OffBoxDetail) — เห็นเฉพาะตู้ที่อยู่ในโซนของฉัน · ไม่ส่งข้อมูลเจ้าของบ้าน */
+  async boxDetail(userId: string, boxId: string): Promise<OfficerBoxDetailDto> {
+    const zones = await this.myZones(userId, boxId);
+    if (!zones.length) throw new NotFoundException();
+    const { rows } = await this.pool.query<{
+      box_id: string; house_no: string | null; name: string | null; area: string | null; owner_user_id: string | null;
+      service_active: boolean; battery_pct: number | null; charging: boolean | null; battery_date: Date | null;
+      last_seen_date: Date | null; last_poll_date: Date | null;
+    }>(
+      `SELECT b.box_id, b.house_no, b.name, b.area, b.owner_user_id, b.service_active, b.battery_pct, b.charging, b.battery_date,
+              b.last_seen_date, b.last_poll_date
+       FROM app.box_tb b WHERE b.box_id = $1`,
+      [boxId],
+    );
+    const b = rows[0];
+    if (!b) throw new NotFoundException();
+    const { config } = await this.boxConfigs.forBox(boxId);
+    const status = boxStatus(
+      { owner_user_id: b.owner_user_id, service_active: b.service_active, last_seen_date: b.last_seen_date, last_poll_date: b.last_poll_date },
+      config.windows,
+      config.longpoll_wait_s,
+    );
+    const { rows: recent } = await this.pool.query<{ inspection_id: string; checked_date: Date; display_name: string; agency_name: string }>(
+      `SELECT i.inspection_id, i.checked_date, u.display_name, a.name AS agency_name
+       FROM app.inspection_tb i
+       JOIN app.user_tb u ON u.user_id = i.officer_user_id
+       JOIN app.agency_tb a ON a.agency_id = i.agency_id
+       WHERE i.box_id = $1 AND i.status = 'passed' AND i.checked_date IS NOT NULL
+       ORDER BY i.checked_date DESC LIMIT 3`,
+      [boxId],
+    );
+    return {
+      box: {
+        id: b.box_id,
+        house_no: b.house_no ?? '',
+        name: b.name ?? '',
+        area: b.area,
+        status,
+        service_active: b.service_active,
+        battery: b.battery_pct === null ? null : { pct: b.battery_pct, charging: b.charging, reported_at: b.battery_date?.toISOString() ?? null },
+        last_seen_at: b.last_seen_date?.toISOString() ?? null,
+        last_poll_at: b.last_poll_date?.toISOString() ?? null,
+      },
+      zones: zones.map((z) => ({ id: z.zone_id, name: z.zone_name })),
+      recent: recent.map((r) => ({ id: r.inspection_id, checked_at: r.checked_date.toISOString(), officer_name: r.display_name, agency_name: r.agency_name })),
     };
   }
 

@@ -630,7 +630,7 @@ interface Segment {
     }
     .contact {
       font-size: 1rem;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
     .row-actions {
       display: flex;
@@ -653,7 +653,7 @@ interface Segment {
     }
     .easy-hero strong {
       font-size: 1.5rem;
-      line-height: 1.3;
+      line-height: 1.4;
     }
     .easy-hero span {
       font-size: 1rem;

@@ -391,7 +391,7 @@ interface RecentLog {
       background: var(--brand);
     }
     .zone-meta {
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
     .feed {
       list-style: none;
@@ -402,7 +402,7 @@ interface RecentLog {
       box-shadow: var(--shadow);
       font-size: 0.75rem;
       line-height: 1.75;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
     .grow {
       flex: 1;

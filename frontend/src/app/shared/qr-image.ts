@@ -25,6 +25,7 @@ import QRCode from 'qrcode';
       display: block;
       width: 100%;
       height: 100%;
+      object-fit: contain;
       image-rendering: pixelated;
     }
     .blank {

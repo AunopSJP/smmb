@@ -23,7 +23,9 @@ import { I18n } from '../core/i18n';
     img {
       display: block;
       inline-size: 100%;
+      block-size: auto;
       max-inline-size: 320px;
+      object-fit: contain;
       border-radius: var(--radius-sm);
       margin-inline: auto;
     }

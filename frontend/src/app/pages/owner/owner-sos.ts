@@ -164,7 +164,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       flex: 1;
       h1 {
         font-size: 2rem;
-        line-height: 1.3;
+        line-height: 1.35;
         margin: 0;
       }
       p {
@@ -221,7 +221,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       font-size: 0.6875rem;
       text-align: center;
       opacity: 0.85;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
     .steps {
       list-style: none;

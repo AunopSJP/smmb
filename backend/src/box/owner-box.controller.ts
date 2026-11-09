@@ -49,6 +49,10 @@ class TechnicianRequestDto {
   @IsOptional() @Transform(trim) @IsString() @MaxLength(1000) note?: string;
 }
 
+class ConfirmTechnicianDto {
+  @IsIn(['ok', 'still_broken']) result!: 'ok' | 'still_broken';
+}
+
 /** ตู้ของเจ้าของบ้าน (api.md §4.1–4.2) — ตู้ของคนอื่น → 404 */
 @RequireRole('owner')
 @Controller('api/v1/boxes')
@@ -113,6 +117,11 @@ export class OwnerBoxController {
   @Get(':box_id/technician-requests')
   technicianRequestsForOwner(@Auth() auth: AuthContext, @Param() p: BoxIdParam) {
     return this.technicianRequests.ownerList(auth.userId, p.box_id);
+  }
+
+  @Post(':box_id/technician-requests/:id/confirm')
+  confirmTechnician(@Auth() auth: AuthContext, @Param('box_id') boxId: string, @Param('id') id: string, @Body() body: ConfirmTechnicianDto) {
+    return this.technicianRequests.confirm(auth.userId, boxId, id, body.result);
   }
 
   @Post(':box_id/qr-backup-placed')

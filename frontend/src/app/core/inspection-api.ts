@@ -30,6 +30,23 @@ export interface OfficerSummary {
 }
 
 export type QrCondition = 'faded' | 'torn' | 'missing' | 'covered' | 'ok';
+
+/** api.md §6.8 — รายละเอียดตู้สำหรับเจ้าหน้าที่ */
+export interface OfficerBoxDetail {
+  box: {
+    id: string;
+    house_no: string;
+    name: string;
+    area: string | null;
+    status: 'online' | 'offline' | 'sleeping' | 'service_closed' | 'unbound';
+    service_active: boolean;
+    battery: { pct: number; charging: boolean | null; reported_at: string | null } | null;
+    last_seen_at: string | null;
+    last_poll_at: string | null;
+  };
+  zones: { id: string; name: string }[];
+  recent: { id: string; checked_at: string; officer_name: string; agency_name: string }[];
+}
 /** ตู้ไม่มีไฟสถานะ ใช้เสียง Buzzer (2026-10-28): ไม่มีเสียงเลย / มีเสียงแต่ไม่สแกน / สแกนไม่ผ่าน 3 ครั้ง / ตู้เสียหาย */
 export type ProblemReason = 'no_response' | 'no_scan' | 'scan_failed_3' | 'damaged' | 'other';
 
@@ -40,6 +57,10 @@ export class InspectionApi {
 
   summary(): Promise<OfficerSummary> {
     return firstValueFrom(this.http.get<OfficerSummary>('/api/v1/officer/summary'));
+  }
+
+  boxDetail(boxId: string): Promise<OfficerBoxDetail> {
+    return firstValueFrom(this.http.get<OfficerBoxDetail>(`/api/v1/officer/boxes/${encodeURIComponent(boxId)}`));
   }
 
   /** ประวัติการสแกนของตัวเอง (api.md §6.1 `GET /officer/logs`) */

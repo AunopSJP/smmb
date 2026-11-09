@@ -256,7 +256,7 @@ export class OfficerSosList {
       color: #fff;
       h1 {
         font-size: 2rem;
-        line-height: 1.2;
+        line-height: 1.35;
       }
     }
     .toprow {
@@ -282,7 +282,7 @@ export class OfficerSosList {
       font-size: 0.6875rem;
       line-height: 1.6;
       opacity: 0.85;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
   `,
 })
@@ -404,7 +404,7 @@ export class OfficerSosCase implements OnInit {
       margin: 0;
       font-size: 0.6875rem;
       opacity: 0.85;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
     .tech-muted {
       margin: 0;

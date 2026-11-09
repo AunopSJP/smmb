@@ -69,6 +69,8 @@ export interface TechnicianRequest {
   created_at: string;
   scheduled_at: string | null;
   admin_note: string | null;
+  owner_result: 'ok' | 'still_broken' | null;
+  owner_confirmed_at: string | null;
 }
 
 /** api.md §4.4 — คำสั่ง "เปลี่ยน Wi-Fi" ที่สั่งผ่านเว็บ */
@@ -179,6 +181,10 @@ export class OwnerApi {
   }
   requestTechnician(id: string, reason: TechnicianRequest['reason'], note: string): Promise<TechnicianRequest> {
     return firstValueFrom(this.http.post<TechnicianRequest>(`/api/v1/boxes/${encodeURIComponent(id)}/technician-requests`, { reason, ...(note ? { note } : {}) }));
+  }
+
+  confirmTechnician(id: string, requestId: string, result: 'ok' | 'still_broken'): Promise<TechnicianRequest> {
+    return firstValueFrom(this.http.post<TechnicianRequest>(`/api/v1/boxes/${encodeURIComponent(id)}/technician-requests/${encodeURIComponent(requestId)}/confirm`, { result }));
   }
   /** from/to = YYYY-MM-DD ตามเวลาไทย (รวมวันนั้น) — เซิร์ฟเวอร์กรองให้ ไม่ใช่กรองเฉพาะหน้าที่โหลดมา */
   events(id: string, page = 1, range: { from?: string; to?: string } = {}): Promise<{ data: BoxEvent[]; page: number; per_page: number }> {

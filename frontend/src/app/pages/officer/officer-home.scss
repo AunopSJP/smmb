@@ -174,7 +174,7 @@ ul {
   .v {
     font-size: 0.8125rem;
     font-weight: 700;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 }
 .timeline {
@@ -221,12 +221,12 @@ ul {
   color: var(--brand-text);
   font-weight: 700;
   font-size: 0.875rem;
-  line-height: 1.15;
+  line-height: 1.35;
   text-align: center;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .name {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .off-adv .kv {
   margin: 0;

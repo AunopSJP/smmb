@@ -906,6 +906,14 @@ export class OwnerWifi {
               <span class="muted small block">{{ done.scheduled_at ? (done.scheduled_at | date:'d MMM yyyy HH:mm') : (done.created_at | date:'d MMM yyyy HH:mm') }} · {{ reasonLabel(done.reason) }}</span>
               @if (done.admin_note) { <span class="small block">{{ done.admin_note }}</span> }
               <span class="muted small block">{{ i18n.t({ th: 'ถ้ายังมีปัญหา ส่งคำขอใหม่ด้านล่างได้', en: 'If something is still wrong, send a new request below.' }) }}</span>
+              @if (done.owner_result === 'ok') {
+                <span class="chip ok block">{{ i18n.t({ th: 'ยืนยันแล้วว่าใช้งานได้ปกติ', en: 'Confirmed working' }) }}</span>
+              } @else {
+                <div class="two confirm-row">
+                  <button type="button" class="btn" [disabled]="confirming() === done.id" (click)="confirmDone(done.id, 'ok')">{{ i18n.t({ th: 'ใช้งานได้ปกติ', en: 'It works now' }) }}</button>
+                  <button type="button" class="btn secondary" [disabled]="confirming() === done.id" (click)="confirmDone(done.id, 'still_broken')">{{ i18n.t({ th: 'ยังมีปัญหา', en: 'Still a problem' }) }}</button>
+                </div>
+              }
             </div>
           </section>
         }
@@ -1029,6 +1037,10 @@ export class OwnerWifi {
       gap: 12px;
       align-items: flex-start;
     }
+    .confirm-row {
+      margin-block-start: 10px;
+      inline-size: 100%;
+    }
     .done-ic {
       display: grid;
       place-items: center;
@@ -1045,6 +1057,7 @@ export class OwnerTechnician {
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
   private readonly api = inject(OwnerApi);
+  private readonly toast = inject(Toast);
   protected readonly phone = inject(Session).me()?.phone ?? '';
   protected readonly boxes = signal<{ id: string; name: string; house_no: string }[]>([]);
   protected readonly boxId = signal('');
@@ -1056,6 +1069,7 @@ export class OwnerTechnician {
   protected readonly activeRequest = computed(() => this.requests().find((request) => request.status !== 'done') ?? null);
   /** คำขอล่าสุดที่ปิดงานแล้ว — แสดงสรุปเหนือฟอร์มเมื่อไม่มีคำขอเปิดอยู่ */
   protected readonly lastDone = computed(() => this.requests().find((request) => request.status === 'done') ?? null);
+  protected readonly confirming = signal<string | null>(null);
   protected readonly reasons = [
     { value: 'repair' as const, label: { th: 'ตู้ไม่ออนไลน์ / ต่อ Wi-Fi ไม่ได้', en: 'Mailbox offline / cannot connect to Wi-Fi' } },
     { value: 'wifi_change' as const, label: { th: 'ย้ายตู้ / เปลี่ยน Wi-Fi บ้าน', en: 'Move the box / change home Wi-Fi' } },
@@ -1110,6 +1124,26 @@ export class OwnerTechnician {
       this.error.set(true);
     } finally {
       this.sending.set(false);
+    }
+  }
+
+  /** ยืนยันผลงานช่าง: ok = จบงาน · still_broken = เปิดคำขอเดิมใหม่ */
+  protected async confirmDone(id: string, result: 'ok' | 'still_broken'): Promise<void> {
+    const boxId = this.boxId();
+    if (!boxId || this.confirming()) return;
+    this.confirming.set(id);
+    try {
+      await this.api.confirmTechnician(boxId, id, result);
+      await this.loadRequests(boxId);
+      this.toast.show(
+        result === 'ok'
+          ? { th: 'ยืนยันแล้ว ขอบคุณครับ', en: 'Confirmed — thank you' }
+          : { th: 'แจ้งแล้ว ทีมงานจะติดต่อกลับ', en: 'Reported — the team will contact you' },
+      );
+    } catch {
+      this.toast.show({ th: 'ยืนยันไม่สำเร็จ ลองอีกครั้ง', en: 'Could not confirm — try again' });
+    } finally {
+      this.confirming.set(null);
     }
   }
 }

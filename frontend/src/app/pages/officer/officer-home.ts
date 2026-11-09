@@ -184,7 +184,8 @@ const toMinutes = (hhmm: string): number | null => {
         } @else {
           <ul class="list easy-hide">
             @for (h of orderedHouses(); track h.box_id) {
-              <li class="row">
+              <li>
+                <a class="row" [routerLink]="['/officer/box', h.box_id]">
                 <span class="hn" [attr.title]="h.house_no">{{ houseHead(h.house_no) }}</span>
                 <span class="grow">
                   <strong class="block name">{{ h.box_name }}</strong>
@@ -209,6 +210,7 @@ const toMinutes = (hhmm: string): number | null => {
                 } @else {
                   <span class="chip warn">{{ i18n.t({ th: 'ยังไม่ตรวจ', en: 'Not yet' }) }}</span>
                 }
+                </a>
               </li>
             }
           </ul>

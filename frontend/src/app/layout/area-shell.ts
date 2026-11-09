@@ -212,6 +212,9 @@ const MOCK_SCREENS = new Set<string>();
       min-block-size: 100dvh;
       inline-size: 100%;
       min-inline-size: 0;
+      /* Safe Area: รุ่นที่มีรอยบาก/เจาะรู/แถบ home indicator (viewport-fit=cover) */
+      padding-block-start: env(safe-area-inset-top);
+      padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
       background: var(--bg);
     }
     .side {
@@ -407,7 +410,7 @@ const MOCK_SCREENS = new Set<string>();
       display: flex;
       flex-direction: column;
       font-weight: 800;
-      line-height: 1.25;
+      line-height: 1.35;
     }
     .name small {
       font-size: 0.75rem;
@@ -511,7 +514,7 @@ const MOCK_SCREENS = new Set<string>();
       min-inline-size: 0;
       display: flex;
       flex-direction: column;
-      line-height: 1.3;
+      line-height: 1.4;
     }
     .who strong {
       overflow: hidden;
@@ -575,7 +578,7 @@ const MOCK_SCREENS = new Set<string>();
     }
     @media (max-width: 1023px) {
       main {
-        padding: 12px 20px 28px;
+        padding: 12px 20px calc(28px + env(safe-area-inset-bottom));
       }
     }
   `,
@@ -663,7 +666,7 @@ export class AreaShell {
   /** ตัวเลขงานค้างข้างเมนู (ตู้ไม่ออนไลน์ · ปัญหา QR · คำขอ) — รีเฟรชทุกครั้งที่เปลี่ยนหน้า */
   protected readonly badges = signal<Record<string, number>>({});
   protected readonly session = inject(Session);
-  protected readonly initial = computed(() => (this.session.me()?.display_name ?? 'A').trim().charAt(0).toUpperCase());
+  protected readonly initial = computed(() => (this.session.me()?.display_name ?? 'A').trim().charAt(0).toUpperCase() || 'A');
   protected readonly url = screenUrl;
   private readonly router = inject(Router);
   protected signout(): void {

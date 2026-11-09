@@ -6,6 +6,7 @@ import { showDate, type PlanError, type PlanStatus } from '../../core/mock/plan-
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
+import { LoadingRows } from '../../shared/state-view';
 
 // แพ็กเกจ (แอดมิน) — api.md §9.7 · design §17 · ไม่มีการชำระเงิน แอดมินเป็นคนตั้ง
 
@@ -81,7 +82,7 @@ function todayInBangkok(): string {
             <li>
               <strong>{{ planName(h.plan_code) }}</strong> · {{ date(h.starts_at) }} – {{ h.ends_at ? date(h.ends_at) : i18n.t({ th: 'ปัจจุบัน', en: 'now' }) }}
               <span class="muted small block">{{ i18n.t({ th: 'โดย ', en: 'by ' }) }}{{ h.set_by ?? i18n.t({ th: 'ระบบ', en: 'System' }) }}{{ h.note ? ' · ' + h.note : '' }}</span>
-              <span class="muted small block mono adv-only">{{ h.id }} · user {{ h.user_id }} · {{ h.starts_at }} → {{ h.ends_at ?? 'null' }} · set_by {{ h.set_by ?? '—' }}</span>
+              <span class="muted small block mono adv-only">{{ h.id }} · user {{ h.user_id }} · {{ h.starts_at }} → {{ h.ends_at ?? '—' }} · set_by {{ h.set_by ?? '—' }}</span>
             </li>
           }
         </ul>
@@ -228,13 +229,13 @@ export class UserPlan {
 
 @Component({
   selector: 'app-admin-plans',
-  imports: [PageHeader],
+  imports: [PageHeader, LoadingRows],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'แพ็กเกจ', en: 'Plans' })" [back]="url('D16')" />
     <div class="stack">
       @if (loading()) {
-        <p class="muted">{{ i18n.t({ th: 'กำลังโหลดแพ็กเกจ…', en: 'Loading plans…' }) }}</p>
+        <app-loading-rows [rows]="4" [label]="i18n.t({ th: 'กำลังโหลดแพ็กเกจ', en: 'Loading plans' })" />
       } @else if (loadFailed()) {
         <section class="card stack" role="alert">
           <p>{{ i18n.t({ th: 'โหลดแพ็กเกจไม่สำเร็จ', en: 'Could not load plans' }) }}</p>
@@ -347,7 +348,7 @@ export class UserPlan {
     }
     .easy-plan strong {
       font-size: 2rem;
-      line-height: 1.15;
+      line-height: 1.3;
     }
     .easy-plan span {
       font-size: 1rem;

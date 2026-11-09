@@ -172,6 +172,7 @@ export const SCREENS: ScreenDef[] = [
   s('O11', 'officer', 'sos/close', 'ปิดเรื่อง + หมายเหตุ', 'Close with a note', { fullscreen: true, next: ['O12'] }),
   s('O13', 'officer', 'account', 'ตั้งค่า', 'Settings', { next: ['O13-b'] }),
   s('O15', 'officer', 'history', 'ประวัติการสแกน', 'My scan history'),
+  s('O16', 'officer', 'box/:id', 'รายละเอียดตู้', 'Mailbox details', { noTabs: true }),
   s('O13-b', 'officer', 'account/display', 'การแสดงผล', 'Display'),
   s('O14', 'officer', 'notifications', 'แจ้งเตือน', 'Notifications', { noTabs: true }),
 

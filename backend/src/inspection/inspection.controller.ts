@@ -81,6 +81,13 @@ export class OfficerController {
     return this.inspections.summary(auth.userId);
   }
 
+  /** OffBoxDetail — รายละเอียดตู้ในโซนของฉัน */
+  @RateLimit({ limit: 120, windowSec: 60 })
+  @Get('boxes/:box_id')
+  boxDetail(@Auth() auth: AuthContext, @Param('box_id') boxId: string) {
+    return this.inspections.boxDetail(auth.userId, boxId);
+  }
+
   /** ประวัติการสแกนของตัวเอง (หน้า "ประวัติ" ของเจ้าหน้าที่) */
   @Get('logs')
   logs(@Auth() auth: AuthContext, @Query() q: MyLogsQuery) {

@@ -122,7 +122,7 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
       gap: 2px;
       small {
         color: var(--text-muted);
-        overflow-wrap: anywhere;
+        overflow-wrap: break-word;
       }
       .fix {
         color: var(--brand);

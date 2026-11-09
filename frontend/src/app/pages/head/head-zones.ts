@@ -117,7 +117,7 @@ const ZONE_ERROR: Record<string, Tr> = {
       font-weight: 700;
     }
     .zone-meta {
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
   `,
 })

@@ -141,31 +141,34 @@ async function ensureDemoHistory(c) {
     [demo.box_id, demo.bound_date],
   );
   if (!existingInspection.rowCount) {
-    const jobId = newJobId();
-    const { rows: jobRows } = await c.query(
-      `INSERT INTO app.box_job_tb
-         (box_job_id, box_id, type, created_by, max_attempts, scan_timeout_s, expire_date,
-          delivered_date, ready_date, ready_flash, result, result_date, created_date)
-       VALUES ($1, $2, 'inspect', $3, 3, 20, now() + interval '1 minute',
-               now(), now(), false, 'pass', now(), now())
-       RETURNING box_job_id`,
-      [jobId, demo.box_id, demo.officer_user_id],
-    );
-    const { rows: inspectionRows } = await c.query(
-      `INSERT INTO app.inspection_tb
-         (box_job_id, box_id, officer_user_id, agency_id, zone_id, box_qr_code_id, method, scan_ms,
-          status, qr_condition, checked_date, created_date)
-       VALUES ($1, $2, $3, $4, $5, $6, 'scan', 1200, 'passed', 'ok', now(), now())
-       RETURNING inspection_id`,
-      [jobRows[0].box_job_id, demo.box_id, demo.officer_user_id, demo.agency_id, demo.zone_id, demo.box_qr_code_id],
-    );
-    await c.query(
-      `INSERT INTO app.scan_log_tb
-         (actor_kind, user_id, box_id, box_qr_code_id, qr_kind, method, raw, result, scan_ms,
-          attempt, box_job_id, inspection_id)
-       VALUES ('officer', $1, $2, $3, 'front', 'scan', $4, 'ok', 1200, 1, $5, $6)`,
-      [demo.officer_user_id, demo.box_id, demo.box_qr_code_id, demo.token, jobRows[0].box_job_id, inspectionRows[0].inspection_id],
-    );
+    // ตรวจย้อนหลัง 4 ครั้ง (วันนี้/5/12/19 วันก่อน) → กราฟ+ประวัติดูมีชีวิต
+    for (const ago of ['2 hours', '5 days', '12 days', '19 days']) {
+      const jobId = newJobId();
+      const { rows: jobRows } = await c.query(
+        `INSERT INTO app.box_job_tb
+           (box_job_id, box_id, type, created_by, max_attempts, scan_timeout_s, expire_date,
+            delivered_date, ready_date, ready_flash, result, result_date, created_date)
+         VALUES ($1, $2, 'inspect', $3, 3, 20, now() - $4::interval + interval '1 minute',
+                 now() - $4::interval, now() - $4::interval, false, 'pass', now() - $4::interval, now() - $4::interval)
+         RETURNING box_job_id`,
+        [jobId, demo.box_id, demo.officer_user_id, ago],
+      );
+      const { rows: inspectionRows } = await c.query(
+        `INSERT INTO app.inspection_tb
+           (box_job_id, box_id, officer_user_id, agency_id, zone_id, box_qr_code_id, method, scan_ms,
+            status, qr_condition, checked_date, created_date)
+         VALUES ($1, $2, $3, $4, $5, $6, 'scan', 1200, 'passed', 'ok', now() - $7::interval, now() - $7::interval)
+         RETURNING inspection_id`,
+        [jobRows[0].box_job_id, demo.box_id, demo.officer_user_id, demo.agency_id, demo.zone_id, demo.box_qr_code_id, ago],
+      );
+      await c.query(
+        `INSERT INTO app.scan_log_tb
+           (actor_kind, user_id, box_id, box_qr_code_id, qr_kind, method, raw, result, scan_ms,
+            attempt, box_job_id, inspection_id, created_date)
+         VALUES ('officer', $1, $2, $3, 'front', 'scan', $4, 'ok', 1200, 1, $5, $6, now() - $7::interval)`,
+        [demo.officer_user_id, demo.box_id, demo.box_qr_code_id, demo.token, jobRows[0].box_job_id, inspectionRows[0].inspection_id, ago],
+      );
+    }
   }
 
   const existingDelivery = await c.query(
@@ -176,11 +179,13 @@ async function ensureDemoHistory(c) {
   );
   if (!existingDelivery.rowCount) {
     const { rows: frontQr } = await c.query(`SELECT box_qr_code_id FROM app.box_qr_code_tb WHERE box_id = $1 AND slot = '1' AND status = 'active'`, [demo.box_id]);
-    await c.query(
-      `INSERT INTO app.delivery_tb (box_id, box_qr_code_id, method, ticket_id, created_date)
-       VALUES ($1, $2, 'scan', $3, now())`,
-      [demo.box_id, frontQr[0].box_qr_code_id, `demo-${randomUUID()}`],
-    );
+    for (const ago of ['1 day', '6 days', '15 days']) {
+      await c.query(
+        `INSERT INTO app.delivery_tb (box_id, box_qr_code_id, method, ticket_id, created_date)
+         VALUES ($1, $2, 'scan', $3, now() - $4::interval)`,
+        [demo.box_id, frontQr[0].box_qr_code_id, `demo-${randomUUID()}`, ago],
+      );
+    }
   }
 
   const existingSos = await c.query(
@@ -195,7 +200,7 @@ async function ensureDemoHistory(c) {
       `INSERT INTO app.sos_case_tb
          (box_id, owner_user_id, status, stage, accepted_by, accepted_agency_id,
           accepted_date, closed_date, close_note, created_date)
-       VALUES ($1, $2, 'closed', 'zone', $3, $4, now(), now(), 'ตัวอย่างเหตุการณ์ SOS ที่ปิดงานแล้ว', now())
+       VALUES ($1, $2, 'closed', 'zone', $3, $4, now() - interval '9 days', now() - interval '9 days', 'ตัวอย่างเหตุการณ์ SOS ที่ปิดงานแล้ว', now() - interval '9 days')
        RETURNING sos_case_id`,
       [demo.box_id, demo.owner_user_id, demo.officer_user_id, demo.agency_id],
     );
@@ -203,6 +208,21 @@ async function ensureDemoHistory(c) {
       `INSERT INTO app.sos_recipient_tb (sos_case_id, user_id, agency_id, stage)
        VALUES ($1, $2, $3, 'zone')`,
       [sosRows[0].sos_case_id, demo.officer_user_id, demo.agency_id],
+    );
+  }
+
+  // คำขอช่างที่ปิดงานแล้ว (ยังไม่ยืนยันผล) → เดโมปุ่มยืนยันของเจ้าของบ้าน
+  const existingTech = await c.query(
+    `SELECT 1 FROM app.technician_request_tb WHERE box_id = $1 AND owner_user_id = $2 LIMIT 1`,
+    [demo.box_id, demo.owner_user_id],
+  );
+  if (!existingTech.rowCount) {
+    await c.query(
+      `INSERT INTO app.technician_request_tb
+         (box_id, owner_user_id, reason, note, status, scheduled_date, admin_note, created_date)
+       VALUES ($1, $2, 'repair', 'ตัวอย่างคำขอซ่อมจากเดโม', 'done',
+               now() - interval '4 days', 'ช่างเข้าตรวจและเปลี่ยนอะไหล่แล้ว', now() - interval '7 days')`,
+      [demo.box_id, demo.owner_user_id],
     );
   }
 }
@@ -289,7 +309,14 @@ async function seed(c) {
         bound ? 'used' : 'active',
       ]);
       if (bound) {
-        await q(`UPDATE app.box_tb SET owner_user_id = $2, house_no = '99/9', name = 'ตู้หน้าบ้าน', bound_date = now() WHERE box_id = $1`, [id, owner]);
+        // ผูกมานาน ~3 สัปดาห์ + มีแบต/ติดต่อล่าสุด → หน้าเจ้าของบ้านในเดโมไม่ว่าง
+        await q(
+          `UPDATE app.box_tb SET owner_user_id = $2, house_no = '99/9', name = 'ตู้หน้าบ้าน', bound_date = now() - interval '21 days',
+             battery_pct = 87, charging = false, battery_date = now() - interval '35 minutes',
+             last_seen_date = now() - interval '4 minutes', last_poll_date = now() - interval '4 minutes'
+           WHERE box_id = $1`,
+          [id, owner],
+        );
         await q(`INSERT INTO app.zone_box_tb (zone_id, box_id) VALUES ($1, $2)`, [zone, id]);
       }
     };

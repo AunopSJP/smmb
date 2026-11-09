@@ -7,6 +7,7 @@ import { I18n } from '../core/i18n';
 import { UnreadCount } from '../core/unread';
 import { Icon, type IconName } from './icon';
 import { liveRefresh } from '../core/live-refresh';
+import { EmptyState, LoadingRows } from './state-view';
 
 /** api.md §3 `GET /me/notifications` — หัวข้อ/เนื้อความแปลที่ server ตาม prefs.lang แล้ว */
 interface Notification {
@@ -53,7 +54,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
 /** รายการแจ้งเตือนจริงของบัญชีนี้ — แตะแล้วไปหน้าที่เกี่ยวข้อง + ทำเครื่องหมายอ่านแล้ว · "อ่านทั้งหมด" ในแถบบน */
 @Component({
   selector: 'app-notification-list',
-  imports: [Icon],
+  imports: [Icon, LoadingRows, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar">
@@ -86,10 +87,10 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
             </span>
             <span class="txt">
               <span class="top">
-                <strong>{{ plain(n.title) }}</strong>
+                <strong class="clamp-2" [attr.title]="plain(n.title)">{{ plain(n.title) }}</strong>
                 <time class="easy-hide" [attr.datetime]="n.created_at">{{ when(n.created_at) }}</time>
               </span>
-              <span class="body easy-hide">{{ n.body }}</span>
+              <span class="body easy-hide" [attr.title]="n.body">{{ n.body || '—' }}</span>
               <span class="adv-only meta mono">{{ meta(n) }}</span>
               @if (n.link) {
                 <span class="more easy-hide">{{ moreLabel(n.type) }} ›</span>
@@ -103,13 +104,13 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
       </div>
     } @empty {
       @if (loading()) {
-        <p class="muted center pad">{{ i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
+        <app-loading-rows [rows]="4" [label]="i18n.t({ th: 'กำลังโหลดการแจ้งเตือน', en: 'Loading notifications' })" />
       } @else {
-        <div class="empty-state">
-          <span class="big-bell"><app-icon name="bell" [size]="34" /></span>
-          <strong>{{ onlyUnread() ? i18n.t({ th: 'อ่านครบทุกรายการแล้ว', en: 'You are all caught up' }) : i18n.t({ th: 'ยังไม่มีการแจ้งเตือน', en: 'No notifications yet' }) }}</strong>
-          <span class="muted small">{{ i18n.t({ th: 'การตรวจ ของมาส่ง และ SOS จะแสดงที่นี่', en: 'Patrol checks, deliveries and SOS will show up here' }) }}</span>
-        </div>
+        <app-empty-state
+          icon="bell"
+          [title]="onlyUnread() ? i18n.t({ th: 'อ่านครบทุกรายการแล้ว', en: 'You are all caught up' }) : i18n.t({ th: 'ยังไม่มีการแจ้งเตือน', en: 'No notifications yet' })"
+          [hint]="i18n.t({ th: 'การตรวจ ของมาส่ง และ SOS จะแสดงที่นี่', en: 'Patrol checks, deliveries and SOS will show up here' })"
+        />
       }
     }
   `,
@@ -125,6 +126,14 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
       justify-content: space-between;
       gap: 10px;
       flex-wrap: wrap;
+    }
+    /* ห้ามตัดคำในแท็บกรอง (เช่น "ยังไม่อ่าน") — ให้แท็บกว้างตามข้อความแล้วค่อยตัดบรรทัดที่แถบแทน */
+    .bar .segmented {
+      flex: none;
+    }
+    .bar .segmented button {
+      flex: 0 0 auto;
+      white-space: nowrap;
     }
     .n {
       display: inline-grid;
@@ -150,7 +159,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
       margin-block-start: 3px;
       color: var(--text-muted);
       font-size: 0.6875rem;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
     .read-all {
       display: inline-flex;
@@ -267,35 +276,12 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
     .unread .top {
       padding-inline-end: 10px;
     }
-    .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      padding: 40px 16px;
-      text-align: center;
-      border-radius: var(--radius);
-      background: var(--surface);
-      box-shadow: var(--shadow);
-    }
-    .big-bell {
-      display: grid;
-      place-items: center;
-      inline-size: 72px;
-      block-size: 72px;
-      border-radius: 50%;
-      background: var(--brand-light);
-      color: var(--brand);
-      margin-block-end: 4px;
-    }
-    .center { text-align: center; }
-    .pad { padding: 24px 0; }
   `,
 })
 export class NotificationList implements OnInit {
   /** ตัดอีโมจิหน้าข้อความ (ข้อความจากเซิร์ฟเวอร์มีไว้ให้ push) — ระดับความสำคัญแสดงด้วยไอคอนด้านซ้ายอยู่แล้ว */
-  protected plain(title: string): string {
-    return title.replace(/^[\p{Extended_Pictographic}️‍\s]+/u, '');
+  protected plain(title: string | null | undefined): string {
+    return (title ?? '').replace(/^[\p{Extended_Pictographic}️‍\s]+/u, '').trim() || '—';
   }
 
   protected readonly i18n = inject(I18n);
@@ -311,7 +297,7 @@ export class NotificationList implements OnInit {
   /** แบ่งตามวัน (เวลาไทย): วันนี้ · เมื่อวาน · วันที่ */
   protected readonly groups = computed(() => {
     const list = this.onlyUnread() ? this.items().filter((n) => !n.read_at) : this.items();
-    const key = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+    const key = (d: Date) => (Number.isNaN(d.getTime()) ? 'unknown' : d.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' }));
     const today = key(new Date());
     const yesterday = key(new Date(Date.now() - 86_400_000));
     const out: { key: string; label: string; items: Notification[] }[] = [];
@@ -320,11 +306,13 @@ export class NotificationList implements OnInit {
       let g = out.find((x) => x.key === k);
       if (!g) {
         const label =
-          k === today
-            ? this.i18n.t({ th: 'วันนี้', en: 'Today' })
-            : k === yesterday
-              ? this.i18n.t({ th: 'เมื่อวาน', en: 'Yesterday' })
-              : new Date(n.created_at).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Bangkok' });
+          k === 'unknown'
+            ? '—'
+            : k === today
+              ? this.i18n.t({ th: 'วันนี้', en: 'Today' })
+              : k === yesterday
+                ? this.i18n.t({ th: 'เมื่อวาน', en: 'Yesterday' })
+                : new Date(n.created_at).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Bangkok' });
         g = { key: k, label, items: [] };
         out.push(g);
       }
@@ -348,21 +336,24 @@ export class NotificationList implements OnInit {
   }
 
   /** ข้อความลิงก์ใต้การแจ้งเตือน (ตามแคนวาสดีไซน์) */
-  protected moreLabel(type: string): string {
-    if (type === 'inspected') return this.i18n.t({ th: 'ดูรายละเอียดการตรวจ', en: 'See inspection details' });
-    if (type === 'delivered') return this.i18n.t({ th: 'ดูรายละเอียดการส่ง', en: 'See delivery details' });
-    if (type.startsWith('box_') || type === 'low_battery') return this.i18n.t({ th: 'ดูสถานะตู้', en: 'See box status' });
-    if (type.startsWith('sos_')) return this.i18n.t({ th: 'ดู SOS', en: 'See the SOS' });
+  protected moreLabel(type: string | null | undefined): string {
+    const t = type ?? '';
+    if (t === 'inspected') return this.i18n.t({ th: 'ดูรายละเอียดการตรวจ', en: 'See inspection details' });
+    if (t === 'delivered') return this.i18n.t({ th: 'ดูรายละเอียดการส่ง', en: 'See delivery details' });
+    if (t.startsWith('box_') || t === 'low_battery') return this.i18n.t({ th: 'ดูสถานะตู้', en: 'See box status' });
+    if (t.startsWith('sos_')) return this.i18n.t({ th: 'ดู SOS', en: 'See the SOS' });
     return this.i18n.t({ th: 'ดูรายละเอียด', en: 'See details' });
   }
 
-  protected look(type: string) {
-    return ICON[type] ?? { icon: 'bell' as IconName, tone: '' as const };
+  protected look(type: string | null | undefined) {
+    return ICON[type ?? ''] ?? { icon: 'bell' as IconName, tone: '' as const };
   }
 
   /** เวลาจริง (วันที่ + เวลา วินาที) — เฉพาะโหมดละเอียด */
-  protected exact(iso: string): string {
-    return new Date(iso).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Asia/Bangkok' });
+  protected exact(iso: string | null | undefined): string {
+    const d = new Date(iso ?? '');
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Asia/Bangkok' });
   }
 
   /** ข้อมูลเทคนิคของรายการ (ชนิด · id · เวลา · สถานะอ่าน · ปลายทาง) — เฉพาะโหมดละเอียด */
@@ -370,12 +361,13 @@ export class NotificationList implements OnInit {
     const read = n.read_at
       ? `${this.i18n.t({ th: 'อ่านแล้ว', en: 'read' })} ${this.exact(n.read_at)}`
       : this.i18n.t({ th: 'ยังไม่อ่าน', en: 'unread' });
-    return `type=${n.type} · id=${n.id.slice(0, 8)} · ${this.exact(n.created_at)} · ${read}${n.link ? ` · ${n.link}` : ''}`;
+    return `type=${n.type ?? '—'} · id=${(n.id ?? '').slice(0, 8) || '—'} · ${this.exact(n.created_at)} · ${read}${n.link ? ` · ${n.link}` : ''}`;
   }
 
   /** ภายในชั่วโมง = "x นาทีที่แล้ว" · วันนี้/เมื่อวาน = เวลา · เก่ากว่านั้น = วันที่ + เวลา (หัวกลุ่มบอกวันอยู่แล้ว ใช้แค่เวลา) */
-  protected when(iso: string): string {
-    const d = new Date(iso);
+  protected when(iso: string | null | undefined): string {
+    const d = new Date(iso ?? '');
+    if (Number.isNaN(d.getTime())) return '—';
     const mins = Math.floor((Date.now() - d.getTime()) / 60_000);
     if (mins < 1) return this.i18n.t({ th: 'เมื่อสักครู่', en: 'Just now' });
     if (mins < 60) return this.i18n.t({ th: `${mins} นาทีที่แล้ว`, en: `${mins} min ago` });

@@ -76,7 +76,7 @@ const COPY: Record<Kind, Copy> = {
     </div>
   `,
   styles: `
-    :host { display: grid; place-items: center; min-block-size: 100dvh; padding: 24px; background: var(--bg); }
+    :host { display: grid; place-items: center; min-block-size: 100dvh; padding: calc(24px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left)); background: var(--bg); }
     .wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; inline-size: min(420px, 100%); text-align: center; }
     .bubble { display: grid; place-items: center; inline-size: 92px; block-size: 92px; border-radius: 46px; background: var(--icon-bg); color: var(--brand); }
     h1 { margin: 6px 0 0; font-size: 1.5rem; }

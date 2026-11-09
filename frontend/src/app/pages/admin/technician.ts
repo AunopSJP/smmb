@@ -409,8 +409,8 @@ export class TechChecklist {
       legend {
         float: inline-start;
         inline-size: 100%;
-        padding: 0;
-        margin: 0 4px 8px;
+        padding: 0 4px;
+        margin: 0 0 8px;
       }
     }
     .row {

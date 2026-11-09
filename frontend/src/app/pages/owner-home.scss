@@ -181,7 +181,7 @@
 .agency {
   font-size: 0.95rem;
   line-height: 1.35;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .value.muted {
   color: var(--text-muted);
@@ -277,7 +277,6 @@
   text-align: center;
   color: #fff;
   background: #7f1d1d;
-  pointer-events: none; /* นิ้วยังกดปุ่มเดิมอยู่ */
 }
 .ring {
   --p: 0;
@@ -312,17 +311,6 @@
 }
 
 /* สถานะอื่นของหน้าหลัก (H03-b/c/d) */
-.mini-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  text-decoration: none;
-  color: inherit;
-}
-.ok-text {
-  color: var(--ok);
-}
 .empty {
   display: flex;
   flex-direction: column;
@@ -335,13 +323,6 @@
 }
 .status.off {
   color: var(--orange);
-}
-.dark {
-  background: #111827;
-}
-.demo-tools button[aria-pressed='true'] {
-  background: var(--brand);
-  color: #fff;
 }
 
 /* ── ยังไม่มีตู้ (เริ่มใช้งาน) ── */

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Patch, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Inject, Patch, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import pg from 'pg';
 import { PG_POOL } from '../db/db.module.js';
@@ -121,6 +121,12 @@ export class MeController {
   @Get()
   get(@Auth() auth: AuthContext): Promise<Me> {
     return this.me.build(auth.userId, undefined, auth.sessionId);
+  }
+
+  /** เครื่องที่เคยเข้าสู่ระบบ (หน้า /settings/devices) */
+  @Get('devices')
+  devices(@Auth() auth: AuthContext, @Headers('x-device-id') deviceId?: string) {
+    return this.me.devices(auth.userId, deviceId);
   }
 
   /** แพ็กเกจปัจจุบันของบัญชีเจ้าของบ้าน (หน้าตั้งค่าตู้ H13) */

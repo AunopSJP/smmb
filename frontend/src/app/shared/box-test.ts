@@ -104,6 +104,8 @@ const STATE: Record<Job['status'] | 'starting', { label: Tr; tone: '' | 'ok' | '
       img {
         display: block;
         inline-size: 100%;
+        block-size: auto;
+        object-fit: contain;
         border-radius: var(--radius-sm);
         background: #000;
       }

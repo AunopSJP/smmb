@@ -1150,7 +1150,7 @@ export class AdminBoxes implements OnInit {
       font-size: 1.375rem;
       font-weight: 700;
       line-height: 1.3;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
     .kpi-value.warn {
       color: var(--warn);
@@ -1172,7 +1172,7 @@ export class AdminBoxes implements OnInit {
     }
     .easy-house {
       font-size: 1.5rem;
-      line-height: 1.25;
+      line-height: 1.35;
     }
     .easy-meta {
       font-size: 1rem;

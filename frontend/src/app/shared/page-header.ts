@@ -51,7 +51,7 @@ import { Icon } from './icon';
     h1 {
       font-size: 1.375rem;
       font-weight: 700;
-      line-height: 1.25;
+      line-height: 1.35;
     }
     .bell {
       position: relative;

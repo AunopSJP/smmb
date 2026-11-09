@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { I18n, type Tr } from '../core/i18n';
 import { Session } from '../core/session';
 import { DisplaySettings } from '../core/display-settings';
@@ -27,6 +29,23 @@ interface Option {
 
     <div class="stack grow">
       <app-push-status [required]="required()" [deviceLabel]="role()" />
+
+      <section class="card stack easy-hide">
+        <h2 class="head"><app-icon name="shield" [size]="20" />{{ i18n.t({ th: 'เครื่องที่เข้าสู่ระบบ', en: 'Signed-in devices' }) }}</h2>
+        @for (d of devices(); track d.id) {
+          <div class="device">
+            <span class="grow">
+              <strong>{{ d.label }}</strong>
+              <span class="muted small block">{{ i18n.t({ th: 'เข้าเมื่อ ', en: 'First seen ' }) }}{{ day(d.first_seen_at) }} · {{ i18n.t({ th: 'ล่าสุด ', en: 'last ' }) }}{{ day(d.last_seen_at) }}</span>
+            </span>
+            @if (d.current) {
+              <span class="chip ok">{{ i18n.t({ th: 'เครื่องนี้', en: 'This device' }) }}</span>
+            }
+          </div>
+        } @empty {
+          <p class="muted small">{{ i18n.t({ th: 'ยังไม่มีข้อมูลเครื่อง (เข้าสู่ระบบจากเบราว์เซอร์อื่นอีกครั้ง)', en: 'No device records yet (sign in from another browser to add one).' }) }}</p>
+        }
+      </section>
 
       @if (mutable().length) {
         <section class="card stack easy-hide">
@@ -86,6 +105,8 @@ interface Option {
     .toggle { display: flex; align-items: center; gap: 12px; padding-block: 8px; }
     .toggle > span { flex: 1; min-inline-size: 0; }
     .toggle + .toggle { border-block-start: 1px solid var(--line); }
+    .device { display: flex; align-items: center; gap: 12px; padding-block: 8px; }
+    .device + .device { border-block-start: 1px solid var(--line); }
     .always { border-color: var(--brand); }
     .ok { justify-self: start; }
     .push-end { margin-block-start: auto; }
@@ -94,7 +115,19 @@ interface Option {
 export class NotifSettings {
   protected readonly i18n = inject(I18n);
   private readonly session = inject(Session);
+  private readonly http = inject(HttpClient);
   protected readonly display = inject(DisplaySettings);
+  protected readonly devices = signal<{ id: string; label: string; current: boolean; first_seen_at: string; last_seen_at: string }[]>([]);
+
+  constructor() {
+    void firstValueFrom(this.http.get<{ data: { id: string; label: string; current: boolean; first_seen_at: string; last_seen_at: string }[] }>('/api/v1/me/devices'))
+      .then((r) => this.devices.set(r.data))
+      .catch(() => undefined);
+  }
+
+  protected day(iso: string): string {
+    return new Date(iso).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'Asia/Bangkok' });
+  }
 
   protected readonly role = computed<'owner' | 'officer' | 'head' | 'admin'>(() => {
     const roles = this.session.me()?.roles ?? [];

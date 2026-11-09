@@ -204,6 +204,55 @@
   overflow-wrap: anywhere;
 }
 
+/* ── Text resilience utilities ─────────────────────────────────────────────
+   ใช้เมื่อ "ดีไซน์กำหนดขอบเขตข้อความ" เท่านั้น: ตัดด้วย … ไม่ให้การ์ดสูงผิดปกติ
+   ส่วนข้อความสำคัญ (โน้ต/รายละเอียด) ปล่อยให้ขึ้นบรรทัดใหม่ด้วย break-word */
+.truncate {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.clamp-1,
+.clamp-2,
+.clamp-3,
+.clamp-4 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+.clamp-1 { -webkit-line-clamp: 1; }
+.clamp-2 { -webkit-line-clamp: 2; }
+.clamp-3 { -webkit-line-clamp: 3; }
+.clamp-4 { -webkit-line-clamp: 4; }
+.sr-only {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── ฟอร์ม + คีย์บอร์ดมือถือ ─────────────────────────────────────────────
+   1) กัน iOS ซูมเมื่อโฟกัส (ต้อง ≥16px)  2) เผื่อที่ให้เลื่อนช่องกรอก/ปุ่มหลัก
+   ขึ้นมาเหนือคีย์บอร์ดเมื่อเปิดใช้งาน */
+input,
+select,
+textarea {
+  min-inline-size: 0;
+  font-size: max(16px, 1rem);
+  scroll-margin-block: 96px;
+}
+main:has(input:focus, select:focus, textarea:focus) {
+  padding-block-end: calc(120px + env(safe-area-inset-bottom));
+}
+
+
 /* โหมดเห็นรายละเอียด: .adv-only (รหัส/เวอร์ชัน/ข้อมูลเทคนิค) เห็นเฉพาะโหมดละเอียด · โหมดอื่นซ่อน */
 /* หน้าที่เป็นแดชบอร์ดบนจอคอม: บนมือถือซ่อนส่วนละเอียด ยกเว้นโหมดละเอียด (ตามแคนวาสที่ออกแบบสำหรับมือถือ) */
 @media (max-width: 1023px) {
@@ -227,16 +276,26 @@
 html {
   font-size: calc(16px * clamp(var(--text-scale-min), var(--text-scale), var(--text-scale-max)));
   inline-size: 100%;
+  /* มือถือ: เลื่อนช่องกรอกขึ้นเหนือคีย์บอร์ด + เผื่อ safe area ตอนคีย์บอร์ดเปิด */
+  scroll-padding-block-end: calc(96px + env(safe-area-inset-bottom));
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
   min-block-size: 100dvh;
   inline-size: 100%;
+  /* กันหน้าล้นแนวนอนโดยไม่ตั้งใจ (safe net) — เนื้อหาจริงต้องไม่ล้นอยู่แล้ว */
+  overflow-x: hidden;
+  overflow-x: clip;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
   line-height: 1.5;
+  /* ค่าเริ่มต้นที่ปลอดภัย: ตัดคำเฉพาะคำ/โทเคนที่ยาวเกินกรอบ (URL, รหัส)
+     ไม่ตัดกลางคำไทยปกติ — หลีกเลี่ยง "คำฉีก" */
+  overflow-wrap: break-word;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -526,7 +585,7 @@ app-area-shell main > :not(router-outlet) {
     margin: 0;
     text-align: end;
     font-weight: 700;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
   .ok {
     color: var(--ok);
@@ -542,7 +601,8 @@ app-area-shell main > :not(router-outlet) {
   background: var(--track);
 
   button {
-    flex: 1;
+    /* ใช้ basis ตามข้อความ: แท็บที่ข้อความยาวกว่าได้ที่กว้างขึ้น ไม่ถูกบีบจนตัดคำ */
+    flex: 1 1 auto;
     min-block-size: 38px;
     padding: 6px 10px;
     border-radius: 10px;

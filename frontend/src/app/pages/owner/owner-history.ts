@@ -8,6 +8,7 @@ import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { PrivatePhoto } from '../../shared/private-photo';
 import { PageHeader } from '../../shared/page-header';
+import { EmptyState, LoadingRows } from '../../shared/state-view';
 
 // เจ้าของบ้าน: H12 ประวัติ (การตรวจ · ของมาส่ง) · H12-b / H12-c รายละเอียด · H12-d ตู้ไม่ออนไลน์ · H12-e ช่วงวันที่
 // ใช้ API จริง GET /boxes/:box_id/events (api.md §4.3)
@@ -97,7 +98,7 @@ const clockSec = (iso: string) =>
 
 @Component({
   selector: 'app-owner-history',
-  imports: [RouterLink, PageHeader, Icon],
+  imports: [RouterLink, PageHeader, Icon, LoadingRows, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="caption()" [title]="i18n.t({ th: 'ประวัติ', en: 'History' })" [bell]="url('H14')" />
@@ -157,7 +158,15 @@ const clockSec = (iso: string) =>
             <app-icon name="chevronRight" [size]="22" />
           </a>
         } @empty {
-          <p class="card muted center">{{ store.loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ยังไม่มีเหตุการณ์ในช่วงนี้', en: 'No activity in this period' }) }}</p>
+          @if (store.loading()) {
+            <app-loading-rows [rows]="4" [label]="i18n.t({ th: 'กำลังโหลดประวัติ', en: 'Loading history' })" />
+          } @else {
+            <app-empty-state
+              icon="list"
+              [title]="i18n.t({ th: 'ยังไม่มีเหตุการณ์ในช่วงนี้', en: 'No activity in this period' })"
+              [hint]="i18n.t({ th: 'ลองเลือกช่วงเวลากว้างขึ้น หรือรอเจ้าหน้าที่มาตรวจครั้งถัดไป', en: 'Try a wider date range, or wait for the next patrol check.' })"
+            />
+          }
         }
       } @else {
         @for (g of groups(); track g.key) {
@@ -179,9 +188,15 @@ const clockSec = (iso: string) =>
             }
           </nav>
         } @empty {
-          <nav class="list">
-            <p class="row muted">{{ store.loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ยังไม่มีเหตุการณ์ในช่วงนี้', en: 'No activity in this period' }) }}</p>
-          </nav>
+          @if (store.loading()) {
+            <app-loading-rows [rows]="5" [label]="i18n.t({ th: 'กำลังโหลดประวัติ', en: 'Loading history' })" />
+          } @else {
+            <app-empty-state
+              icon="list"
+              [title]="i18n.t({ th: 'ยังไม่มีเหตุการณ์ในช่วงนี้', en: 'No activity in this period' })"
+              [hint]="i18n.t({ th: 'ลองเลือกช่วงเวลากว้างขึ้น หรือรอเจ้าหน้าที่มาตรวจครั้งถัดไป', en: 'Try a wider date range, or wait for the next patrol check.' })"
+            />
+          }
         }
       }
       @if (store.more()) {
@@ -690,7 +705,7 @@ export class OwnerDelivery {
     }
     .hero-warn strong {
       font-size: 1.25rem;
-      line-height: 1.3;
+      line-height: 1.35;
     }
     .easy-warn {
       display: flex;

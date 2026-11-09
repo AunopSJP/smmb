@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import pg from 'pg';
 import { PG_POOL } from '../db/db.module.js';
 import type { Db } from '../db/tx.js';
@@ -20,6 +21,14 @@ export interface PlanInfo {
 
 /** เหลือกี่วันถึงเรียกว่า "ใกล้หมดอายุ" */
 export const PLAN_EXPIRING_DAYS = 7;
+
+export interface DeviceInfo {
+  id: string;
+  label: string;
+  current: boolean;
+  first_seen_at: string;
+  last_seen_at: string;
+}
 
 export interface Prefs {
   theme: 'light' | 'dark' | 'system';
@@ -117,6 +126,26 @@ export class MeService {
     };
   }
 
+  /** เครื่องที่เคยเข้าสู่ระบบ (user_device_tb) — ไม่คืน hash เต็ม/ข้อมูลอ่อนไหว */
+  async devices(userId: string, currentDeviceId?: string): Promise<{ data: DeviceInfo[] }> {
+    const raw = currentDeviceId?.trim();
+    const current = raw && /^[A-Za-z0-9-]{16,64}$/.test(raw) ? createHash('sha256').update(raw).digest('hex') : null;
+    const { rows } = await this.pool.query<{ device_hash: string; user_agent: string | null; created_date: Date; last_seen_date: Date }>(
+      `SELECT device_hash, user_agent, created_date, last_seen_date
+       FROM app.user_device_tb WHERE user_id = $1 ORDER BY last_seen_date DESC LIMIT 20`,
+      [userId],
+    );
+    return {
+      data: rows.map((r) => ({
+        id: r.device_hash.slice(0, 8),
+        label: deviceLabel(r.user_agent),
+        current: current !== null && r.device_hash === current,
+        first_seen_at: r.created_date.toISOString(),
+        last_seen_at: r.last_seen_date.toISOString(),
+      })),
+    };
+  }
+
   /** แก้ชื่อที่แสดง / การแสดงผล — prefs รวมกับของเดิม (ส่งมาเฉพาะที่เปลี่ยน) · คืน Me ใหม่ */
   async update(userId: string, patch: { display_name?: string; prefs?: Partial<Prefs>; profile?: object }, sessionId?: string): Promise<Me> {
     const prefs = Object.fromEntries(Object.entries(patch.prefs ?? {}).filter(([, v]) => v !== undefined));
@@ -182,4 +211,11 @@ export class MeService {
       profile: u.profile ?? {},
     };
   }
+}
+
+function deviceLabel(userAgent: string | null): string {
+  if (!userAgent) return 'Unknown device';
+  const os = /iPhone|iPad|iPod/i.test(userAgent) ? 'iOS' : /Android/i.test(userAgent) ? 'Android' : /Windows/i.test(userAgent) ? 'Windows' : /Macintosh|Mac OS/i.test(userAgent) ? 'macOS' : /Linux/i.test(userAgent) ? 'Linux' : 'Unknown';
+  const browser = /Edg\//i.test(userAgent) ? 'Edge' : /Chrome\//i.test(userAgent) ? 'Chrome' : /Safari\//i.test(userAgent) ? 'Safari' : /Firefox\//i.test(userAgent) ? 'Firefox' : 'Browser';
+  return browser + ' · ' + os;
 }

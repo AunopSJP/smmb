@@ -413,7 +413,7 @@ const CONDITIONS: { v: QrCondition; label: Tr; wide?: boolean }[] = [
       margin: 0;
       font-size: 0.6875rem;
       color: var(--text-muted);
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
     .grid {
       display: grid;
@@ -645,7 +645,7 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
       margin: 0;
       font-size: 0.6875rem;
       color: var(--text-muted);
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
     .waking {
       padding-block-start: 48px;
@@ -904,7 +904,7 @@ interface WakeLockSentinelLike {
       margin: 0;
       font-size: 0.6875rem;
       color: var(--text-muted);
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
     .attempts {
       display: flex;
@@ -1056,7 +1056,7 @@ export class OfficerBadge implements OnInit {
     .tech {
       font-size: 0.6875rem;
       color: var(--text-muted);
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
   `,
 })
@@ -1183,7 +1183,7 @@ const HOLD_MS = 8000;
       font-size: 0.6875rem;
       line-height: 1.7;
       color: rgb(255 255 255 / 82%);
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
     .summary {
       background: rgb(255 255 255 / 15%);

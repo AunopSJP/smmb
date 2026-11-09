@@ -72,7 +72,7 @@ import { PageHeader } from '../../shared/page-header';
     }
     .meta {
       margin: 0 2px;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
   `,
 })

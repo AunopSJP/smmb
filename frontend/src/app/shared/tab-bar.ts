@@ -37,6 +37,7 @@ import { Icon } from './icon';
       background: var(--surface);
       border-block-start: 1px solid var(--line);
       padding-block-end: env(safe-area-inset-bottom);
+      padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
     }
     a {
       flex: 1;
@@ -47,11 +48,12 @@ import { Icon } from './icon';
       min-inline-size: 0;
       padding: 8px 4px 10px;
       font-size: 0.75rem;
+      line-height: 1.3;
       text-decoration: none;
       color: var(--text-muted);
       min-block-size: 60px;
       text-align: center;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
     a.active {
       color: var(--brand-text);

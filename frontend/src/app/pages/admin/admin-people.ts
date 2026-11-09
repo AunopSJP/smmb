@@ -316,7 +316,7 @@ const ROLE_LABEL: Record<string, Tr> = {
       @if (selected(); as u) {
         <section class="card stack">
           <div class="who-head">
-            <span class="avatar" aria-hidden="true">{{ u.name.charAt(0) }}</span>
+            <span class="avatar" aria-hidden="true">{{ (u.name?.trim()?.charAt(0) || '?').toUpperCase() }}</span>
             <div>
               <strong>{{ u.name }}</strong>
               <span class="muted small block">{{ u.phone }}</span>
@@ -463,7 +463,7 @@ const ROLE_LABEL: Record<string, Tr> = {
     }
     .ucols .name {
       grid-area: name;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
     .ucols .info {
       grid-area: info;

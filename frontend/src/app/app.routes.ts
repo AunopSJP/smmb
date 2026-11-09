@@ -64,6 +64,7 @@ const BUILT: Record<string, Loader> = {
   L11: () => import('./pages/head/head-settings').then((m) => m.HeadSettings),
   O01: () => import('./pages/officer/officer-home').then((m) => m.OfficerHome),
   O15: () => import('./pages/officer/officer-history').then((m) => m.OfficerHistory),
+  O16: () => import('./pages/officer/officer-box-detail').then((m) => m.OfficerBoxDetailPage),
   O02: () => officer.check().then((m) => m.OfficerScan),
   'O02-b': () => officer.check().then((m) => m.OfficerCode),
   'O02-c': () => officer.check().then((m) => m.OfficerCamera),
