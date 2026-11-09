@@ -380,34 +380,43 @@ function useEvent(type: BoxEvent['type']) {
     <app-page-header [caption]="i18n.t({ th: 'ประวัติ', en: 'History' })" [title]="i18n.t({ th: 'เจ้าหน้าที่มาตรวจ', en: 'Officer checked' })" [back]="url('H12')" />
     @if (ev.event(); as h) {
       <div class="stack">
-        <section class="ok-hero">
-          <span class="okc"><app-icon name="check" [size]="28" /></span>
-          <div>
-            <strong>{{ i18n.t({ th: 'ตรวจผ่านเรียบร้อย', en: 'Checked and passed' }) }}</strong>
-            <span class="muted small block">{{ when(h.at) }}</span>
-          </div>
-        </section>
-        <section class="card easy-hide">
-          <dl class="kv">
-            <dt>{{ i18n.t({ th: 'วันเวลา', en: 'Date' }) }}</dt><dd>{{ when(h.at) }}</dd>
-            <dt>{{ i18n.t({ th: 'เจ้าหน้าที่', en: 'Officer' }) }}</dt><dd>{{ h.officer?.display_name }}</dd>
-            <dt>{{ i18n.t({ th: 'หน่วยงาน', en: 'Agency' }) }}</dt><dd>{{ h.officer?.agency_name }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'รหัสเหตุการณ์', en: 'Event ID' }) }}</dt><dd class="adv-only mono">{{ h.id }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'เวลา (วินาที)', en: 'Exact time' }) }}</dt><dd class="adv-only mono">{{ exact(h.at) }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'QR ที่สแกน', en: 'QR scanned' }) }}</dt><dd class="adv-only">{{ h.qr_slot === 2 ? i18n.t({ th: 'QR สำรอง', en: 'Backup QR' }) : i18n.t({ th: 'QR หน้าตู้', en: 'Front QR' }) }} · slot {{ h.qr_slot ?? 1 }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'วิธี', en: 'Method' }) }}</dt><dd class="adv-only">{{ h.method === 'code' ? i18n.t({ th: 'พิมพ์รหัส', en: 'Typed code' }) : i18n.t({ th: 'สแกน', en: 'Scan' }) }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'รูปยืนยัน', en: 'Photo' }) }}</dt><dd class="adv-only">{{ h.has_photo ? i18n.t({ th: 'มี · เก็บ 30 วัน', en: 'Yes · kept 30 days' }) : i18n.t({ th: 'ไม่มี', en: 'None' }) }}</dd>
-            <dt>{{ i18n.t({ th: 'ตู้ยืนยัน', en: 'Box confirmed' }) }}</dt><dd class="ok">{{ i18n.t({ th: 'ผ่าน', en: 'Passed' }) }}</dd>
-          </dl>
-        </section>
-        <section class="card stack">
-          <strong>{{ i18n.t({ th: 'รูปยืนยันตัวเจ้าหน้าที่', en: 'Officer confirmation photo' }) }}</strong>
-          @if (h.has_photo) {
+        @if (display.easyMode()) {
+          <section class="ok-hero">
+            <span class="okc"><app-icon name="check" [size]="28" /></span>
+            <div>
+              <strong>{{ i18n.t({ th: 'ตรวจผ่านเรียบร้อย', en: 'Checked and passed' }) }}</strong>
+              <span class="muted small block">{{ when(h.at) }}</span>
+            </div>
+          </section>
+        } @else {
+          <section class="card result">
+            <div class="result-head">
+              <span class="okc compact"><app-icon name="check" [size]="20" /></span>
+              <div class="grow">
+                <strong>{{ i18n.t({ th: 'ตรวจผ่านเรียบร้อย', en: 'Checked and passed' }) }}</strong>
+                <span class="muted small block">{{ when(h.at) }}</span>
+              </div>
+              <span class="chip ok">{{ i18n.t({ th: 'ผ่าน', en: 'Passed' }) }}</span>
+            </div>
+            <dl class="kv">
+              <dt>{{ i18n.t({ th: 'เจ้าหน้าที่', en: 'Officer' }) }}</dt><dd>{{ h.officer?.display_name }}</dd>
+              <dt>{{ i18n.t({ th: 'หน่วยงาน', en: 'Agency' }) }}</dt><dd>{{ h.officer?.agency_name }}</dd>
+              <dt class="adv-only">{{ i18n.t({ th: 'วันเวลา', en: 'Date' }) }}</dt><dd class="adv-only mono">{{ exact(h.at) }}</dd>
+              <dt class="adv-only">{{ i18n.t({ th: 'รหัสเหตุการณ์', en: 'Event ID' }) }}</dt><dd class="adv-only mono">{{ h.id }}</dd>
+              <dt class="adv-only">{{ i18n.t({ th: 'QR ที่สแกน', en: 'QR scanned' }) }}</dt><dd class="adv-only">{{ h.qr_slot === 2 ? i18n.t({ th: 'QR สำรอง', en: 'Backup QR' }) : i18n.t({ th: 'QR หน้าตู้', en: 'Front QR' }) }} · slot {{ h.qr_slot ?? 1 }}</dd>
+              <dt class="adv-only">{{ i18n.t({ th: 'วิธี', en: 'Method' }) }}</dt><dd class="adv-only">{{ h.method === 'code' ? i18n.t({ th: 'พิมพ์รหัส', en: 'Typed code' }) : i18n.t({ th: 'สแกน', en: 'Scan' }) }}</dd>
+              <dt class="adv-only">{{ i18n.t({ th: 'รูปยืนยัน', en: 'Photo' }) }}</dt><dd class="adv-only">{{ h.has_photo ? i18n.t({ th: 'มี · เก็บ 30 วัน', en: 'Yes · kept 30 days' }) : i18n.t({ th: 'ไม่มี', en: 'None' }) }}</dd>
+            </dl>
+          </section>
+        }
+        @if (h.has_photo) {
+          <section class="card stack">
+            <strong>{{ i18n.t({ th: 'รูปยืนยันตัวเจ้าหน้าที่', en: 'Officer confirmation photo' }) }}</strong>
             <app-private-photo [src]="'/api/v1/me/inspection-photos/' + h.id" [alt]="i18n.t({ th: 'รูปเจ้าหน้าที่ที่มาตรวจ', en: 'Photo of the inspecting officer' })" />
-          } @else {
-            <p class="muted small">{{ i18n.t({ th: 'ไม่มีรูป (เจ้าหน้าที่ไม่ได้ถ่าย หรือเกิน 30 วันแล้ว)', en: 'No photo (not taken, or older than 30 days)' }) }}</p>
-          }
-        </section>
+          </section>
+        } @else {
+          <p class="muted small">{{ i18n.t({ th: 'ไม่มีรูปยืนยัน (เจ้าหน้าที่ไม่ได้ถ่าย หรือเกิน 30 วันแล้ว)', en: 'No confirmation photo (not taken, or older than 30 days).' }) }}</p>
+        }
         <p class="muted small">{{ i18n.t({ th: 'ตู้ยืนยันด้วยการสแกน QR ประจำตัวของเจ้าหน้าที่ — ปลอมไม่ได้', en: 'The mailbox verified the officer’s personal QR — it cannot be faked' }) }}</p>
         <p class="muted small">{{ i18n.t({ th: 'ข้อมูลนี้เห็นได้เฉพาะคุณและผู้ดูแลระบบ รูปจะถูกลบอัตโนมัติเมื่อครบ 30 วัน', en: 'Only you and the admin can see this. Photos are deleted automatically after 30 days.' }) }}</p>
       </div>
@@ -434,11 +443,34 @@ function useEvent(type: BoxEvent['type']) {
       background: var(--ok);
       color: #fff;
     }
+    .okc.compact {
+      inline-size: 36px;
+      block-size: 36px;
+    }
+    .result {
+      padding: 16px;
+    }
+    .result-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-block-end: 12px;
+      margin-block-end: 12px;
+      border-block-end: 1px solid var(--line);
+    }
+    .result-head strong {
+      font-size: 1rem;
+    }
+    .grow {
+      flex: 1;
+      min-inline-size: 0;
+    }
   `,
 })
 export class OwnerInspection {
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
+  protected readonly display = inject(DisplaySettings);
   readonly id = input<string>();
   protected readonly ev = useEvent('inspected');
 
@@ -468,23 +500,33 @@ export class OwnerInspection {
     <app-page-header [caption]="i18n.t({ th: 'ประวัติ', en: 'History' })" [title]="i18n.t({ th: 'มีของมาส่ง', en: 'Parcel delivered' })" [back]="url('H12')" />
     @if (ev.event(); as h) {
       <div class="stack">
-        <section class="ok-hero info">
-          <span class="okc"><app-icon name="box" [size]="28" /></span>
-          <div>
-            <strong>{{ i18n.t({ th: 'มีของมาส่งที่ตู้', en: 'A parcel arrived' }) }}</strong>
-            <span class="muted small block">{{ when(h.at) }}</span>
-          </div>
-        </section>
-        <section class="card easy-hide">
-          <dl class="kv">
-            <dt>{{ i18n.t({ th: 'วันเวลา', en: 'Date' }) }}</dt><dd>{{ when(h.at) }}</dd>
-            <dt>{{ i18n.t({ th: 'แจ้งโดย', en: 'Reported by' }) }}</dt><dd>{{ i18n.t({ th: 'ไรเดอร์', en: 'Rider' }) }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'รหัสเหตุการณ์', en: 'Event ID' }) }}</dt><dd class="adv-only mono">{{ h.id }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'เวลา (วินาที)', en: 'Exact time' }) }}</dt><dd class="adv-only mono">{{ exact(h.at) }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'วิธี', en: 'Method' }) }}</dt><dd class="adv-only">{{ h.method === 'code' ? i18n.t({ th: 'พิมพ์รหัสใต้ QR', en: 'Typed the code' }) : i18n.t({ th: 'สแกน QR หน้าตู้', en: 'Scanned the front QR' }) }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'QR ที่ใช้', en: 'QR used' }) }}</dt><dd class="adv-only mono">slot {{ h.qr_slot ?? 1 }}</dd>
-          </dl>
-        </section>
+        @if (display.easyMode()) {
+          <section class="ok-hero info">
+            <span class="okc"><app-icon name="box" [size]="28" /></span>
+            <div>
+              <strong>{{ i18n.t({ th: 'มีของมาส่งที่ตู้', en: 'A parcel arrived' }) }}</strong>
+              <span class="muted small block">{{ when(h.at) }}</span>
+            </div>
+          </section>
+        } @else {
+          <section class="card result">
+            <div class="result-head">
+              <span class="okc compact"><app-icon name="box" [size]="20" /></span>
+              <div class="grow">
+                <strong>{{ i18n.t({ th: 'มีของมาส่งที่ตู้', en: 'A parcel arrived' }) }}</strong>
+                <span class="muted small block">{{ when(h.at) }}</span>
+              </div>
+              <span class="chip">{{ i18n.t({ th: 'แจ้งแล้ว', en: 'Delivered' }) }}</span>
+            </div>
+            <dl class="kv">
+              <dt>{{ i18n.t({ th: 'แจ้งโดย', en: 'Reported by' }) }}</dt><dd>{{ i18n.t({ th: 'ไรเดอร์', en: 'Rider' }) }}</dd>
+              <dt class="adv-only">{{ i18n.t({ th: 'รหัสเหตุการณ์', en: 'Event ID' }) }}</dt><dd class="adv-only mono">{{ h.id }}</dd>
+              <dt class="adv-only">{{ i18n.t({ th: 'วันเวลา', en: 'Date' }) }}</dt><dd class="adv-only mono">{{ exact(h.at) }}</dd>
+              <dt class="adv-only">{{ i18n.t({ th: 'วิธี', en: 'Method' }) }}</dt><dd class="adv-only">{{ h.method === 'code' ? i18n.t({ th: 'พิมพ์รหัสใต้ QR', en: 'Typed the code' }) : i18n.t({ th: 'สแกน QR หน้าตู้', en: 'Scanned the front QR' }) }}</dd>
+              <dt class="adv-only">{{ i18n.t({ th: 'QR ที่ใช้', en: 'QR used' }) }}</dt><dd class="adv-only mono">slot {{ h.qr_slot ?? 1 }}</dd>
+            </dl>
+          </section>
+        }
         <p class="muted small">{{ i18n.t({ th: 'ระบบไม่เก็บข้อมูลตัวตนของไรเดอร์', en: 'No rider identity is stored' }) }}</p>
         <p class="muted small">{{ i18n.t({ th: 'ไม่ได้สั่งของ? ถ้าไม่มีของในตู้ แจ้งผู้ดูแลได้ — ระบบเก็บบันทึกไว้แก้ไม่ได้', en: 'Not expecting a parcel? If the box is empty, tell the admin — the log cannot be edited.' }) }}</p>
       </div>
@@ -510,11 +552,34 @@ export class OwnerInspection {
       background: var(--brand);
       color: #fff;
     }
+    .okc.compact {
+      inline-size: 36px;
+      block-size: 36px;
+    }
+    .result {
+      padding: 16px;
+    }
+    .result-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-block-end: 12px;
+      margin-block-end: 12px;
+      border-block-end: 1px solid var(--line);
+    }
+    .result-head strong {
+      font-size: 1rem;
+    }
+    .grow {
+      flex: 1;
+      min-inline-size: 0;
+    }
   `,
 })
 export class OwnerDelivery {
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
+  protected readonly display = inject(DisplaySettings);
   readonly id = input<string>();
   protected readonly ev = useEvent('delivered');
 

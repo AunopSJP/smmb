@@ -1,0 +1,46 @@
+name: Project Guardian
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # ทุกวัน 08:00 น. เวลาไทย (01:00 UTC)
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guardian:
+    name: ตรวจสุขภาพโปรเจ็ค
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: ติดตั้ง dependencies (backend)
+        working-directory: backend
+        run: npm ci
+
+      - name: ติดตั้ง dependencies (frontend)
+        working-directory: frontend
+        run: npm ci
+
+      - name: ตรวจ build / lint / test / static
+        run: node scripts/project-guardian.mjs --full --ci
+
+      - name: อัปโหลดรายงาน
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-guardian-report
+          path: reports/
+          if-no-files-found: ignore
+          retention-days: 30

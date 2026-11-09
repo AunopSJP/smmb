@@ -183,6 +183,8 @@ wireframe 110 หน้า: `SMMB Wireframe.figcraft` (มี `.fig` ด้ว�
 
 ## วิธีทำงาน
 
+- ตรวจสุขภาพโปรเจ็คก่อนส่งงาน: `node scripts/project-guardian.mjs --full` หรือพิมพ์ `/guardian` (agent read-only) · รายงานอยู่ `reports/` · มี CI รายวันที่ `.github/workflows/project-guardian.yml` · คู่มือ `docs/PROJECT_GUARDIAN.md`
+
 - เขียน migration ใหม่เสมอ ห้ามแก้ไฟล์ migration ที่ apply แล้ว
 - เพิ่ม/เปลี่ยน endpoint → อัปเดต `docs/api.md` ในรอบเดียวกัน · ตัดสินใจเรื่องใหม่ → อัปเดต `docs/smmb-design.md` + `docs/HANDOFF.md`
 - ทุก error ที่ client ต้องแยกหน้าจอ ต้องมี `code` (รายการใน `api.md` §15)
