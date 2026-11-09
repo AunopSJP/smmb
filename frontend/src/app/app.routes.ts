@@ -205,5 +205,13 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/notif-settings').then((m) => m.NotifSettings),
     title: 'ตั้งค่าการแจ้งเตือน · Smart Mailbox',
   },
+  // เลือกโหมดการแสดงผล (ทุกบทบาท) — ตามแคนวาส ModePicker.dc.html
+  {
+    path: 'settings/display',
+    canActivate: [requireSignedIn],
+    loadComponent: () => import('./pages/owner/owner-settings').then((m) => m.OwnerDisplay),
+    data: { shared: true },
+    title: 'แบบการใช้งาน · Smart Mailbox',
+  },
   { path: '**', redirectTo: '' },
 ];

@@ -69,6 +69,11 @@ const SETTINGS: HubItem[] = [
           <span class="grow"><strong>{{ i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' }) }}</strong><span class="muted small block">{{ i18n.t({ th: 'ชนิดที่รับ · ส่งทดสอบ', en: 'What to receive · send a test' }) }}</span></span>
           <app-icon name="chevronRight" [size]="18" />
         </a>
+        <a class="row" routerLink="/settings/display">
+          <span class="icon-bubble"><app-icon name="settings" [size]="20" /></span>
+          <span class="grow"><strong>{{ i18n.t({ th: 'โหมดการแสดงผล', en: 'Display mode' }) }}</strong><span class="muted small block">{{ i18n.t({ th: 'ง่าย · ปกติ · ละเอียด', en: 'Easy · normal · detailed' }) }}</span></span>
+          <app-icon name="chevronRight" [size]="18" />
+        </a>
       </nav>
 
       <h2 class="section-title easy-hide">{{ i18n.t({ th: 'เฝ้าระวัง', en: 'Watch' }) }}</h2>
@@ -106,6 +111,14 @@ const SETTINGS: HubItem[] = [
           <span class="grow">
             <strong>{{ i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' }) }}</strong>
             <span class="muted small block easy-hide">{{ i18n.t({ th: 'ชนิดที่รับ · ส่งทดสอบ · วิธีแก้ถ้าไม่เด้ง', en: 'What to receive · send a test · fixes if nothing arrives' }) }}</span>
+          </span>
+          <app-icon name="chevronRight" [size]="18" />
+        </a>
+        <a class="row" routerLink="/settings/display">
+          <span class="icon-bubble"><app-icon name="settings" [size]="20" /></span>
+          <span class="grow">
+            <strong>{{ i18n.t({ th: 'โหมดการแสดงผล', en: 'Display mode' }) }}</strong>
+            <span class="muted small block easy-hide">{{ i18n.t({ th: 'ง่าย · ปกติ · ละเอียด · ธีม · ภาษา · ขนาดตัวอักษร', en: 'Easy · normal · detailed · theme · language · text size' }) }}</span>
           </span>
           <app-icon name="chevronRight" [size]="18" />
         </a>

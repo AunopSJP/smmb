@@ -1118,12 +1118,14 @@ export class OwnerTechnician {
 
 @Component({
   selector: 'app-owner-display',
-  imports: [PageHeader, Icon],
+  imports: [RouterLink, PageHeader, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class.shared-page]': 'shared' },
   template: `
-    <app-page-header [title]="i18n.t({ th: 'แบบการใช้งาน', en: 'How you use the app' })" [back]="url(officer ? 'O13' : 'H13')" />
+    <app-page-header [title]="i18n.t({ th: 'แบบการใช้งาน', en: 'How you use the app' })" [back]="backUrl()" />
     <div class="stack">
-      <p class="muted">{{ i18n.t({ th: 'เลือกแบบที่อ่านง่ายที่สุดสำหรับคุณ เปลี่ยนได้ทุกเมื่อ ข้อมูลและความปลอดภัยเหมือนเดิมทุกแบบ', en: 'Pick the layout that is easiest for you. You can change it anytime — your data and safety stay the same.' }) }}</p>
+      <p class="muted easy-hide">{{ i18n.t({ th: 'เลือกแบบที่อ่านง่ายที่สุดสำหรับคุณ เปลี่ยนได้ทุกเมื่อ ข้อมูลและความปลอดภัยเหมือนเดิมทุกแบบ', en: 'Pick the layout that is easiest for you. You can change it anytime — your data and safety stay the same.' }) }}</p>
+      <p class="muted easy-only">{{ i18n.t({ th: 'ให้แอปเป็นแบบไหน เลือกแบบที่อ่านง่ายที่สุดสำหรับคุณ', en: 'How should the app look? Pick what is easiest to read.' }) }}</p>
 
       <div class="modes" role="radiogroup" [attr.aria-label]="i18n.t({ th: 'โหมดการแสดงผล', en: 'Display mode' })">
         @for (m of modeOptions; track m.value) {
@@ -1131,19 +1133,21 @@ export class OwnerTechnician {
             <span class="thumb" [attr.data-m]="m.value" aria-hidden="true"><i class="g"></i><i></i><i></i><i></i><i></i><i class="r"></i></span>
             <span class="mtxt">
               <strong>{{ i18n.t(m.label) }}@if (display.mode() === m.value) {<span class="tick" aria-hidden="true"><app-icon name="check" [size]="14" /></span>}</strong>
-              <span class="muted small block">{{ i18n.t(m.hint) }}</span>
+              <span class="muted small block easy-hide">{{ i18n.t(m.hint) }}</span>
+              <span class="muted small block easy-only">{{ i18n.t(m.short) }}</span>
             </span>
           </button>
         }
       </div>
 
-      <section class="card stack">
+      <section class="card stack easy-hide">
         <span class="lbl">{{ i18n.t({ th: 'ขนาดตัวอักษร', en: 'Text size' }) }}</span>
         <div class="segmented" role="group">
           @for (o of sizes; track o.v) {
             <button type="button" [attr.aria-pressed]="display.textSize() === o.v" (click)="display.textSize.set(o.v)">{{ i18n.t(o.label) }}</button>
           }
         </div>
+        <span class="muted small">{{ i18n.t({ th: 'ขนาดตัวอักษรถูกจำกัดตามชนิดจอ (มือถือ / แท็บเล็ต / คอม) เพื่อให้อ่านสบายและไม่ล้น', en: 'Text size is capped per screen type (phone / tablet / desktop) so it stays readable and never overflows.' }) }}</span>
         <span class="lbl">{{ i18n.t({ th: 'ธีม', en: 'Theme' }) }}</span>
         <div class="segmented" role="group">
           @for (o of themes; track o.v) {
@@ -1158,9 +1162,9 @@ export class OwnerTechnician {
         </div>
       </section>
 
-      @if (officer) {
+      @if (officer()) {
         <!-- O13-b: เจ้าหน้าที่ตรวจตอนกลางคืน -->
-        <label class="card toggle">
+        <label class="card toggle easy-hide">
           <span>
             <strong>{{ i18n.t({ th: 'ธีมมืดอัตโนมัติตอนตรวจกลางคืน', en: 'Auto dark theme for night patrols' }) }}</strong>
             <span class="muted small block">{{ i18n.t({ th: '18:00–06:00 · ถนอมสายตา ประหยัดแบตเตอรี่', en: '18:00–06:00 · easier on the eyes, saves battery' }) }}</span>
@@ -1172,22 +1176,26 @@ export class OwnerTechnician {
         }
       }
 
-      <section class="card stack">
-        <h2 class="head"><app-icon name="bell" [size]="20" />{{ i18n.t({ th: 'แจ้งเตือนที่ต้องการรับ', en: 'Notifications to receive' }) }}</h2>
-        @for (n of notifyOptions(); track n.type) {
-          <label class="toggle">
-            <span>
-              <strong>{{ i18n.t(n.label) }}</strong>
-              <span class="muted small block">{{ i18n.t(n.hint) }}</span>
-            </span>
-            <input type="checkbox" class="switch" role="switch" [checked]="!display.isMuted(n.type)" (change)="display.setMuted(n.type, !$any($event.target).checked)" />
-          </label>
-        }
-        <p class="muted small">{{ i18n.t({ th: 'แจ้งเตือนสำคัญ เช่น SOS และตู้มีปัญหา ปิดไม่ได้', en: 'Critical alerts such as SOS and mailbox problems cannot be turned off' }) }}</p>
+      <section class="card adv-only">
+        <dl class="kv">
+          <dt>data-mode</dt><dd class="mono">{{ display.mode() }}</dd>
+          <dt>data-text-size</dt><dd class="mono">{{ display.textSize() }}</dd>
+          <dt>theme</dt><dd class="mono">{{ display.theme() }}</dd>
+          <dt>lang</dt><dd class="mono">{{ display.lang() }}</dd>
+          <dt>{{ i18n.t({ th: 'เก็บที่บัญชี', en: 'Saved to account' }) }}</dt><dd class="mono">PATCH /me · prefs.ui_mode</dd>
+        </dl>
       </section>
+
+      <a class="btn easy-hide" [routerLink]="backUrl()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</a>
     </div>
   `,
   styles: `
+    :host(.shared-page) {
+      display: block;
+      padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
+      max-inline-size: 720px;
+      margin-inline: auto;
+    }
     .head {
       display: flex;
       align-items: center;
@@ -1317,7 +1325,23 @@ export class OwnerDisplay {
   protected readonly i18n = inject(I18n);
   protected readonly display = inject(DisplaySettings);
   protected readonly url = screenUrl;
-  protected readonly officer = inject(ActivatedRoute).snapshot.data['code'] === 'O13-b';
+  private readonly route = inject(ActivatedRoute);
+  private readonly session = inject(Session);
+  /** เปิดจากเมนูกลาง /settings/display (ทุกบทบาท) — ไม่ใช่ H13-d/O13-b ของเจ้าของ/เจ้าหน้าที่ */
+  protected readonly shared = this.route.snapshot.data['shared'] === true;
+  protected readonly officer = computed(
+    () =>
+      this.route.snapshot.data['code'] === 'O13-b' ||
+      (this.shared && (this.session.me()?.roles ?? []).some((r) => r === 'officer' || r === 'head')),
+  );
+  protected readonly backUrl = computed(() => {
+    if (!this.shared) return screenUrl(this.officer() ? 'O13' : 'H13');
+    const roles = this.session.me()?.roles ?? [];
+    if (roles.includes('admin')) return screenUrl('D16');
+    if (roles.includes('head')) return screenUrl('L11');
+    if (roles.includes('officer')) return screenUrl('O13');
+    return screenUrl('H13');
+  });
   protected readonly themes: { v: Theme; label: Tr }[] = [
     { v: 'light', label: { th: 'สว่าง', en: 'Light' } },
     { v: 'dark', label: { th: 'มืด', en: 'Dark' } },
@@ -1334,13 +1358,13 @@ export class OwnerDisplay {
   ];
 
   /** แจ้งเตือนที่ปิดรับได้ ตามบทบาทของหน้านี้ (type ต้องตรงกับ MUTABLE_NOTIFICATION_TYPES ของ backend) */
-  protected readonly modeOptions: { value: UiMode; label: Tr; hint: Tr }[] = [
-    { value: 'easy', label: { th: 'โหมดง่าย', en: 'Easy' }, hint: { th: 'ตัวใหญ่ ปุ่มใหญ่ เห็นเฉพาะสิ่งที่จำเป็นจริง ๆ ใช้งานไม่ยาก', en: 'Large text and buttons — only what you really need' } },
-    { value: 'default', label: { th: 'โหมดปกติ', en: 'Default' }, hint: { th: 'ใช้งานทั่วไป เห็นมากกว่าโหมดง่าย แต่ไม่แสดงรายละเอียดทางเทคนิค', en: 'Everyday use — more than Easy, without technical details' } },
-    { value: 'advanced', label: { th: 'โหมดละเอียด', en: 'Advanced' }, hint: { th: 'แสดงทุกอย่าง ทุกรายละเอียด (รหัส เวอร์ชัน ข้อมูลเทคนิค)', en: 'Everything, every detail (IDs, versions, technical data)' } },
+  protected readonly modeOptions: { value: UiMode; label: Tr; hint: Tr; short: Tr }[] = [
+    { value: 'easy', label: { th: 'โหมดง่าย', en: 'Easy' }, hint: { th: 'ตัวใหญ่ ปุ่มใหญ่ เห็นเฉพาะสิ่งที่จำเป็นจริง ๆ ใช้งานไม่ยาก', en: 'Large text and buttons — only what you really need' }, short: { th: 'ตัวใหญ่ ปุ่มใหญ่', en: 'Large text, large buttons' } },
+    { value: 'default', label: { th: 'โหมดปกติ', en: 'Default' }, hint: { th: 'ใช้งานทั่วไป เห็นมากกว่าโหมดง่าย แต่ไม่แสดงรายละเอียดทางเทคนิค', en: 'Everyday use — more than Easy, without technical details' }, short: { th: 'ข้อมูลพอดี', en: 'Just the right amount' } },
+    { value: 'advanced', label: { th: 'โหมดละเอียด', en: 'Advanced' }, hint: { th: 'แสดงทุกอย่าง ทุกรายละเอียด (รหัส เวอร์ชัน ข้อมูลเทคนิค)', en: 'Everything, every detail (IDs, versions, technical data)' }, short: { th: 'ข้อมูลเยอะ', en: 'Everything' } },
   ];
   protected readonly notifyOptions = computed<{ type: string; label: Tr; hint: Tr }[]>(() =>
-    this.officer
+    this.officer()
       ? [{ type: 'sos_taken', label: { th: 'มีเจ้าหน้าที่รับ SOS แล้ว', en: 'SOS taken by another officer' }, hint: { th: 'แจ้งเมื่อเพื่อนร่วมโซนรับเรื่องไปแล้ว', en: 'When a teammate has taken the case' } }]
       : [
           { type: 'inspected', label: { th: 'เจ้าหน้าที่มาตรวจ', en: 'Officer inspection' }, hint: { th: 'ทุกครั้งที่ตรวจผ่านหน้าตู้', en: 'Each time the mailbox is checked' } },

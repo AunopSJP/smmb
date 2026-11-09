@@ -25,7 +25,7 @@ attribute ที่ root: `<html data-mode="easy|default|advanced" data-theme da
 | หัวหน้า | ภาพรวม · โซน · สมาชิก · ตั้งค่า | ภาพรวม · สมาชิก · ตั้งค่า |
 | แอดมิน | ภาพรวม · ตู้ · ผู้ใช้ · ระบบ | ภาพรวม · ตู้ · ผู้ใช้ |
 
-ทำแล้ว: `TABS_EASY` ใน `screens/registry.ts` + `area-shell.ts`
+ทำแล้ว: `TABS_EASY` ใน `screens/registry.ts` + `area-shell.ts` (ลดแท็บเฉพาะ **หน้าหลัก** ของบทบาท — หน้าอื่นในโหมดง่ายยังใช้แท็บเต็มตามแคนวาส)
 
 ## หน้า ↔ แคนวาส
 
@@ -61,8 +61,9 @@ attribute ที่ root: `<html data-mode="easy|default|advanced" data-theme da
 | Auth/ไรเดอร์ | AuthLogin · Signup* · Terms · ChangePw · RolePicker | `A01`–`A16` `pages/auth/*` |
 | | RidCode · RidConfirm · RidDone · RidError | `R01`–`R04` `pages/rider/rider.ts` |
 | Shared | Notifications | `H14`/`L09`/`D12` `shared/notification-list.ts` |
-| | NotifSettings | ยังไม่มีหน้าแยก (ฝังใน `H13-d` + `push-status`) |
-| | ErrOffline · ErrNoAccess · ErrSession | ยังไม่มีหน้า |
+| | NotifSettings | `/settings/notifications` (ทุกบทบาท) |
+| | ModePicker | `/settings/display` (ทุกบทบาท) · H13-d/O13-b ใช้หน้าเดียวกัน |
+| | ErrOffline · ErrNoAccess · ErrSession | `/error/offline` · `/error/not-found` · `/error/session` |
 
 ## สถานะ
 

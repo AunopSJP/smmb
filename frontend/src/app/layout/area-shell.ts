@@ -116,7 +116,7 @@ const MOCK_SCREENS = new Set<string>();
   imports: [RouterOutlet, RouterLink, RouterLinkActive, TabBar, ToastHost, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="frame" [class.admin-layout]="isAdmin" [class.nav-mini]="mini()" [style.--content-w]="contentWidth">
+    <div class="frame" [class.admin-layout]="isAdmin" [class.auth-layout]="area === 'auth'" [class.nav-mini]="mini()" [attr.data-area]="area">
       @if (isAdmin) {
         <aside class="side" [class.mini]="mini()" [attr.aria-label]="i18n.t({ th: 'เมนูแอดมิน', en: 'Admin menu' })">
           <div class="brand">
@@ -573,9 +573,9 @@ const MOCK_SCREENS = new Set<string>();
       inset-block-end: 0;
       z-index: 2;
     }
-    @media (max-width: 480px) {
+    @media (max-width: 1023px) {
       main {
-        padding-inline: 12px;
+        padding: 12px 20px 28px;
       }
     }
   `,
@@ -586,8 +586,6 @@ export class AreaShell {
   private readonly area = this.route.snapshot.data['area'] as Area;
   /** แอดมิน/หัวหน้ามีตารางและรายการเยอะ → กว้างกว่าบทบาทอื่น */
   protected readonly isAdmin = this.area === 'admin';
-  /** แอดมินใช้จอคอมเป็นหลัก → เต็มพื้นที่ (กำหนดใน CSS ≥1024px) · มือถือ/แท็บเล็ตยังเป็นเนื้อหาเดียวกว้าง 960 */
-  protected readonly contentWidth = this.area === 'admin' || this.area === 'head' ? '960px' : '640px';
   protected readonly adminNav = ADMIN_NAV;
   /** ย่อเมนูเหลือไอคอน · กลุ่มที่พับ · เมนูที่กาง/พับเมนูย่อยเอง (จำไว้ในเครื่อง) */
   private readonly saved = readNav();
@@ -673,8 +671,11 @@ export class AreaShell {
   }
   protected readonly areaLabel = computed(() => AREA_LABEL[this.area]);
   private readonly display = inject(DisplaySettings);
-  /** โหมดง่ายใช้ชุดแท็บที่ลดเมนูเหลือ 3 รายการตามแคนวาส (โหมดปกติ/ละเอียดใช้ชุดเต็ม) */
-  protected readonly tabs = computed(() => (this.display.easyMode() ? TABS_EASY[this.area] ?? TABS[this.area] : TABS[this.area]));
+  /** โหมดง่ายลดเมนูเหลือ 3 รายการ "เฉพาะหน้าหลักของบทบาท" ตามแคนวาส (หน้าอื่นยังใช้แท็บเต็ม) */
+  protected readonly tabs = computed(() => {
+    const home: Partial<Record<Area, string>> = { officer: 'O01', head: 'L04', admin: 'D01' };
+    return this.display.easyMode() && home[this.area] === this.code() ? TABS_EASY[this.area] ?? TABS[this.area] : TABS[this.area];
+  });
   /** แถบ "ต้นแบบ" เฉพาะหน้าที่ยังเป็นข้อมูลจำลอง — ที่เหลือใช้ API จริงทั้งหมด */
   protected readonly mock = computed(() => MOCK_SCREENS.has(this.code() ?? ''));
 

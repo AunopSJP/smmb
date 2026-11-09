@@ -29,7 +29,7 @@ interface Option {
       <app-push-status [required]="required()" [deviceLabel]="role()" />
 
       @if (mutable().length) {
-        <section class="card stack">
+        <section class="card stack easy-hide">
           <h2 class="head"><app-icon name="bell" [size]="20" />{{ i18n.t({ th: 'ชนิดที่อยากรับ', en: 'What to receive' }) }}</h2>
           @for (n of mutable(); track n.type) {
             <label class="toggle">
@@ -49,7 +49,7 @@ interface Option {
         </section>
       }
 
-      <section class="card stack always">
+      <section class="card stack always easy-hide">
         <h2 class="head"><app-icon name="shield" [size]="20" />{{ i18n.t({ th: 'เกี่ยวกับความปลอดภัย', en: 'Safety alerts' }) }}</h2>
         <p>{{ i18n.t({ th: 'SOS · ตู้มีปัญหา/หลุด · QR ไม่ใช่ของระบบ · คำขอเข้าหน่วยงาน', en: 'SOS · mailbox problems/offline · non-system QR · agency join requests' }) }}</p>
         <span class="chip ok">{{ i18n.t({ th: 'เปิดเสมอ · ปิดไม่ได้', en: 'Always on · cannot disable' }) }}</span>
@@ -74,6 +74,12 @@ interface Option {
     </div>
   `,
   styles: `
+    :host {
+      display: block;
+      padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
+      max-inline-size: 720px;
+      margin-inline: auto;
+    }
     .grow { flex: 1; min-inline-size: 0; }
     .head { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
     .block { display: block; }

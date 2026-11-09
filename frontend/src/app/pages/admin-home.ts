@@ -34,34 +34,42 @@ interface Segment {
     />
 
     <div class="stack page">
-      <div class="asof easy-hide">
+      <div class="asof easy-hide desk-only">
         <span class="muted small">{{ i18n.t({ th: 'ข้อมูล ณ ', en: 'As of ' }) }}{{ asOf() }}</span>
         <button type="button" class="btn secondary small-btn" [disabled]="refreshing()" (click)="refresh()">{{ refreshing() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'รีเฟรช', en: 'Refresh' }) }}</button>
       </div>
 
-      <!-- โหมดง่าย: สรุปสั้น + 3 ตัวเลขสำคัญ + 2 ปุ่มหลัก (ตาม AdmEasy) -->
+      <!-- โหมดง่าย: สรุปสั้น + 3 ทางเข้าหลัก (ตาม AdmEasy) -->
       <section class="easy-hero easy-only" role="status">
         <strong>{{ i18n.t(easyTitle()) }}</strong>
         <span>{{ i18n.t({ th: 'ออนไลน์ ', en: 'Online ' }) }}{{ online() }} {{ i18n.t({ th: 'จาก ', en: 'of ' }) }}{{ totalBoxes() }} {{ i18n.t({ th: 'ตู้', en: 'boxes' }) }}</span>
       </section>
-      <section class="easy-kpis easy-only" [attr.aria-label]="i18n.t({ th: 'ตัวเลขสำคัญ', en: 'Key numbers' })">
-        <a class="easy-kpi" [routerLink]="url('D03')" [queryParams]="{ filter: 'offline' }">
-          <span class="easy-n" [class.danger]="offline() > 0">{{ offline() }}</span>
-          <span class="easy-l">{{ i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Offline' }) }}</span>
+      <nav class="list easy-only">
+        <a class="row" [routerLink]="url('D03')" [queryParams]="{ filter: 'offline' }">
+          <span class="icon-bubble warn"><app-icon name="alert" [size]="22" /></span>
+          <span class="grow">
+            <strong>{{ i18n.t({ th: 'ตู้ที่ต้องดู', en: 'Boxes to check' }) }}</strong>
+            <span class="muted small block">{{ i18n.t({ th: 'ออฟไลน์หรือมี QR ผิดปกติ', en: 'Offline or QR problems' }) }}</span>
+          </span>
+          <span class="chip warn">{{ atRisk() }}</span>
         </a>
-        <a class="easy-kpi" [routerLink]="url('D05')">
-          <span class="easy-n" [class.warn]="qrTotal() > 0">{{ qrTotal() }}</span>
-          <span class="easy-l">{{ i18n.t({ th: 'QR ต้องจัดการ', en: 'QR to fix' }) }}</span>
+        <a class="row" [routerLink]="url('D02')">
+          <span class="icon-bubble"><app-icon name="shield" [size]="22" /></span>
+          <span class="grow">
+            <strong>{{ i18n.t({ th: 'หน่วยงานรออนุมัติ', en: 'Agencies waiting' }) }}</strong>
+            <span class="muted small block">{{ i18n.t({ th: 'กดเพื่อดูและตอบรับ', en: 'Open to review and approve' }) }}</span>
+          </span>
+          <span class="chip warn">{{ pendingCount() }}</span>
         </a>
-        <a class="easy-kpi" [routerLink]="url('D02')">
-          <span class="easy-n" [class.warn]="pendingCount() > 0">{{ pendingCount() }}</span>
-          <span class="easy-l">{{ i18n.t({ th: 'หน่วยงานรออนุมัติ', en: 'Agencies waiting' }) }}</span>
+        <a class="row" [routerLink]="url('D03')">
+          <span class="icon-bubble"><app-icon name="box" [size]="22" /></span>
+          <span class="grow">
+            <strong>{{ i18n.t({ th: 'ลงทะเบียนตู้ใหม่', en: 'Register a new mailbox' }) }}</strong>
+            <span class="muted small block">{{ i18n.t({ th: 'ผูกบอร์ดและพิมพ์ QR', en: 'Bind the board and print its QR' }) }}</span>
+          </span>
+          <app-icon name="chevronRight" [size]="18" />
         </a>
-      </section>
-      <div class="easy-actions easy-only">
-        <a class="btn big" [routerLink]="url('D03')">{{ i18n.t({ th: 'ลงทะเบียนตู้ใหม่', en: 'Register a new mailbox' }) }}</a>
-        <a class="btn secondary big" [routerLink]="url('D03')" [queryParams]="{ filter: 'offline' }">{{ i18n.t({ th: 'ดูตู้ที่ต้องดู', en: 'Open boxes to check' }) }} ({{ atRisk() }})</a>
-      </div>
+      </nav>
 
       <!-- 1) ตัวเลขสรุป -->
       <section class="kpis easy-hide" [attr.aria-label]="i18n.t({ th: 'ตัวเลขสรุป', en: 'Key numbers' })">
@@ -172,7 +180,7 @@ interface Segment {
           <strong>{{ i18n.t({ th: 'ตู้ใช้รุ่นล่าสุด ', en: 'Latest version ' }) }}{{ fwLatest() ?? '—' }} · {{ fwApplied() }} / {{ totalBoxes() }}</strong>
         </p>
         <span class="fwbar" aria-hidden="true"><i [style.width.%]="fwAppliedPct()"></i></span>
-        <p class="muted small">{{ autoText() }}</p>
+        <p class="muted small">{{ i18n.t(autoText()) }}</p>
       </section>
 
       <!-- โหมดละเอียด: ตัวเลขระบบ + เวอร์ชัน/สถานะที่ดึงได้จริง (ตาม AdmAdv) -->
@@ -308,7 +316,7 @@ interface Segment {
           </a>
         }
       </nav>
-      <button type="button" class="btn secondary signout mobile-only" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
+      <button type="button" class="btn secondary signout mobile-only easy-hide" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
     </div>
   `,
   styles: `
