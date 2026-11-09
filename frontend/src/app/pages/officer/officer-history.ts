@@ -38,7 +38,7 @@ const bkkDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/B
   template: `
     <app-page-header [caption]="session.me()?.agency?.name ?? ''" [title]="i18n.t({ th: 'ประวัติ', en: 'History' })" />
     <div class="stack grow">
-      <p class="adv-only mono tech">GET /officer/logs · {{ i18n.t({ th: 'เฉพาะของคุณ · append-only', en: 'yours only · append-only' }) }}</p>
+      <p class="adv-only">{{ i18n.t({ th: 'เฉพาะของคุณ · แก้ไขย้อนหลังไม่ได้', en: 'yours only · cannot be edited later' }) }}</p>
       <div class="segmented chips easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'กรองผล', en: 'Filter' })">
         <button type="button" [attr.aria-pressed]="filter() === 'all'" (click)="filter.set('all')">{{ i18n.t({ th: 'ทั้งหมด', en: 'All' }) }}</button>
         <button type="button" class="adv-only" [attr.aria-pressed]="filter() === 'ok'" (click)="filter.set('ok')">
@@ -57,7 +57,7 @@ const bkkDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/B
               <strong>{{ title(l) }} · {{ i18n.t(resultText(l)) }}</strong>
               <span class="muted small block">{{ when(l.at) }}</span>
               <span class="muted small block easy-hide">{{ l.method === 'code' ? i18n.t({ th: 'พิมพ์รหัส', en: 'Typed code' }) : i18n.t({ th: 'สแกน', en: 'Scan' }) }}</span>
-              <span class="muted small block mono adv-only">{{ l.box_id ?? '—' }} · #{{ l.id }} · {{ l.result }} · {{ stamp(l.at) }}</span>
+              <span class="muted small block adv-only">{{ i18n.t({ th: 'เวลาบันทึก ', en: 'Logged ' }) }}{{ stamp(l.at) }}</span>
             </span>
             <span class="chip" [class.ok]="ok" [class.danger]="!ok">{{ i18n.t(resultText(l)) }}</span>
           </li>

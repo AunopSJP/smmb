@@ -90,13 +90,11 @@ const toMinutes = (hhmm: string): number | null => {
           <div class="adv-only card off-adv">
             <dl class="kv">
               <dt>{{ i18n.t({ th: 'ตรวจวันนี้', en: 'Checked today' }) }}</dt>
-              <dd class="mono">{{ s.houses_checked }} / {{ s.houses_total }}</dd>
+              <dd>{{ s.houses_checked }} / {{ s.houses_total }}</dd>
               <dt>SOS</dt>
-              <dd class="mono">{{ s.open_sos.length }}</dd>
-              <dt>{{ i18n.t({ th: 'เหตุผล', en: 'Reason' }) }}</dt>
-              <dd class="mono">OUTSIDE_PATROL_WINDOW</dd>
+              <dd>{{ s.open_sos.length }}</dd>
               <dt>{{ i18n.t({ th: 'โซน', en: 'Zone' }) }}</dt>
-              <dd class="mono">{{ zoneLabel() }}</dd>
+              <dd>{{ zoneLabel() }}</dd>
             </dl>
           </div>
           <button type="button" class="btn big" disabled>{{ i18n.t({ th: 'สแกนได้เมื่อถึงเวลาตรวจ', en: 'Scanning opens at patrol time' }) }}</button>
@@ -112,11 +110,11 @@ const toMinutes = (hhmm: string): number | null => {
           <div class="adv-only card">
             <dl class="kv">
               <dt>{{ i18n.t({ th: 'รอบ', en: 'Round' }) }}</dt>
-              <dd class="mono">{{ windowText() }}</dd>
+              <dd>{{ windowText() }}</dd>
               <dt>{{ i18n.t({ th: 'ผ่าน', en: 'Passed' }) }}</dt>
-              <dd class="mono">{{ s.houses_checked }} / {{ s.houses_total }}</dd>
+              <dd>{{ s.houses_checked }} / {{ s.houses_total }}</dd>
               <dt>{{ i18n.t({ th: 'โซน', en: 'Zone' }) }}</dt>
-              <dd class="mono">{{ zoneLabel() }}</dd>
+              <dd>{{ zoneLabel() }}</dd>
             </dl>
           </div>
           <a class="btn secondary" [routerLink]="url('O02')">{{ i18n.t({ th: 'สแกนตรวจซ้ำ', en: 'Scan again' }) }}</a>
@@ -138,7 +136,7 @@ const toMinutes = (hhmm: string): number | null => {
               </div>
               <div class="m">
                 <span class="l">{{ i18n.t({ th: 'โซน', en: 'Zone' }) }}</span>
-                <span class="v mono small">{{ s.window?.zone_id ?? '—' }}</span>
+                <span class="v small">{{ zoneLabel() }}</span>
               </div>
             </div>
             <span class="chip ok window">{{ i18n.t({ th: 'อยู่ในเวลาตรวจ', en: 'Patrol hours' }) }} {{ windowText() }}</span>
@@ -218,11 +216,11 @@ const toMinutes = (hhmm: string): number | null => {
 
         <section class="adv-only stack-tight">
           <h2 class="section-title">{{ i18n.t({ th: 'บันทึกสแกนล่าสุดของคุณ', en: 'Your latest scan log' }) }}</h2>
-          <div class="card logs mono">
+          <div class="card logs">
             @for (l of logs(); track l.id) {
               <div>
-                {{ time(l.at) }} {{ l.result }} · {{ l.box_id ?? '—' }} ·
-                {{ l.method === 'code' ? i18n.t({ th: 'พิมพ์รหัส', en: 'code' }) : i18n.t({ th: 'สแกน', en: 'scan' }) }}
+                {{ time(l.at) }} · {{ l.box_id ?? '—' }} ·
+                {{ l.method === 'code' ? i18n.t({ th: 'พิมพ์รหัส', en: 'typed code' }) : i18n.t({ th: 'สแกน QR', en: 'QR scan' }) }}
               </div>
             } @empty {
               <span class="muted">{{ i18n.t({ th: 'ยังไม่มีบันทึก', en: 'No log yet' }) }}</span>
@@ -253,7 +251,7 @@ export class OfficerHome {
     const w = this.s()?.window;
     return w ? `${w.start}–${w.end}` : '';
   });
-  protected readonly zoneLabel = computed(() => this.s()?.window?.zone_id ?? '—');
+  protected readonly zoneLabel = computed(() => this.s()?.window?.zone_name ?? '—');
   protected readonly pushOn = computed(() => this.session.me()?.push.subscribed === true);
   protected readonly percent = computed(() => {
     const s = this.s();

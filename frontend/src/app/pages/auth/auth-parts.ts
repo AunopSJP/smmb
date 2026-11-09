@@ -32,7 +32,7 @@ import { screenUrl } from '../../screens/registry';
         <small [class.danger-text]="invalid()">{{ i18n.t({ th: 'อย่างน้อย ' + min + ' ตัว', en: 'At least ' + min + ' characters' }) }}</small>
       }
       @if (isNew()) {
-        <small class="adv-only mono">{{ i18n.t({ th: 'ความยาว ' + min + '–' + max + ' ตัว · ไม่ต้องมีอักขระพิเศษ', en: min + '–' + max + ' characters · no special characters required' }) }}</small>
+        <small class="muted">{{ i18n.t({ th: 'ความยาว ' + min + '–' + max + ' ตัว · ไม่ต้องมีอักขระพิเศษ', en: min + '–' + max + ' characters · no special characters required' }) }}</small>
       }
     </label>
   `,
@@ -80,10 +80,6 @@ export class PasswordField {
     @if (showError()) {
       <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ต้องยอมรับข้อตกลงก่อน จึงจะสร้างบัญชีได้', en: 'You must accept the terms before an account can be created' }) }}</p>
     }
-    <p class="muted small adv-only">
-      {{ i18n.t({ th: 'ฉบับ ', en: 'Version ' }) }}<span class="mono">{{ version }}</span>
-      · <span class="mono">terms_version</span>
-    </p>
   `,
   styles: `
     .terms {

@@ -72,20 +72,6 @@ type NumKey = keyof typeof LIMITS;
       <p class="info-box muted">{{ i18n.t({ th: 'ช่วงเวลาตรวจไม่ได้ตั้งที่นี่ — มาจากโซนของแต่ละหน่วยงาน · ตั้งค่าเฉพาะตู้ทำได้ที่หน้ารายละเอียดตู้ แท็บ "ตั้งค่า"', en: 'Patrol hours are not set here — they come from each agency’s zones · per-box overrides are on the box page, “Settings” tab' }) }}</p>
       <p class="muted small easy-only">{{ i18n.t({ th: 'โหมดง่ายแสดงเฉพาะเวลารายงานกับไฟส่องกล้อง — ค่าอื่นใช้ค่าแนะนำอยู่แล้ว', en: 'Easy mode shows only the report time and camera light — other values already use the recommended defaults' }) }}</p>
 
-      <section class="card adv-only stack">
-        <strong>{{ i18n.t({ th: 'ค่าที่เซิร์ฟเวอร์เก็บ (ละเอียด)', en: 'Server values (technical)' }) }}</strong>
-        <dl class="kv small">
-          <dt>config_ver</dt><dd class="mono">{{ ver() !== null ? 'v' + ver() : '—' }}</dd>
-          <dt>report_at</dt><dd class="mono">{{ form().report_at }}</dd>
-          <dt>scan_timeout_s</dt><dd class="mono">{{ form().scan_timeout_s }}</dd>
-          <dt>max_attempts</dt><dd class="mono">{{ form().max_attempts }}</dd>
-          <dt>longpoll_wait_s</dt><dd class="mono">{{ form().longpoll_wait_s }}</dd>
-          <dt>flash_when_dark</dt><dd class="mono">{{ form().flash_when_dark }}</dd>
-          <dt>job_lifetime_s</dt><dd class="mono">{{ jobLife }}</dd>
-        </dl>
-        <p class="muted small">{{ i18n.t({ th: 'ตู้ดึงค่าใหม่ตอน boot และรายงานรายวัน · ช่วงที่รับได้คือค่าที่แสดงใต้ช่องกรอก', en: 'Boxes pick the values up at boot and on the daily report · allowed ranges are shown under each field' }) }}</p>
-      </section>
-
       <div class="savebar">
         <span class="muted small">
           <span class="easy-hide">{{ i18n.t({ th: 'รุ่นปัจจุบัน v', en: 'Current version v' }) }}{{ ver() }} · {{ i18n.t({ th: 'ตู้ดึงค่าใหม่ภายใน 1 วัน', en: 'boxes pick it up within 1 day' }) }}</span>
@@ -241,7 +227,6 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
             <span class="grow">
               <strong>{{ i18n.t(title(l)) }}</strong>
               <span class="muted small block easy-hide">{{ i18n.t(sub(l)) }}</span>
-              <span class="muted small block mono adv-only">#{{ l.id }} · {{ l.type }} · box_id={{ l.box_id ?? '—' }} · created_at={{ l.created_at }} · method={{ l.method ?? '—' }} · result={{ l.result ?? '—' }} · details={{ l.details ?? '—' }} · fail={{ l.fail }}</span>
             </span>
             <span class="res">
               @if (l.fail) {
@@ -400,7 +385,6 @@ export class AdminLogs {
     <div class="stack">
       <p class="muted small easy-only">{{ i18n.t({ th: 'แตะรายการเพื่อเปิดดูรายละเอียด · รายการสำคัญจะแจ้งเตือนเอง', en: 'Tap an item to open it · important items notify you automatically' }) }}</p>
       <app-notification-list />
-      <p class="muted small adv-only mono">push subscribed: {{ pushOn() }}</p>
     </div>
   `,
 })

@@ -48,7 +48,6 @@ const kb = (n: number) => (n >= 1_048_576 ? (n / 1_048_576).toFixed(1) + ' MB' :
                 <span class="chip ok">{{ i18n.t({ th: 'ใช้อยู่', en: 'In use' }) }}</span>
               }
               <span class="muted small block">{{ date(f.uploaded_at) }} · {{ size(f.size) }}</span>
-              <span class="muted small block mono adv-only">sha256 {{ f.sha256 }} · {{ f.size }} B · uploaded {{ f.uploaded_at }}</span>
             </span>
             @if (f.version !== auto()) {
               <button type="button" class="btn secondary pick" [disabled]="busy()" (click)="setAuto(f.version)">{{ i18n.t({ th: 'ใช้รุ่นนี้', en: 'Use' }) }}</button>
@@ -64,14 +63,14 @@ const kb = (n: number) => (n >= 1_048_576 ? (n / 1_048_576).toFixed(1) + ' MB' :
         <strong>{{ i18n.t({ th: 'เวอร์ชันที่ตู้รายงาน', en: 'Versions reported by boxes' }) }}</strong>
         <dl class="kv small">
           @for (g of versionGroups(); track g.version) {
-            <dt class="mono">{{ g.version }}</dt><dd class="mono">{{ g.n }} {{ i18n.t({ th: 'ตู้', en: 'boxes' }) }}</dd>
+            <dt>{{ g.version }}</dt><dd>{{ g.n }} {{ i18n.t({ th: 'ตู้', en: 'boxes' }) }}</dd>
           } @empty {
-            <dt>—</dt><dd class="mono">—</dd>
+            <dt>—</dt><dd>—</dd>
           }
-          <dt>auto_update</dt><dd class="mono">{{ auto() ?? 'off' }}</dd>
-          <dt>latest</dt><dd class="mono">{{ latest() || '—' }}</dd>
+          <dt>{{ i18n.t({ th: 'อัปเดตอัตโนมัติ', en: 'Auto update' }) }}</dt><dd>{{ auto() ?? i18n.t({ th: 'ปิด', en: 'Off' }) }}</dd>
+          <dt>{{ i18n.t({ th: 'รุ่นล่าสุด', en: 'Latest version' }) }}</dt><dd>{{ latest() || '—' }}</dd>
         </dl>
-        <p class="muted small">{{ i18n.t({ th: 'ตู้ค้างรุ่นเก่า: ', en: 'Boxes behind the latest: ' }) }}<span class="mono">{{ staleBoxes().join(', ') || '—' }}</span></p>
+        <p class="muted small">{{ i18n.t({ th: 'ตู้ที่ยังใช้รุ่นเก่า: ', en: 'Boxes on an older version: ' }) }}<span>{{ staleBoxes().join(', ') || '—' }}</span></p>
       </section>
 
       <section class="card stack easy-hide">

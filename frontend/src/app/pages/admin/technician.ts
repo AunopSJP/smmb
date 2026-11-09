@@ -84,18 +84,13 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
 
         <!-- โหมดละเอียด (TechCheck_A): ข้อมูลตู้จริง + สถานะแต่ละขั้น -->
         <section class="card adv-only stack">
-          <strong class="mono">GET /admin/boxes/{{ b.id }}</strong>
           <dl class="kv small">
-            <dt>box_id</dt><dd class="mono">{{ b.id }}</dd>
-            <dt>{{ i18n.t({ th: 'ผูกเจ้าของ', en: 'Bound' }) }}</dt><dd class="mono">{{ b.bound }}</dd>
-            <dt>last_seen</dt><dd class="mono">{{ b.last_seen_at ?? '—' }}</dd>
-            <dt>last_poll</dt><dd class="mono">{{ b.last_poll_at ?? '—' }}</dd>
-            <dt>fw</dt><dd class="mono">{{ b.fw ?? '—' }}{{ b.fw_target ? ' → ' + b.fw_target : '' }}</dd>
-            <dt>config_ver</dt><dd class="mono">v{{ b.config.config_ver }} · box v{{ b.config.box_config_ver ?? '—' }}</dd>
-            <dt>ap_name</dt><dd class="mono">{{ ap() }}</dd>
-            <dt>rssi</dt><dd class="mono">@if (rssi() !== null) { {{ rssi() }} dBm } @else { — }</dd>
-            <dt>activate_qr</dt><dd class="mono">{{ activateCode() }}</dd>
-            <dt>step</dt><dd class="mono">{{ step() }} / {{ steps.length }}</dd>
+            <dt>{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd>{{ b.id }}</dd>
+            <dt>{{ i18n.t({ th: 'ผูกเจ้าของแล้ว', en: 'Owner bound' }) }}</dt><dd>{{ b.bound ? i18n.t({ th: 'ใช่', en: 'Yes' }) : i18n.t({ th: 'ยังไม่ผูก', en: 'Not yet' }) }}</dd>
+            <dt>{{ i18n.t({ th: 'ชื่อ Wi-Fi ของตู้', en: 'Box Wi-Fi name' }) }}</dt><dd>{{ ap() }}</dd>
+            <dt>{{ i18n.t({ th: 'ความแรงสัญญาณ', en: 'Signal strength' }) }}</dt><dd>@if (rssi() !== null) { {{ rssi() }} dBm } @else { — }</dd>
+            <dt>{{ i18n.t({ th: 'รหัสเปิดใช้ตู้', en: 'Activation code' }) }}</dt><dd>{{ activateCode() }}</dd>
+            <dt>{{ i18n.t({ th: 'ขั้นตอน', en: 'Step' }) }}</dt><dd>{{ step() + 1 }} / {{ steps.length }}</dd>
           </dl>
           <div class="adv-steps">
             @for (s of steps; track s.title.th; let i = $index) {
@@ -352,7 +347,6 @@ export class TechChecklist {
         <strong>{{ i18n.t({ th: 'มือถือต่อ ', en: 'Phone is on ' }) }}{{ ap() }}{{ i18n.t({ th: ' อยู่', en: '' }) }}</strong>
         <span class="small">{{ i18n.t({ th: 'หน้านี้มาจากตู้ ไม่ต้องใช้อินเทอร์เน็ต', en: 'This page comes from the box — no internet needed' }) }}</span>
       </p>
-      <p class="muted small mono adv-only">ap_name={{ ap() }} · box_id={{ id() ?? '—' }} · from={{ from() ?? '—' }}</p>
       <fieldset class="nets">
         <legend class="section-title">{{ i18n.t({ th: 'เลือก Wi-Fi บ้าน', en: 'Pick the home Wi-Fi' }) }}</legend>
         <div class="list">
@@ -509,7 +503,6 @@ export class TechLights {
         <span class="big-icon danger" aria-hidden="true">!</span>
         <h1>{{ i18n.t({ th: 'ตู้เชื่อมต่อ Wi-Fi ไม่ได้', en: 'The box could not join Wi-Fi' }) }}</h1>
       </div>
-      <p class="muted small mono adv-only">box_id={{ id() ?? '—' }} · from={{ from() ?? '—' }}</p>
       <div class="info-box">
         <strong>{{ i18n.t({ th: 'ตรวจทีละข้อ', en: 'Check one by one' }) }}</strong>
         <ol>

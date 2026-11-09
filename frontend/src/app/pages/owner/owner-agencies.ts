@@ -64,10 +64,6 @@ const km = (a: LatLng, b: LatLng): number => {
                   @if (a.item.phone) { <a class="btn small" [href]="'tel:' + a.item.phone">{{ i18n.t({ th: 'โทร', en: 'Call' }) }}</a> }
                   <a class="btn secondary small" [href]="dir(a.item)" target="_blank" rel="noopener">{{ i18n.t({ th: 'นำทาง', en: 'Directions' }) }}</a>
                 </span>
-                @if (advanced()) {
-                  <span class="small block adv-only mono">{{ i18n.t({ th: 'รหัส ', en: 'id ' }) }}{{ a.item.id }} · {{ a.item.type }}</span>
-                  <span class="small block adv-only mono">{{ a.item.lat.toFixed(5) }}, {{ a.item.lng.toFixed(5) }}</span>
-                }
               }
             </span>
             @if (a.km !== null) { <span class="chip">{{ a.km < 10 ? a.km.toFixed(1) : a.km.toFixed(0) }} {{ i18n.t({ th: 'กม.', en: 'km' }) }}</span> }

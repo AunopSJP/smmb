@@ -76,7 +76,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
                 @for (q of b.qr; track q.slot) {
                   <figure>
                     <app-qr-image [text]="q.url" level="H" [label]="i18n.t(slot(q.slot))" />
-                    <figcaption class="small">{{ i18n.t(slot(q.slot)) }}<br /><strong>{{ q.print_code }}</strong><span class="mono adv-only block">{{ q.url }}</span></figcaption>
+                    <figcaption class="small">{{ i18n.t(slot(q.slot)) }}<br /><strong>{{ q.print_code }}</strong></figcaption>
                   </figure>
                 }
               </div>
@@ -146,7 +146,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
               <span class="grow">
                 <strong>{{ b.id }}</strong>
                 <span class="muted small block">{{ b.house_no ?? i18n.t({ th: 'ยังไม่ผูกบ้าน', en: 'Not linked to a house' }) }}</span>
-                <span class="muted small block mono adv-only">{{ b.status }} · last_poll={{ b.last_poll_at ?? '—' }} · fw={{ b.fw ?? '—' }}{{ b.fw_target ? ' · fw_target=' + b.fw_target : '' }} · last_seen={{ b.last_seen_at ?? '—' }}{{ b.fw_stuck ? ' · fw_stuck' : '' }}</span>
+                <span class="muted small block adv-only">{{ i18n.t({ th: 'ติดต่อล่าสุด ', en: 'Last seen ' }) }}{{ i18n.t(seen(b.last_seen_at)) }} · {{ i18n.t({ th: 'เฟิร์มแวร์ ', en: 'firmware ' }) }}{{ b.fw ?? '—' }}</span>
               </span>
             </span>
             <span>
@@ -169,7 +169,6 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
         }
       </div>
       <p class="muted small easy-hide">{{ i18n.t({ th: 'ทั้งหมด ' + total() + ' ตู้', en: total() + ' mailboxes' }) }}</p>
-      <p class="muted small adv-only mono">GET /admin/boxes?per_page=100 · {{ boxes().length }} rows · total {{ total() }} · offline = {{ counts().offline }} · low = {{ counts().low }} · unbound = {{ counts().unbound }}</p>
       <p class="muted small adv-only">{{ i18n.t({ th: 'ออฟไลน์ = ไม่ poll เกิน 3 นาทีในเวลาตรวจ · เงียบ = ไม่เห็นเกิน 26 ชม.', en: 'Offline = no poll for over 3 min in patrol hours · silent = unseen over 26 h' }) }}</p>
     </div>
   `,
@@ -627,24 +626,22 @@ export class AdminBoxes implements OnInit {
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt>
             <dd><span class="chip" [class.ok]="badge.tone === 'ok'" [class.warn]="badge.tone === 'warn'" [class.danger]="badge.tone === 'danger'">{{ i18n.t(badge.label) }}</span></dd>
-            <dt class="adv-only">box_id</dt><dd class="adv-only mono">{{ b.id }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd class="adv-only">{{ b.id }}</dd>
             <dt>{{ i18n.t({ th: 'บ้าน', en: 'House' }) }}</dt>
             <dd>{{ b.bound ? (b.house_no + (b.name ? ' · ' + b.name : '')) : i18n.t({ th: 'ยังไม่ผูก', en: 'not bound' }) }}</dd>
             <dt>{{ i18n.t({ th: 'แบต', en: 'Battery' }) }}</dt>
             <dd>{{ b.battery ? b.battery.pct + '%' + (b.battery.charging ? i18n.t({ th: ' · ชาร์จอยู่', en: ' · charging' }) : '') : '—' }}</dd>
             <dt>{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last seen' }) }}</dt>
-            <dd>{{ i18n.t(seen(b.last_seen_at)) }}<span class="mono adv-only"> · {{ b.last_seen_at ?? '—' }}</span></dd>
+            <dd>{{ i18n.t(seen(b.last_seen_at)) }}</dd>
             <dt class="easy-hide">{{ i18n.t({ th: 'ถือ long-poll ล่าสุด', en: 'Last long-poll' }) }}</dt>
-            <dd class="easy-hide">{{ i18n.t(seen(b.last_poll_at)) }}<span class="mono adv-only"> · {{ b.last_poll_at ?? '—' }}</span></dd>
+            <dd class="easy-hide">{{ i18n.t(seen(b.last_poll_at)) }}</dd>
             <dt>{{ i18n.t({ th: 'เฟิร์มแวร์', en: 'Firmware' }) }}</dt>
-            <dd>{{ b.fw ?? '—' }}<span class="adv-only mono"> · fw_target={{ b.fw_target ?? '—' }}{{ b.fw_stuck ? ' · fw_stuck' : '' }}</span></dd>
+            <dd>{{ b.fw ?? '—' }}</dd>
             <dt class="easy-hide">{{ i18n.t({ th: 'ค่าตั้งค่า', en: 'Config' }) }}</dt>
             <dd class="easy-hide" [class.warn-text]="!b.config.in_sync">
-              v{{ b.config.config_ver }}
-              {{ b.config.in_sync ? i18n.t({ th: '(ตู้มีค่าล่าสุด)', en: '(up to date)' }) : i18n.t({ th: '(รอตู้ดึงค่าใหม่)', en: '(waiting for the box)' }) }}
-              <span class="adv-only mono"> · box_config_ver={{ b.config.box_config_ver ?? '—' }}</span>
+              {{ b.config.in_sync ? i18n.t({ th: 'ตู้มีค่าล่าสุด', en: 'up to date' }) : i18n.t({ th: 'รอตู้ดึงค่าใหม่', en: 'waiting for the box' }) }}
             </dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'ลงทะเบียนเมื่อ', en: 'Registered' }) }}</dt><dd class="adv-only mono">{{ b.registered_at }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'ลงทะเบียนเมื่อ', en: 'Registered' }) }}</dt><dd class="adv-only">{{ fwDate(b.registered_at) }}</dd>
             @if (b.service_reason) {
               <dt class="adv-only">{{ i18n.t({ th: 'เหตุผลปิดบริการ', en: 'Service reason' }) }}</dt><dd class="adv-only">{{ b.service_reason }}</dd>
             }
@@ -789,15 +786,12 @@ export class AdminBoxes implements OnInit {
 
         <!-- โหมดละเอียด: สิ่งที่ระบบจะทำจริง (ตาม AdmUnbind_A) — ใช้ข้อมูลที่มีจริงเท่านั้น -->
         <section class="card adv-only stack">
-          <strong class="mono">POST /admin/boxes/{{ b.id }}/unbind</strong>
           <dl class="kv small">
-            <dt>box_id</dt><dd class="mono">{{ b.id }}</dd>
-            <dt>{{ i18n.t({ th: 'สถานะผูก', en: 'Bound' }) }}</dt><dd class="mono">{{ b.bound }}</dd>
+            <dt>{{ i18n.t({ th: 'สถานะผูก', en: 'Bound' }) }}</dt><dd>{{ b.bound ? i18n.t({ th: 'ผูกอยู่', en: 'Bound' }) : i18n.t({ th: 'ยังไม่ผูก', en: 'Not bound' }) }}</dd>
             <dt>{{ i18n.t({ th: 'QR เปิดใช้ตู้', en: 'Activation QR' }) }}</dt>
-            <dd class="mono">{{ activationVersion() !== null ? 'v' + activationVersion() : '—' }}</dd>
-            <dt>{{ i18n.t({ th: 'โซน', en: 'Zones' }) }}</dt><dd class="mono">—</dd>
+            <dd>{{ activationVersion() !== null ? 'v' + activationVersion() : '—' }}</dd>
           </dl>
-          <p class="muted small">{{ i18n.t({ th: 'ทุกการเพิกถอน QR ถูกบันทึก · เปิดดูรหัสลับถูกบันทึกใน data_access_log', en: 'Every QR revocation is logged · revealing the device secret is recorded in data_access_log' }) }}</p>
+          <p class="muted small">{{ i18n.t({ th: 'ทุกการเพิกถอน QR ถูกบันทึก · การเปิดดูรหัสลับถูกบันทึกไว้ด้วย', en: 'Every QR revocation is logged · revealing the device secret is recorded too' }) }}</p>
         </section>
         </div>
         }
@@ -945,9 +939,6 @@ export class AdminBoxes implements OnInit {
             }
             <dl class="kv small">
               <dt>{{ i18n.t({ th: 'รายงานล่าสุด', en: 'Latest report' }) }}</dt><dd>{{ i18n.t(seen(camera.at)) }}</dd>
-              @if (camera.job_id) {
-                <dt>{{ i18n.t({ th: 'งานทดสอบ', en: 'Test job' }) }}</dt><dd>{{ camera.job_id }}</dd>
-              }
               @if (camera.width !== null && camera.height !== null) {
                 <dt>{{ i18n.t({ th: 'ความละเอียด', en: 'Resolution' }) }}</dt><dd>{{ camera.width }} × {{ camera.height }}</dd>
               }
@@ -975,9 +966,8 @@ export class AdminBoxes implements OnInit {
             <figure class="card">
               <app-qr-image [text]="q.url" level="H" [label]="i18n.t(slot(q.slot))" />
               <figcaption class="small">
-                <strong>{{ i18n.t(slot(q.slot)) }}</strong> <span class="adv-only">v{{ q.version }}</span><br />
+                <strong>{{ i18n.t(slot(q.slot)) }}</strong><br />
                 {{ q.print_code }}
-                <span class="mono adv-only block">{{ q.id }} · {{ q.status }} · {{ q.issued_at }}</span>
                 @if (q.slot === 'activate') {
                   <br /><span class="chip ok">{{ i18n.t({ th: 'ยังไม่ใช้', en: 'unused' }) }}</span>
                 }
@@ -1002,7 +992,6 @@ export class AdminBoxes implements OnInit {
                   <span class="grow">
                     <strong>{{ i18n.t(slot(q.slot)) }}</strong> <span class="muted small">v{{ q.version }} · {{ q.print_code }}</span>
                     <span class="muted small block">{{ fwDate(q.issued_at) }}</span>
-                    <span class="muted small block mono adv-only">{{ q.id }} · {{ q.status }} · {{ q.issued_at }}</span>
                     @if (pastShown() === q.id) {
                       <app-qr-image [text]="q.url" level="H" [label]="i18n.t(slot(q.slot))" />
                     }
@@ -1018,10 +1007,10 @@ export class AdminBoxes implements OnInit {
         <h2 class="section-title easy-hide">{{ i18n.t({ th: 'เขียนลงบอร์ด', en: 'Board provisioning' }) }}</h2>
         <section class="card stack easy-hide">
           <dl class="kv small">
-            <dt>box_id</dt><dd><code>{{ b.id }}</code></dd>
+            <dt>{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd><code>{{ b.id }}</code></dd>
             <dt>{{ i18n.t({ th: 'URL เซิร์ฟเวอร์', en: 'Server URL' }) }}</dt><dd><code>{{ apiUrl }}</code></dd>
             @if (secret(); as s) {
-              <dt>device_secret</dt><dd><code class="secret">{{ s }}</code></dd>
+              <dt>{{ i18n.t({ th: 'รหัสลับประจำตู้', en: 'Device secret' }) }}</dt><dd><code class="secret">{{ s }}</code></dd>
             }
           </dl>
           @if (!secret()) {
@@ -1039,10 +1028,10 @@ export class AdminBoxes implements OnInit {
           @for (r of b.reports.slice(0, 8); track $index) {
             <div class="row">
               <span class="grow">
-                <strong>{{ r.kind }}{{ r.body['type'] ? ' · ' + r.body['type'] : '' }}</strong>
+                <strong>{{ i18n.t({ th: 'รายงานจากตู้', en: 'Report from the box' }) }}</strong>
                 <span class="muted small block">{{ reportLine(r.body) }}</span>
               </span>
-              <span class="muted small">{{ i18n.t(seen(r.at)) }}<span class="mono adv-only block">{{ r.at }}</span></span>
+              <span class="muted small">{{ i18n.t(seen(r.at)) }}</span>
             </div>
           } @empty {
             <p class="row muted">{{ i18n.t({ th: 'ตู้ยังไม่เคยส่งรายงาน (ยังไม่เปิดเครื่อง / ยังไม่ต่อ Wi-Fi)', en: 'No reports yet (not powered on / no Wi-Fi yet)' }) }}</p>
@@ -1052,7 +1041,7 @@ export class AdminBoxes implements OnInit {
           <h2 class="section-title easy-hide">{{ i18n.t({ th: 'คำขอที่ลายเซ็นไม่ผ่าน', en: 'Rejected box requests' }) }}</h2>
           <div class="list easy-hide">
             @for (a of b.auth_failures; track $index) {
-              <div class="row"><span class="grow"><strong>{{ a.reason }}</strong><span class="muted small mono adv-only block">{{ a.at }}</span></span><span class="muted small">{{ i18n.t(seen(a.at)) }}</span></div>
+              <div class="row"><span class="grow"><strong>{{ a.reason }}</strong></span><span class="muted small">{{ i18n.t(seen(a.at)) }}</span></div>
             }
           </div>
         }
@@ -1710,9 +1699,8 @@ export class AdminBox implements OnInit {
   protected reportLine(body: Record<string, unknown>): string {
     const parts: string[] = [];
     if (body['battery_pct'] !== undefined) parts.push(`${body['battery_pct']}%`);
-    if (body['rssi'] !== undefined) parts.push(`rssi ${body['rssi']}`);
-    if (body['fw']) parts.push(`fw ${body['fw']}`);
-    if (body['reset_reason']) parts.push(String(body['reset_reason']));
+    if (body['rssi'] !== undefined) parts.push(this.i18n.t({ th: `สัญญาณ ${body['rssi']}`, en: `signal ${body['rssi']}` }));
+    if (body['fw']) parts.push(this.i18n.t({ th: `เฟิร์มแวร์ ${body['fw']}`, en: `firmware ${body['fw']}` }));
     return parts.join(' · ');
   }
 

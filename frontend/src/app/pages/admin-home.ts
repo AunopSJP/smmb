@@ -187,7 +187,7 @@ interface Segment {
       <section class="card adv-only" [attr.aria-label]="i18n.t({ th: 'ข้อมูลระบบละเอียด', en: 'Technical overview' })">
         <header class="adv-head">
           <h2 class="section-title">{{ i18n.t({ th: 'ข้อมูลระบบ', en: 'System details' }) }}</h2>
-          <span class="mono muted small">{{ asOfIso() }}</span>
+          <span class="muted small">{{ i18n.t({ th: 'ข้อมูล ณ ', en: 'As of ' }) }}{{ asOf() }}</span>
         </header>
         <dl class="kv">
           <dt>{{ i18n.t({ th: 'ออนไลน์ / ทั้งหมด', en: 'Online / total' }) }}</dt><dd class="mono">{{ online() }} / {{ totalBoxes() }}</dd>
@@ -199,7 +199,6 @@ interface Segment {
           <dt>{{ i18n.t({ th: 'ปัญหา QR', en: 'QR issues' }) }}</dt><dd class="mono">{{ qrTotal() }}</dd>
           <dt>{{ i18n.t({ th: 'SOS เปิดอยู่', en: 'Open SOS' }) }}</dt><dd class="mono">{{ overview()?.sos_open ?? 0 }}</dd>
           <dt>{{ i18n.t({ th: 'คำขอช่างเปิด', en: 'Open technician requests' }) }}</dt><dd class="mono">{{ overview()?.technician_requests_open ?? technicianRequests() }}</dd>
-          <dt>config_ver</dt><dd class="mono">{{ configVer() !== null ? 'v' + configVer() : '—' }}</dd>
           <dt>{{ i18n.t({ th: 'เฟิร์มแวร์ล่าสุด', en: 'Latest firmware' }) }}</dt><dd class="mono">{{ fwLatest() ?? '—' }}</dd>
           <dt>{{ i18n.t({ th: 'อัปเดตอัตโนมัติ', en: 'Auto update' }) }}</dt>
           <dd>

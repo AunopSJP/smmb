@@ -52,17 +52,6 @@ const COPY: Record<Kind, Copy> = {
         <p class="note">{{ i18n.t(note) }}</p>
       }
 
-      <section class="card adv-only tech">
-        <dl class="kv">
-          <dt>{{ i18n.t({ th: 'รหัส', en: 'Code' }) }}</dt>
-          <dd class="mono">{{ tech().code }}</dd>
-          <dt>{{ i18n.t({ th: 'เส้นทาง', en: 'Path' }) }}</dt>
-          <dd class="mono">{{ tech().path }}</dd>
-          <dt>{{ i18n.t({ th: 'สถานะเบราว์เซอร์', en: 'Browser state' }) }}</dt>
-          <dd class="mono">{{ tech().state }}</dd>
-        </dl>
-      </section>
-
       @if (kind() === 'offline') {
         <button type="button" class="btn" (click)="retry()">{{ i18n.t(copy().action) }}</button>
       } @else if (kind() === 'session') {

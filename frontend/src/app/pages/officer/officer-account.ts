@@ -18,7 +18,6 @@ import { PushStatus } from '../../shared/push-status';
     <app-page-header [caption]="caption()" [title]="i18n.t({ th: 'ตั้งค่า', en: 'Settings' })" />
     <div class="stack grow">
       <app-push-status [required]="true" deviceLabel="officer" />
-      <p class="adv-only mono tech">GET /me · {{ i18n.t({ th: 'โหมดละเอียด', en: 'Detailed mode' }) }}</p>
 
       <h2 class="section-title easy-hide">{{ i18n.t({ th: 'ข้อมูลของฉัน', en: 'My details' }) }}</h2>
       <section class="card easy-hide">
@@ -34,13 +33,9 @@ import { PushStatus } from '../../shared/push-status';
           <dd>{{ summary()?.window?.zone_name ?? (summary()?.houses_total ? i18n.t({ th: 'มีบ้านในโซน แต่ไม่มีรอบตรวจถัดไปวันนี้', en: 'Assigned, no more patrol windows today' }) : i18n.t({ th: 'ยังไม่ถูกจัดเข้าโซน', en: 'Not assigned to a zone' })) }}</dd>
           <dt>{{ i18n.t({ th: 'เวลาตรวจ', en: 'Patrol hours' }) }}</dt>
           <dd>{{ summary()?.window ? summary()!.window!.start + '–' + summary()!.window!.end : '—' }}</dd>
-          <dt class="adv-only">{{ i18n.t({ th: 'รหัสโซน', en: 'Zone ID' }) }}</dt>
-          <dd class="adv-only mono">{{ summary()?.window?.zone_id ?? '—' }}</dd>
-          <dt class="adv-only">Web Push</dt>
-          <dd class="adv-only mono">{{ me()?.push?.subscribed ? 'subscribed' : 'not subscribed' }}</dd>
           @if (email()) {
-            <dt class="adv-only">{{ i18n.t({ th: 'อีเมล', en: 'Email' }) }}</dt>
-            <dd class="adv-only mono">{{ email() }}</dd>
+            <dt>{{ i18n.t({ th: 'อีเมล', en: 'Email' }) }}</dt>
+            <dd>{{ email() }}</dd>
           }
         </dl>
         @if (loading()) { <p class="muted small">{{ i18n.t({ th: 'กำลังโหลดข้อมูลโซน…', en: 'Loading patrol assignment…' }) }}</p> }

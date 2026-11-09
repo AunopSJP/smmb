@@ -36,7 +36,7 @@ import { PasswordField } from './auth-parts';
         <strong>{{ i18n.t({ th: 'ถ้าปุ่มไม่ทำงาน', en: 'If the button does nothing' }) }}</strong><br />
         <span class="muted small">{{ i18n.t({ th: 'กดจุด 3 จุดมุมขวาบน แล้วเลือก "เปิดในเบราว์เซอร์"', en: 'Tap the ⋮ menu at the top right and choose “Open in browser”' }) }}</span>
       </p>
-      <p class="muted small adv-only mono">{{ external }}</p>
+      
       <div class="stack push-end">
         <!-- LINE เปิดลิงก์ที่มี openExternalBrowser=1 ในเบราว์เซอร์หลักของเครื่อง -->
         <a class="btn" [href]="external">{{ i18n.t({ th: 'เปิดใน Safari / Chrome', en: 'Open in Safari / Chrome' }) }}</a>
@@ -121,7 +121,7 @@ export class AuthLine {
         <span class="small">{{ i18n.t({ th: 'ใช้ Chrome แล้วกด "อนุญาต" ตอนเปิดแจ้งเตือน · ถ้าต้องการไอคอนบนหน้าจอ: เมนู ⋮ → ติดตั้งแอป', en: 'Use Chrome and tap “Allow” when asked · for a home-screen icon: ⋮ menu → Install app' }) }}</span>
       </p>
       <p class="small easy-only">{{ i18n.t({ th: 'ใช้ Safari เท่านั้น · หลังติดตั้ง เปิดจากไอคอนแล้วเข้าสู่ระบบใหม่', en: 'Safari only · after installing, open from the icon and sign in again' }) }}</p>
-      <p class="muted small adv-only mono">{{ ua }}</p>
+      
       <a class="btn push-end" [routerLink]="url('A03')">{{ i18n.t({ th: 'ทำแล้ว ไปต่อ', en: 'Done, continue' }) }}</a>
     </div>
   `,
@@ -231,7 +231,7 @@ export class AuthInstall {
         <span class="muted small easy-hide">{{ i18n.t({ th: 'อนุญาตบนเครื่องนี้ก่อน · ระบบจะผูกกับบัญชีหลังเข้าสู่ระบบ', en: 'Allow on this device · the subscription is linked to your account after sign-in' }) }}</span><br />
         <strong class="danger-text small">{{ i18n.t({ th: 'เจ้าหน้าที่ต้องเปิดไว้ จึงจะได้รับ SOS', en: 'Officers must turn this on or they will miss SOS alerts' }) }}</strong>
       </p>
-      <p class="muted small adv-only mono">permission={{ permission }} · notify={{ i18n.t({ th: 'ผูกกับบัญชีหลังล็อกอิน', en: 'linked after sign-in' }) }}</p>
+      
       <div class="stack push-end">
         <button type="button" class="btn" (click)="allow()">{{ i18n.t({ th: 'อนุญาตแจ้งเตือน', en: 'Allow notifications' }) }}</button>
         <a class="btn secondary" [routerLink]="url('A04')">{{ i18n.t({ th: 'ข้ามไปก่อน', en: 'Skip for now' }) }}</a>
@@ -316,16 +316,13 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
         @if (asRole(); as r) {
           <p class="info-box">{{ i18n.t(r) }}</p>
         }
-        <p class="muted small adv-only mono">
-          POST /auth/signin · cookie sid (HttpOnly) · {{ i18n.t({ th: 'ล็อกบัญชี 5 ครั้ง/15 นาที', en: 'lockout 5 tries/15 minutes' }) }}<br />
-          INVALID_CREDENTIALS · ACCOUNT_LOCKED · RATE_LIMITED · PASSWORD_CHANGE_REQUIRED · TERMS_UPDATE_REQUIRED
-        </p>
+        
         @if (error(); as e) {
           <p class="card err" role="alert">
             <strong>{{ i18n.t(e.title) }}</strong><br />
             <span class="small">{{ i18n.t(e.sub) }}</span>
             @if (errorInfo()) {
-              <br /><span class="small mono adv-only">{{ errorInfo() }}</span>
+              <br />
             }
           </p>
         }
@@ -337,7 +334,7 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
         <p class="small easy-hide">
           <span class="danger-text">{{ i18n.t({ th: 'ลืมรหัสผ่าน? ', en: 'Forgot it? ' }) }}</span>
           {{ i18n.t({ th: 'เจ้าหน้าที่ขอให้หัวหน้ารีเซ็ต · ผู้ใช้อื่นติดต่อผู้ดูแลระบบ: ', en: 'Officers ask their head · everyone else contacts the admin: ' }) }}<strong>{{ support() ?? '—' }}</strong>
-          <span class="mono adv-only"> · GET /support</span>
+          
         </p>
 
         <div class="stack push-end">
@@ -504,9 +501,7 @@ export class AuthSignin implements OnInit {
       <p class="center small push-end easy-hide">
         {{ i18n.t({ th: 'มีบัญชีแล้ว? ', en: 'Have an account? ' }) }}<a class="link" [routerLink]="url('A04')">{{ i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</a>
       </p>
-      <p class="muted small adv-only mono">
-        A06 POST /auth/signup/owner · A10 POST /auth/signup/officer · L01 POST /auth/signup/agency
-      </p>
+      
     </div>
   `,
   styles: `

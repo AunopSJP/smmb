@@ -264,12 +264,9 @@ export class HeadSignup {
         <!-- โหมดละเอียด: สถานะจริงจาก /agency + /me (ตาม AuthPending_A) -->
         <section class="card adv-only">
           <dl class="kv">
-            <dt>{{ i18n.t({ th: 'สถานะคำขอ', en: 'Request status' }) }}</dt><dd class="mono">{{ req()?.status ?? 'pending' }}</dd>
-            <dt>{{ i18n.t({ th: 'รหัสหน่วยงาน', en: 'Agency ID' }) }}</dt><dd class="mono">{{ req()?.id ?? '—' }}</dd>
-            <dt>{{ i18n.t({ th: 'สถานะบัญชี', en: 'Account status' }) }}</dt><dd class="mono">{{ realSession.me()?.agency_status ?? '—' }}</dd>
-            <dt>Web Push</dt><dd class="mono">{{ realSession.me()?.push?.subscribed ? i18n.t({ th: 'เปิดแล้ว', en: 'subscribed' }) : i18n.t({ th: 'ยังไม่เปิด', en: 'not subscribed' }) }}</dd>
+            <dt>{{ i18n.t({ th: 'การแจ้งเตือน', en: 'Notifications' }) }}</dt><dd>{{ realSession.me()?.push?.subscribed ? i18n.t({ th: 'เปิดแล้ว', en: 'on' }) : i18n.t({ th: 'ยังไม่เปิด', en: 'off' }) }}</dd>
           </dl>
-          <p class="muted small">{{ i18n.t({ th: 'ระหว่างรอ หัวข้อของเจ้าหน้าที่จะตอบ 403 ACCOUNT_PENDING จนกว่าจะอนุมัติ', en: 'Until approved, officer features answer 403 ACCOUNT_PENDING' }) }}</p>
+          <p class="muted small">{{ i18n.t({ th: 'ระหว่างรอ หัวหน้าต้องอนุมัติก่อน จึงจะใช้งานฟังก์ชันเจ้าหน้าที่ได้', en: 'Your head must approve the request before officer features become available.' }) }}</p>
         </section>
         <div class="easy-only">
           <app-push-status [compact]="true" />
@@ -379,9 +376,6 @@ const NEXT_STEPS: Step[] = [
       <div class="easy-hide"><app-steps [steps]="steps" [current]="0" /></div>
       <section class="card adv-only">
         <dl class="kv">
-          <dt>{{ i18n.t({ th: 'รหัสหน่วยงาน', en: 'Agency ID' }) }}</dt><dd class="mono">{{ agencyId() || '—' }}</dd>
-          <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt><dd class="mono">{{ api.agency()?.status ?? '—' }}</dd>
-          <dt>{{ i18n.t({ th: 'รหัสกลุ่ม (ดิบ)', en: 'Raw group code' }) }}</dt><dd class="mono">{{ api.agency()?.group_code ?? '—' }}</dd>
           <dt>{{ i18n.t({ th: 'ช่องทางติดต่อ', en: 'Contact' }) }}</dt><dd>{{ api.agency()?.contact ?? '—' }}</dd>
         </dl>
       </section>

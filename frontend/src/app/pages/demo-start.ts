@@ -32,7 +32,6 @@ import { Icon, type IconName } from '../shared/icon';
             <span class="grow">
               <strong>{{ i18n.t(label(a.area)) }}</strong>
               <span class="muted small block easy-hide">{{ count(a.area) }} {{ i18n.t({ th: 'หน้า', en: 'screens' }) }}</span>
-              <span class="muted small block mono adv-only">{{ a.area }} · {{ count(a.area) }}</span>
             </span>
             <app-icon name="chevronRight" [size]="18" />
           </button>
@@ -41,24 +40,6 @@ import { Icon, type IconName } from '../shared/icon';
       @if (error()) {
         <p class="error" role="alert">{{ i18n.t(error()!) }}</p>
       }
-
-      <section class="card stack adv-only">
-        <h2 class="section-title">{{ i18n.t({ th: 'สภาพแวดล้อม', en: 'Environment' }) }}</h2>
-        <dl class="kv">
-          <dt>origin</dt>
-          <dd class="mono">{{ origin }}</dd>
-          <dt>apiBase</dt>
-          <dd class="mono">{{ api.apiBase() || i18n.t({ th: 'โดเมนเดียวกัน', en: 'same origin' }) }}</dd>
-          <dt>devTools</dt>
-          <dd class="mono">{{ api.devTools() }}</dd>
-          @if (me(); as m) {
-            <dt>user id</dt>
-            <dd class="mono">{{ m.id }}</dd>
-            <dt>roles</dt>
-            <dd class="mono">{{ m.roles.join(', ') }}</dd>
-          }
-        </dl>
-      </section>
 
       <h2 class="section-title easy-hide">{{ i18n.t({ th: 'การแสดงผล', en: 'Display' }) }}</h2>
       <section class="card stack easy-hide">

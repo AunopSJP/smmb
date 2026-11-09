@@ -51,7 +51,6 @@ const go = (router: Router, code: string, id?: string) =>
             <span class="grow">
               <strong class="big">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ c.house_no }}</strong>
               <span class="muted small block">{{ c.owner?.name }}</span>
-              <span class="muted small block mono adv-only">{{ c.id }} · stage={{ c.stage }} · {{ time(c.created_at) }}</span>
             </span>
             <span class="chip danger">{{ i18n.t({ th: 'รับแล้วโดยคุณ', en: 'Yours' }) }}</span>
           </a>
@@ -61,7 +60,6 @@ const go = (router: Router, code: string, id?: string) =>
             <span class="grow">
               <strong class="big">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ c.house_no }}</strong>
               <span class="muted small block">{{ time(c.created_at) }} · {{ c.owner?.name }}</span>
-              <span class="muted small block mono adv-only">{{ c.id }} · stage={{ c.stage }}</span>
             </span>
             <span class="chip danger">{{ i18n.t({ th: 'ยังไม่มีคนรับ', en: 'Not accepted' }) }}</span>
           </a>
@@ -87,7 +85,6 @@ const go = (router: Router, code: string, id?: string) =>
                   {{ i18n.t({ th: 'เจ้าของบ้านยกเลิก', en: 'Owner cancelled' }) }}
                 }
               </span>
-              <span class="muted small block mono adv-only">{{ h.id }} · stage={{ h.stage }} · {{ h.created_at }}</span>
             </span>
             <span class="chip" [class.ok]="h.status === 'closed'">
               {{ h.status === 'closed' ? i18n.t({ th: 'ปิดแล้ว', en: 'Closed' }) : i18n.t({ th: 'ยกเลิก', en: 'Cancelled' }) }}
@@ -215,7 +212,6 @@ export class OfficerSosList {
           <span class="pill">{{ i18n.t({ th: 'SOS ใหม่', en: 'New SOS' }) }}</span>
           <span class="small">{{ ago() }} {{ i18n.t({ th: 'วินาทีที่แล้ว', en: 's ago' }) }}</span>
         </div>
-        <p class="adv-only mono tech">{{ c.id }} · stage={{ c.stage }} · created={{ c.created_at }} · {{ i18n.t({ th: 'บันทึกการเปิดดูเมื่อกดรับ', en: 'view-log on accept' }) }}</p>
         <p>{{ i18n.t({ th: 'ขอความช่วยเหลือที่', en: 'Help needed at' }) }}</p>
         <h1>{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ c.house_no }}</h1>
         <section class="card on-red">
@@ -351,7 +347,6 @@ export class OfficerSosCase implements OnInit {
       <a [routerLink]="url('O01')" class="back"><app-icon name="chevronLeft" [size]="16" />{{ i18n.t({ th: 'หน้าสรุป', en: 'Summary' }) }}</a>
       <p class="small">{{ i18n.t({ th: 'คุณรับเรื่องแล้ว', en: 'You accepted' }) }}</p>
       <h1>{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ c?.house_no }}</h1>
-      <p class="adv-only mono tech">{{ c?.id }} · stage={{ c?.stage }} · created={{ c?.created_at }}</p>
     </header>
     <div class="pad">
       @if (c?.status === 'cancelled') {
@@ -368,7 +363,7 @@ export class OfficerSosCase implements OnInit {
           </dl>
           <app-sos-house-details [house]="c?.house ?? null" />
         </section>
-        <p class="adv-only mono tech-muted">
+        <p class="muted small adv-only">
           {{ i18n.t({ th: 'บันทึกการเข้าถึง 1 ครั้ง/คน/เคส · หมดสิทธิ์เห็นข้อมูลเมื่อปิดเรื่อง', en: 'Access logged once per person per case · data access ends when the case closes' }) }}
         </p>
         @if (c?.house?.location; as loc) {
@@ -451,7 +446,7 @@ const OUTCOMES: { v: string; label: Tr }[] = [
     <form class="pad" (submit)="close($event)">
       <a class="back" [routerLink]="url('O10')" [queryParams]="{ id: id() }"><app-icon name="chevronLeft" [size]="16" />{{ i18n.t({ th: 'กลับ', en: 'Back' }) }}</a>
       <h1>{{ i18n.t({ th: 'ปิดเรื่อง SOS', en: 'Close the SOS' }) }}</h1>
-      <p class="adv-only mono tech">sos {{ id() }} · status=accepted · note ≤ 500</p>
+      <p class="muted small adv-only">{{ i18n.t({ th: 'หมายเหตุไม่เกิน 500 ตัวอักษร', en: 'Note up to 500 characters' }) }}</p>
       <fieldset class="options">
         <legend>{{ i18n.t({ th: 'เกิดอะไรขึ้น', en: 'What happened' }) }}</legend>
         @for (o of outcomes; track o.v) {
@@ -465,7 +460,7 @@ const OUTCOMES: { v: string; label: Tr }[] = [
       @if (failed()) {
         <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ปิดเรื่องไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t close — try again' }) }}</p>
       }
-      <p class="adv-only mono tech">{{ i18n.t({ th: 'ปิดแล้วแก้ไม่ได้ · บันทึกเวลาและชื่อผู้ปิดเรื่อง', en: 'Cannot be edited after closing · time and name are recorded' }) }}</p>
+      <p class="muted small adv-only">{{ i18n.t({ th: 'ปิดแล้วแก้ไม่ได้ · บันทึกเวลาและชื่อผู้ปิดเรื่อง', en: 'Cannot be edited after closing · time and name are recorded' }) }}</p>
       <button type="submit" class="btn green big push-end" [disabled]="busy()">{{ i18n.t({ th: 'ยืนยันปิดเรื่อง', en: 'Confirm and close' }) }}</button>
     </form>
   `,

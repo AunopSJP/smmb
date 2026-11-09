@@ -348,12 +348,18 @@ export class OwnerHistory {
     return `${this.i18n.t(h.method === 'code' ? { th: 'ไรเดอร์พิมพ์รหัส', en: 'rider typed the code' } : { th: 'ไรเดอร์สแกน QR', en: 'rider scanned the QR' })}`;
   }
 
-  /** OwnHistory_A: รหัส/ข้อมูลดิบของเหตุการณ์ */
+  /** OwnHistory_A: ข้อมูลเพิ่มเติมแบบอ่านรู้เรื่อง (ไม่มีรหัสภายใน) */
   protected tech(h: BoxEvent): string {
+    const qr = h.qr_slot === 2
+      ? this.i18n.t({ th: 'QR สำรอง', en: 'Backup QR' })
+      : this.i18n.t({ th: 'QR หน้าตู้', en: 'Front QR' });
     if (h.type === 'inspected') {
-      return [h.id, h.qr_slot ? 'QR ' + h.qr_slot : '', h.has_photo ? 'photo' : '', clockSec(h.at)].filter((x) => x).join(' · ');
+      return [qr, h.has_photo ? this.i18n.t({ th: 'มีรูปยืนยัน', en: 'photo attached' }) : '', clockSec(h.at)].filter((x) => x).join(' · ');
     }
-    return [h.id, h.method ?? '', clockSec(h.at)].filter((x) => x).join(' · ');
+    return [
+      this.i18n.t(h.method === 'code' ? { th: 'พิมพ์รหัส', en: 'typed code' } : { th: 'สแกน QR', en: 'QR scan' }),
+      clockSec(h.at),
+    ].filter((x) => x).join(' · ');
   }
 
   protected countType(t: BoxEvent['type']): number {
@@ -416,9 +422,8 @@ function useEvent(type: BoxEvent['type']) {
             <dl class="kv">
               <dt>{{ i18n.t({ th: 'เจ้าหน้าที่', en: 'Officer' }) }}</dt><dd>{{ h.officer?.display_name }}</dd>
               <dt>{{ i18n.t({ th: 'หน่วยงาน', en: 'Agency' }) }}</dt><dd>{{ h.officer?.agency_name }}</dd>
-              <dt class="adv-only">{{ i18n.t({ th: 'วันเวลา', en: 'Date' }) }}</dt><dd class="adv-only mono">{{ exact(h.at) }}</dd>
-              <dt class="adv-only">{{ i18n.t({ th: 'รหัสเหตุการณ์', en: 'Event ID' }) }}</dt><dd class="adv-only mono">{{ h.id }}</dd>
-              <dt class="adv-only">{{ i18n.t({ th: 'QR ที่สแกน', en: 'QR scanned' }) }}</dt><dd class="adv-only">{{ h.qr_slot === 2 ? i18n.t({ th: 'QR สำรอง', en: 'Backup QR' }) : i18n.t({ th: 'QR หน้าตู้', en: 'Front QR' }) }} · slot {{ h.qr_slot ?? 1 }}</dd>
+              <dt class="adv-only">{{ i18n.t({ th: 'วันเวลา', en: 'Date' }) }}</dt><dd class="adv-only">{{ exact(h.at) }}</dd>
+              <dt class="adv-only">{{ i18n.t({ th: 'QR ที่สแกน', en: 'QR scanned' }) }}</dt><dd class="adv-only">{{ h.qr_slot === 2 ? i18n.t({ th: 'QR สำรอง', en: 'Backup QR' }) : i18n.t({ th: 'QR หน้าตู้', en: 'Front QR' }) }}</dd>
               <dt class="adv-only">{{ i18n.t({ th: 'วิธี', en: 'Method' }) }}</dt><dd class="adv-only">{{ h.method === 'code' ? i18n.t({ th: 'พิมพ์รหัส', en: 'Typed code' }) : i18n.t({ th: 'สแกน', en: 'Scan' }) }}</dd>
               <dt class="adv-only">{{ i18n.t({ th: 'รูปยืนยัน', en: 'Photo' }) }}</dt><dd class="adv-only">{{ h.has_photo ? i18n.t({ th: 'มี · เก็บ 30 วัน', en: 'Yes · kept 30 days' }) : i18n.t({ th: 'ไม่มี', en: 'None' }) }}</dd>
             </dl>
@@ -535,10 +540,9 @@ export class OwnerInspection {
             </div>
             <dl class="kv">
               <dt>{{ i18n.t({ th: 'แจ้งโดย', en: 'Reported by' }) }}</dt><dd>{{ i18n.t({ th: 'ไรเดอร์', en: 'Rider' }) }}</dd>
-              <dt class="adv-only">{{ i18n.t({ th: 'รหัสเหตุการณ์', en: 'Event ID' }) }}</dt><dd class="adv-only mono">{{ h.id }}</dd>
-              <dt class="adv-only">{{ i18n.t({ th: 'วันเวลา', en: 'Date' }) }}</dt><dd class="adv-only mono">{{ exact(h.at) }}</dd>
+              <dt class="adv-only">{{ i18n.t({ th: 'วันเวลา', en: 'Date' }) }}</dt><dd class="adv-only">{{ exact(h.at) }}</dd>
               <dt class="adv-only">{{ i18n.t({ th: 'วิธี', en: 'Method' }) }}</dt><dd class="adv-only">{{ h.method === 'code' ? i18n.t({ th: 'พิมพ์รหัสใต้ QR', en: 'Typed the code' }) : i18n.t({ th: 'สแกน QR หน้าตู้', en: 'Scanned the front QR' }) }}</dd>
-              <dt class="adv-only">{{ i18n.t({ th: 'QR ที่ใช้', en: 'QR used' }) }}</dt><dd class="adv-only mono">slot {{ h.qr_slot ?? 1 }}</dd>
+              <dt class="adv-only">{{ i18n.t({ th: 'QR ที่ใช้', en: 'QR used' }) }}</dt><dd class="adv-only">{{ h.qr_slot === 2 ? i18n.t({ th: 'QR สำรอง', en: 'Backup QR' }) : i18n.t({ th: 'QR หน้าตู้', en: 'Front QR' }) }}</dd>
             </dl>
           </section>
         }

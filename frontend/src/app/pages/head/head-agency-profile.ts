@@ -29,10 +29,10 @@ import { PageHeader } from '../../shared/page-header';
         </div>
         <p class="muted small easy-hide">{{ i18n.t({ th: 'สร้างรหัสใหม่แล้วรหัสเก่าใช้ไม่ได้ทันที · สมาชิกเดิมไม่กระทบ', en: 'A new code immediately stops the old one · existing members are unaffected' }) }}</p>
       </section>
-      <p class="muted small mono adv-only meta">
-        {{ api.agency()?.id }} · {{ api.agency()?.status }} · {{ i18n.t({ th: 'หัวหน้า ', en: 'heads ' }) }}{{ api.agency()?.heads?.length ?? 0 }}
+      <p class="muted small adv-only">
+        {{ i18n.t({ th: 'หัวหน้าทั้งหมด ', en: 'Heads ' }) }}{{ api.agency()?.heads?.length ?? 0 }}
         @if (api.agency()?.profile?.lat != null && api.agency()?.profile?.lng != null) {
-          · lat {{ api.agency()?.profile?.lat }} lng {{ api.agency()?.profile?.lng }}
+          · {{ i18n.t({ th: 'ปักหมุดที่ตั้งแล้ว', en: 'location pinned' }) }}
         } @else {
           · {{ i18n.t({ th: 'ยังไม่ปักหมุด', en: 'no pin' }) }}
         }

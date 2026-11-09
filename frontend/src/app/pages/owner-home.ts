@@ -271,14 +271,15 @@ const REFRESH_MS = 10_000;
                   <span class="grow">
                     <strong>{{ i18n.t({ th: 'เจ้าหน้าที่มาตรวจ', en: 'Officer checked' }) }}</strong>
                     <span class="muted small block">{{ e.officer?.agency_name }} · {{ e.officer?.display_name }}</span>
-                    <span class="muted small block adv-only mono">{{ e.id }}@if (e.qr_slot) { · QR {{ e.qr_slot }}}@if (e.has_photo) { · {{ i18n.t({ th: 'มีรูป', en: 'photo' }) }}}</span>
+                    @if (e.has_photo) {
+                      <span class="muted small block adv-only">{{ i18n.t({ th: 'มีรูปยืนยันการตรวจ', en: 'Inspection photo available' }) }}</span>
+                    }
                   </span>
                 } @else {
                   <span class="icon-bubble warn"><app-icon name="box" [size]="20" /></span>
                   <span class="grow">
                     <strong>{{ i18n.t({ th: 'มีของมาส่ง', en: 'Parcel delivered' }) }}</strong>
                     <span class="muted small block">{{ e.method === 'code' ? i18n.t({ th: 'ไรเดอร์พิมพ์รหัส', en: 'Rider typed the code' }) : i18n.t({ th: 'ไรเดอร์สแกน QR', en: 'Rider scanned the QR' }) }}</span>
-                    <span class="muted small block adv-only mono">{{ e.id }} · {{ e.method }}</span>
                   </span>
                 }
                 @if (display.advancedMode()) {

@@ -155,7 +155,7 @@ export const SCREENS: ScreenDef[] = [
   }),
   s('O04-b', 'officer', 'check/denied', 'ตรวจไม่ได้', 'Cannot inspect', {
     fullscreen: true,
-    note: n('?reason=zone|window|code — ไม่อยู่ในโซน / นอกเวลาตรวจ / รหัสผิด', '?reason=zone|window|code'),
+    note: n('ไม่อยู่ในโซน / นอกเวลาตรวจ / รหัสผิด', 'Outside the zone / patrol hours / wrong code'),
   }),
   s('O05', 'officer', 'check/wake', 'กำลังปลุกตู้', 'Waking the mailbox', { fullscreen: true, states: ['O05-b'], next: ['O06'] }),
   s('O06', 'officer', 'check/badge', 'QR ประจำตัว', 'Your badge QR', {
@@ -248,15 +248,15 @@ export const SCREENS: ScreenDef[] = [
   s('A12', 'auth', 'push-required', 'ต้องเปิดแจ้งเตือนก่อน', 'Notifications required', { next: ['O01'] }),
   // ไม่มีใน wireframe — เพิ่มตาม api.md §2 (2026-10-27)
   s('A14', 'auth', 'password', 'เปลี่ยนรหัสผ่าน', 'Change password', {
-    note: n('?forced=1 = บังคับหลังถูกรีเซ็ต (PASSWORD_CHANGE_REQUIRED) · ไม่มีใน wireframe', '?forced=1 after a reset · not in the wireframe'),
+    note: n('บังคับเปลี่ยนรหัสหลังถูกรีเซ็ต · ไม่มีใน wireframe', 'Forced after a password reset · not in the wireframe'),
     next: ['A04'],
   }),
   s('A15', 'auth', 'add/owner', 'เพิ่มบทบาทเจ้าของบ้าน', 'Add homeowner role', {
-    note: n('POST /me/roles/owner · ไม่มีใน wireframe', 'POST /me/roles/owner · not in the wireframe'),
+    note: n('เพิ่มบทบาทเจ้าของบ้าน · ไม่มีใน wireframe', 'Add the homeowner role · not in the wireframe'),
     next: ['A07'],
   }),
   s('A16', 'auth', 'add/agency', 'ขอเข้าหน่วยงาน', 'Join an agency', {
-    note: n('POST /me/agency/join · ไม่มีใน wireframe', 'POST /me/agency/join · not in the wireframe'),
+    note: n('ขอเข้าหน่วยงาน · ไม่มีใน wireframe', 'Join an agency · not in the wireframe'),
     next: ['A11'],
   }),
   s('A13', 'auth', 'terms', 'ข้อตกลง', 'Terms', {

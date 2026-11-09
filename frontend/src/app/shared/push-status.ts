@@ -67,41 +67,12 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
         }
       </div>
     }
-    @if (!compact()) {
-      <section class="card adv-only stack">
-        <strong>{{ i18n.t({ th: 'ข้อมูลทางเทคนิค', en: 'Technical details' }) }}</strong>
-        @if (server(); as st) {
-          <dl class="kv">
-            <dt>GET /me/push/status</dt>
-            <dd class="mono">configured={{ st.configured }} · keys_match={{ st.keys_match }}</dd>
-            <dt>permission</dt>
-            <dd class="mono">{{ permission() }}</dd>
-            <dt>device_label</dt>
-            <dd class="mono">{{ deviceLabel() ?? '—' }}</dd>
-            @if (device(); as d) {
-              <dt>push service</dt>
-              <dd class="mono">{{ d.host }}</dd>
-              <dt>usable</dt>
-              <dd class="mono">{{ d.usable }} · failed={{ d.failed_count }}</dd>
-              <dt>last_ok_at</dt>
-              <dd class="mono">{{ d.last_ok_at ? exact(d.last_ok_at) : '—' }}</dd>
-            } @else {
-              <dt>this device</dt>
-              <dd class="mono">{{ i18n.t({ th: 'ยังไม่ผูกกับเซิร์ฟเวอร์', en: 'not linked to the server' }) }}</dd>
-            }
-          </dl>
-        } @else {
-          <small class="muted">{{ i18n.t({ th: 'กำลังโหลดข้อมูลเซิร์ฟเวอร์…', en: 'Loading server details…' }) }}</small>
-        }
-      </section>
-    }
     @if (diag().length) {
       <div class="card diag" role="status">
         <strong>{{ i18n.t({ th: 'ผลการตรวจ', en: 'Check results' }) }}</strong>
         @for (s of diag(); track $index) {
           <div class="diag-step" [class.bad]="!s.ok">
             <span>{{ s.ok ? '✅' : '❌' }} {{ i18n.t(s.label) }}</span>
-            @if (s.detail) { <small>{{ s.detail }}</small> }
             @if (!s.ok && s.fix) { <small class="fix">{{ i18n.t(s.fix) }}</small> }
           </div>
         }

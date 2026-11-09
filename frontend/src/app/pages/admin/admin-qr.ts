@@ -197,7 +197,6 @@ export class QrPrintSheet {
             <span>
               <strong>{{ c.house_no }}</strong>
               <span class="muted small block">{{ c.box_id }} · {{ i18n.t(slot[c.slot]) }}</span>
-              <span class="muted small block mono adv-only">{{ c.id }} · {{ c.status }} · step={{ c.step }} · {{ c.health_reasons.join(', ') || '—' }} · created_at={{ c.created_at }} · updated_at={{ c.updated_at }}</span>
             </span>
             <span><span class="chip" [class.danger]="h.tone === 'danger'" [class.warn]="h.tone === 'warn'">{{ i18n.t(h.label) }}</span></span>
             <span class="small">{{ i18n.t(reason(c)) }}</span>
@@ -218,7 +217,6 @@ export class QrPrintSheet {
                 <span>
                   <strong>{{ c.house_no }}</strong>
                   <span class="muted small block">{{ c.box_id }} · {{ i18n.t(slot[c.slot]) }} · {{ i18n.t(health[c.health].label) }}</span>
-                  <span class="muted small block mono adv-only">{{ c.id }} · {{ c.updated_at }}</span>
                 </span>
                 <span class="muted small">{{ date(c.updated_at) }}</span>
               </a>
@@ -227,11 +225,11 @@ export class QrPrintSheet {
         </details>
       }
       <p class="muted small easy-hide">{{ i18n.t({ th: 'ตรวจอัตโนมัติทุกคืน 23:00 · QR ที่อาจปลอมแจ้งทันที · รายการรีเฟรชเองทุก 10 วินาที', en: 'Checked every night at 23:00 · possible fakes are reported at once · refreshes every 10 s' }) }}</p>
-      <p class="muted small adv-only mono">GET /admin/qr?status=open · {{
-        i18n.t({ th: 'เปิด ', en: 'open ' })
-      }}{{ open().length }} · {{
-        i18n.t({ th: 'ปิด ', en: 'closed ' })
-      }}{{ closed().length }} · maybe_fake {{ counts().maybe_fake }} · damaged {{ counts().damaged }} · suspicious {{ counts().suspicious }} · expiring {{ counts().expiring }}</p>
+      <p class="muted small adv-only">
+        {{ i18n.t({ th: 'เปิด ', en: 'Open ' }) }}{{ open().length }} · {{ i18n.t({ th: 'ปิด ', en: 'Closed ' }) }}{{ closed().length }} ·
+        {{ i18n.t({ th: 'อาจปลอม ', en: 'Maybe fake ' }) }}{{ counts().maybe_fake }} · {{ i18n.t({ th: 'เสีย ', en: 'Damaged ' }) }}{{ counts().damaged }} ·
+        {{ i18n.t({ th: 'น่าสงสัย ', en: 'Suspicious ' }) }}{{ counts().suspicious }} · {{ i18n.t({ th: 'ใกล้หมดอายุ ', en: 'Expiring ' }) }}{{ counts().expiring }}
+      </p>
     </div>
   `,
   styles: `
@@ -545,14 +543,6 @@ const REISSUE_STEPS: FlowStep[] = [
             <dd [class.danger-text]="c.backup_used">{{ c.backup_used ? i18n.t({ th: 'ถูกสแกนไปแล้ว', en: 'Already scanned' }) : i18n.t({ th: 'ยังไม่เคยใช้', en: 'Never used' }) }}</dd>
             <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt>
             <dd>{{ i18n.t(progressOf(c).label) }}</dd>
-            <dt class="adv-only">case_id</dt><dd class="adv-only mono">{{ c.id }}</dd>
-            <dt class="adv-only">box_id</dt><dd class="adv-only mono">{{ c.box_id }}</dd>
-            <dt class="adv-only">health / slot</dt><dd class="adv-only mono">{{ c.health }} · slot={{ c.slot }}</dd>
-            <dt class="adv-only">status / step</dt><dd class="adv-only mono">{{ c.status }} · step={{ c.step }}</dd>
-            <dt class="adv-only">health_reasons</dt><dd class="adv-only mono">{{ c.health_reasons.join(', ') || '—' }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'เปิดเคส (ISO)', en: 'Opened (ISO)' }) }}</dt><dd class="adv-only mono">{{ c.created_at }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'แก้ล่าสุด (ISO)', en: 'Updated (ISO)' }) }}</dt><dd class="adv-only mono">{{ c.updated_at }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'สแกนล่าสุด (ISO)', en: 'Last scanned (ISO)' }) }}</dt><dd class="adv-only mono">{{ c.last_scanned_at ?? '—' }}</dd>
           </dl>
           <a class="btn secondary" [routerLink]="url('D04')" [queryParams]="{ id: c.box_id }">{{ i18n.t({ th: 'เปิดหน้าตู้', en: 'Open the box page' }) }}</a>
         </aside>

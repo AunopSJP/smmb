@@ -882,10 +882,7 @@ export class OwnerWifi {
             @if (request.scheduled_at) { <dt>{{ i18n.t({ th: 'นัดหมาย', en: 'Appointment' }) }}</dt><dd>{{ request.scheduled_at | date:'d MMM yyyy HH:mm' }}</dd> }
             @if (request.admin_note) { <dt>{{ i18n.t({ th: 'ข้อความจากทีมงาน', en: 'Team note' }) }}</dt><dd>{{ request.admin_note }}</dd> }
             <dt>{{ i18n.t({ th: 'เบอร์ติดต่อกลับ', en: 'Call-back number' }) }}</dt><dd>{{ phone }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'รหัสคำขอ', en: 'Request ID' }) }}</dt><dd class="adv-only mono">{{ request.id }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd class="adv-only mono">{{ request.box_id }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'สถานะ (ดิบ)', en: 'Raw status' }) }}</dt><dd class="adv-only mono">{{ request.status }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'ส่งเมื่อ (วินาที)', en: 'Sent (seconds)' }) }}</dt><dd class="adv-only mono">{{ exact(request.created_at) }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd class="adv-only">{{ request.box_id }}</dd>
           </dl>
         </section>
         <section class="card easy-hide">
@@ -1212,11 +1209,8 @@ export class OwnerTechnician {
 
       <section class="card adv-only">
         <dl class="kv">
-          <dt>data-mode</dt><dd class="mono">{{ display.mode() }}</dd>
-          <dt>data-text-size</dt><dd class="mono">{{ display.textSize() }}</dd>
-          <dt>theme</dt><dd class="mono">{{ display.theme() }}</dd>
-          <dt>lang</dt><dd class="mono">{{ display.lang() }}</dd>
-          <dt>{{ i18n.t({ th: 'เก็บที่บัญชี', en: 'Saved to account' }) }}</dt><dd class="mono">PATCH /me · prefs.ui_mode</dd>
+          <dt>{{ i18n.t({ th: 'ธีม', en: 'Theme' }) }}</dt><dd>{{ display.theme() }}</dd>
+          <dt>{{ i18n.t({ th: 'ภาษา', en: 'Language' }) }}</dt><dd>{{ display.lang() }}</dd>
         </dl>
       </section>
 

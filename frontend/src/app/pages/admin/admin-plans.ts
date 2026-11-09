@@ -82,7 +82,6 @@ function todayInBangkok(): string {
             <li>
               <strong>{{ planName(h.plan_code) }}</strong> · {{ date(h.starts_at) }} – {{ h.ends_at ? date(h.ends_at) : i18n.t({ th: 'ปัจจุบัน', en: 'now' }) }}
               <span class="muted small block">{{ i18n.t({ th: 'โดย ', en: 'by ' }) }}{{ h.set_by ?? i18n.t({ th: 'ระบบ', en: 'System' }) }}{{ h.note ? ' · ' + h.note : '' }}</span>
-              <span class="muted small block mono adv-only">{{ h.id }} · user {{ h.user_id }} · {{ h.starts_at }} → {{ h.ends_at ?? '—' }} · set_by {{ h.set_by ?? '—' }}</span>
             </li>
           }
         </ul>
@@ -260,11 +259,11 @@ export class UserPlan {
         @for (p of plans(); track p.code) {
           <div class="row plan pcols">
             <span class="grow">
-              <strong>{{ i18n.t(name(p)) }}</strong> <span class="muted small">({{ p.code }})</span>
+              <strong>{{ i18n.t(name(p)) }}</strong>
               @if (p.price_note) {
                 <span class="muted small block">{{ p.price_note }}</span>
               }
-              <span class="muted small block mono adv-only">default {{ p.is_default }} · active {{ p.is_active }} · owners {{ p.owners_count }} · features {{ featuresText(p) }}</span>
+              <span class="muted small block adv-only">{{ i18n.t({ th: 'เจ้าของบ้าน ', en: 'Owners ' }) }}{{ p.owners_count }} · {{ i18n.t({ th: 'ค่าเริ่มต้น', en: 'default' }) }} {{ p.is_default ? i18n.t({ th: 'ใช่', en: 'yes' }) : i18n.t({ th: 'ไม่ใช่', en: 'no' }) }}</span>
             </span>
             <span class="num">{{ p.owners_count }} <span class="muted small">{{ i18n.t({ th: 'คน', en: 'owners' }) }}</span></span>
             <span class="chips">

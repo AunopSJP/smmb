@@ -72,9 +72,6 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
         {{ i18n.t({ th: 'อ่านทั้งหมด', en: 'Mark all read' }) }}
       </button>
     </div>
-    <p class="muted small adv-only mono">
-      GET /me/notifications?per_page=50 · {{ i18n.t({ th: 'ทั้งหมด', en: 'all' }) }} {{ items().length }} · {{ i18n.t({ th: 'ยังไม่อ่าน', en: 'unread' }) }} {{ unreadCount() }}
-    </p>
 
     @for (g of groups(); track g.key) {
       <h2 class="day">{{ g.label }}</h2>
@@ -91,7 +88,6 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
                 <time class="easy-hide" [attr.datetime]="n.created_at">{{ when(n.created_at) }}</time>
               </span>
               <span class="body easy-hide" [attr.title]="n.body">{{ n.body || '—' }}</span>
-              <span class="adv-only meta mono">{{ meta(n) }}</span>
               @if (n.link) {
                 <span class="more easy-hide">{{ moreLabel(n.type) }} ›</span>
               }

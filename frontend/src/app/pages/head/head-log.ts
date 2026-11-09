@@ -135,8 +135,7 @@ const RESULT_TEXT: Record<string, Tr> = {
               <strong>{{ l.house_no ?? l.box_id ?? '—' }} · {{ time(l.at) }}</strong>
               <span class="muted small block easy-hide">{{ sub(l) }}</span>
               <span class="muted small block easy-only">{{ l.officer?.display_name ?? '—' }}</span>
-              <span class="muted small block mono adv-only">#{{ l.id }} · {{ l.box_id ?? '—' }} · {{ l.result }} · {{ l.qr_kind }}{{ l.qr_slot ? ' /slot ' + l.qr_slot : '' }} · {{ l.method }} · {{ l.officer?.id ?? '—' }}</span>
-              <span class="muted small block mono adv-only">{{ exact(l.at) }}</span>
+              <span class="muted small block adv-only">{{ i18n.t({ th: 'เวลาบันทึก ', en: 'Logged ' }) }}{{ exact(l.at) }}</span>
             </span>
             <span class="chip" [class.ok]="ok" [class.danger]="!ok">{{ i18n.t(resultText(l)) }}</span>
           </li>

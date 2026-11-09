@@ -66,10 +66,7 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
         <p class="form-hint">{{ i18n.t({ th: 'กรอกทั้งชื่อและเบอร์ หรือเว้นว่างทั้งคู่ · หัวหน้าหน่วยงานเห็นเพื่อใช้ตอนเกิดเหตุกับคุณ', en: 'Fill in both, or leave both empty · your agency head can see it for emergencies involving you' }) }}</p>
       </section>
       <p class="small easy-only">{{ i18n.t({ th: 'หัวหน้าต้องอนุมัติก่อน จึงจะเริ่มตรวจได้', en: 'Your head must approve before you can start inspections' }) }}</p>
-      <p class="muted small adv-only mono">
-        DRAFT signup.officer · POST /auth/signup/officer · {{ i18n.t({ th: 'ตรวจรหัสกลุ่มตอนส่ง · ผิด → ', en: 'group code is checked on submit · wrong → ' }) }}GROUP_CODE_INVALID<br />
-        {{ i18n.t({ th: 'ไม่เก็บเลขบัตรประชาชน', en: 'national ID is never stored' }) }}
-      </p>
+      
       }
       @if (step() === 2) {
       <label class="field" [class.invalid]="tried() && !phoneOk()">
@@ -79,14 +76,11 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
       <p class="small easy-only">{{ i18n.t({ th: 'หลังสมัครต้องเปิดแจ้งเตือนก่อนใช้งาน เพื่อรับ SOS', en: 'After signing up, notifications must be on before you can work, so you get SOS alerts' }) }}</p>
       <app-terms-check from="A10" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="filled() && !f().terms" />
-      <p class="muted small adv-only mono">
-        POST /auth/signup/officer · status → pending<br />
-        {{ i18n.t({ th: 'ไม่เปิดแจ้งเตือน → ', en: 'notifications off → ' }) }}403 PUSH_REQUIRED
-      </p>
+      
       }
       @if (errorCode(); as e) {
         <p class="danger-text small" role="alert">
-          {{ i18n.t(errors[e]) }}<span class="mono adv-only"> · {{ e }}</span>
+          {{ i18n.t(errors[e]) }}
           @if (e === 'PHONE_TAKEN') {
             · <a [routerLink]="url('A04')">{{ i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</a>
           }
@@ -229,7 +223,7 @@ export class AuthSignupOfficer {
           </p>
         </div>
         <app-contact-card [label]="{ th: 'ติดต่อหน่วยงาน · ' + req().agency.th, en: 'Contact the agency · ' + req().agency.en }" [contact]="req().contact" />
-        <p class="muted small adv-only mono">agency_status=rejected</p>
+        
         <div class="stack push-end">
           @if (otherHome(); as h) {
             <button type="button" class="btn secondary" (click)="leave(h)">{{ i18n.t({ th: 'กลับหน้าหลัก', en: 'Back to home' }) }}</button>
@@ -253,9 +247,7 @@ export class AuthSignupOfficer {
           </dl>
         </section>
         <app-contact-card class="easy-hide" [label]="{ th: 'รอนานเกินไป? ติดต่อหน่วยงาน', en: 'Waiting too long? Contact the agency' }" [contact]="req().contact" />
-        <p class="muted small adv-only mono">
-          GET /me · agency_status={{ me()?.agency_status }} · is_head={{ me()?.agency?.is_head }} · push={{ me()?.push?.subscribed }}
-        </p>
+        
         <div class="stack push-end">
           <button type="button" class="btn" (click)="check()">{{ i18n.t({ th: 'ตรวจสถานะอีกครั้ง', en: 'Check again' }) }}</button>
           @if (otherHome(); as h) {
@@ -353,7 +345,7 @@ export class AuthWaitingHead {
         <button type="button" class="btn" (click)="enable()">{{ i18n.t({ th: 'เปิดแจ้งเตือน', en: 'Turn on notifications' }) }}</button>
         <button type="button" class="btn secondary easy-hide" [attr.aria-expanded]="help()" (click)="help.set(!help())">{{ i18n.t({ th: 'ดูวิธีเปิดในตั้งค่า', en: 'How to allow it in settings' }) }}</button>
       </div>
-      <p class="muted small adv-only mono">403 PUSH_REQUIRED · permission={{ permission }} · GET /me/push/status</p>
+      
     </div>
   `,
   styles: `
@@ -421,13 +413,7 @@ export class AuthPushRequired {
         </section>
       }
       <p class="muted small">{{ i18n.t({ th: 'ฉบับ ', en: 'Version ' }) }}<span class="mono">{{ version }}</span></p>
-      <p class="muted small adv-only mono">
-        @if (update()) {
-          POST /me/terms · 403 TERMS_UPDATE_REQUIRED · terms_acceptance_tb
-        } @else {
-          terms_version={{ version }} · {{ i18n.t({ th: 'ส่งพร้อมฟอร์มสมัคร', en: 'sent with the sign-up form' }) }}
-        }
-      </p>
+      
       <p class="muted small easy-only">{{ i18n.t({ th: 'โหมดง่ายแสดงเฉพาะสาระสำคัญ — อ่านฉบับเต็มได้ในโหมดปกติ', en: 'Easy mode shows the key points only — read the full text in normal mode' }) }}</p>
       <button type="button" class="btn push-end" (click)="accept()">{{ i18n.t({ th: 'ยอมรับ', en: 'Accept' }) }}</button>
     </div>

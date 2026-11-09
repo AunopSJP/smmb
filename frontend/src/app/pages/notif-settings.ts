@@ -74,20 +74,6 @@ interface Option {
         <span class="chip ok">{{ i18n.t({ th: 'เปิดเสมอ · ปิดไม่ได้', en: 'Always on · cannot disable' }) }}</span>
       </section>
 
-      <section class="card stack adv-only">
-        <h2 class="head">{{ i18n.t({ th: 'ข้อมูลทางเทคนิค', en: 'Technical details' }) }}</h2>
-        <dl class="kv">
-          <dt>{{ i18n.t({ th: 'โหมดการแสดงผล', en: 'Display mode' }) }}</dt>
-          <dd class="mono">{{ display.mode() }}</dd>
-          <dt>{{ i18n.t({ th: 'ขนาดตัวอักษร', en: 'Text size' }) }}</dt>
-          <dd class="mono">{{ display.textSize() }}</dd>
-          <dt>{{ i18n.t({ th: 'ภาษา', en: 'Language' }) }}</dt>
-          <dd class="mono">{{ display.lang() }}</dd>
-          <dt>{{ i18n.t({ th: 'ปิดรับอยู่', en: 'Muted' }) }}</dt>
-          <dd class="mono">{{ display.mutedTypes().length }}</dd>
-        </dl>
-      </section>
-
       <p class="muted small">{{ i18n.t({ th: 'เปิดไม่ได้ หรือไม่เด้ง? กด "ตรวจแจ้งเตือน (ละเอียด)" ด้านบนเพื่อดูวิธีแก้ทีละขั้น', en: 'Can’t turn it on or nothing shows? Use “Check notifications (detailed)” above for step-by-step fixes.' }) }}</p>
       <a class="btn secondary push-end" [routerLink]="back()">{{ i18n.t({ th: 'กลับไปหน้าตั้งค่า', en: 'Back to settings' }) }}</a>
     </div>

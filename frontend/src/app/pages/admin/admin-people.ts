@@ -43,7 +43,7 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
           <p class="muted small easy-hide">
             {{ i18n.t({ th: 'หัวหน้า: ', en: 'Head: ' }) }}{{ heads(a) }} · {{ i18n.t({ th: 'ส่งเมื่อ ', en: 'Sent ' }) }}{{ date(a.created_at) }}
           </p>
-          <p class="small mono adv-only">{{ a.id }} · {{ a.created_at }} · {{ headIds(a) }}{{ a.group_code ? ' · group ' + a.group_code : '' }}</p>
+          <p class="small adv-only">{{ i18n.t({ th: 'หัวหน้า: ', en: 'Head: ' }) }}{{ heads(a) }}</p>
           @if (a.address || a.registration_no) {
             <p class="small easy-hide">
               @if (a.address) { {{ i18n.t({ th: 'ที่ตั้ง: ', en: 'Address: ' }) }}{{ a.address }} }
@@ -208,7 +208,6 @@ export class AdminAgencyRequests implements OnInit {
             <span class="grow">
               <strong>{{ a.name }}</strong>
               <span class="muted small block">{{ i18n.t(type(a.type)) }}</span>
-              <span class="muted small block mono adv-only">{{ a.id }} · {{ a.created_at }} · {{ headIds(a) }}</span>
             </span>
             <span class="small easy-hide">{{ heads(a) }}</span>
             <span class="small code easy-hide">{{ a.group_code ? code(a.group_code) : '—' }}</span>
@@ -333,15 +332,6 @@ const ROLE_LABEL: Record<string, Tr> = {
           <p class="small">
             {{ i18n.t({ th: 'สถานะบัญชี: ', en: 'Account: ' }) }}<strong [class.danger-text]="u.status === 'disabled'">{{ u.status === 'active' ? i18n.t({ th: 'ใช้งาน', en: 'active' }) : i18n.t({ th: 'ปิด', en: 'disabled' }) }}</strong>
           </p>
-          <dl class="kv small adv-only">
-            <dt>user_id</dt><dd class="mono">{{ u.id }}</dd>
-            <dt>{{ i18n.t({ th: 'สมัครเมื่อ', en: 'Created' }) }}</dt><dd class="mono">{{ u.created_at }}</dd>
-            <dt>{{ i18n.t({ th: 'บทบาท (level)', en: 'Roles (level)' }) }}</dt>
-            <dd class="mono">{{ roleText(u) }}</dd>
-            @if (u.agency) {
-              <dt>agency_id</dt><dd class="mono">{{ u.agency.id }} · {{ u.agency.status }}{{ u.agency.is_head ? ' · head' : '' }}</dd>
-            }
-          </dl>
           <a class="btn big easy-only" [href]="'tel:' + u.phone">{{ i18n.t({ th: 'โทร ', en: 'Call ' }) }}{{ u.phone }}</a>
           @if (temp(); as t) {
             <div class="info-box">
@@ -380,7 +370,7 @@ const ROLE_LABEL: Record<string, Tr> = {
         @for (u of shown(); track u.id) {
           <button type="button" class="row ucols" [class.on]="u.id === selectedId()" (click)="select(u.id)">
             <strong class="name">{{ u.name }}</strong>
-            <span class="info small"><span class="muted">{{ u.phone }}</span> · {{ roles(u) }}<span class="muted small block mono adv-only">{{ u.id }}{{ u.agency ? ' · ' + u.agency.id : '' }} · {{ u.created_at }}</span></span>
+            <span class="info small"><span class="muted">{{ u.phone }}</span> · {{ roles(u) }}</span>
             <span class="st"><span class="chip" [class.ok]="u.status === 'active'" [class.danger]="u.status === 'disabled'">{{ u.status === 'active' ? i18n.t({ th: 'ใช้งาน', en: 'Active' }) : i18n.t({ th: 'ปิด', en: 'Off' }) }}</span></span>
           </button>
         } @empty {

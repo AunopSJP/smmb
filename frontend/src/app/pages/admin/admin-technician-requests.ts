@@ -32,7 +32,6 @@ import { screenUrl } from '../../screens/registry';
               <a class="btn secondary easy-only call" [href]="'tel:' + request.owner_phone">{{ i18n.t({ th: 'โทรหาเจ้าของ', en: 'Call the owner' }) }}</a>
               <span class="small block">{{ reasonLabel(request.reason) }}</span>
               <span class="muted small block">{{ request.created_at | date:'d MMM yyyy HH:mm' }}</span>
-              <span class="muted small block mono adv-only">{{ request.id }} · status={{ request.status }} · reason={{ request.reason }} · created_at={{ request.created_at }} · scheduled_at={{ request.scheduled_at ?? '—' }}</span>
               @if (request.note) { <p class="request-note">{{ request.note }}</p> }
               @if (request.status === 'open') {
                 <label class="field">

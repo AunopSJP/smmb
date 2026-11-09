@@ -48,8 +48,7 @@ interface RecentLog {
 
     <div class="stack">
       <p class="adv-only code-row">
-        <span class="mono">{{ api.agency()?.id ?? '—' }}</span>
-        <span class="mono">{{ code() || '—' }}</span>
+        <span>{{ i18n.t({ th: 'รหัสกลุ่ม ', en: 'Group code ' }) }}<b>{{ code() || '—' }}</b></span>
       </p>
 
       <!-- โหมดง่าย: ตัวเลขใหญ่ 3 ตัว + คำขอรออนุมัติ (ตาม HeadEasy) -->
@@ -175,8 +174,8 @@ interface RecentLog {
                   {{ i18n.t({ th: 'ยังไม่มีคน', en: 'No officers yet' }) }}
                 }
               </span>
-              <span class="muted small block mono adv-only zone-meta">
-                {{ z.id }} · {{ windows(z.windows) }} · {{ i18n.t({ th: 'จนท. ', en: 'officers ' }) }}{{ z.officers.length }} · {{ i18n.t({ th: 'ออนไลน์ ', en: 'online ' }) }}{{ z.houses_total - z.houses_offline }}/{{ z.houses_total }}
+              <span class="muted small block adv-only">
+                {{ windows(z.windows) }} · {{ i18n.t({ th: 'จนท. ', en: 'officers ' }) }}{{ z.officers.length }} · {{ i18n.t({ th: 'ออนไลน์ ', en: 'online ' }) }}{{ z.houses_total - z.houses_offline }}/{{ z.houses_total }}
                 @if (z.officers.length) {
                   · {{ officerNames(z) }}
                 }
@@ -197,9 +196,8 @@ interface RecentLog {
         </div>
         <ul class="feed adv-only">
           @for (l of recent(); track l.id) {
-            <li class="mono">
-              {{ exactTime(l.at) }} · {{ l.result }} · {{ l.box_id ?? l.house_no ?? '—' }} · {{ l.officer?.display_name ?? '—' }}
-              <span class="muted"> · #{{ l.id }}</span>
+            <li>
+              {{ exactTime(l.at) }} · {{ l.house_no ?? l.box_id ?? '—' }} · {{ l.officer?.display_name ?? '—' }}
             </li>
           }
         </ul>

@@ -14,7 +14,6 @@ import { Icon } from '../../shared/icon';
   imports: [RouterLink, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <p class="muted small adv-only mono">state={{ s.state() }} · push={{ s.showPushBanner() }} · qr={{ s.qrTask() }} · battery={{ s.lowBattery() }} · officer={{ !s.noOfficer() }}</p>
     @if (s.offline()) {
       <!-- H03-c -->
       <section class="alert orange" role="status">

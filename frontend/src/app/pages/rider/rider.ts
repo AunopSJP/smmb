@@ -101,9 +101,8 @@ export class RiderApi {
       } @else if (offline()) {
         <p class="danger-text small" role="alert">{{ i18n.t({ th: 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ ลองอีกครั้ง', en: 'No connection — try again' }) }}</p>
       }
-      <p class="muted small adv-only mono">
-        POST /public/boxes/by-code · {{ alphabet.length }} {{ i18n.t({ th: 'ตัวอักษร', en: 'characters' }) }} · {{ i18n.t({ th: 'ตั๋ว 10 นาที', en: 'ticket 10 minutes' }) }}<br />
-        {{ i18n.t({ th: 'ผิดซ้ำ → ', en: 'repeated errors → ' }) }}CODE_ATTEMPTS_EXCEEDED / RATE_LIMITED
+      <p class="muted small adv-only">
+        {{ i18n.t({ th: 'รหัส 8 ตัวอักษร · ตั๋วใช้ได้ 10 นาที · ผิดซ้ำจะถูกพักชั่วคราว', en: '8-character code · ticket valid for 10 minutes · repeated errors pause you briefly' }) }}
       </p>
       @if (display.easyMode()) {
         <app-code-keypad (key)="press($event)" (back)="backspace()" />
@@ -188,16 +187,14 @@ export class RiderCode {
           <p class="muted small">{{ i18n.t({ th: 'เจ้าของบ้านจะได้รับแจ้งเตือนทันที', en: 'The owner is notified right away' }) }}</p>
         </section>
         <p class="small easy-only">{{ i18n.t({ th: 'วางของลงตู้ก่อน แล้วค่อยกดปุ่ม', en: 'Put the parcel in first, then tap the button' }) }}</p>
-        <p class="muted small adv-only mono">
-          box_status={{ t.box_status }} · {{ i18n.t({ th: 'ตั๋วลงลายเซ็น ใช้ครั้งเดียว 10 นาที', en: 'signed ticket · single use · 10 minutes' }) }}<br />
-          {{ i18n.t({ th: 'ไม่เก็บข้อมูลตัวตนของผู้ส่ง', en: 'the sender’s identity is not stored' }) }}
+        <p class="muted small adv-only">
+          {{ i18n.t({ th: 'ตั๋วลงลายเซ็น ใช้ครั้งเดียว 10 นาที · ไม่เก็บข้อมูลตัวตนของผู้ส่ง', en: 'signed ticket · single use · 10 minutes · the sender’s identity is not stored' }) }}
         </p>
 
         @if (expired()) {
           <p class="card expired" role="alert">
             {{ i18n.t({ th: 'เปิดหน้านี้ค้างไว้นานเกินไป — สแกน QR หน้าตู้อีกครั้ง', en: 'This page was open too long — scan the QR on the box again' }) }}
             <a [routerLink]="url('R01')">{{ i18n.t({ th: 'หรือพิมพ์รหัสใต้ QR', en: 'or type the code under it' }) }}</a>
-            <span class="mono adv-only"> · TICKET_EXPIRED</span>
           </p>
         }
 
@@ -320,7 +317,6 @@ export class RiderDeliver implements OnInit {
       <div class="stack push-end">
         <a class="btn" [routerLink]="url('R01')">{{ i18n.t({ th: 'พิมพ์รหัสใหม่', en: 'Type the code again' }) }}</a>
         <p class="muted small center easy-hide">{{ i18n.t({ th: 'สแกนใหม่ได้ด้วยกล้องมือถือ', en: 'You can rescan with your phone camera' }) }}</p>
-        <p class="muted small adv-only mono">QR_INVALID · QR_REVOKED · CODE_ATTEMPTS_EXCEEDED · RATE_LIMITED</p>
       </div>
     </div>
   `,
@@ -353,7 +349,6 @@ export class RiderInvalid {
         {{ i18n.t({ th: 'ส่งของผ่านตู้นี้ไม่ได้ตอนนี้', en: 'Deliveries through this box are paused' }) }}<br />
         {{ i18n.t({ th: 'โปรดติดต่อผู้รับโดยตรง', en: 'Please contact the recipient directly' }) }}
       </p>
-      <p class="muted small adv-only mono">BOX_SERVICE_CLOSED · box_status=service_closed</p>
     </div>
   `,
   styles: `
@@ -382,7 +377,6 @@ export class RiderClosed {
           {{ i18n.t({ th: 'ตู้นี้แจ้งส่งของได้ไม่เกิน ' + limit + ' ครั้ง/ชั่วโมง', en: 'This box takes at most ' + limit + ' reports an hour' }) }}<br />
           <span class="easy-hide">{{ i18n.t({ th: 'ป้องกันการแจ้งซ้ำจากรูปถ่าย QR', en: 'to stop repeats from photos of the QR' }) }}</span>
         </p>
-        <p class="muted small adv-only mono">DELIVERY_LIMIT · {{ limit }}/{{ i18n.t({ th: 'ชั่วโมง/ตู้', en: 'hour/box' }) }}</p>
       </div>
       <p class="info-box tip">
         <strong>{{ i18n.t({ th: 'นำของใส่ไว้ในตู้ได้', en: 'Real delivery? Just leave it in the box' }) }}</strong><br />
@@ -422,9 +416,7 @@ export class RiderLimited {
           {{ i18n.t({ th: 'แจ้งเจ้าของบ้านแล้ว', en: 'Owner notified' }) }}<span class="easy-hide"> {{ at() ?? '' }}</span><br />
           {{ i18n.t({ th: 'ปิดหน้านี้ได้ ขอบคุณที่ใช้บริการ', en: 'You can close this page. Thank you!' }) }}
         </p>
-        <p class="small adv-only mono">
-          house={{ house() }} · at={{ at() }} · {{ i18n.t({ th: 'ตั๋วใช้แล้ว · ไม่เก็บข้อมูลผู้ส่ง', en: 'ticket used · no sender identity' }) }}
-        </p>
+        <p class="small adv-only">{{ i18n.t({ th: 'ตั๋วใช้แล้ว · ไม่เก็บข้อมูลผู้ส่ง', en: 'ticket used · no sender identity stored' }) }}</p>
       </div>
     </div>
   `,

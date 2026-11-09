@@ -56,10 +56,7 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
       </label>
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
       <p class="small easy-only">{{ i18n.t({ th: 'รหัสผ่านอย่างน้อย 8 ตัว · ลืมแล้วติดต่อผู้ดูแลระบบ', en: 'At least 8 characters · if you forget it, contact the admin' }) }}</p>
-      <p class="muted small adv-only mono">
-        DRAFT signup.owner · POST /auth/signup/owner · {{ i18n.t({ th: 'ส่งจริงตอนจบขั้น 3', en: 'sent at the end of step 3' }) }}<br />
-        PHONE_TAKEN · {{ i18n.t({ th: 'รหัสยาว ', en: 'password length ' }) }}{{ min }}–128
-      </p>
+      
       </section>
       }
       @if (step() === 2) {
@@ -77,23 +74,18 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
       </section>
       <app-house-fields [(value)]="house" [tried]="tried()" />
       <p class="small easy-only">{{ i18n.t({ th: 'ปักหมุดบ้านช่วยให้เจ้าหน้าที่มาถึงเร็วขึ้นตอน SOS', en: 'Pinning your house helps officers reach you faster during SOS' }) }}</p>
-      <p class="muted small adv-only mono">
-        {{ i18n.t({ th: 'บังคับ: ที่อยู่ · แขวง/ตำบล · เขต/อำเภอ · จังหวัด', en: 'Required: address · subdistrict · district · province' }) }}
-        @if (house().location; as loc) {
-          <br />lat {{ loc.lat }}, lng {{ loc.lng }}
-        }
-      </p>
+      
       }
       @if (step() === 3) {
       <app-terms-check from="A06" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="filled() && !f().terms" />
-      <p class="muted small adv-only mono">terms_version {{ version }} · POST /auth/signup/owner</p>
+      
       }
 
       @if (error(); as e) {
         <p class="danger-text small" role="alert">
           {{ i18n.t(e) }}
           @if (errorCode(); as code) {
-            <span class="mono adv-only"> · {{ code }}</span>
+            
           }
           @if (errorCode() === 'PHONE_TAKEN') {
             · <a [routerLink]="url('A04')">{{ i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</a>
@@ -265,12 +257,12 @@ const ACTIVATE_STEPS: Step[] = [
             </p>
           } @else if (qr()) {
             <p class="info-box ok-text"><strong>{{ i18n.t({ th: 'เปิดจากลิงก์ QR เปิดใช้ตู้แล้ว — กดผูกตู้ได้ทันที', en: 'Opened from the activation QR link — tap to bind' }) }}</strong></p>
-            <p class="muted small adv-only mono">qr token: {{ i18n.t({ th: 'มี', en: 'present' }) }} · {{ qr()?.length }} chars</p>
+            
           } @else if (scanning()) {
             <app-qr-scanner (scanned)="send({ qr_text: $event.text })" (failed)="scanning.set(false); typing.set(true)" />
           }
           @if (message(); as m) {
-            <p class="danger-text small" role="alert">{{ i18n.t(m) }}<span class="mono adv-only"> · {{ failCode() }}</span></p>
+            <p class="danger-text small" role="alert">{{ i18n.t(m) }}</p>
           }
           @if (typing()) {
             <label class="field">
@@ -409,7 +401,7 @@ export class AuthActivate implements OnInit {
         <input maxlength="40" [value]="name()" (input)="name.set($any($event.target).value)" />
         <small class="easy-hide">{{ i18n.t({ th: 'ไม่เกิน 40 ตัว', en: 'Up to 40 characters' }) }}</small>
       </label>
-      <p class="muted small adv-only mono">PATCH /boxes/{{ boxId() }} · {{ i18n.t({ th: 'ชื่อ 1–40 ตัว', en: 'name 1–40 characters' }) }}</p>
+      
       <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'ชื่อแนะนำ', en: 'Suggestions' })">
         @for (s of suggestions; track s.th) {
           <button type="button" [attr.aria-pressed]="name() === i18n.t(s)" (click)="name.set(i18n.t(s))">{{ i18n.t(s) }}</button>
@@ -492,7 +484,7 @@ export class AuthNameBox {
         <span class="small">{{ i18n.t({ th: 'รอหัวหน้าหน่วยงานเพิ่มบ้านเข้าโซน ระหว่างนี้หน้าหลักจะขึ้นว่า "ยังไม่มีเจ้าหน้าที่ดูแล"', en: 'An agency head will add your house to a zone. Until then your home screen says “No officer yet”' }) }}</span>
       </p>
       @if (boxInfo(); as b) {
-        <p class="small adv-only mono">box_id {{ b.id }} · status {{ b.status }} · house {{ b.house_no }}</p>
+        <p class="small">{{ i18n.t({ th: 'ตู้ ', en: 'Mailbox ' }) }}{{ b.house_no }}{{ b.name ? ' · ' + b.name : '' }}</p>
       }
       <button type="button" class="btn on-color push-end" (click)="home()">{{ i18n.t({ th: 'ไปหน้าหลัก', en: 'Go to home' }) }}</button>
     </div>

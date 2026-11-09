@@ -126,19 +126,18 @@ const SETTINGS: HubItem[] = [
       @if (o(); as ov) {
         <section class="card adv-only">
           <dl class="kv">
-            <dt>boxes.total</dt><dd class="mono">{{ ov.boxes.total }}</dd>
-            <dt>boxes.online / offline</dt><dd class="mono">{{ ov.boxes.online }} / {{ ov.boxes.offline }}</dd>
-            <dt>{{ i18n.t({ th: 'ตู้ออฟไลน์', en: 'Boxes offline' }) }}</dt><dd class="mono">{{ ov.boxes.offline }}</dd>
-            <dt>{{ i18n.t({ th: 'แบตต่ำ', en: 'Low battery' }) }}</dt><dd class="mono">{{ ov.boxes.low_battery }}</dd>
-            <dt>box.sleeping / closed / unbound</dt><dd class="mono">{{ ov.boxes.sleeping }} / {{ ov.boxes.service_closed }} / {{ ov.boxes.unbound }}</dd>
-            <dt>qr_issues.total</dt><dd class="mono">{{ ov.qr_issues.total }}</dd>
-            <dt>technician_requests_open</dt><dd class="mono">{{ ov.technician_requests_open }}</dd>
-            <dt>agencies_pending</dt><dd class="mono">{{ ov.agencies_pending }}</dd>
-            <dt>{{ i18n.t({ th: 'SOS ที่เปิดอยู่', en: 'Open SOS' }) }}</dt><dd class="mono">{{ ov.sos_open }}</dd>
-            <dt>config_ver</dt><dd class="mono">{{ configVer() !== null ? 'v' + configVer() : '—' }}</dd>
-            <dt>{{ i18n.t({ th: 'เฟิร์มแวร์ล่าสุด', en: 'Latest firmware' }) }}</dt><dd class="mono">{{ latestFw() || '—' }}</dd>
-            <dt>{{ i18n.t({ th: 'อัปเดตอัตโนมัติ', en: 'Auto update' }) }}</dt><dd class="mono">{{ fwAuto() ?? 'off' }}</dd>
-            <dt>owners_by_plan</dt><dd class="mono">{{ planText() }}</dd>
+            <dt>{{ i18n.t({ th: 'ตู้ทั้งหมด', en: 'Total boxes' }) }}</dt><dd>{{ ov.boxes.total }}</dd>
+            <dt>{{ i18n.t({ th: 'ออนไลน์ / ออฟไลน์', en: 'Online / offline' }) }}</dt><dd>{{ ov.boxes.online }} / {{ ov.boxes.offline }}</dd>
+            <dt>{{ i18n.t({ th: 'ตู้ออฟไลน์', en: 'Boxes offline' }) }}</dt><dd>{{ ov.boxes.offline }}</dd>
+            <dt>{{ i18n.t({ th: 'แบตต่ำ', en: 'Low battery' }) }}</dt><dd>{{ ov.boxes.low_battery }}</dd>
+            <dt>{{ i18n.t({ th: 'พัก / ปิดบริการ / ยังไม่ผูก', en: 'Sleeping / closed / unbound' }) }}</dt><dd>{{ ov.boxes.sleeping }} / {{ ov.boxes.service_closed }} / {{ ov.boxes.unbound }}</dd>
+            <dt>{{ i18n.t({ th: 'ปัญหา QR', en: 'QR issues' }) }}</dt><dd>{{ ov.qr_issues.total }}</dd>
+            <dt>{{ i18n.t({ th: 'คำขอช่างเปิด', en: 'Open technician requests' }) }}</dt><dd>{{ ov.technician_requests_open }}</dd>
+            <dt>{{ i18n.t({ th: 'หน่วยงานรออนุมัติ', en: 'Agencies pending' }) }}</dt><dd>{{ ov.agencies_pending }}</dd>
+            <dt>{{ i18n.t({ th: 'SOS ที่เปิดอยู่', en: 'Open SOS' }) }}</dt><dd>{{ ov.sos_open }}</dd>
+            <dt>{{ i18n.t({ th: 'เฟิร์มแวร์ล่าสุด', en: 'Latest firmware' }) }}</dt><dd>{{ latestFw() || '—' }}</dd>
+            <dt>{{ i18n.t({ th: 'อัปเดตอัตโนมัติ', en: 'Auto update' }) }}</dt><dd>{{ fwAuto() ?? i18n.t({ th: 'ปิด', en: 'Off' }) }}</dd>
+            <dt>{{ i18n.t({ th: 'เจ้าของบ้านตามแพ็กเกจ', en: 'Owners by plan' }) }}</dt><dd>{{ planText() }}</dd>
           </dl>
         </section>
       }
@@ -177,6 +176,7 @@ export class AdminHub {
 
   protected planText(): string {
     const plans = this.o()?.owners_by_plan ?? [];
-    return plans.length ? plans.map((p) => `${p.plan_code}=${p.owners_count}`).join(', ') : '—';
+    const name = (code: string) => code === 'free' ? this.i18n.t({ th: 'ฟรี', en: 'Free' }) : code === 'plus' ? this.i18n.t({ th: 'พลัส', en: 'Plus' }) : code;
+    return plans.length ? plans.map((p) => `${name(p.plan_code)} ${p.owners_count}`).join(' · ') : '—';
   }
 }

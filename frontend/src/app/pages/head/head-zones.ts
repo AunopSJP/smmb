@@ -64,8 +64,8 @@ const ZONE_ERROR: Record<string, Tr> = {
           @if (!z.area) {
             <span class="warn-text small easy-only">{{ i18n.t({ th: 'ยังไม่ได้ตั้งพื้นที่', en: 'No area set yet' }) }}</span>
           }
-          <span class="muted small block mono adv-only zone-meta">
-            {{ z.id }} · {{ areaText(z) }} · {{ z.tz }} · {{ i18n.t({ th: 'แก้ล่าสุด ', en: 'updated ' }) }}{{ updated(z) }}
+          <span class="muted small block adv-only">
+            {{ areaText(z) }} · {{ i18n.t({ th: 'แก้ล่าสุด ', en: 'updated ' }) }}{{ updated(z) }}
           </span>
         </a>
       } @empty {
@@ -171,7 +171,7 @@ export class HeadZones implements OnInit {
     <app-page-header [caption]="isNew() ? i18n.t({ th: 'สร้างโซน', en: 'New zone' }) : i18n.t({ th: 'แก้ไขโซน', en: 'Edit zone' })" [title]="name() || i18n.t({ th: 'โซนใหม่', en: 'New zone' })" [back]="url('L06')" />
     <div class="stack grow">
       @if (zone(); as z) {
-        <p class="adv-only mono zone-code" [title]="z.id">{{ z.id }} · {{ z.tz }} · {{ i18n.t({ th: 'แก้ล่าสุด ', en: 'updated ' }) }}{{ updated(z.updated_at) }}</p>
+        <p class="adv-only">{{ i18n.t({ th: 'แก้ล่าสุด ', en: 'Updated ' }) }}{{ updated(z.updated_at) }}</p>
       }
       <ol class="steps easy-hide">
         <li class="on">{{ i18n.t({ th: '1 · ชื่อ + เวลาตรวจ', en: '1 · Name + hours' }) }}</li>
@@ -223,7 +223,7 @@ export class HeadZones implements OnInit {
         }
         <p class="muted small">{{ i18n.t({ th: 'ทั้งวัน = 00:00–23:59 · ข้ามเที่ยงคืนให้แยก 2 ช่วง', en: 'All day = 00:00–23:59 · split overnight into 2 windows' }) }}</p>
         @if (windows().length) {
-          <p class="muted small mono adv-only">{{ windows().length }}/{{ maxWindows }} {{ i18n.t({ th: 'ช่วง', en: 'windows' }) }} · {{ durationText() }} · Asia/Bangkok</p>
+          <p class="muted small adv-only">{{ windows().length }}/{{ maxWindows }} {{ i18n.t({ th: 'ช่วง', en: 'windows' }) }} · {{ durationText() }}</p>
         }
         @if (error(); as e) {
           <p class="err small" role="alert">{{ i18n.t(e) }}</p>
@@ -244,7 +244,7 @@ export class HeadZones implements OnInit {
           <div class="chips">
             @for (h of z.houses; track h.box_id) {
               <button type="button" class="pill" [class.pending]="h.pending" (click)="removeHouse(h.box_id)" [attr.aria-label]="(h.pending ? i18n.t({ th: 'ยกเลิกคำขอ ', en: 'Cancel request ' }) : i18n.t({ th: 'นำออก ', en: 'Remove ' })) + (h.house_no ?? h.box_id)">
-                {{ h.house_no ?? h.box_id }}<span class="adv-only mono"> · {{ h.box_id }}</span>{{ h.area ? ' · ' + h.area : '' }}{{ h.pending ? ' · ' + i18n.t({ th: 'รอเจ้าของบ้านยืนยัน', en: 'awaiting owner' }) : '' }} <span aria-hidden="true">×</span>
+                {{ h.house_no ?? h.box_id }}{{ h.area ? ' · ' + h.area : '' }}{{ h.pending ? ' · ' + i18n.t({ th: 'รอเจ้าของบ้านยืนยัน', en: 'awaiting owner' }) : '' }} <span aria-hidden="true">×</span>
               </button>
             } @empty {
               <span class="muted small">{{ i18n.t({ th: 'ยังไม่มีบ้าน', en: 'No houses yet' }) }}</span>
@@ -323,7 +323,7 @@ export class HeadZones implements OnInit {
                 @if (m.is_head) {
                   <span class="chip">{{ i18n.t({ th: 'หัวหน้า', en: 'Head' }) }}</span>
                 }
-                <span class="muted small block mono adv-only">{{ m.id }} · {{ m.staff_no || '—' }} · {{ m.position || '—' }}</span>
+                <span class="muted small block adv-only">@if (m.staff_no) { {{ i18n.t({ th: 'เลขประจำตัว ', en: 'Staff no. ' }) }}{{ m.staff_no }} · }{{ m.position || '—' }}</span>
               </span>
             </label>
           } @empty {

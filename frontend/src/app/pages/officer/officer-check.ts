@@ -79,7 +79,7 @@ async function startInspection(api: InspectionApi, router: Router, body: Paramet
         </button>
         <h1>{{ i18n.t({ th: 'สแกน QR หน้าตู้', en: 'Scan the mailbox QR' }) }}</h1>
       </header>
-      <p class="adv-only cam-strip mono">CAM · {{ i18n.t({ th: 'อ่าน QR อัตโนมัติ · ไม่บันทึกภาพ', en: 'auto-reads the QR · no photo kept' }) }}</p>
+      <p class="adv-only">{{ i18n.t({ th: 'อ่าน QR อัตโนมัติ · ไม่บันทึกภาพ', en: 'auto-reads the QR · no photo kept' }) }}</p>
       <p class="aim">{{ i18n.t({ th: 'เล็ง QR หน้าตู้ให้อยู่ในกรอบ', en: 'Fit the mailbox QR inside the frame' }) }}</p>
       @if (ready()) {
         @if (busy()) {
@@ -228,10 +228,7 @@ const CAMERA_NOTE: Record<string, Tr> = {
       }}</a>
       <h1>{{ i18n.t({ th: 'พิมพ์รหัสใต้ QR', en: 'Type the code under the QR' }) }}</h1>
       <p class="muted small">{{ i18n.t({ th: 'รหัส 8 ตัว อยู่ใต้ QR หน้าตู้', en: 'The 8-character code under the mailbox QR' }) }}</p>
-      <div class="adv-only card tech mono">
-        <div>POST /v1/inspections · code</div>
-        <div class="muted">{{ i18n.t({ th: '8 ตัว คั่นขีดกลางที่ตัวที่ 4 · ไม่แยกตัวพิมพ์เล็ก/ใหญ่ · บันทึกทุกครั้งที่ลอง', en: '8 characters, dash after the 4th · case-insensitive · every try is logged' }) }}</div>
-      </div>
+      <p class="muted small adv-only">{{ i18n.t({ th: 'รหัส 8 ตัว คั่นขีดกลางที่ตัวที่ 4 · ไม่แยกตัวพิมพ์เล็ก/ใหญ่ · บันทึกทุกครั้งที่ลอง', en: '8 characters, dash after the 4th · case-insensitive · every try is logged' }) }}</p>
       @if (note(); as n) {
         <p class="chip warn note">{{ i18n.t(n) }}</p>
       }
@@ -384,9 +381,6 @@ const CONDITIONS: { v: QrCondition; label: Tr; wide?: boolean }[] = [
   template: `
     <div class="pad">
       <p class="ok-text small strong">{{ i18n.t({ th: 'รหัสถูกต้อง · บ้านเลขที่ ', en: 'Code OK · house ' }) }}{{ ins()?.box?.house_no }}</p>
-      <p class="adv-only mono tech">
-        {{ ins()?.box?.id }} · job {{ ins()?.job_id }} · ins {{ ins()?.id }} · slot {{ ins()?.qr_slot }}
-      </p>
       <h1>{{ i18n.t({ th: 'สภาพ QR หน้าตู้เป็นอย่างไร?', en: 'How does the mailbox QR look?' }) }}</h1>
       <p class="muted small easy-hide">{{ i18n.t({ th: 'เลือกสภาพ QR แล้วระบบจะแจ้งให้เปลี่ยนใบใหม่', en: 'Tell us and we will arrange a replacement' }) }}</p>
       <div class="grid" role="radiogroup" [attr.aria-label]="i18n.t({ th: 'สภาพ QR', en: 'QR condition' })">
@@ -482,7 +476,6 @@ export class OfficerQrCondition implements OnInit {
         <p class="muted small easy-hide">
           {{ i18n.t({ th: 'อาจมีคนแปะ QR ปลอมทับไว้ อย่าสแกนด้วยกล้องมือถือธรรมดา · ไม่ได้บันทึกการตรวจ', en: 'Someone may have stuck a fake QR on top. Don’t scan it with the normal camera · not recorded' }) }}
         </p>
-        <p class="adv-only mono tech">result=not_system · scan_log · {{ i18n.t({ th: 'แจ้งผู้ดูแลระบบแล้ว', en: 'admin notified' }) }}</p>
         <p class="info-box">
           <strong class="ok-text"><app-icon name="check" [size]="14" /> {{ i18n.t({ th: 'แจ้งผู้ดูแลระบบแล้วอัตโนมัติ', en: 'Admin alerted automatically' }) }}</strong><br />
           <span class="muted easy-hide">{{ i18n.t({ th: 'ควรทำ: ถ่ายภาพตู้ไว้เป็นหลักฐาน แล้วแจ้งหัวหน้า ระบบบันทึกและแจ้งผู้ดูแลให้แล้ว · ถ้าเป็น QR หน้าตู้ ลองพิมพ์รหัสใต้ QR แทน', en: 'What to do: photograph the box as evidence and tell your head. The system has logged it and alerted the admin · if this is the mailbox QR, try typing the code under it' }) }}</span>
@@ -545,7 +538,6 @@ const DENIED: Record<string, { title: Tr; body: Tr }> = {
         <span class="big-icon warn" aria-hidden="true">!</span>
         <h1>{{ i18n.t(d.title) }}</h1>
         <p class="muted small">{{ i18n.t(d.body) }}</p>
-        <p class="adv-only mono tech">reason={{ reason() }}@if (start()) { · next {{ start() }}–{{ end() }} }</p>
         @if (reason() === 'window' && start()) {
           <p class="info-box">{{ i18n.t({ th: 'รอบถัดไป ', en: 'Next round ' }) }}<strong>{{ start() }}–{{ end() }}</strong></p>
         }
@@ -588,11 +580,6 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pad">
-      @if (ins(); as i) {
-        <p class="adv-only mono tech">
-          ins {{ i.id }} · job {{ i.job_id }} · {{ i.box.id }} · status {{ i.status }} · attempt {{ i.attempt }}/{{ i.attempts_max }}
-        </p>
-      }
       @if (reported()) {
         <div class="result">
           <span class="big-icon ok"><app-icon name="check" [size]="30" /></span>
@@ -629,7 +616,7 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
             {{ i18n.t({ th: 'ไม่ต้องกดอะไรที่ตู้', en: 'No need to touch the box' }) }}<br />
             {{ i18n.t({ th: 'ตู้จะส่งเสียงปี๊บ แล้วกล้องเปิดเอง', en: 'It beeps and its camera starts by itself' }) }}
           </p>
-          <p class="muted small">{{ i18n.t({ th: 'ปกติใช้ 1–3 วินาที', en: 'Usually 1–3 seconds' }) }} <span class="adv-only">· {{ waited() }}s</span></p>
+          <p class="muted small">{{ i18n.t({ th: 'ปกติใช้ 1–3 วินาที', en: 'Usually 1–3 seconds' }) }}</p>
         </div>
       }
     </div>
@@ -804,9 +791,6 @@ interface WakeLockSentinelLike {
         <div>{{ i18n.t({ th: 'หมดอายุ', en: 'Expires' }) }}<b>{{ expText() }}</b></div>
         <div>{{ i18n.t({ th: 'ครั้งที่', en: 'Try' }) }}<b>{{ ins()?.attempt ?? 1 }} / {{ ins()?.attempts_max ?? 3 }}</b></div>
       </div>
-      <p class="adv-only mono tech">
-        ins {{ ins()?.id }} · job {{ ins()?.job_id }} · {{ ins()?.box?.id }} · slot {{ ins()?.qr_slot }} · u={{ session.me()?.id }}
-      </p>
 
       <div class="countdown" aria-live="off">
         <span class="sec">{{ left() }}</span>
@@ -1040,11 +1024,6 @@ export class OfficerBadge implements OnInit {
           {{ i18n.t({ th: 'บ้านนี้ยังไม่นับว่าตรวจแล้ว', en: 'This house is not counted as checked' }) }}<br />
           {{ i18n.t({ th: 'กดแจ้งปัญหา ระบบจะบอกเจ้าของบ้านและผู้ดูแลระบบให้', en: 'Report it and we’ll tell the owner and the admin' }) }}
         </p>
-        @if (ins(); as i) {
-          <p class="adv-only mono tech">
-            ins {{ i.id }} · job {{ i.job_id }} · {{ i.box.id }} · attempt {{ i.attempt }}/{{ i.attempts_max }} · status {{ i.status }}
-          </p>
-        }
       </div>
       <div class="stack push-end">
         <a class="btn orange" [routerLink]="url('O05')" [queryParams]="{ id: id(), problem: 1, reason: 'scan_failed_3' }">{{ i18n.t({ th: 'แจ้งปัญหาตู้', en: 'Report a box problem' }) }}</a>
@@ -1092,12 +1071,6 @@ const HOLD_MS = 8000;
           <span class="spinner" aria-hidden="true"></span>
           <h1>{{ i18n.t({ th: 'กำลังบันทึกผลการตรวจ…', en: 'Saving the inspection…' }) }}</h1>
           <p class="small">{{ i18n.t({ th: 'กรุณายืนอยู่หน้าตู้จนกว่าจะเสร็จ', en: 'Please stay in front of the mailbox until it finishes' }) }}</p>
-          @if (ins(); as i) {
-            <p class="adv-only mono tech">
-              {{ time(i.checked_at) }} badge → inspection.passed · ins {{ i.id }}<br />
-              job {{ i.job_id }} · {{ i.box.id }} · {{ i.status }}
-            </p>
-          }
           <div class="bar easy-hide" aria-hidden="true"><span [style.width.%]="progress()"></span></div>
         </div>
       </div>
@@ -1108,11 +1081,6 @@ const HOLD_MS = 8000;
         <h1>{{ i18n.t({ th: 'ตรวจแล้ว', en: 'Inspection recorded' }) }}</h1>
         <p class="house">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ ins()?.box?.house_no }} · {{ time(ins()?.checked_at) }}</p>
         <p class="small">{{ i18n.t({ th: 'เจ้าของบ้านได้รับแจ้งเตือนแล้ว', en: 'The owner has been notified' }) }}</p>
-        @if (ins(); as i) {
-          <p class="adv-only mono tech">
-            ins {{ i.id }} · job {{ i.job_id }} · {{ i.box.id }} · slot {{ i.qr_slot }} · checked {{ i.checked_at }}
-          </p>
-        }
       </div>
       @if (id()) {
       }
