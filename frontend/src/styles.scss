@@ -18,6 +18,9 @@
   --text-muted: #5f5f63;
   --ok: #1e5c3e;
   --shadow: 0 1px 3px rgb(0 0 0 / 8%), 0 4px 12px rgb(0 0 0 / 6%);
+  /* สีแดงสำหรับตัวอักษร/ไอคอนเล็ก และพื้นป้ายตัวเลข (contrast ผ่านในโหมดมืด) */
+  --brand-text: #9a2f36;
+  --badge-bg: #9e2227;
   /* รางของ segmented control — ต้องเข้มกว่าพื้นการ์ด เพื่อให้ปุ่มที่เลือกดูลอยขึ้น ไม่จม */
   --track: #ececec;
 
@@ -46,6 +49,8 @@
   --text-muted: #a3a9b2;
   --ok: #4cc777;
   --shadow: 0 1px 3px rgb(0 0 0 / 40%);
+  --brand-text: #e8a0a5;
+  --badge-bg: #b3261e;
   --track: #14171b;
 
   color-scheme: dark;
@@ -58,6 +63,16 @@
 }
 :root[data-theme='dark'] {
   @include dark;
+}
+
+/* ลิงก์ข้อความในโหมดมืดใช้แดงอ่อนเพื่อ contrast (ปุ่ม/แถว/แท็บมีสีของตัวเอง) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) a:not(.btn):not(.row):not(.tab):not(.tile) {
+    color: var(--brand-text);
+  }
+}
+:root[data-theme='dark'] a:not(.btn):not(.row):not(.tab):not(.tile) {
+  color: var(--brand-text);
 }
 
 :root[data-text-size='large'] {
@@ -186,6 +201,7 @@
 .mono {
   font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
   font-size: 0.92em;
+  overflow-wrap: anywhere;
 }
 
 /* โหมดเห็นรายละเอียด: .adv-only (รหัส/เวอร์ชัน/ข้อมูลเทคนิค) เห็นเฉพาะโหมดละเอียด · โหมดอื่นซ่อน */
@@ -539,7 +555,7 @@ app-area-shell main > :not(router-outlet) {
   }
   button[aria-pressed='true'] {
     background: var(--surface);
-    color: var(--brand);
+    color: var(--brand-text);
     font-weight: 700;
     box-shadow: 0 1px 2px rgb(20 38 46 / 15%);
   }

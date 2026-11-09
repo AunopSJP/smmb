@@ -460,7 +460,7 @@ const MOCK_SCREENS = new Set<string>();
       font-variant-numeric: tabular-nums;
     }
     .count.hot {
-      background: var(--sos);
+      background: var(--badge-bg);
       color: #fff;
     }
     .side a app-icon {

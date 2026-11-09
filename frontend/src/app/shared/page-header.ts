@@ -64,7 +64,7 @@ import { Icon } from './icon';
       block-size: 18px;
       padding: 0 5px;
       border-radius: 9px;
-      background: var(--sos);
+      background: var(--badge-bg);
       color: #fff;
       font-size: 0.6875rem;
       font-weight: 800;
