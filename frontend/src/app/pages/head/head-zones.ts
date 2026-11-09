@@ -27,13 +27,26 @@ const ZONE_ERROR: Record<string, Tr> = {
   imports: [RouterLink, PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header
-      [caption]="(api.agency()?.name ?? '') + ' · ' + i18n.t({ th: 'หัวหน้าหน่วยงาน', en: 'Agency head' })"
-      [title]="i18n.t({ th: 'โซน', en: 'Zones' })"
-      [bell]="url('L09')"
-    />
+    <app-page-header [title]="i18n.t({ th: 'โซน', en: 'Zones' })" [bell]="url('L09')" />
     <div class="stack grow">
-      @for (z of zones(); track z.id) {
+      <div class="filter-row">
+        <div class="segmented grow-seg easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'ขอบเขตโซน', en: 'Zone scope' })">
+          <button type="button" [attr.aria-pressed]="scope() === 'mine'" (click)="scope.set('mine')">{{ i18n.t({ th: 'โซนของฉัน', en: 'My zones' }) }}</button>
+          <button type="button" [attr.aria-pressed]="scope() === 'all'" (click)="scope.set('all')">{{ i18n.t({ th: 'ทุกโซน', en: 'All zones' }) }}</button>
+        </div>
+        <a class="btn add" [routerLink]="url('L07')" [queryParams]="{ zone: 'new' }">+ {{ i18n.t({ th: 'สร้างโซน', en: 'New zone' }) }}</a>
+      </div>
+      @if (shown().length) {
+        <section class="card adv-only">
+          <dl class="kv">
+            <dt>{{ i18n.t({ th: 'โซนที่แสดง', en: 'Zones shown' }) }}</dt><dd class="mono">{{ shown().length }}</dd>
+            <dt>{{ i18n.t({ th: 'บ้านรวม', en: 'Houses' }) }}</dt><dd class="mono">{{ totalHouses() }}</dd>
+            <dt>{{ i18n.t({ th: 'เจ้าหน้าที่รวม', en: 'Officers' }) }}</dt><dd class="mono">{{ totalOfficers() }}</dd>
+            <dt>{{ i18n.t({ th: 'ยังไม่มีเจ้าหน้าที่', en: 'No officers yet' }) }}</dt><dd class="mono">{{ noOfficerZones() }}</dd>
+          </dl>
+        </section>
+      }
+      @for (z of shown(); track z.id) {
         <a class="card zone" [class.warn]="!z.officers_count" [routerLink]="url('L07')" [queryParams]="{ zone: z.id }">
           <span class="title-row">
             <strong>{{ z.name }}</strong>
@@ -48,16 +61,35 @@ const ZONE_ERROR: Record<string, Tr> = {
             <span class="warn-text small">{{ i18n.t({ th: 'ยังไม่มีเจ้าหน้าที่', en: 'No officers yet' }) }}</span>
           }
           <span class="muted small">{{ i18n.t({ th: 'เวลาตรวจ ', en: 'Patrol ' }) }}{{ windows(z) }}</span>
+          @if (!z.area) {
+            <span class="warn-text small easy-only">{{ i18n.t({ th: 'ยังไม่ได้ตั้งพื้นที่', en: 'No area set yet' }) }}</span>
+          }
+          <span class="muted small block mono adv-only zone-meta">
+            {{ z.id }} · {{ areaText(z) }} · {{ z.tz }} · {{ i18n.t({ th: 'แก้ล่าสุด ', en: 'updated ' }) }}{{ updated(z) }}
+          </span>
         </a>
       } @empty {
         <p class="muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ยังไม่มีโซน — สร้างโซนแรก', en: 'No zones yet — create the first one' }) }}</p>
       }
-      <a class="btn push-end" [routerLink]="url('L07')" [queryParams]="{ zone: 'new' }">+ {{ i18n.t({ th: 'สร้างโซนใหม่', en: 'New zone' }) }}</a>
     </div>
   `,
   styles: `
     .grow {
       flex: 1;
+    }
+    .filter-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .grow-seg {
+      flex: 1;
+    }
+    .add {
+      inline-size: auto;
+      min-block-size: 40px;
+      padding: 6px 14px;
+      font-size: 0.875rem;
     }
     .zone {
       display: flex;
@@ -84,6 +116,9 @@ const ZONE_ERROR: Record<string, Tr> = {
       color: var(--orange);
       font-weight: 700;
     }
+    .zone-meta {
+      overflow-wrap: anywhere;
+    }
   `,
 })
 export class HeadZones implements OnInit {
@@ -91,6 +126,11 @@ export class HeadZones implements OnInit {
   protected readonly api = inject(HeadApi);
   protected readonly url = screenUrl;
   protected readonly zones = signal<Zone[]>([]);
+  protected readonly scope = signal<'mine' | 'all'>('all');
+  protected readonly shown = computed(() => (this.scope() === 'mine' ? this.zones().filter((z) => z.is_mine) : this.zones()));
+  protected readonly totalHouses = computed(() => this.shown().reduce((n, z) => n + z.houses_count, 0));
+  protected readonly totalOfficers = computed(() => this.shown().reduce((n, z) => n + z.officers_count, 0));
+  protected readonly noOfficerZones = computed(() => this.shown().filter((z) => !z.officers_count).length);
   protected readonly loading = signal(true);
 
   /** หัวหน้าคนอื่นแก้โซน → ขึ้นเองโดยไม่ต้องรีเฟรช */
@@ -108,6 +148,16 @@ export class HeadZones implements OnInit {
   protected windows(z: Zone): string {
     return z.windows.map((w) => w.join('–')).join(' · ') || '—';
   }
+
+  /** โหมดละเอียด: รหัสพื้นที่ของโซน (จังหวัด/เขต/แขวง) */
+  protected areaText(z: Zone): string {
+    if (!z.area) return this.i18n.t({ th: 'ยังไม่ตั้งพื้นที่', en: 'no area' });
+    return [z.area.subdistrict, z.area.district, z.area.province].filter(Boolean).join(' / ');
+  }
+
+  protected updated(z: Zone): string {
+    return new Date(z.updated_at).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Bangkok' });
+  }
 }
 
 // ── L07 · แก้โซน / สร้างโซน ──────────────────────────────────────
@@ -120,7 +170,10 @@ export class HeadZones implements OnInit {
   template: `
     <app-page-header [caption]="isNew() ? i18n.t({ th: 'สร้างโซน', en: 'New zone' }) : i18n.t({ th: 'แก้ไขโซน', en: 'Edit zone' })" [title]="name() || i18n.t({ th: 'โซนใหม่', en: 'New zone' })" [back]="url('L06')" />
     <div class="stack grow">
-      <ol class="steps">
+      @if (zone(); as z) {
+        <p class="adv-only mono zone-code" [title]="z.id">{{ z.id }} · {{ z.tz }} · {{ i18n.t({ th: 'แก้ล่าสุด ', en: 'updated ' }) }}{{ updated(z.updated_at) }}</p>
+      }
+      <ol class="steps easy-hide">
         <li class="on">{{ i18n.t({ th: '1 · ชื่อ + เวลาตรวจ', en: '1 · Name + hours' }) }}</li>
         <li [class.on]="!isNew()">{{ i18n.t({ th: '2 · เพิ่มบ้าน', en: '2 · Add houses' }) }}</li>
         <li [class.on]="!isNew()">{{ i18n.t({ th: '3 · เพิ่มเจ้าหน้าที่', en: '3 · Add officers' }) }}</li>
@@ -132,7 +185,7 @@ export class HeadZones implements OnInit {
         </label>
         <fieldset class="stack area">
           <legend><strong>{{ i18n.t({ th: 'พื้นที่ที่โซนนี้ดูแล', en: 'Area this zone covers' }) }}</strong></legend>
-          <span class="muted small">{{ i18n.t({ th: 'ตอนเพิ่มบ้าน จะเห็นเฉพาะบ้านที่อยู่ในพื้นที่นี้', en: 'When adding houses you will only see houses inside this area' }) }}</span>
+          <span class="muted small easy-hide">{{ i18n.t({ th: 'ตอนเพิ่มบ้าน จะเห็นเฉพาะบ้านที่อยู่ในพื้นที่นี้', en: 'When adding houses you will only see houses inside this area' }) }}</span>
           <label class="field">
             <span>{{ i18n.t({ th: 'จังหวัด', en: 'Province' }) }}</span>
             <input maxlength="100" autocomplete="off" [value]="province()" (input)="province.set($any($event.target).value)" />
@@ -141,10 +194,13 @@ export class HeadZones implements OnInit {
             <span>{{ i18n.t({ th: 'เขต / อำเภอ', en: 'District' }) }}</span>
             <input maxlength="100" autocomplete="off" [value]="district()" (input)="district.set($any($event.target).value)" />
           </label>
-          <label class="field">
+          <label class="field easy-hide">
             <span>{{ i18n.t({ th: 'แขวง / ตำบล (ไม่บังคับ)', en: 'Sub-district (optional)' }) }}</span>
             <input maxlength="100" autocomplete="off" [value]="subdistrict()" (input)="subdistrict.set($any($event.target).value)" />
           </label>
+          @if (zone()?.area; as a) {
+            <p class="muted small mono adv-only">{{ a.subdistrict || '—' }} / {{ a.district }} / {{ a.province }}</p>
+          }
         </fieldset>
         <div class="head">
           <strong>{{ i18n.t({ th: 'เวลาตรวจ', en: 'Patrol hours' }) }}</strong>
@@ -166,6 +222,9 @@ export class HeadZones implements OnInit {
           </div>
         }
         <p class="muted small">{{ i18n.t({ th: 'ทั้งวัน = 00:00–23:59 · ข้ามเที่ยงคืนให้แยก 2 ช่วง', en: 'All day = 00:00–23:59 · split overnight into 2 windows' }) }}</p>
+        @if (windows().length) {
+          <p class="muted small mono adv-only">{{ windows().length }}/{{ maxWindows }} {{ i18n.t({ th: 'ช่วง', en: 'windows' }) }} · {{ durationText() }} · Asia/Bangkok</p>
+        }
         @if (error(); as e) {
           <p class="err small" role="alert">{{ i18n.t(e) }}</p>
         }
@@ -185,24 +244,24 @@ export class HeadZones implements OnInit {
           <div class="chips">
             @for (h of z.houses; track h.box_id) {
               <button type="button" class="pill" [class.pending]="h.pending" (click)="removeHouse(h.box_id)" [attr.aria-label]="(h.pending ? i18n.t({ th: 'ยกเลิกคำขอ ', en: 'Cancel request ' }) : i18n.t({ th: 'นำออก ', en: 'Remove ' })) + (h.house_no ?? h.box_id)">
-                {{ h.house_no ?? h.box_id }}{{ h.area ? ' · ' + h.area : '' }}{{ h.pending ? ' · ' + i18n.t({ th: 'รอเจ้าของบ้านยืนยัน', en: 'awaiting owner' }) : '' }} <span aria-hidden="true">×</span>
+                {{ h.house_no ?? h.box_id }}<span class="adv-only mono"> · {{ h.box_id }}</span>{{ h.area ? ' · ' + h.area : '' }}{{ h.pending ? ' · ' + i18n.t({ th: 'รอเจ้าของบ้านยืนยัน', en: 'awaiting owner' }) : '' }} <span aria-hidden="true">×</span>
               </button>
             } @empty {
               <span class="muted small">{{ i18n.t({ th: 'ยังไม่มีบ้าน', en: 'No houses yet' }) }}</span>
             }
           </div>
           @if (!areaReady()) {
-            <p class="info-box small" role="status">{{ i18n.t({ th: 'ตั้งจังหวัดและเขต/อำเภอของโซนด้านบนก่อน (แล้วกดบันทึก) จึงจะค้นหาบ้านได้', en: 'Set the zone’s province and district above (and save) before searching for houses' }) }}</p>
+            <p class="info-box small easy-hide" role="status">{{ i18n.t({ th: 'ตั้งจังหวัดและเขต/อำเภอของโซนด้านบนก่อน (แล้วกดบันทึก) จึงจะค้นหาบ้านได้', en: 'Set the zone’s province and district above (and save) before searching for houses' }) }}</p>
           }
-          <form class="add-window" (submit)="$event.preventDefault(); search()">
+          <form class="add-window easy-hide" (submit)="$event.preventDefault(); search()">
             <input type="search" [placeholder]="i18n.t({ th: 'บ้านเลขที่ / หมู่บ้าน / รหัสตู้', en: 'House no. / village / box id' })" [value]="q()" (input)="q.set($any($event.target).value)" />
             <button type="submit" class="btn secondary small-btn">{{ i18n.t({ th: 'ค้น', en: 'Search' }) }}</button>
           </form>
-          <div class="filters" role="group" [attr.aria-label]="i18n.t({ th: 'ตัวกรอง', en: 'Filters' })">
+          <div class="filters easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'ตัวกรอง', en: 'Filters' })">
             <label class="chip-toggle"><input type="checkbox" [checked]="onlyUnzoned()" (change)="onlyUnzoned.set($any($event.target).checked); refilter()" />{{ i18n.t({ th: 'ยังไม่มีใครดูแล', en: 'Not covered yet' }) }}</label>
             <label class="chip-toggle"><input type="checkbox" [checked]="onlyOnline()" (change)="onlyOnline.set($any($event.target).checked); refilter()" />{{ i18n.t({ th: 'ตู้ออนไลน์', en: 'Box online' }) }}</label>
           </div>
-          <button type="button" class="btn secondary small-btn browse" (click)="browse()">
+          <button type="button" class="btn secondary small-btn browse easy-hide" (click)="browse()">
             {{ i18n.t({ th: 'ดูบ้านที่ยังไม่มีใครดูแล', en: 'Show houses nobody covers yet' }) }}
           </button>
           @if (searched()) {
@@ -239,7 +298,7 @@ export class HeadZones implements OnInit {
             </div>
           }
           @if (addable().length > 1) {
-            <button type="button" class="btn small-btn" (click)="addAll()">+ {{ i18n.t({ th: 'เพิ่มทั้งหมดที่เห็น', en: 'Add all shown' }) }} ({{ addable().length }})</button>
+            <button type="button" class="btn small-btn easy-hide" (click)="addAll()">+ {{ i18n.t({ th: 'เพิ่มทั้งหมดที่เห็น', en: 'Add all shown' }) }} ({{ addable().length }})</button>
           }
           @if (searched() && !hits().length) {
             <p class="muted small">
@@ -248,8 +307,8 @@ export class HeadZones implements OnInit {
                 : i18n.t({ th: 'ไม่พบ — ค้นได้เฉพาะตู้ที่เจ้าของบ้านผูกแล้ว (ตรวจสอบว่าเจ้าของผูกตู้แล้ว และพิมพ์บ้านเลขที่ตรงกับที่เจ้าของกรอก)', en: 'Nothing found — only boxes already bound by an owner (check the owner has bound it and the number matches what they entered)' }) }}
             </p>
           }
-          <p class="muted small">{{ i18n.t({ th: 'กดเพิ่ม = ส่งคำขอให้เจ้าของบ้านกดยอมรับก่อน บ้านจึงเข้าโซน (ตรวจและรับ SOS ได้หลังยอมรับ)', en: 'Adding sends a request — the house joins the zone only after the owner accepts (inspections and SOS start after that)' }) }}</p>
-          <p class="muted small">{{ i18n.t({ th: 'เพิ่มบ้านได้เมื่อเจ้าของผูกตู้แล้ว · บ้านเดียวอยู่ได้หลายหน่วยงาน · ตู้จะรับเวลาตรวจใหม่ตอนรายงานครั้งถัดไป', en: 'A house can be added once its owner has bound the box · one house may be in several agencies · the box gets the new hours at its next report' }) }}</p>
+          <p class="muted small easy-hide">{{ i18n.t({ th: 'กดเพิ่ม = ส่งคำขอให้เจ้าของบ้านกดยอมรับก่อน บ้านจึงเข้าโซน (ตรวจและรับ SOS ได้หลังยอมรับ)', en: 'Adding sends a request — the house joins the zone only after the owner accepts (inspections and SOS start after that)' }) }}</p>
+          <p class="muted small easy-hide">{{ i18n.t({ th: 'เพิ่มบ้านได้เมื่อเจ้าของผูกตู้แล้ว · บ้านเดียวอยู่ได้หลายหน่วยงาน · ตู้จะรับเวลาตรวจใหม่ตอนรายงานครั้งถัดไป', en: 'A house can be added once its owner has bound the box · one house may be in several agencies · the box gets the new hours at its next report' }) }}</p>
         </section>
 
         <section class="card stack">
@@ -264,6 +323,7 @@ export class HeadZones implements OnInit {
                 @if (m.is_head) {
                   <span class="chip">{{ i18n.t({ th: 'หัวหน้า', en: 'Head' }) }}</span>
                 }
+                <span class="muted small block mono adv-only">{{ m.id }} · {{ m.staff_no || '—' }} · {{ m.position || '—' }}</span>
               </span>
             </label>
           } @empty {
@@ -272,10 +332,10 @@ export class HeadZones implements OnInit {
               <a [routerLink]="url('L05')">{{ i18n.t({ th: 'สมาชิก', en: 'Members' }) }}</a>
             </p>
           }
-          <p class="muted small">{{ i18n.t({ th: 'ติ๊กคนที่จะตรวจโซนนี้ · คนที่ยังไม่ได้อนุมัติจะไม่อยู่ในรายการ · หัวหน้าตรวจตู้ได้เฉพาะโซนที่ใส่ตัวเองไว้', en: 'Tick who patrols this zone · members not yet approved are not listed · heads can only inspect zones they are in' }) }}</p>
+          <p class="muted small easy-hide">{{ i18n.t({ th: 'ติ๊กคนที่จะตรวจโซนนี้ · คนที่ยังไม่ได้อนุมัติจะไม่อยู่ในรายการ · หัวหน้าตรวจตู้ได้เฉพาะโซนที่ใส่ตัวเองไว้', en: 'Tick who patrols this zone · members not yet approved are not listed · heads can only inspect zones they are in' }) }}</p>
         </section>
 
-        <button type="button" class="btn secondary danger-outline" (click)="remove()">{{ i18n.t({ th: 'ลบโซนนี้', en: 'Delete this zone' }) }}</button>
+        <button type="button" class="btn secondary danger-outline easy-hide" (click)="remove()">{{ i18n.t({ th: 'ลบโซนนี้', en: 'Delete this zone' }) }}</button>
       }
     </div>
   `,
@@ -562,6 +622,23 @@ export class HeadZoneEdit {
       }
     });
     return this.officerSave;
+  }
+
+  /** โหมดละเอียด: เวลารวมของทุกช่วงในหนึ่งวัน (คำนวณจากช่วงที่ตั้งไว้จริง) */
+  protected durationText(): string {
+    const mins = this.windows().reduce((n, [f, t]) => n + this.toMinutes(t) - this.toMinutes(f), 0);
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return this.i18n.t({ th: `${h} ชม. ${m} น.`, en: `${h} h ${m} m` });
+  }
+
+  protected updated(iso: string): string {
+    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Asia/Bangkok' });
+  }
+
+  private toMinutes(hhmm: string): number {
+    const [h, m] = hhmm.split(':').map(Number);
+    return h * 60 + m;
   }
 
   protected async remove(): Promise<void> {

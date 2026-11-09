@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { DisplaySettings } from '../core/display-settings';
 import { I18n } from '../core/i18n';
 import { UnreadCount } from '../core/unread';
 import { Icon } from './icon';
@@ -26,7 +27,7 @@ import { Icon } from './icon';
         <a class="circle bell" [routerLink]="bell()" [attr.aria-label]="i18n.t({ th: 'แจ้งเตือน', en: 'Notifications' }) + (unread.count() ? ' (' + unread.count() + ')' : '')">
           <app-icon name="bell" [size]="22" />
           @if (unread.count() > 0) {
-            <span class="badge" aria-hidden="true">{{ unread.count() > 9 ? '9+' : unread.count() }}</span>
+            <span class="badge" aria-hidden="true">{{ display.advancedMode() ? unread.count() : (unread.count() > 9 ? '9+' : unread.count()) }}</span>
           }
         </a>
       }
@@ -115,6 +116,7 @@ import { Icon } from './icon';
 export class PageHeader {
   protected readonly i18n = inject(I18n);
   protected readonly unread = inject(UnreadCount);
+  protected readonly display = inject(DisplaySettings);
   readonly caption = input<string>();
   readonly title = input.required<string>();
   /** URL ของหน้าแจ้งเตือน — ไม่ใส่ = ไม่มีกระดิ่ง */

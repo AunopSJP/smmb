@@ -25,7 +25,7 @@ export interface Step {
           </span>
           <span>
             <strong>{{ i18n.t(s.title) }}</strong>
-            <small>{{ i18n.t(s.sub) }}</small>
+            <small class="easy-hide">{{ i18n.t(s.sub) }}</small>
           </span>
         </li>
       }

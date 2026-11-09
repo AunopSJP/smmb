@@ -25,7 +25,7 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
   imports: [PageHeader, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'หน่วยงานรออนุมัติ', en: 'Agency requests' })" [back]="url('D01')" />
+    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'หน่วยงานรออนุมัติ', en: 'Agency requests' })" [back]="url('D16')" />
     <div class="stack">
       @if (approved(); as a) {
         <section class="card ok-card">
@@ -40,11 +40,12 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
             <strong>{{ a.name }}</strong>
             <span class="chip">{{ i18n.t(type(a.type)) }}</span>
           </div>
-          <p class="muted small">
+          <p class="muted small easy-hide">
             {{ i18n.t({ th: 'หัวหน้า: ', en: 'Head: ' }) }}{{ heads(a) }} · {{ i18n.t({ th: 'ส่งเมื่อ ', en: 'Sent ' }) }}{{ date(a.created_at) }}
           </p>
+          <p class="small mono adv-only">{{ a.id }} · {{ a.created_at }} · {{ headIds(a) }}{{ a.group_code ? ' · group ' + a.group_code : '' }}</p>
           @if (a.address || a.registration_no) {
-            <p class="small">
+            <p class="small easy-hide">
               @if (a.address) { {{ i18n.t({ th: 'ที่ตั้ง: ', en: 'Address: ' }) }}{{ a.address }} }
               @if (a.registration_no) { <br />{{ i18n.t({ th: 'เลขทะเบียน/ใบอนุญาต: ', en: 'Registration no.: ' }) }}{{ a.registration_no }} }
             </p>
@@ -142,6 +143,10 @@ export class AdminAgencyRequests implements OnInit {
     return a.heads.map((h) => h.display_name).join(', ') || '-';
   }
 
+  protected headIds(a: AdminAgency): string {
+    return a.heads.map((h) => h.id).join(', ') || '—';
+  }
+
   protected date(iso: string): string {
     return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' });
   }
@@ -188,14 +193,14 @@ export class AdminAgencyRequests implements OnInit {
   imports: [PageHeader, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'หน่วยงาน', en: 'Agencies' })" [back]="url('D01')" />
+    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'หน่วยงาน', en: 'Agencies' })" [back]="url('D16')" />
     <div class="stack">
       <a class="btn secondary" [routerLink]="url('D02')">{{ i18n.t({ th: 'ดูคำขอที่รออนุมัติ', en: 'See pending requests' }) }}</a>
       <div class="list">
         <div class="list-head acols desktop-only" aria-hidden="true">
           <span>{{ i18n.t({ th: 'หน่วยงาน', en: 'Agency' }) }}</span>
-          <span>{{ i18n.t({ th: 'หัวหน้า', en: 'Head' }) }}</span>
-          <span>{{ i18n.t({ th: 'รหัสกลุ่ม', en: 'Group code' }) }}</span>
+          <span class="easy-hide">{{ i18n.t({ th: 'หัวหน้า', en: 'Head' }) }}</span>
+          <span class="easy-hide">{{ i18n.t({ th: 'รหัสกลุ่ม', en: 'Group code' }) }}</span>
           <span>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</span>
         </div>
         @for (a of rows(); track a.id) {
@@ -203,9 +208,10 @@ export class AdminAgencyRequests implements OnInit {
             <span class="grow">
               <strong>{{ a.name }}</strong>
               <span class="muted small block">{{ i18n.t(type(a.type)) }}</span>
+              <span class="muted small block mono adv-only">{{ a.id }} · {{ a.created_at }} · {{ headIds(a) }}</span>
             </span>
-            <span class="small">{{ heads(a) }}</span>
-            <span class="small code">{{ a.group_code ? code(a.group_code) : '—' }}</span>
+            <span class="small easy-hide">{{ heads(a) }}</span>
+            <span class="small code easy-hide">{{ a.group_code ? code(a.group_code) : '—' }}</span>
             <span><span class="chip" [class.ok]="a.status === 'approved'" [class.warn]="a.status === 'pending'">{{ i18n.t(status[a.status]) }}</span></span>
           </div>
         } @empty {
@@ -272,6 +278,10 @@ export class AdminAgencies implements OnInit {
   protected heads(a: AdminAgency): string {
     return a.heads.map((h) => h.display_name).join(', ') || '-';
   }
+
+  protected headIds(a: AdminAgency): string {
+    return a.heads.map((h) => h.id).join(', ') || '—';
+  }
 }
 
 // ── D09 · ผู้ใช้ ──────────────────────────────────────────
@@ -288,14 +298,14 @@ const ROLE_LABEL: Record<string, Tr> = {
   imports: [PageHeader, UserPlan],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'ผู้ใช้', en: 'Users' })" [back]="url('D01')" />
+    <app-page-header [title]="i18n.t({ th: 'ผู้ใช้', en: 'Users' })" [bell]="url('D12')" />
     <div class="stack">
       <form class="search" (submit)="$event.preventDefault(); search()">
-        <input type="search" [placeholder]="i18n.t({ th: 'ค้นชื่อ / เบอร์', en: 'Search name / phone' })" [value]="q()" (input)="q.set($any($event.target).value)" />
+        <input type="search" [placeholder]="i18n.t({ th: 'ค้นเบอร์โทรหรือชื่อ', en: 'Search phone or name' })" [value]="q()" (input)="q.set($any($event.target).value)" />
         <button type="submit" class="btn secondary">{{ i18n.t({ th: 'ค้น', en: 'Search' }) }}</button>
       </form>
 
-      <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'กรองตามบทบาท', en: 'Filter by role' })">
+      <div class="segmented chips easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'กรองตามบทบาท', en: 'Filter by role' })">
         @for (f of roleFilters; track f.v) {
           <button type="button" [attr.aria-pressed]="roleFilter() === f.v" (click)="roleFilter.set(f.v)">{{ i18n.t(f.label) }} <span class="n">{{ roleCounts()[f.v] }}</span></button>
         }
@@ -323,6 +333,16 @@ const ROLE_LABEL: Record<string, Tr> = {
           <p class="small">
             {{ i18n.t({ th: 'สถานะบัญชี: ', en: 'Account: ' }) }}<strong [class.danger-text]="u.status === 'disabled'">{{ u.status === 'active' ? i18n.t({ th: 'ใช้งาน', en: 'active' }) : i18n.t({ th: 'ปิด', en: 'disabled' }) }}</strong>
           </p>
+          <dl class="kv small adv-only">
+            <dt>user_id</dt><dd class="mono">{{ u.id }}</dd>
+            <dt>{{ i18n.t({ th: 'สมัครเมื่อ', en: 'Created' }) }}</dt><dd class="mono">{{ u.created_at }}</dd>
+            <dt>{{ i18n.t({ th: 'บทบาท (level)', en: 'Roles (level)' }) }}</dt>
+            <dd class="mono">{{ roleText(u) }}</dd>
+            @if (u.agency) {
+              <dt>agency_id</dt><dd class="mono">{{ u.agency.id }} · {{ u.agency.status }}{{ u.agency.is_head ? ' · head' : '' }}</dd>
+            }
+          </dl>
+          <a class="btn big easy-only" [href]="'tel:' + u.phone">{{ i18n.t({ th: 'โทร ', en: 'Call ' }) }}{{ u.phone }}</a>
           @if (temp(); as t) {
             <div class="info-box">
               <span class="small">{{ i18n.t({ th: 'รหัสชั่วคราว (แสดงครั้งเดียว — ให้ผู้ใช้เปลี่ยนตอนเข้าสู่ระบบ)', en: 'Temporary password (shown once — they must change it at sign-in)' }) }}</span>
@@ -332,7 +352,7 @@ const ROLE_LABEL: Record<string, Tr> = {
           @if (error(); as e) {
             <p class="danger-text small" role="alert">{{ i18n.t(e) }}</p>
           }
-          <div class="two">
+          <div class="two easy-hide">
             <button type="button" class="btn secondary" [disabled]="busy()" (click)="reset(u)">{{ i18n.t({ th: 'รีเซ็ตรหัส', en: 'Reset password' }) }}</button>
             @if (u.status === 'active') {
               <button type="button" class="btn secondary" [disabled]="busy()" (click)="setStatus(u, 'disabled')">{{ i18n.t({ th: 'ปิดบัญชี', en: 'Disable' }) }}</button>
@@ -360,7 +380,7 @@ const ROLE_LABEL: Record<string, Tr> = {
         @for (u of shown(); track u.id) {
           <button type="button" class="row ucols" [class.on]="u.id === selectedId()" (click)="select(u.id)">
             <strong class="name">{{ u.name }}</strong>
-            <span class="info small"><span class="muted">{{ u.phone }}</span> · {{ roles(u) }}</span>
+            <span class="info small"><span class="muted">{{ u.phone }}</span> · {{ roles(u) }}<span class="muted small block mono adv-only">{{ u.id }}{{ u.agency ? ' · ' + u.agency.id : '' }} · {{ u.created_at }}</span></span>
             <span class="st"><span class="chip" [class.ok]="u.status === 'active'" [class.danger]="u.status === 'disabled'">{{ u.status === 'active' ? i18n.t({ th: 'ใช้งาน', en: 'Active' }) : i18n.t({ th: 'ปิด', en: 'Off' }) }}</span></span>
           </button>
         } @empty {
@@ -574,6 +594,10 @@ export class AdminUsers implements OnInit {
 
   protected roles(u: AdminUser): string {
     return this.badges(u).map((b) => this.i18n.t(ROLE_LABEL[b])).join(', ') || this.i18n.t({ th: 'ยังไม่มีบทบาท', en: 'no role yet' });
+  }
+
+  protected roleText(u: AdminUser): string {
+    return u.roles.map((r) => `${r.role}:${r.level}:${r.status}`).join(' · ') || '—';
   }
 
   /** POST /admin/users/:id/reset-password → รหัสชั่วคราว ครั้งเดียว + เตะทุก session */

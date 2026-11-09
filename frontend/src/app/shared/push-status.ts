@@ -1,9 +1,11 @@
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal, type OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { apiError } from '../core/api';
+import { DisplaySettings } from '../core/display-settings';
 import { I18n, type Tr } from '../core/i18n';
-import { isBrave, PushBlockedError, PushNotifications, type DiagStep, type PushBlocker } from '../core/push-notifications';
+import { isBrave, PushBlockedError, PushNotifications, type DiagStep, type PushBlocker, type PushServerStatus } from '../core/push-notifications';
 import { Session } from '../core/session';
 import { Toast } from '../core/toast';
 import { screenUrl } from '../screens/registry';
@@ -24,14 +26,15 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
     } @else if (on()) {
       <div class="card status ok">
         <strong>{{ i18n.t({ th: '🔔 เครื่องนี้รับแจ้งเตือนอยู่', en: '🔔 This device gets notifications' }) }}</strong>
-        <small>{{ i18n.t({ th: 'มือถือ/คอมพิวเตอร์เครื่องอื่นที่เข้าสู่ระบบบัญชีนี้ ต้องเปิดแยกเครื่องละครั้ง', en: 'Every other phone or computer you sign in on needs to turn it on separately' }) }}</small>
-        <div class="row-btns">
+        <small class="easy-hide">{{ i18n.t({ th: 'มือถือ/คอมพิวเตอร์เครื่องอื่นที่เข้าสู่ระบบบัญชีนี้ ต้องเปิดแยกเครื่องละครั้ง', en: 'Every other phone or computer you sign in on needs to turn it on separately' }) }}</small>
+        <div class="row-btns easy-hide">
           <button type="button" class="btn secondary" [disabled]="busy()" (click)="test()">{{ i18n.t({ th: 'ส่งทดสอบ', en: 'Send a test' }) }}</button>
           <button type="button" class="btn secondary" [disabled]="busy() || diagBusy()" (click)="diagnose()">{{ i18n.t({ th: 'ตรวจแจ้งเตือน (ละเอียด)', en: 'Check notifications (detailed)' }) }}</button>
           @if (!required()) {
             <button type="button" class="btn secondary" [disabled]="busy()" (click)="turnOff()">{{ i18n.t({ th: 'ปิดบนเครื่องนี้', en: 'Turn off here' }) }}</button>
           }
         </div>
+        <button type="button" class="btn secondary easy-only" [disabled]="busy()" (click)="test()">{{ i18n.t({ th: 'ส่งข้อความทดสอบ', en: 'Send a test' }) }}</button>
       </div>
     } @else {
       <div class="card status warn">
@@ -39,7 +42,7 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
         @if (required()) {
           <small>{{ i18n.t({ th: 'เจ้าหน้าที่ต้องเปิดไว้ จึงจะใช้งานและรับ SOS ได้', en: 'Officers must keep this on — otherwise the app is locked and you will miss SOS alerts' }) }}</small>
         } @else {
-          <small>{{ i18n.t({ th: 'จะไม่รู้เมื่อมีเจ้าหน้าที่มาตรวจ ของมาส่ง หรือ SOS จนกว่าจะเปิด', en: 'You will not know about patrol checks, deliveries or SOS until you turn it on' }) }}</small>
+          <small class="easy-hide">{{ i18n.t({ th: 'จะไม่รู้เมื่อมีเจ้าหน้าที่มาตรวจ ของมาส่ง หรือ SOS จนกว่าจะเปิด', en: 'You will not know about patrol checks, deliveries or SOS until you turn it on' }) }}</small>
         }
         @switch (blocker()) {
           @case ('line-browser') {
@@ -58,11 +61,39 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
           }
           @default {
             <button type="button" class="btn" [disabled]="busy()" (click)="turnOn()">{{ i18n.t({ th: 'เปิดแจ้งเตือน', en: 'Turn on notifications' }) }}</button>
-            <small>{{ i18n.t({ th: 'เบราว์เซอร์จะถามสิทธิ์ ให้กด "อนุญาต"', en: 'Your browser will ask — tap “Allow”' }) }}</small>
-            <button type="button" class="btn secondary" [disabled]="busy() || diagBusy()" (click)="diagnose()">{{ i18n.t({ th: 'ตรวจแจ้งเตือน (ละเอียด)', en: 'Check notifications (detailed)' }) }}</button>
+            <small class="easy-hide">{{ i18n.t({ th: 'เบราว์เซอร์จะถามสิทธิ์ ให้กด "อนุญาต"', en: 'Your browser will ask — tap “Allow”' }) }}</small>
+            <button type="button" class="btn secondary easy-hide" [disabled]="busy() || diagBusy()" (click)="diagnose()">{{ i18n.t({ th: 'ตรวจแจ้งเตือน (ละเอียด)', en: 'Check notifications (detailed)' }) }}</button>
           }
         }
       </div>
+    }
+    @if (!compact()) {
+      <section class="card adv-only stack">
+        <strong>{{ i18n.t({ th: 'ข้อมูลทางเทคนิค', en: 'Technical details' }) }}</strong>
+        @if (server(); as st) {
+          <dl class="kv">
+            <dt>GET /me/push/status</dt>
+            <dd class="mono">configured={{ st.configured }} · keys_match={{ st.keys_match }}</dd>
+            <dt>permission</dt>
+            <dd class="mono">{{ permission() }}</dd>
+            <dt>device_label</dt>
+            <dd class="mono">{{ deviceLabel() ?? '—' }}</dd>
+            @if (device(); as d) {
+              <dt>push service</dt>
+              <dd class="mono">{{ d.host }}</dd>
+              <dt>usable</dt>
+              <dd class="mono">{{ d.usable }} · failed={{ d.failed_count }}</dd>
+              <dt>last_ok_at</dt>
+              <dd class="mono">{{ d.last_ok_at ? exact(d.last_ok_at) : '—' }}</dd>
+            } @else {
+              <dt>this device</dt>
+              <dd class="mono">{{ i18n.t({ th: 'ยังไม่ผูกกับเซิร์ฟเวอร์', en: 'not linked to the server' }) }}</dd>
+            }
+          </dl>
+        } @else {
+          <small class="muted">{{ i18n.t({ th: 'กำลังโหลดข้อมูลเซิร์ฟเวอร์…', en: 'Loading server details…' }) }}</small>
+        }
+      </section>
     }
     @if (diag().length) {
       <div class="card diag" role="status">
@@ -108,7 +139,9 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
         border-color: var(--ok);
       }
       &.warn {
-        border-color: var(--warn);
+        background: var(--ib-warn-bg);
+        border: 1.5px solid #e5b85c;
+        box-shadow: none;
       }
     }
     .row-btns {
@@ -130,18 +163,44 @@ export class PushStatus implements OnInit {
   private readonly push = inject(PushNotifications);
   private readonly session = inject(Session);
   private readonly toast = inject(Toast);
+  private readonly display = inject(DisplaySettings);
+  private readonly http = inject(HttpClient);
   protected readonly url = screenUrl;
   protected readonly busy = signal(false);
   protected readonly diag = signal<DiagStep[]>([]);
   protected readonly diagBusy = signal(false);
+  /** สถานะจาก GET /me/push/status — ใช้ในโหมดละเอียด */
+  protected readonly server = signal<PushServerStatus | null>(null);
   /** ค่านี้เปลี่ยนเมื่อกดอนุญาต/ปิด (ไม่มี signal ของ Notification.permission) */
   private readonly tick = signal(0);
   /** ผลตรวจฝั่งเบราว์เซอร์ (null = ยังไม่รู้) — server บอกว่าเปิด แต่เบราว์เซอร์ถูกปิดสิทธิ์/ลบ subscription ไปแล้ว ต้องถือว่ายังไม่เปิด */
   private readonly deviceOk = signal<boolean | null>(null);
   protected readonly on = computed(() => this.session.me()?.push.subscribed === true && this.deviceOk() !== false);
+  /** subscription ของเครื่องนี้จากฝั่งเซิร์ฟเวอร์ (โหมดละเอียด) */
+  protected readonly device = computed(() => this.server()?.subscriptions.find((s) => s.this_device) ?? null);
 
   async ngOnInit(): Promise<void> {
     this.deviceOk.set(await this.push.isActive().catch(() => false));
+    void this.loadServer();
+  }
+
+  /** สิทธิ์แจ้งเตือนปัจจุบัน (อัปเดตหลังกดเปิด/ปิดผ่าน tick) */
+  protected readonly permission = computed(() => {
+    this.tick();
+    return typeof Notification === 'undefined' ? 'unsupported' : Notification.permission;
+  });
+
+  private async loadServer(): Promise<void> {
+    try {
+      this.server.set(await firstValueFrom(this.http.get<PushServerStatus>('/api/v1/me/push/status')));
+    } catch {
+      // ไม่มีสิทธิ์/เน็ตหลุด — โหมดละเอียดแสดงว่าโหลดไม่ได้
+      this.server.set(null);
+    }
+  }
+
+  protected exact(iso: string): string {
+    return new Date(iso).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Asia/Bangkok' });
   }
   protected readonly blocker = computed<PushBlocker | null>(() => {
     this.tick();
@@ -231,6 +290,7 @@ export class PushStatus implements OnInit {
     try {
       await fn();
       await this.session.refresh();
+      if (this.display.advancedMode()) await this.loadServer();
     } catch (error) {
       this.toast.show(error instanceof PushBlockedError ? { th: 'เบราว์เซอร์นี้ยังเปิดแจ้งเตือนไม่ได้ — ดูคำอธิบายในกรอบ', en: 'Notifications are blocked here — see the box for help' } : this.failureText(error));
     } finally {

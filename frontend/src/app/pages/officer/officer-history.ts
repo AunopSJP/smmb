@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { I18n, type Tr } from '../../core/i18n';
+import { DisplaySettings } from '../../core/display-settings';
 import { hhmm, InspectionApi, type MyLog } from '../../core/inspection-api';
 import { Session } from '../../core/session';
 import { Icon } from '../../shared/icon';
@@ -37,8 +38,12 @@ const bkkDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/B
   template: `
     <app-page-header [caption]="session.me()?.agency?.name ?? ''" [title]="i18n.t({ th: 'ประวัติ', en: 'History' })" />
     <div class="stack grow">
-      <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'กรองผล', en: 'Filter' })">
+      <p class="adv-only mono tech">GET /officer/logs · {{ i18n.t({ th: 'เฉพาะของคุณ · append-only', en: 'yours only · append-only' }) }}</p>
+      <div class="segmented chips easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'กรองผล', en: 'Filter' })">
         <button type="button" [attr.aria-pressed]="filter() === 'all'" (click)="filter.set('all')">{{ i18n.t({ th: 'ทั้งหมด', en: 'All' }) }}</button>
+        <button type="button" class="adv-only" [attr.aria-pressed]="filter() === 'ok'" (click)="filter.set('ok')">
+          {{ i18n.t({ th: 'ผ่าน', en: 'Passed' }) }}
+        </button>
         <button type="button" [attr.aria-pressed]="filter() === 'problems'" (click)="filter.set('problems')">
           {{ i18n.t({ th: 'ไม่ผ่าน', en: 'Problems' }) }}{{ problemCount() ? ' ' + problemCount() : '' }}
         </button>
@@ -49,9 +54,10 @@ const bkkDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/B
           <li class="row">
             <span class="icon-bubble" [class.danger]="!ok" [class.ok]="ok"><app-icon [name]="ok ? 'check' : 'alert'" [size]="20" /></span>
             <span class="grow">
-              <strong>{{ title(l) }}</strong>
-              <span class="muted small block">{{ when(l.at) }} · {{ l.method === 'code' ? i18n.t({ th: 'พิมพ์รหัส', en: 'Typed code' }) : i18n.t({ th: 'สแกน', en: 'Scan' }) }}</span>
-              <span class="muted small block mono adv-only">{{ l.box_id ?? '—' }} · #{{ l.id }} · {{ l.result }}</span>
+              <strong>{{ title(l) }} · {{ i18n.t(resultText(l)) }}</strong>
+              <span class="muted small block">{{ when(l.at) }}</span>
+              <span class="muted small block easy-hide">{{ l.method === 'code' ? i18n.t({ th: 'พิมพ์รหัส', en: 'Typed code' }) : i18n.t({ th: 'สแกน', en: 'Scan' }) }}</span>
+              <span class="muted small block mono adv-only">{{ l.box_id ?? '—' }} · #{{ l.id }} · {{ l.result }} · {{ stamp(l.at) }}</span>
             </span>
             <span class="chip" [class.ok]="ok" [class.danger]="!ok">{{ i18n.t(resultText(l)) }}</span>
           </li>
@@ -65,7 +71,7 @@ const bkkDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/B
       @if (error()) {
         <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดประวัติไม่สำเร็จ ลองอีกครั้ง', en: 'Could not load — try again' }) }}</p>
       }
-      <p class="muted small">{{ i18n.t({ th: 'ทุกการสแกนและพิมพ์รหัสถูกบันทึก แม้ไม่ผ่าน · หัวหน้าเห็นประวัติเดียวกันนี้ · ลบหรือแก้ไม่ได้', en: 'Every scan and typed code is logged, even failures · your head sees the same log · it cannot be edited' }) }}</p>
+      <p class="muted small easy-hide">{{ i18n.t({ th: 'ทุกการสแกนและพิมพ์รหัสถูกบันทึก แม้ไม่ผ่าน · หัวหน้าเห็นประวัติเดียวกันนี้ · ลบหรือแก้ไม่ได้', en: 'Every scan and typed code is logged, even failures · your head sees the same log · it cannot be edited' }) }}</p>
     </div>
   `,
   styles: `
@@ -76,20 +82,32 @@ const bkkDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/B
     .block {
       display: block;
     }
+    .tech {
+      margin: 0;
+      font-size: 0.6875rem;
+      color: var(--text-muted);
+    }
   `,
 })
 export class OfficerHistory {
   protected readonly i18n = inject(I18n);
   protected readonly session = inject(Session);
+  protected readonly display = inject(DisplaySettings);
   private readonly api = inject(InspectionApi);
   protected readonly logs = signal<MyLog[]>([]);
-  protected readonly filter = signal<'all' | 'problems'>('all');
+  protected readonly filter = signal<'all' | 'ok' | 'problems'>('all');
   protected readonly loading = signal(true);
   protected readonly error = signal(false);
   protected readonly more = signal(false);
   private page = 1;
 
-  protected readonly rows = computed(() => (this.filter() === 'all' ? this.logs() : this.logs().filter((l) => !this.isOk(l))));
+  protected readonly rows = computed(() => {
+    const list = this.logs();
+    if (this.display.easyMode()) return list;
+    if (this.filter() === 'problems') return list.filter((l) => !this.isOk(l));
+    if (this.filter() === 'ok') return list.filter((l) => this.isOk(l));
+    return list;
+  });
   protected readonly problemCount = computed(() => this.logs().filter((l) => !this.isOk(l)).length);
 
   constructor() {
@@ -131,5 +149,18 @@ export class OfficerHistory {
     const today = bkkDay(new Date()) === bkkDay(new Date(iso));
     const d = new Date(iso).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' });
     return (today ? this.i18n.t({ th: 'วันนี้', en: 'Today' }) : d) + ' ' + hhmm(iso);
+  }
+
+  /** เวลาเต็มพร้อมวันที่และวินาที (โหมดละเอียด) */
+  protected stamp(iso: string): string {
+    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+      timeZone: 'Asia/Bangkok',
+    });
   }
 }

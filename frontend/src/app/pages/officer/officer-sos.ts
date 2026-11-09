@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { apiError } from '../../core/api';
+import { DisplaySettings } from '../../core/display-settings';
 import { I18n, type Tr } from '../../core/i18n';
 import { hhmm } from '../../core/inspection-api';
 import { MapPin } from '../../shared/map-pin';
@@ -25,15 +26,32 @@ const go = (router: Router, code: string, id?: string) =>
   imports: [RouterLink, PageHeader, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="session.me()?.agency?.name ?? ''" [title]="session.me()?.display_name ?? ''" [bell]="url('O14')" />
+    <app-page-header [title]="'SOS'" [bell]="url('O14')" />
     <div class="stack">
+      <div class="segmented easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'มุมมอง SOS', en: 'SOS view' })">
+        <button type="button" [attr.aria-pressed]="view() === 'open'" (click)="view.set('open')">{{ i18n.t({ th: 'เปิดอยู่', en: 'Open' }) }} {{ open().length }}</button>
+        <button type="button" [attr.aria-pressed]="view() === 'closed'" (click)="view.set('closed')">{{ i18n.t({ th: 'ปิดแล้ว', en: 'Closed' }) }}</button>
+      </div>
+      <div class="adv-only card">
+        <dl class="kv">
+          <dt>{{ i18n.t({ th: 'เปิดอยู่', en: 'Open' }) }}</dt>
+          <dd class="mono">{{ open().length }}</dd>
+          <dt>{{ i18n.t({ th: 'ปิด 30 วัน', en: 'Closed · 30 days' }) }}</dt>
+          <dd class="mono">{{ closed().length }}</dd>
+        </dl>
+      </div>
+      @if (view() === 'open' && !open().length) {
+        <p class="card muted">{{ i18n.t({ th: 'ไม่มี SOS ที่เปิดอยู่ตอนนี้', en: 'No open SOS right now' }) }}</p>
+      }
       @for (c of open(); track c.id) {
+        @if (view() === 'open' || display.easyMode()) {
         @if (c.mine) {
           <h2 class="section-title danger-text">{{ i18n.t({ th: 'กำลังดูแล', en: 'Handling' }) }}</h2>
           <a class="card current" [routerLink]="url('O10')" [queryParams]="{ id: c.id }">
             <span class="grow">
               <strong class="big">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ c.house_no }}</strong>
               <span class="muted small block">{{ c.owner?.name }}</span>
+              <span class="muted small block mono adv-only">{{ c.id }} · stage={{ c.stage }} · {{ time(c.created_at) }}</span>
             </span>
             <span class="chip danger">{{ i18n.t({ th: 'รับแล้วโดยคุณ', en: 'Yours' }) }}</span>
           </a>
@@ -43,12 +61,15 @@ const go = (router: Router, code: string, id?: string) =>
             <span class="grow">
               <strong class="big">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ c.house_no }}</strong>
               <span class="muted small block">{{ time(c.created_at) }} · {{ c.owner?.name }}</span>
+              <span class="muted small block mono adv-only">{{ c.id }} · stage={{ c.stage }}</span>
             </span>
             <span class="chip danger">{{ i18n.t({ th: 'ยังไม่มีคนรับ', en: 'Not accepted' }) }}</span>
           </a>
         }
       }
 
+      }
+      @if (view() === 'closed' && !display.easyMode()) {
       <h2 class="section-title">{{ i18n.t({ th: 'ย้อนหลัง 30 วัน', en: 'Last 30 days' }) }}</h2>
       @if (!closed().length) {
         <p class="muted small">{{ i18n.t({ th: 'ยังไม่มี', en: 'None yet' }) }}</p>
@@ -66,6 +87,7 @@ const go = (router: Router, code: string, id?: string) =>
                   {{ i18n.t({ th: 'เจ้าของบ้านยกเลิก', en: 'Owner cancelled' }) }}
                 }
               </span>
+              <span class="muted small block mono adv-only">{{ h.id }} · stage={{ h.stage }} · {{ h.created_at }}</span>
             </span>
             <span class="chip" [class.ok]="h.status === 'closed'">
               {{ h.status === 'closed' ? i18n.t({ th: 'ปิดแล้ว', en: 'Closed' }) : i18n.t({ th: 'ยกเลิก', en: 'Cancelled' }) }}
@@ -73,7 +95,8 @@ const go = (router: Router, code: string, id?: string) =>
           </li>
         }
       </ul>
-      <p class="muted small">{{ i18n.t({ th: 'SOS ใหม่จะขึ้นเป็นแจ้งเตือนสีแดงทันที (ต้องเปิดแจ้งเตือนไว้)', en: 'A new SOS pops up as a red notification (keep notifications on)' }) }}</p>
+      }
+      <p class="muted small easy-hide">{{ i18n.t({ th: 'SOS ใหม่จะขึ้นเป็นแจ้งเตือนสีแดงทันที (ต้องเปิดแจ้งเตือนไว้)', en: 'A new SOS pops up as a red notification (keep notifications on)' }) }}</p>
     </div>
   `,
   styles: `
@@ -108,10 +131,12 @@ const go = (router: Router, code: string, id?: string) =>
 export class OfficerSosList {
   protected readonly i18n = inject(I18n);
   protected readonly session = inject(Session);
+  protected readonly display = inject(DisplaySettings);
   private readonly api = inject(OfficerSosApi);
   protected readonly url = screenUrl;
   protected readonly time = hhmm;
   protected readonly open = signal<SosCard[]>([]);
+  protected readonly view = signal<'open' | 'closed'>('open');
   protected readonly closed = signal<SosCard[]>([]);
 
   constructor() {
@@ -190,6 +215,7 @@ export class OfficerSosList {
           <span class="pill">{{ i18n.t({ th: 'SOS ใหม่', en: 'New SOS' }) }}</span>
           <span class="small">{{ ago() }} {{ i18n.t({ th: 'วินาทีที่แล้ว', en: 's ago' }) }}</span>
         </div>
+        <p class="adv-only mono tech">{{ c.id }} · stage={{ c.stage }} · created={{ c.created_at }} · {{ i18n.t({ th: 'บันทึกการเปิดดูเมื่อกดรับ', en: 'view-log on accept' }) }}</p>
         <p>{{ i18n.t({ th: 'ขอความช่วยเหลือที่', en: 'Help needed at' }) }}</p>
         <h1>{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ c.house_no }}</h1>
         <section class="card on-red">
@@ -204,7 +230,7 @@ export class OfficerSosList {
             @if (c.house?.address || c.house?.area) {
               <dt>{{ i18n.t({ th: 'ที่อยู่', en: 'Address' }) }}</dt><dd>{{ c.house?.address }} {{ c.house?.area }}</dd>
             }
-            <dt>{{ i18n.t({ th: 'ขั้น', en: 'Stage' }) }}</dt><dd>{{ c.stage === 'zone' ? i18n.t({ th: 'เจ้าหน้าที่ในโซน', en: 'Zone officers' }) : i18n.t({ th: 'ทุกคนในหน่วยงาน', en: 'Whole agency' }) }}</dd>
+            <dt class="easy-hide">{{ i18n.t({ th: 'ขั้น', en: 'Stage' }) }}</dt><dd class="easy-hide">{{ c.stage === 'zone' ? i18n.t({ th: 'เจ้าหน้าที่ในโซน', en: 'Zone officers' }) : i18n.t({ th: 'ทุกคนในหน่วยงาน', en: 'Whole agency' }) }}</dd>
             <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt><dd class="danger-text">{{ i18n.t({ th: 'ยังไม่มีคนรับ', en: 'Not accepted yet' }) }}</dd>
           </dl>
           <app-sos-house-details [house]="c.house" />
@@ -250,6 +276,13 @@ export class OfficerSosList {
     }
     .danger-text {
       color: var(--sos);
+    }
+    .tech {
+      margin: 0;
+      font-size: 0.6875rem;
+      line-height: 1.6;
+      opacity: 0.85;
+      overflow-wrap: anywhere;
     }
   `,
 })
@@ -318,6 +351,7 @@ export class OfficerSosCase implements OnInit {
       <a [routerLink]="url('O01')" class="back"><app-icon name="chevronLeft" [size]="16" />{{ i18n.t({ th: 'หน้าสรุป', en: 'Summary' }) }}</a>
       <p class="small">{{ i18n.t({ th: 'คุณรับเรื่องแล้ว', en: 'You accepted' }) }}</p>
       <h1>{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ c?.house_no }}</h1>
+      <p class="adv-only mono tech">{{ c?.id }} · stage={{ c?.stage }} · created={{ c?.created_at }}</p>
     </header>
     <div class="pad">
       @if (c?.status === 'cancelled') {
@@ -330,10 +364,13 @@ export class OfficerSosCase implements OnInit {
             @if (c?.house?.address || c?.house?.area) {
               <dt>{{ i18n.t({ th: 'ที่อยู่', en: 'Address' }) }}</dt><dd>{{ c?.house?.address }} {{ c?.house?.area }}</dd>
             }
-            <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt><dd class="ok">{{ i18n.t({ th: 'เจ้าของบ้านเห็นว่าคุณรับแล้ว', en: 'The owner sees you accepted' }) }}</dd>
+            <dt class="easy-hide">{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt><dd class="easy-hide ok">{{ i18n.t({ th: 'เจ้าของบ้านเห็นว่าคุณรับแล้ว', en: 'The owner sees you accepted' }) }}</dd>
           </dl>
           <app-sos-house-details [house]="c?.house ?? null" />
         </section>
+        <p class="adv-only mono tech-muted">
+          {{ i18n.t({ th: 'บันทึกการเข้าถึง 1 ครั้ง/คน/เคส · หมดสิทธิ์เห็นข้อมูลเมื่อปิดเรื่อง', en: 'Access logged once per person per case · data access ends when the case closes' }) }}
+        </p>
         @if (c?.house?.location; as loc) {
           <section class="card"><app-map-pin [value]="loc" [height]="200" /></section>
         }
@@ -362,6 +399,17 @@ export class OfficerSosCase implements OnInit {
       font-weight: 700;
       font-size: 0.875rem;
       text-decoration: none;
+    }
+    .tech {
+      margin: 0;
+      font-size: 0.6875rem;
+      opacity: 0.85;
+      overflow-wrap: anywhere;
+    }
+    .tech-muted {
+      margin: 0;
+      font-size: 0.6875rem;
+      color: var(--text-muted);
     }
   `,
 })
@@ -403,6 +451,7 @@ const OUTCOMES: { v: string; label: Tr }[] = [
     <form class="pad" (submit)="close($event)">
       <a class="back" [routerLink]="url('O10')" [queryParams]="{ id: id() }"><app-icon name="chevronLeft" [size]="16" />{{ i18n.t({ th: 'กลับ', en: 'Back' }) }}</a>
       <h1>{{ i18n.t({ th: 'ปิดเรื่อง SOS', en: 'Close the SOS' }) }}</h1>
+      <p class="adv-only mono tech">sos {{ id() }} · status=accepted · note ≤ 500</p>
       <fieldset class="options">
         <legend>{{ i18n.t({ th: 'เกิดอะไรขึ้น', en: 'What happened' }) }}</legend>
         @for (o of outcomes; track o.v) {
@@ -416,6 +465,7 @@ const OUTCOMES: { v: string; label: Tr }[] = [
       @if (failed()) {
         <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ปิดเรื่องไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t close — try again' }) }}</p>
       }
+      <p class="adv-only mono tech">{{ i18n.t({ th: 'ปิดแล้วแก้ไม่ได้ · บันทึกเวลาและชื่อผู้ปิดเรื่อง', en: 'Cannot be edited after closing · time and name are recorded' }) }}</p>
       <button type="submit" class="btn green big push-end" [disabled]="busy()">{{ i18n.t({ th: 'ยืนยันปิดเรื่อง', en: 'Confirm and close' }) }}</button>
     </form>
   `,
@@ -449,6 +499,11 @@ const OUTCOMES: { v: string; label: Tr }[] = [
     textarea:focus {
       outline: none;
       border-color: var(--brand);
+    }
+    .tech {
+      margin: 0;
+      font-size: 0.6875rem;
+      color: var(--text-muted);
     }
   `,
 })

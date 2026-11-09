@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, model, signal, type OnInit } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { DisplaySettings } from '../../core/display-settings';
 import { HeadApi } from '../../core/head-api';
 import { I18n, type Tr } from '../../core/i18n';
 import { Toast } from '../../core/toast';
@@ -75,7 +76,7 @@ const RESULT_TEXT: Record<string, Tr> = {
       [bell]="url('L09')"
     />
     <div class="stack">
-      <div class="segmented chips" role="group">
+      <div class="segmented chips easy-hide" role="group">
         <button type="button" [attr.aria-pressed]="!onlyProblems()" (click)="setProblems(false)">{{ i18n.t({ th: 'ทั้งหมด', en: 'All' }) }}</button>
         <button type="button" [attr.aria-pressed]="onlyProblems()" (click)="setProblems(true)">{{ i18n.t({ th: 'เฉพาะที่มีปัญหา', en: 'Problems only' }) }}</button>
       </div>
@@ -132,8 +133,10 @@ const RESULT_TEXT: Record<string, Tr> = {
             <span class="icon-bubble" [class.danger]="!ok"><app-icon [name]="icon(l)" [size]="20" /></span>
             <span class="grow">
               <strong>{{ l.house_no ?? l.box_id ?? '—' }} · {{ time(l.at) }}</strong>
-              <span class="muted small block">{{ sub(l) }}</span>
-              <span class="muted small block mono adv-only">{{ l.box_id }} · {{ l.result }}</span>
+              <span class="muted small block easy-hide">{{ sub(l) }}</span>
+              <span class="muted small block easy-only">{{ l.officer?.display_name ?? '—' }}</span>
+              <span class="muted small block mono adv-only">#{{ l.id }} · {{ l.box_id ?? '—' }} · {{ l.result }} · {{ l.qr_kind }}{{ l.qr_slot ? ' /slot ' + l.qr_slot : '' }} · {{ l.method }} · {{ l.officer?.id ?? '—' }}</span>
+              <span class="muted small block mono adv-only">{{ exact(l.at) }}</span>
             </span>
             <span class="chip" [class.ok]="ok" [class.danger]="!ok">{{ i18n.t(resultText(l)) }}</span>
           </li>
@@ -142,9 +145,9 @@ const RESULT_TEXT: Record<string, Tr> = {
         }
       </ul>
       @if (more()) {
-        <button type="button" class="btn secondary" (click)="loadMore()">{{ i18n.t({ th: 'ดูเพิ่ม', en: 'Load more' }) }}</button>
+        <button type="button" class="btn secondary easy-hide" (click)="loadMore()">{{ i18n.t({ th: 'ดูเพิ่ม', en: 'Load more' }) }}</button>
       }
-      <div class="export">
+      <div class="export easy-hide">
         <label class="field">
           <span>{{ i18n.t({ th: 'ส่งออกเป็นไฟล์ Excel (CSV) — ตามตัวกรองด้านบน', en: 'Export as a spreadsheet (CSV) — follows the filters above' }) }}</span>
           <select [value]="days()" (change)="days.set(+$any($event.target).value)">
@@ -208,6 +211,7 @@ const RESULT_TEXT: Record<string, Tr> = {
 export class HeadLog implements OnInit {
   protected readonly i18n = inject(I18n);
   protected readonly api = inject(HeadApi);
+  protected readonly display = inject(DisplaySettings);
   private readonly http = inject(HttpClient);
   private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
@@ -216,7 +220,8 @@ export class HeadLog implements OnInit {
   protected readonly loading = signal(true);
   protected readonly more = signal(false);
   private page = 1;
-  protected readonly rows = computed(() => this.all());
+  /** โหมดง่าย: แค่ 5 รายการล่าสุด ไม่ต้องโหลดเพิ่ม */
+  protected readonly rows = computed(() => (this.display.easyMode() ? this.all().slice(0, 5) : this.all()));
 
   // ตัวกรอง (ส่งให้เซิร์ฟเวอร์กรอง — ไม่ใช่กรองเฉพาะ 30 แถวที่โหลดมา)
   protected readonly fZone = signal('');
@@ -331,6 +336,11 @@ export class HeadLog implements OnInit {
 
   protected time(iso: string): string {
     return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Bangkok' });
+  }
+
+  /** โหมดละเอียด: เวลาที่มีความละเอียดถึงวินาที */
+  protected exact(iso: string): string {
+    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Asia/Bangkok' });
   }
 
   protected sub(l: LogRow): string {

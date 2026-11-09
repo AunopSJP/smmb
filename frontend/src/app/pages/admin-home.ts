@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal, type OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { AdminApi, type AdminAgency, type AdminBoxRow, type AdminOverview } from '../core/admin-api';
+import { AdminApi, type AdminAgency, type AdminBoxRow, type AdminOverview, type FirmwareInfo } from '../core/admin-api';
 import { I18n, type Tr } from '../core/i18n';
 import { Session } from '../core/session';
 import { Toast } from '../core/toast';
@@ -28,21 +28,45 @@ interface Segment {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
-      [caption]="i18n.t({ th: 'แอดมิน Smart Mailbox', en: 'Smart Mailbox admin' })"
-      [title]="i18n.t({ th: 'ภาพรวม', en: 'Overview' })"
+      [caption]="i18n.t({ th: 'ผู้ดูแลระบบ', en: 'System admin' })"
+      [title]="i18n.t({ th: 'ภาพรวมระบบ', en: 'System overview' })"
       [bell]="url('D12')"
     />
 
     <div class="stack page">
-      <div class="asof">
+      <div class="asof easy-hide">
         <span class="muted small">{{ i18n.t({ th: 'ข้อมูล ณ ', en: 'As of ' }) }}{{ asOf() }}</span>
         <button type="button" class="btn secondary small-btn" [disabled]="refreshing()" (click)="refresh()">{{ refreshing() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'รีเฟรช', en: 'Refresh' }) }}</button>
       </div>
 
+      <!-- โหมดง่าย: สรุปสั้น + 3 ตัวเลขสำคัญ + 2 ปุ่มหลัก (ตาม AdmEasy) -->
+      <section class="easy-hero easy-only" role="status">
+        <strong>{{ i18n.t(easyTitle()) }}</strong>
+        <span>{{ i18n.t({ th: 'ออนไลน์ ', en: 'Online ' }) }}{{ online() }} {{ i18n.t({ th: 'จาก ', en: 'of ' }) }}{{ totalBoxes() }} {{ i18n.t({ th: 'ตู้', en: 'boxes' }) }}</span>
+      </section>
+      <section class="easy-kpis easy-only" [attr.aria-label]="i18n.t({ th: 'ตัวเลขสำคัญ', en: 'Key numbers' })">
+        <a class="easy-kpi" [routerLink]="url('D03')" [queryParams]="{ filter: 'offline' }">
+          <span class="easy-n" [class.danger]="offline() > 0">{{ offline() }}</span>
+          <span class="easy-l">{{ i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Offline' }) }}</span>
+        </a>
+        <a class="easy-kpi" [routerLink]="url('D05')">
+          <span class="easy-n" [class.warn]="qrTotal() > 0">{{ qrTotal() }}</span>
+          <span class="easy-l">{{ i18n.t({ th: 'QR ต้องจัดการ', en: 'QR to fix' }) }}</span>
+        </a>
+        <a class="easy-kpi" [routerLink]="url('D02')">
+          <span class="easy-n" [class.warn]="pendingCount() > 0">{{ pendingCount() }}</span>
+          <span class="easy-l">{{ i18n.t({ th: 'หน่วยงานรออนุมัติ', en: 'Agencies waiting' }) }}</span>
+        </a>
+      </section>
+      <div class="easy-actions easy-only">
+        <a class="btn big" [routerLink]="url('D03')">{{ i18n.t({ th: 'ลงทะเบียนตู้ใหม่', en: 'Register a new mailbox' }) }}</a>
+        <a class="btn secondary big" [routerLink]="url('D03')" [queryParams]="{ filter: 'offline' }">{{ i18n.t({ th: 'ดูตู้ที่ต้องดู', en: 'Open boxes to check' }) }} ({{ atRisk() }})</a>
+      </div>
+
       <!-- 1) ตัวเลขสรุป -->
-      <section class="kpis" [attr.aria-label]="i18n.t({ th: 'ตัวเลขสรุป', en: 'Key numbers' })">
+      <section class="kpis easy-hide" [attr.aria-label]="i18n.t({ th: 'ตัวเลขสรุป', en: 'Key numbers' })">
         @for (k of kpis(); track k.key) {
-          <a class="kpi" [routerLink]="k.path" [queryParams]="k.query">
+          <a class="kpi" [class.desk-only]="k.key === 'low' || k.key === 'sos' || k.key === 'requests'" [routerLink]="k.path" [queryParams]="k.query">
             <span class="kpi-label">{{ i18n.t(k.label) }}</span>
             <span class="kpi-value" [class.danger]="k.tone === 'danger' && k.n > 0" [class.warn]="k.tone === 'warn' && k.n > 0" [class.zero]="k.tone !== '' && k.n === 0">{{ k.text }}</span>
             <span class="kpi-hint">{{ i18n.t(k.hint) }}</span>
@@ -51,7 +75,7 @@ interface Segment {
       </section>
 
       <!-- 2) สถานะรวม -->
-      <div class="two-col">
+      <div class="two-col desk-only easy-hide">
         <section class="panel">
           <header>
             <h2>{{ i18n.t({ th: 'สถานะตู้ทั้งหมด', en: 'Box status' }) }}</h2>
@@ -109,7 +133,7 @@ interface Segment {
       </div>
 
       <!-- 2.5) กิจกรรม 7 วัน -->
-      <section class="panel">
+      <section class="panel desk-only easy-hide">
         <header>
           <h2>{{ i18n.t({ th: 'กิจกรรม 7 วันล่าสุด', en: 'Last 7 days' }) }}</h2>
           <a [routerLink]="url('D11')">{{ i18n.t({ th: 'ดูประวัติ', en: 'Open the log' }) }}</a>
@@ -138,8 +162,69 @@ interface Segment {
         }
       </section>
 
+      <!-- 2.6) เฟิร์มแวร์ (โหมดปกติ/ละเอียด) — ตาม AdmHome -->
+      <section class="panel easy-hide">
+        <header>
+          <h2>{{ i18n.t({ th: 'เฟิร์มแวร์', en: 'Firmware' }) }}</h2>
+          <a [routerLink]="url('D17')">{{ i18n.t({ th: 'จัดการ', en: 'Manage' }) }}</a>
+        </header>
+        <p>
+          <strong>{{ i18n.t({ th: 'ตู้ใช้รุ่นล่าสุด ', en: 'Latest version ' }) }}{{ fwLatest() ?? '—' }} · {{ fwApplied() }} / {{ totalBoxes() }}</strong>
+        </p>
+        <span class="fwbar" aria-hidden="true"><i [style.width.%]="fwAppliedPct()"></i></span>
+        <p class="muted small">{{ autoText() }}</p>
+      </section>
+
+      <!-- โหมดละเอียด: ตัวเลขระบบ + เวอร์ชัน/สถานะที่ดึงได้จริง (ตาม AdmAdv) -->
+      <section class="card adv-only" [attr.aria-label]="i18n.t({ th: 'ข้อมูลระบบละเอียด', en: 'Technical overview' })">
+        <header class="adv-head">
+          <h2 class="section-title">{{ i18n.t({ th: 'ข้อมูลระบบ', en: 'System details' }) }}</h2>
+          <span class="mono muted small">{{ asOfIso() }}</span>
+        </header>
+        <dl class="kv">
+          <dt>{{ i18n.t({ th: 'ออนไลน์ / ทั้งหมด', en: 'Online / total' }) }}</dt><dd class="mono">{{ online() }} / {{ totalBoxes() }}</dd>
+          <dt>{{ i18n.t({ th: 'ไม่ออนไลน์', en: 'Offline' }) }}</dt><dd class="mono">{{ offline() }}</dd>
+          <dt>{{ i18n.t({ th: 'พักอยู่', en: 'Sleeping' }) }}</dt><dd class="mono">{{ sleeping() }}</dd>
+          <dt>{{ i18n.t({ th: 'ปิดบริการ', en: 'Service closed' }) }}</dt><dd class="mono">{{ serviceClosed() }}</dd>
+          <dt>{{ i18n.t({ th: 'ยังไม่ผูกเจ้าของ', en: 'Unbound' }) }}</dt><dd class="mono">{{ unbound() }}</dd>
+          <dt>{{ i18n.t({ th: 'แบตต่ำ', en: 'Low battery' }) }}</dt><dd class="mono">{{ lowCount() }} &lt; {{ lowPct }}%</dd>
+          <dt>{{ i18n.t({ th: 'ปัญหา QR', en: 'QR issues' }) }}</dt><dd class="mono">{{ qrTotal() }}</dd>
+          <dt>{{ i18n.t({ th: 'SOS เปิดอยู่', en: 'Open SOS' }) }}</dt><dd class="mono">{{ overview()?.sos_open ?? 0 }}</dd>
+          <dt>{{ i18n.t({ th: 'คำขอช่างเปิด', en: 'Open technician requests' }) }}</dt><dd class="mono">{{ overview()?.technician_requests_open ?? technicianRequests() }}</dd>
+          <dt>config_ver</dt><dd class="mono">{{ configVer() !== null ? 'v' + configVer() : '—' }}</dd>
+          <dt>{{ i18n.t({ th: 'เฟิร์มแวร์ล่าสุด', en: 'Latest firmware' }) }}</dt><dd class="mono">{{ fwLatest() ?? '—' }}</dd>
+          <dt>{{ i18n.t({ th: 'อัปเดตอัตโนมัติ', en: 'Auto update' }) }}</dt>
+          <dd>
+            @if (fwAuto(); as v) {
+              {{ i18n.t({ th: 'เปิด → ', en: 'On → ' }) }}<span class="mono">{{ v }}</span>
+            } @else {
+              {{ i18n.t({ th: 'ปิด', en: 'Off' }) }}
+            }
+          </dd>
+          <dt>{{ i18n.t({ th: 'Push เครื่องนี้', en: 'Push on this device' }) }}</dt><dd>{{ pushOn() ? i18n.t({ th: 'พร้อม', en: 'Ready' }) : i18n.t({ th: 'ยังไม่เปิด', en: 'Not enabled' }) }}</dd>
+        </dl>
+      </section>
+
+      <section class="card adv-only">
+        <header class="adv-head">
+          <h2 class="section-title">{{ i18n.t({ th: 'เฟิร์มแวร์ตามรุ่น', en: 'Firmware by version' }) }}</h2>
+          <a [routerLink]="url('D17')">{{ i18n.t({ th: 'จัดการ', en: 'Manage' }) }}</a>
+        </header>
+        @if (fwGroups().length) {
+          @for (g of fwGroups(); track g.version) {
+            <div class="fwrow">
+              <span class="mono">{{ g.version }}</span>
+              <span class="fbar" aria-hidden="true"><i [style.width.%]="g.pct"></i></span>
+              <span class="mono">{{ g.n }} {{ i18n.t({ th: 'ตู้', en: 'boxes' }) }}</span>
+            </div>
+          }
+        } @else {
+          <p class="empty">{{ i18n.t({ th: 'ยังไม่มีข้อมูลเฟิร์มแวร์จากตู้', en: 'No firmware report from boxes yet' }) }}</p>
+        }
+      </section>
+
       <!-- 3) งานที่ต้องทำ -->
-      <section class="panel flush">
+      <section class="panel flush easy-hide">
         <header class="hpad">
           <h2>{{ i18n.t({ th: 'ต้องจัดการ', en: 'Needs action' }) }}</h2>
           <span class="muted small">{{ todo().length }} {{ i18n.t({ th: 'รายการ', en: 'items' }) }}</span>
@@ -170,7 +255,7 @@ interface Segment {
         }
       </section>
 
-      <div class="two-col">
+      <div class="two-col desk-only easy-hide">
         <section class="panel flush">
           <header class="hpad">
             <h2>{{ i18n.t({ th: 'เจ้าของบ้านแยกตามแพ็กเกจ', en: 'Owners by plan' }) }}</h2>
@@ -214,7 +299,7 @@ interface Segment {
         </section>
       </div>
 
-      <nav class="list mobile-only">
+      <nav class="list mobile-only easy-hide">
         @for (m of menu; track m.code) {
           <a class="row" [routerLink]="url(m.code)" [queryParams]="m.code === 'A14' ? { from: 'D01' } : null">
             <span class="icon-bubble"><app-icon [name]="m.icon" [size]="20" /></span>
@@ -546,6 +631,112 @@ interface Segment {
     .signout {
       color: var(--brand);
     }
+
+    /* โหมดง่าย (AdmEasy): การ์ดใหญ่ ตัวเลขชัด ปุ่มหลัก 2 ปุ่ม */
+    .easy-hero {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 22px 20px;
+      border-radius: var(--radius);
+      background: var(--ok-bg);
+      color: var(--ok);
+      text-align: center;
+    }
+    .easy-hero strong {
+      font-size: 1.5rem;
+      line-height: 1.3;
+    }
+    .easy-hero span {
+      font-size: 1rem;
+    }
+    .easy-kpis {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .easy-kpi {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 16px 10px;
+      border: 1px solid var(--line-strong, var(--line));
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: inherit;
+      text-align: center;
+      text-decoration: none;
+    }
+    .easy-kpi:hover {
+      border-color: var(--text);
+    }
+    .easy-n {
+      font-size: 2rem;
+      font-weight: 800;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+    .easy-n.danger {
+      color: var(--sos);
+    }
+    .easy-n.warn {
+      color: var(--warn);
+    }
+    .easy-l {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.35;
+    }
+    .easy-actions {
+      display: grid;
+      gap: 10px;
+    }
+
+    /* โหมดละเอียด (AdmAdv): ตารางแน่น ตัวเลข mono */
+    .adv-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .adv-head a {
+      font-size: 0.875rem;
+      color: var(--brand);
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .fwrow {
+      display: grid;
+      grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      font-size: 0.875rem;
+    }
+    .fbar {
+      display: block;
+      block-size: 8px;
+      border-radius: 4px;
+      background: var(--icon-bg);
+      overflow: hidden;
+    }
+    .fbar i {
+      display: block;
+      block-size: 100%;
+      background: var(--ok);
+    }
+    .fwbar {
+      display: block;
+      block-size: 8px;
+      border-radius: 4px;
+      background: var(--icon-bg);
+      overflow: hidden;
+    }
+    .fwbar i {
+      display: block;
+      block-size: 100%;
+      background: var(--ok);
+    }
   `,
 })
 export class AdminHome implements OnInit {
@@ -556,6 +747,7 @@ export class AdminHome implements OnInit {
   private readonly router = inject(Router);
   private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
+  protected readonly lowPct = LOW_BATTERY_PCT;
   protected readonly editingSupport = signal(false);
   protected readonly supportDraft = signal('');
   protected readonly support = signal<string | null>(null);
@@ -563,6 +755,9 @@ export class AdminHome implements OnInit {
   protected readonly overview = signal<AdminOverview | null>(null);
   protected readonly pending = signal<AdminAgency[]>([]);
   protected readonly technicianRequests = signal(0);
+  protected readonly firmwareList = signal<FirmwareInfo[]>([]);
+  protected readonly fwAuto = signal<string | null>(null);
+  protected readonly configVer = signal<number | null>(null);
 
   protected readonly online = computed(() => this.overview()?.boxes.online ?? this.boxes().filter((b) => b.status === 'online' || b.status === 'sleeping').length);
   protected readonly totalBoxes = computed(() => this.overview()?.boxes.total ?? this.boxes().length);
@@ -572,6 +767,40 @@ export class AdminHome implements OnInit {
   protected readonly pendingCount = computed(() => this.overview()?.agencies_pending ?? this.pending().length);
   protected readonly qrTotal = computed(() => this.overview()?.qr_issues.total ?? 0);
   protected readonly plans = computed(() => this.overview()?.owners_by_plan ?? []);
+  protected readonly sleeping = computed(() => this.overview()?.boxes.sleeping ?? this.boxes().filter((b) => b.status === 'sleeping').length);
+  protected readonly serviceClosed = computed(() => this.overview()?.boxes.service_closed ?? this.boxes().filter((b) => b.status === 'service_closed').length);
+  protected readonly unbound = computed(() => this.overview()?.boxes.unbound ?? this.boxes().filter((b) => b.status === 'unbound').length);
+  /** งานที่ต้องดูในโหมดง่าย = ตู้ไม่ออนไลน์ + เคส QR */
+  protected readonly atRisk = computed(() => this.offline() + this.qrTotal());
+  protected readonly easyTitle = computed<Tr>(() =>
+    this.offline() === 0 && this.qrTotal() === 0
+      ? { th: 'ตู้ส่วนใหญ่ปกติดี', en: 'Most mailboxes are fine' }
+      : { th: 'มีตู้ที่ต้องดู', en: 'Some mailboxes need a look' },
+  );
+  protected readonly fwLatest = computed(() => this.firmwareList()[0]?.version ?? null);
+  protected readonly fwApplied = computed(() => {
+    const latest = this.fwLatest();
+    return latest ? this.boxes().filter((b) => b.fw === latest).length : 0;
+  });
+  protected readonly fwAppliedPct = computed(() => (this.totalBoxes() ? (this.fwApplied() / this.totalBoxes()) * 100 : 0));
+  protected readonly autoText = computed<Tr>(() =>
+    this.fwAuto()
+      ? { th: 'อัปเดตอัตโนมัติ: เปิด · ตู้จะอัปเดตเองเมื่อกลับมาออนไลน์', en: 'Auto update: on · boxes update when they come online' }
+      : { th: 'อัปเดตอัตโนมัติ: ปิด · แอดมินกดอัปเดตเอง', en: 'Auto update: off · an admin updates each box' },
+  );
+  /** จำนวนตู้แยกตามเวอร์ชันเฟิร์มแวร์ที่ตู้รายงานจริง */
+  protected readonly fwGroups = computed(() => {
+    const counts = new Map<string, number>();
+    for (const b of this.boxes()) {
+      const v = b.fw ?? '—';
+      counts.set(v, (counts.get(v) ?? 0) + 1);
+    }
+    const max = Math.max(1, ...counts.values());
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([version, n]) => ({ version, n, pct: (n / max) * 100 }));
+  });
+  protected readonly pushOn = computed(() => this.session.me()?.push.subscribed ?? false);
 
   /** แท่งซ้อนต่อวัน: ความสูงเทียบวันที่มากที่สุดใน 7 วัน (ไม่นับ SOS ในแท่ง — แสดงเป็นตัวเลขใต้กราฟ) */
   protected readonly activity = computed(() => {
@@ -605,6 +834,7 @@ export class AdminHome implements OnInit {
       { key: 'offline', label: { th: 'ตู้ไม่ออนไลน์', en: 'Offline' }, text: String(this.offline()), n: this.offline(), tone: 'danger', hint: { th: 'ติดต่อไม่ได้', en: 'not reachable' }, path: screenUrl('D03'), query: { filter: 'offline' } },
       { key: 'low', label: { th: 'แบตต่ำ', en: 'Low battery' }, text: String(this.lowCount()), n: this.lowCount(), tone: 'warn', hint: { th: `ต่ำกว่า ${LOW_BATTERY_PCT}%`, en: `below ${LOW_BATTERY_PCT}%` }, path: screenUrl('D03'), query: { filter: 'low' } },
       { key: 'qr', label: { th: 'ปัญหา QR', en: 'QR issues' }, text: String(this.qrTotal()), n: this.qrTotal(), tone: 'warn', hint: { th: 'เสีย · น่าสงสัย · ใกล้หมดอายุ', en: 'damaged · suspicious · expiring' }, path: screenUrl('D05'), query: null },
+      { key: 'agencies', label: { th: 'หน่วยงานรออนุมัติ', en: 'Agencies waiting' }, text: String(this.pendingCount()), n: this.pendingCount(), tone: 'warn', hint: { th: 'รอแอดมินอนุมัติ', en: 'awaiting approval' }, path: screenUrl('D13'), query: null as Record<string, string> | null },
       { key: 'requests', label: { th: 'คำขอรอจัดการ', en: 'Requests waiting' }, text: String(requests), n: requests, tone: 'warn', hint: { th: 'หน่วยงาน + คำขอช่าง', en: 'agencies + technician' }, path: this.pendingCount() > 0 ? screenUrl('D02') : screenUrl('D15'), query: null },
       { key: 'sos', label: { th: 'SOS ที่เปิดอยู่', en: 'Open SOS' }, text: String(this.overview()?.sos_open ?? 0), n: this.overview()?.sos_open ?? 0, tone: 'danger', hint: { th: 'ดูในประวัติระบบ', en: 'see the system log' }, path: screenUrl('D11'), query: null },
     ];
@@ -637,6 +867,7 @@ export class AdminHome implements OnInit {
   });
 
   protected readonly asOf = signal('');
+  protected readonly asOfIso = signal('');
   protected readonly refreshing = signal(false);
 
   protected async refresh(): Promise<void> {
@@ -649,19 +880,27 @@ export class AdminHome implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
-    const [overview, boxes, pending, support, technicianRequests] = await Promise.all([
+    const [overview, boxes, pending, support, technicianRequests, firmware, fwAuto, config] = await Promise.all([
       this.api.overview().catch(() => null),
       this.api.boxes().catch(() => null),
       this.api.agencies('pending').catch(() => []),
       firstValueFrom(this.http.get<{ contact: string | null }>('/api/v1/support')).catch(() => null),
       this.api.technicianRequests('open').catch(() => []),
+      this.api.firmwareList().catch(() => []),
+      this.api.firmwareAuto().catch(() => null),
+      this.api.config().catch(() => null),
     ]);
     this.overview.set(overview);
     this.boxes.set(boxes?.data ?? []);
     this.pending.set(pending);
     this.support.set(support?.contact ?? null);
     this.technicianRequests.set(technicianRequests.length);
-    this.asOf.set(new Date().toLocaleTimeString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { hour: '2-digit', minute: '2-digit' }));
+    this.firmwareList.set(firmware);
+    this.fwAuto.set(fwAuto?.version ?? null);
+    this.configVer.set(config?.config_ver ?? null);
+    const now = new Date();
+    this.asOf.set(now.toLocaleTimeString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { hour: '2-digit', minute: '2-digit' }));
+    this.asOfIso.set(now.toISOString());
   }
 
   protected editSupport(): void {

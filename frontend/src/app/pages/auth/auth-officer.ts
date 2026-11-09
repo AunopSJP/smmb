@@ -34,7 +34,7 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
       <label class="field" [class.invalid]="errorCode() === 'GROUP_CODE_INVALID'">
         <span>{{ i18n.t({ th: 'รหัสกลุ่มจากหัวหน้า', en: 'Group code from your head' }) }}</span>
         <input autocomplete="off" autocapitalize="characters" spellcheck="false" [placeholder]="i18n.t({ th: 'เช่น PX7K-2MQ9', en: 'e.g. PX7K-2MQ9' })" [value]="f().group_code" (input)="set('group_code', $any($event.target).value)" />
-        <small>{{ i18n.t({ th: 'ได้จากหัวหน้าหน่วยงาน', en: 'Your agency head gives you this' }) }}</small>
+        <small class="easy-hide">{{ i18n.t({ th: 'ได้จากหัวหน้าหน่วยงาน', en: 'Your agency head gives you this' }) }}</small>
       </label>
       <label class="field" [class.invalid]="tried() && !f().name.trim()">
         <span>{{ i18n.t({ th: 'ชื่อ - นามสกุล (ยศ)', en: 'Full name (with rank)' }) }}</span>
@@ -45,13 +45,13 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
           <span>{{ i18n.t({ th: 'ตำแหน่ง / ยศ', en: 'Position / rank' }) }}</span>
           <input maxlength="100" [placeholder]="i18n.t({ th: 'เช่น ผบ.หมู่ / หัวหน้าเวร', en: 'e.g. Sergeant / shift lead' })" [value]="f().position" (input)="set('position', $any($event.target).value)" />
         </label>
-        <label class="field">
+        <label class="field easy-hide">
           <span>{{ i18n.t({ th: 'เลขประจำตัว (ไม่บังคับ)', en: 'Staff no. (optional)' }) }}</span>
           <input maxlength="50" autocomplete="off" [value]="f().staff_no" (input)="set('staff_no', $any($event.target).value)" />
         </label>
       </div>
-      <app-profile-extras kind="officer" [(value)]="extras" [tried]="tried()" />
-      <section class="form-section" [class.invalid]="tried() && !emergencyOk()">
+      <div class="easy-hide"><app-profile-extras kind="officer" [(value)]="extras" [tried]="tried()" /></div>
+      <section class="form-section easy-hide" [class.invalid]="tried() && !emergencyOk()">
         <h2 class="form-title">{{ i18n.t({ th: 'ผู้ติดต่อฉุกเฉินของคุณ (ไม่บังคับ)', en: 'Your emergency contact (optional)' }) }}</h2>
         <div class="two-col">
           <label class="field">
@@ -65,6 +65,11 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
         </div>
         <p class="form-hint">{{ i18n.t({ th: 'กรอกทั้งชื่อและเบอร์ หรือเว้นว่างทั้งคู่ · หัวหน้าหน่วยงานเห็นเพื่อใช้ตอนเกิดเหตุกับคุณ', en: 'Fill in both, or leave both empty · your agency head can see it for emergencies involving you' }) }}</p>
       </section>
+      <p class="small easy-only">{{ i18n.t({ th: 'หัวหน้าต้องอนุมัติก่อน จึงจะเริ่มตรวจได้', en: 'Your head must approve before you can start inspections' }) }}</p>
+      <p class="muted small adv-only mono">
+        DRAFT signup.officer · POST /auth/signup/officer · {{ i18n.t({ th: 'ตรวจรหัสกลุ่มตอนส่ง · ผิด → ', en: 'group code is checked on submit · wrong → ' }) }}GROUP_CODE_INVALID<br />
+        {{ i18n.t({ th: 'ไม่เก็บเลขบัตรประชาชน', en: 'national ID is never stored' }) }}
+      </p>
       }
       @if (step() === 2) {
       <label class="field" [class.invalid]="tried() && !phoneOk()">
@@ -72,11 +77,16 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
         <input type="tel" inputmode="tel" autocomplete="tel" [value]="f().phone" (input)="set('phone', $any($event.target).value)" />
       </label>
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
+      <p class="small easy-only">{{ i18n.t({ th: 'หลังสมัครต้องเปิดแจ้งเตือนก่อนใช้งาน เพื่อรับ SOS', en: 'After signing up, notifications must be on before you can work, so you get SOS alerts' }) }}</p>
       <app-terms-check from="A10" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="filled() && !f().terms" />
+      <p class="muted small adv-only mono">
+        POST /auth/signup/officer · status → pending<br />
+        {{ i18n.t({ th: 'ไม่เปิดแจ้งเตือน → ', en: 'notifications off → ' }) }}403 PUSH_REQUIRED
+      </p>
       }
       @if (errorCode(); as e) {
         <p class="danger-text small" role="alert">
-          {{ i18n.t(errors[e]) }}
+          {{ i18n.t(errors[e]) }}<span class="mono adv-only"> · {{ e }}</span>
           @if (e === 'PHONE_TAKEN') {
             · <a [routerLink]="url('A04')">{{ i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</a>
           }
@@ -219,6 +229,7 @@ export class AuthSignupOfficer {
           </p>
         </div>
         <app-contact-card [label]="{ th: 'ติดต่อหน่วยงาน · ' + req().agency.th, en: 'Contact the agency · ' + req().agency.en }" [contact]="req().contact" />
+        <p class="muted small adv-only mono">agency_status=rejected</p>
         <div class="stack push-end">
           @if (otherHome(); as h) {
             <button type="button" class="btn secondary" (click)="leave(h)">{{ i18n.t({ th: 'กลับหน้าหลัก', en: 'Back to home' }) }}</button>
@@ -234,13 +245,17 @@ export class AuthSignupOfficer {
             {{ i18n.t({ th: 'ส่งคำขอเข้าหน่วยงานแล้ว', en: 'Your request has been sent.' }) }}<br />
             {{ i18n.t({ th: 'หัวหน้าจะได้รับแจ้งเตือน', en: 'Your head will be notified' }) }}
           </p>
+          <p class="small easy-only">{{ i18n.t({ th: 'หัวหน้าจะอนุมัติ แล้วเราจะแจ้งเตือนคุณ', en: 'Your head will approve it and we will notify you' }) }}</p>
         </div>
-        <section class="card">
+        <section class="card easy-hide">
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'หน่วยงาน', en: 'Agency' }) }}</dt><dd>{{ i18n.t(req().agency) }}</dd>
           </dl>
         </section>
-        <app-contact-card [label]="{ th: 'รอนานเกินไป? ติดต่อหน่วยงาน', en: 'Waiting too long? Contact the agency' }" [contact]="req().contact" />
+        <app-contact-card class="easy-hide" [label]="{ th: 'รอนานเกินไป? ติดต่อหน่วยงาน', en: 'Waiting too long? Contact the agency' }" [contact]="req().contact" />
+        <p class="muted small adv-only mono">
+          GET /me · agency_status={{ me()?.agency_status }} · is_head={{ me()?.agency?.is_head }} · push={{ me()?.push?.subscribed }}
+        </p>
         <div class="stack push-end">
           <button type="button" class="btn" (click)="check()">{{ i18n.t({ th: 'ตรวจสถานะอีกครั้ง', en: 'Check again' }) }}</button>
           @if (otherHome(); as h) {
@@ -271,6 +286,8 @@ export class AuthWaitingHead {
   private readonly realSession = inject(Session);
   private readonly toast = inject(Toast);
   private readonly router = inject(Router);
+  /** ข้อมูลบัญชีจริง (สถานะคำขอ) — แสดงเฉพาะโหมดละเอียด */
+  protected readonly me = this.realSession.me;
   /** บัญชีมีบทบาทอื่นอยู่แล้ว (เช่น เจ้าของบ้านที่ขอเข้าหน่วยงาน) → กลับไปใช้ต่อได้ระหว่างรอ */
   protected readonly otherHome = computed(() => this.session.roles().find((r) => r !== 'officer' && r !== 'head') ?? null);
   /** ?state=rejected = A11-b */
@@ -334,8 +351,9 @@ export class AuthWaitingHead {
       }
       <div class="stack push-end">
         <button type="button" class="btn" (click)="enable()">{{ i18n.t({ th: 'เปิดแจ้งเตือน', en: 'Turn on notifications' }) }}</button>
-        <button type="button" class="btn secondary" [attr.aria-expanded]="help()" (click)="help.set(!help())">{{ i18n.t({ th: 'ดูวิธีเปิดในตั้งค่า', en: 'How to allow it in settings' }) }}</button>
+        <button type="button" class="btn secondary easy-hide" [attr.aria-expanded]="help()" (click)="help.set(!help())">{{ i18n.t({ th: 'ดูวิธีเปิดในตั้งค่า', en: 'How to allow it in settings' }) }}</button>
       </div>
+      <p class="muted small adv-only mono">403 PUSH_REQUIRED · permission={{ permission }} · GET /me/push/status</p>
     </div>
   `,
   styles: `
@@ -358,6 +376,8 @@ export class AuthPushRequired {
   private readonly session = inject(DemoSession);
   private readonly router = inject(Router);
   protected readonly help = signal(false);
+  /** สิทธิ์แจ้งเตือนของเบราว์เซอร์ (แสดงเฉพาะโหมดละเอียด) */
+  protected readonly permission = typeof Notification === 'undefined' ? 'unsupported' : Notification.permission;
 
   private readonly push = inject(PushNotifications);
   private readonly realSession = inject(Session);
@@ -389,7 +409,7 @@ export class AuthPushRequired {
   template: `
     <app-page-header caption="Smart Mailbox" [title]="t().title" [back]="update() ? undefined : backUrl()" />
     <div class="stack grow">
-      <p class="muted small">{{ t().intro }}</p>
+      <p class="muted small easy-hide">{{ t().intro }}</p>
       @for (sec of t().sections; track sec.title; let first = $first; let i = $index) {
         <section class="card sec" [class.first]="first" [class.easy-hide]="i > 1">
           <h2>{{ sec.title }}</h2>
@@ -401,6 +421,13 @@ export class AuthPushRequired {
         </section>
       }
       <p class="muted small">{{ i18n.t({ th: 'ฉบับ ', en: 'Version ' }) }}<span class="mono">{{ version }}</span></p>
+      <p class="muted small adv-only mono">
+        @if (update()) {
+          POST /me/terms · 403 TERMS_UPDATE_REQUIRED · terms_acceptance_tb
+        } @else {
+          terms_version={{ version }} · {{ i18n.t({ th: 'ส่งพร้อมฟอร์มสมัคร', en: 'sent with the sign-up form' }) }}
+        }
+      </p>
       <p class="muted small easy-only">{{ i18n.t({ th: 'โหมดง่ายแสดงเฉพาะสาระสำคัญ — อ่านฉบับเต็มได้ในโหมดปกติ', en: 'Easy mode shows the key points only — read the full text in normal mode' }) }}</p>
       <button type="button" class="btn push-end" (click)="accept()">{{ i18n.t({ th: 'ยอมรับ', en: 'Accept' }) }}</button>
     </div>

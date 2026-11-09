@@ -149,12 +149,12 @@ export class QrPrintSheet {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
-      [caption]="i18n.t({ th: 'แอดมิน Smart Mailbox', en: 'Smart Mailbox admin' })"
       [title]="i18n.t({ th: 'สุขภาพ QR', en: 'QR health' })"
+      [back]="url('D16')"
       [bell]="url('D12')"
     />
     <div class="stack">
-      <div class="toolbar">
+      <div class="toolbar easy-hide">
         <label class="search-box">
           <input type="search" [placeholder]="i18n.t({ th: 'ค้นบ้านเลขที่ / รหัสตู้', en: 'Search house no. / box id' })" [value]="q()" (input)="q.set($any($event.target).value)" />
         </label>
@@ -165,7 +165,23 @@ export class QrPrintSheet {
         </div>
       </div>
 
-      <div class="list">
+      <!-- โหมดง่าย (AdmQrList_E): เฉพาะเคสที่เปิดอยู่ อ่านง่าย -->
+      <div class="list easy-only">
+        @for (c of rows(); track c.id) {
+          @let h = health[c.health];
+          <a class="row easy-case" [routerLink]="link(c).path" [queryParams]="link(c).query">
+            <span class="grow">
+              <strong>{{ i18n.t({ th: 'บ้าน ', en: 'House ' }) }}{{ c.house_no }}</strong>
+              <span class="muted small block">{{ i18n.t(slot[c.slot]) }} · {{ i18n.t(reason(c)) }}</span>
+            </span>
+            <span class="chip" [class.danger]="h.tone === 'danger'" [class.warn]="h.tone === 'warn'">{{ i18n.t(h.label) }}</span>
+          </a>
+        } @empty {
+          <p class="row muted">{{ loaded() ? i18n.t({ th: 'QR ทุกใบปกติ', en: 'Every QR is fine' }) : i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
+        }
+      </div>
+
+      <div class="list easy-hide">
         <div class="list-head qcols desktop-only" aria-hidden="true">
           <span>{{ i18n.t({ th: 'ตู้ · บ้าน', en: 'Box · house' }) }}</span>
           <span>{{ i18n.t({ th: 'ปัญหา', en: 'Problem' }) }}</span>
@@ -181,6 +197,7 @@ export class QrPrintSheet {
             <span>
               <strong>{{ c.house_no }}</strong>
               <span class="muted small block">{{ c.box_id }} · {{ i18n.t(slot[c.slot]) }}</span>
+              <span class="muted small block mono adv-only">{{ c.id }} · {{ c.status }} · step={{ c.step }} · {{ c.health_reasons.join(', ') || '—' }} · created_at={{ c.created_at }} · updated_at={{ c.updated_at }}</span>
             </span>
             <span><span class="chip" [class.danger]="h.tone === 'danger'" [class.warn]="h.tone === 'warn'">{{ i18n.t(h.label) }}</span></span>
             <span class="small">{{ i18n.t(reason(c)) }}</span>
@@ -193,7 +210,7 @@ export class QrPrintSheet {
         }
       </div>
       @if (closed().length) {
-        <details class="closed-cases">
+        <details class="closed-cases easy-hide">
           <summary>{{ i18n.t({ th: 'เคสที่ปิดแล้ว', en: 'Closed cases' }) }} ({{ closed().length }})</summary>
           <div class="list">
             @for (c of closed(); track c.id) {
@@ -201,6 +218,7 @@ export class QrPrintSheet {
                 <span>
                   <strong>{{ c.house_no }}</strong>
                   <span class="muted small block">{{ c.box_id }} · {{ i18n.t(slot[c.slot]) }} · {{ i18n.t(health[c.health].label) }}</span>
+                  <span class="muted small block mono adv-only">{{ c.id }} · {{ c.updated_at }}</span>
                 </span>
                 <span class="muted small">{{ date(c.updated_at) }}</span>
               </a>
@@ -208,7 +226,12 @@ export class QrPrintSheet {
           </div>
         </details>
       }
-      <p class="muted small">{{ i18n.t({ th: 'ตรวจอัตโนมัติทุกคืน 23:00 · QR ที่อาจปลอมแจ้งทันที · รายการรีเฟรชเองทุก 10 วินาที', en: 'Checked every night at 23:00 · possible fakes are reported at once · refreshes every 10 s' }) }}</p>
+      <p class="muted small easy-hide">{{ i18n.t({ th: 'ตรวจอัตโนมัติทุกคืน 23:00 · QR ที่อาจปลอมแจ้งทันที · รายการรีเฟรชเองทุก 10 วินาที', en: 'Checked every night at 23:00 · possible fakes are reported at once · refreshes every 10 s' }) }}</p>
+      <p class="muted small adv-only mono">GET /admin/qr?status=open · {{
+        i18n.t({ th: 'เปิด ', en: 'open ' })
+      }}{{ open().length }} · {{
+        i18n.t({ th: 'ปิด ', en: 'closed ' })
+      }}{{ closed().length }} · maybe_fake {{ counts().maybe_fake }} · damaged {{ counts().damaged }} · suspicious {{ counts().suspicious }} · expiring {{ counts().expiring }}</p>
     </div>
   `,
   styles: `
@@ -260,6 +283,9 @@ export class QrPrintSheet {
       font-weight: 600;
       justify-self: end;
     }
+    .easy-case {
+      min-block-size: 76px;
+    }
     .qcols {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
@@ -300,7 +326,7 @@ export class AdminQr {
   /** เลือกได้หลายอย่าง · ไม่เลือกเลย = แสดงทั้งหมด */
   protected readonly picked = signal(new Set<AdminQrHealth>());
 
-  private readonly open = computed(() => this.state.issues().filter((c) => !c.resolved));
+  protected readonly open = computed(() => this.state.issues().filter((c) => !c.resolved));
   /** เคสที่ปิดแล้ว — พับเก็บไว้ ใหม่สุดก่อน */
   protected readonly closed = computed(() => this.state.issues().filter((c) => c.resolved).sort((a, b) => b.updated_at.localeCompare(a.updated_at)));
   protected date(iso: string): string {
@@ -482,7 +508,7 @@ const REISSUE_STEPS: FlowStep[] = [
 
           <!-- ขั้นตอน -->
           @if (flow(c); as f) {
-            <section class="panel">
+            <section class="panel easy-hide">
               <h2 class="small-title">{{ i18n.t({ th: 'ขั้นตอน', en: 'Steps' }) }} · {{ i18n.t(fixLabel[c.fix!]) }}</h2>
               <ol class="steps">
                 @for (s of f.steps; track $index; let i = $index) {
@@ -500,7 +526,7 @@ const REISSUE_STEPS: FlowStep[] = [
         </div>
 
         <!-- ข้อมูลของเคส -->
-        <aside class="panel facts">
+        <aside class="panel facts easy-hide">
           <h2 class="small-title">{{ i18n.t({ th: 'ข้อมูลเคส', en: 'Case details' }) }}</h2>
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'ปัญหา', en: 'Problem' }) }}</dt>
@@ -519,6 +545,14 @@ const REISSUE_STEPS: FlowStep[] = [
             <dd [class.danger-text]="c.backup_used">{{ c.backup_used ? i18n.t({ th: 'ถูกสแกนไปแล้ว', en: 'Already scanned' }) : i18n.t({ th: 'ยังไม่เคยใช้', en: 'Never used' }) }}</dd>
             <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt>
             <dd>{{ i18n.t(progressOf(c).label) }}</dd>
+            <dt class="adv-only">case_id</dt><dd class="adv-only mono">{{ c.id }}</dd>
+            <dt class="adv-only">box_id</dt><dd class="adv-only mono">{{ c.box_id }}</dd>
+            <dt class="adv-only">health / slot</dt><dd class="adv-only mono">{{ c.health }} · slot={{ c.slot }}</dd>
+            <dt class="adv-only">status / step</dt><dd class="adv-only mono">{{ c.status }} · step={{ c.step }}</dd>
+            <dt class="adv-only">health_reasons</dt><dd class="adv-only mono">{{ c.health_reasons.join(', ') || '—' }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'เปิดเคส (ISO)', en: 'Opened (ISO)' }) }}</dt><dd class="adv-only mono">{{ c.created_at }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'แก้ล่าสุด (ISO)', en: 'Updated (ISO)' }) }}</dt><dd class="adv-only mono">{{ c.updated_at }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'สแกนล่าสุด (ISO)', en: 'Last scanned (ISO)' }) }}</dt><dd class="adv-only mono">{{ c.last_scanned_at ?? '—' }}</dd>
           </dl>
           <a class="btn secondary" [routerLink]="url('D04')" [queryParams]="{ id: c.box_id }">{{ i18n.t({ th: 'เปิดหน้าตู้', en: 'Open the box page' }) }}</a>
         </aside>

@@ -194,5 +194,16 @@ export const routes: Routes = [
   { path: 'b/:token', redirectTo: ({ params }) => `/r/deliver?qr=${encodeURIComponent(params['token'])}` },
   // ลิงก์ใน QR เปิดใช้ตู้ (PUBLIC_BASE_URL/a/<16 ตัว>) → หน้าผูกตู้ A07 (api.md §4.1)
   { path: 'a/:token', redirectTo: ({ params }) => `/auth/activate?qr=${encodeURIComponent(params['token'])}` },
+  // หน้า error สาธารณะ (ไม่ผ่าน AreaShell) — ตามแคนวาส ErrOffline / ErrNoAccess / ErrSession
+  { path: 'error/offline', loadComponent: () => import('./pages/error-screen').then((m) => m.ErrorScreen), data: { kind: 'offline' }, title: 'ไม่มีอินเทอร์เน็ต · Smart Mailbox' },
+  { path: 'error/session', loadComponent: () => import('./pages/error-screen').then((m) => m.ErrorScreen), data: { kind: 'session' }, title: 'หมดเวลาเข้าสู่ระบบ · Smart Mailbox' },
+  { path: 'error/not-found', loadComponent: () => import('./pages/error-screen').then((m) => m.ErrorScreen), data: { kind: 'not-found' }, title: 'ไม่พบหน้านี้ · Smart Mailbox' },
+  // ตั้งค่าการแจ้งเตือน (ทุกบทบาท) — ตามแคนวาส NotifSettings.dc.html
+  {
+    path: 'settings/notifications',
+    canActivate: [requireSignedIn],
+    loadComponent: () => import('./pages/notif-settings').then((m) => m.NotifSettings),
+    title: 'ตั้งค่าการแจ้งเตือน · Smart Mailbox',
+  },
   { path: '**', redirectTo: '' },
 ];

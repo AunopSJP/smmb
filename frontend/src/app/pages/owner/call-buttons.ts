@@ -27,6 +27,28 @@ import { I18n } from '../../core/i18n';
       </a>
     </div>
   `,
+  styles: `
+    /* โหมดง่าย: ปุ่มโทรใหญ่ขึ้น (ปลอดภัยไว้ก่อน) · โหมดละเอียด: กระชับขึ้น */
+    :host-context([data-mode='easy']) .call {
+      min-block-size: 92px;
+      border-radius: 24px;
+    }
+    :host-context([data-mode='easy']) .call strong {
+      font-size: 2.25rem;
+    }
+    :host-context([data-mode='easy']) .call span {
+      font-size: 1rem;
+    }
+    :host-context([data-mode='advanced']) .call {
+      min-block-size: 46px;
+    }
+    :host-context([data-mode='advanced']) .call strong {
+      font-size: 1.125rem;
+    }
+    :host-context([data-mode='advanced']) .call span {
+      font-size: 0.6875rem;
+    }
+  `,
 })
 export class CallButtons {
   protected readonly i18n = inject(I18n);

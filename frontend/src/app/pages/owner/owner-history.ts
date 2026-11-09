@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, Injectable, input, signal, untracked } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { DisplaySettings } from '../../core/display-settings';
 import { I18n, type Tr } from '../../core/i18n';
-import { OwnerApi, type BoxEvent, type BoxSummary } from '../../core/owner-api';
+import { hhmm } from '../../core/inspection-api';
+import { OwnerApi, type BoxDetail, type BoxEvent, type BoxSummary } from '../../core/owner-api';
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { PrivatePhoto } from '../../shared/private-photo';
@@ -16,7 +18,6 @@ const RANGES: { v: Range; label: Tr; days: number | null }[] = [
   { v: 'today', label: { th: 'วันนี้', en: 'Today' }, days: 0 },
   { v: '7d', label: { th: '7 วัน', en: '7 days' }, days: 7 },
   { v: '30d', label: { th: '30 วัน', en: '30 days' }, days: 30 },
-  { v: 'all', label: { th: 'ทั้งหมด', en: 'All' }, days: null },
   { v: 'custom', label: { th: 'เลือกวันที่', en: 'Pick dates' }, days: null },
 ];
 
@@ -88,6 +89,10 @@ export class OwnerHistoryStore {
 const dateTime = (iso: string, lang: 'th' | 'en') =>
   new Date(iso).toLocaleString(lang === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' });
 
+/** เวลาแบบมีวินาที (โหมดละเอียด) */
+const clockSec = (iso: string) =>
+  new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
+
 // ── H12 · ประวัติ ──────────────────────────────────────────────
 
 @Component({
@@ -104,13 +109,18 @@ const dateTime = (iso: string, lang: 'th' | 'en') =>
           }
         </div>
       }
-      <div class="segmented chips easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'ช่วงเวลา', en: 'Period' })">
+      <div class="segmented easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'ช่วงเวลา', en: 'Period' })">
         @for (r of ranges; track r.v) {
           <button type="button" [attr.aria-pressed]="range() === r.v" (click)="pick(r.v)">{{ i18n.t(r.label) }}</button>
         }
       </div>
+      <div class="segmented chips easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'ประเภท', en: 'Type' })">
+        @for (t of types; track t.v) {
+          <button type="button" [class.adv-only]="t.v === 'photo'" [attr.aria-pressed]="typeFilter() === t.v" (click)="typeFilter.set(t.v)">{{ i18n.t(t.label) }}</button>
+        }
+      </div>
       @if (range() === 'custom') {
-        <form class="dates card" (submit)="$event.preventDefault(); applyCustom()">
+        <form class="dates card easy-hide" (submit)="$event.preventDefault(); applyCustom()">
           <label class="field">
             <span>{{ i18n.t({ th: 'ตั้งแต่วันที่', en: 'From' }) }}</span>
             <input type="date" [max]="today" [value]="from()" (input)="from.set($any($event.target).value)" />
@@ -126,23 +136,54 @@ const dateTime = (iso: string, lang: 'th' | 'en') =>
         </form>
       }
 
-      <nav class="list">
+      @if (items().length) {
+        <div class="counts adv-only">
+          <span>{{ i18n.t({ th: 'ทั้งหมด', en: 'All' }) }} {{ items().length }}</span>
+          <span>{{ i18n.t({ th: 'ตรวจ', en: 'Checks' }) }} {{ countType('inspected') }}</span>
+          <span>{{ i18n.t({ th: 'ส่งของ', en: 'Parcels' }) }} {{ countType('delivered') }}</span>
+        </div>
+      }
+
+      @if (display.easyMode()) {
+        <!-- OwnHistory_E: การ์ดใหญ่ อ่านง่าย ไม่มีตัวกรอง -->
         @for (h of items(); track h.id) {
           @let k = kind[h.type];
-          <a class="row" [routerLink]="url(k.detail)" [queryParams]="{ id: h.id }">
-            <span class="icon-bubble" [class.warn]="k.tone === 'warn'">
-              <app-icon [name]="k.icon" [size]="20" />
-            </span>
+          <a class="row easy-ev" [routerLink]="url(k.detail)" [queryParams]="{ id: h.id }">
+            <span class="icon-bubble" [class.warn]="k.tone === 'warn'"><app-icon [name]="k.icon" [size]="26" /></span>
             <span class="grow">
               <strong>{{ i18n.t(k.title) }}</strong>
-              <span class="muted small block">{{ sub(h) }}</span>
+              <span class="muted small block">{{ whenDay(h.at) }} {{ time(h.at) }}</span>
             </span>
-            <app-icon name="chevronRight" [size]="18" />
+            <app-icon name="chevronRight" [size]="22" />
           </a>
         } @empty {
-          <p class="row muted">{{ store.loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ยังไม่มีเหตุการณ์ในช่วงนี้', en: 'Nothing in this period' }) }}</p>
+          <p class="card muted center">{{ store.loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ยังไม่มีเหตุการณ์ในช่วงนี้', en: 'No activity in this period' }) }}</p>
         }
-      </nav>
+      } @else {
+        @for (g of groups(); track g.key) {
+          <h2 class="day">{{ g.label }}</h2>
+          <nav class="list">
+            @for (h of g.items; track h.id) {
+              @let k = kind[h.type];
+              <a class="row" [routerLink]="url(k.detail)" [queryParams]="{ id: h.id }">
+                <span class="icon-bubble" [class.warn]="k.tone === 'warn'">
+                  <app-icon [name]="k.icon" [size]="20" />
+                </span>
+                <span class="grow">
+                  <strong>{{ i18n.t(k.title) }}</strong>
+                  <span class="muted small block">{{ sub(h) }}</span>
+                  <span class="muted small block adv-only mono">{{ tech(h) }}</span>
+                </span>
+                <span class="muted small when">{{ time(h.at) }}</span>
+              </a>
+            }
+          </nav>
+        } @empty {
+          <nav class="list">
+            <p class="row muted">{{ store.loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ยังไม่มีเหตุการณ์ในช่วงนี้', en: 'No activity in this period' }) }}</p>
+          </nav>
+        }
+      }
       @if (store.more()) {
         <button type="button" class="btn secondary" (click)="store.loadMore()">{{ i18n.t({ th: 'ดูเก่ากว่านี้', en: 'Older' }) }}</button>
       }
@@ -164,6 +205,38 @@ const dateTime = (iso: string, lang: 'th' | 'en') =>
       flex-direction: column;
       gap: 12px;
     }
+    .day {
+      font-size: 0.8125rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin: 6px 4px -4px;
+    }
+    .when {
+      white-space: nowrap;
+    }
+    .counts {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding-inline: 4px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    /* OwnHistory_E: การ์ดใหญ่ กดง่าย */
+    .easy-ev {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+      text-decoration: none;
+      color: inherit;
+      strong {
+        font-size: 1.25rem;
+      }
+      .muted {
+        font-size: 1rem;
+      }
+    }
   `,
 })
 export class OwnerHistory {
@@ -175,10 +248,50 @@ export class OwnerHistory {
   protected readonly range = this.store.selection;
   protected readonly caption = computed(() => {
     const b = this.store.boxes().find((x) => x.id === this.store.boxId());
-    return b ? this.i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + b.house_no : '';
+    return b ? this.i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + b.house_no + (this.display.advancedMode() ? ' · ' + b.id : '') : '';
   });
   /** รายการที่เซิร์ฟเวอร์กรองตามช่วงมาให้แล้ว */
-  protected readonly items = computed(() => this.store.events());
+  protected readonly display = inject(DisplaySettings);
+  protected readonly typeFilter = signal<'all' | BoxEvent['type'] | 'photo'>('all');
+  protected readonly types: { v: 'all' | BoxEvent['type'] | 'photo'; label: Tr }[] = [
+    { v: 'all', label: { th: 'ทั้งหมด', en: 'All' } },
+    { v: 'inspected', label: { th: 'เจ้าหน้าที่ตรวจ', en: 'Officer checks' } },
+    { v: 'delivered', label: { th: 'ของมาส่ง', en: 'Parcels' } },
+    { v: 'photo', label: { th: 'มีรูป', en: 'With photo' } },
+  ];
+  protected readonly items = computed(() =>
+    this.store.events().filter((e) =>
+      this.typeFilter() === 'all'
+        ? true
+        : this.typeFilter() === 'photo'
+          ? e.has_photo === true
+          : e.type === this.typeFilter(),
+    ),
+  );
+  /** แบ่งหัววัน: วันนี้ / เมื่อวาน / วันที่ */
+  protected readonly groups = computed(() => {
+    const out: { key: string; label: string; items: BoxEvent[] }[] = [];
+    const now = new Date();
+    const today = bkkDay(now);
+    const yesterday = bkkDay(new Date(now.getTime() - 86_400_000));
+    for (const e of this.items()) {
+      const key = bkkDay(new Date(e.at));
+      let g = out.find((x) => x.key === key);
+      if (!g) {
+        const label =
+          key === today
+            ? this.i18n.t({ th: 'วันนี้', en: 'Today' })
+            : key === yesterday
+              ? this.i18n.t({ th: 'เมื่อวาน', en: 'Yesterday' })
+              : new Date(e.at).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' });
+        g = { key, label, items: [] };
+        out.push(g);
+      }
+      g.items.push(e);
+    }
+    return out;
+  });
+  protected readonly time = hhmm;
   protected readonly today = bkkDay(new Date());
   protected readonly from = this.store.customFrom;
   protected readonly to = this.store.customTo;
@@ -209,13 +322,36 @@ export class OwnerHistory {
     const range = this.store.initialized()
       ? this.store.range()
       : rangeOf(RANGES.find((r) => r.v === this.range())!.days);
+    // ?type=delivered จากปุ่ม "ของมาส่ง" บนหน้าหลัก (โหมดง่าย)
+    const wanted = inject(ActivatedRoute).snapshot.queryParamMap.get('type');
+    if (wanted === 'inspected' || wanted === 'delivered') this.typeFilter.set(wanted);
     void this.store.load(undefined, range);
   }
 
   protected sub(h: BoxEvent): string {
-    const at = dateTime(h.at, this.i18n.lang());
-    if (h.type === 'inspected') return `${at} · ${h.officer?.display_name ?? ''} (${h.officer?.agency_name ?? ''})`;
-    return `${at} · ${this.i18n.t(h.method === 'code' ? { th: 'ไรเดอร์พิมพ์รหัส', en: 'rider typed the code' } : { th: 'ไรเดอร์สแกน QR', en: 'rider scanned the QR' })}`;
+    if (h.type === 'inspected') return `${h.officer?.agency_name ?? ''} · ${h.officer?.display_name ?? ''}`;
+    return `${this.i18n.t(h.method === 'code' ? { th: 'ไรเดอร์พิมพ์รหัส', en: 'rider typed the code' } : { th: 'ไรเดอร์สแกน QR', en: 'rider scanned the QR' })}`;
+  }
+
+  /** OwnHistory_A: รหัส/ข้อมูลดิบของเหตุการณ์ */
+  protected tech(h: BoxEvent): string {
+    if (h.type === 'inspected') {
+      return [h.id, h.qr_slot ? 'QR ' + h.qr_slot : '', h.has_photo ? 'photo' : '', clockSec(h.at)].filter((x) => x).join(' · ');
+    }
+    return [h.id, h.method ?? '', clockSec(h.at)].filter((x) => x).join(' · ');
+  }
+
+  protected countType(t: BoxEvent['type']): number {
+    return this.items().filter((e) => e.type === t).length;
+  }
+
+  /** "เมื่อวาน 21:40" สำหรับการ์ดโหมดง่าย */
+  protected whenDay(iso: string): string {
+    const key = bkkDay(new Date(iso));
+    const now = new Date();
+    if (key === bkkDay(now)) return this.i18n.t({ th: 'วันนี้', en: 'today' });
+    if (key === bkkDay(new Date(now.getTime() - 86_400_000))) return this.i18n.t({ th: 'เมื่อวาน', en: 'yesterday' });
+    return new Date(iso).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' });
   }
 }
 
@@ -238,19 +374,29 @@ function useEvent(type: BoxEvent['type']) {
 
 @Component({
   selector: 'app-owner-inspection',
-  imports: [PageHeader, PrivatePhoto],
+  imports: [PageHeader, PrivatePhoto, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'ประวัติ', en: 'History' })" [title]="i18n.t({ th: 'เจ้าหน้าที่มาตรวจ', en: 'Officer checked' })" [back]="url('H12')" />
     @if (ev.event(); as h) {
       <div class="stack">
-        <section class="card">
+        <section class="ok-hero">
+          <span class="okc"><app-icon name="check" [size]="28" /></span>
+          <div>
+            <strong>{{ i18n.t({ th: 'ตรวจผ่านเรียบร้อย', en: 'Checked and passed' }) }}</strong>
+            <span class="muted small block">{{ when(h.at) }}</span>
+          </div>
+        </section>
+        <section class="card easy-hide">
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'วันเวลา', en: 'Date' }) }}</dt><dd>{{ when(h.at) }}</dd>
             <dt>{{ i18n.t({ th: 'เจ้าหน้าที่', en: 'Officer' }) }}</dt><dd>{{ h.officer?.display_name }}</dd>
             <dt>{{ i18n.t({ th: 'หน่วยงาน', en: 'Agency' }) }}</dt><dd>{{ h.officer?.agency_name }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'QR ที่สแกน', en: 'QR scanned' }) }}</dt><dd class="adv-only">{{ h.qr_slot === 2 ? i18n.t({ th: 'QR สำรอง', en: 'Backup QR' }) : i18n.t({ th: 'QR หน้าตู้', en: 'Front QR' }) }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'รหัสเหตุการณ์', en: 'Event ID' }) }}</dt><dd class="adv-only mono">{{ h.id }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'เวลา (วินาที)', en: 'Exact time' }) }}</dt><dd class="adv-only mono">{{ exact(h.at) }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'QR ที่สแกน', en: 'QR scanned' }) }}</dt><dd class="adv-only">{{ h.qr_slot === 2 ? i18n.t({ th: 'QR สำรอง', en: 'Backup QR' }) : i18n.t({ th: 'QR หน้าตู้', en: 'Front QR' }) }} · slot {{ h.qr_slot ?? 1 }}</dd>
             <dt class="adv-only">{{ i18n.t({ th: 'วิธี', en: 'Method' }) }}</dt><dd class="adv-only">{{ h.method === 'code' ? i18n.t({ th: 'พิมพ์รหัส', en: 'Typed code' }) : i18n.t({ th: 'สแกน', en: 'Scan' }) }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'รูปยืนยัน', en: 'Photo' }) }}</dt><dd class="adv-only">{{ h.has_photo ? i18n.t({ th: 'มี · เก็บ 30 วัน', en: 'Yes · kept 30 days' }) : i18n.t({ th: 'ไม่มี', en: 'None' }) }}</dd>
             <dt>{{ i18n.t({ th: 'ตู้ยืนยัน', en: 'Box confirmed' }) }}</dt><dd class="ok">{{ i18n.t({ th: 'ผ่าน', en: 'Passed' }) }}</dd>
           </dl>
         </section>
@@ -263,7 +409,30 @@ function useEvent(type: BoxEvent['type']) {
           }
         </section>
         <p class="muted small">{{ i18n.t({ th: 'ตู้ยืนยันด้วยการสแกน QR ประจำตัวของเจ้าหน้าที่ — ปลอมไม่ได้', en: 'The mailbox verified the officer’s personal QR — it cannot be faked' }) }}</p>
+        <p class="muted small">{{ i18n.t({ th: 'ข้อมูลนี้เห็นได้เฉพาะคุณและผู้ดูแลระบบ รูปจะถูกลบอัตโนมัติเมื่อครบ 30 วัน', en: 'Only you and the admin can see this. Photos are deleted automatically after 30 days.' }) }}</p>
       </div>
+    }
+  `,
+  styles: `
+    .ok-hero {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px;
+      border-radius: 20px;
+      background: var(--ok-bg);
+      color: var(--ok);
+      strong { font-size: 1.125rem; }
+    }
+    .okc {
+      display: grid;
+      place-items: center;
+      flex: none;
+      inline-size: 48px;
+      block-size: 48px;
+      border-radius: 50%;
+      background: var(--ok);
+      color: #fff;
     }
   `,
 })
@@ -283,27 +452,63 @@ export class OwnerInspection {
   protected when(iso: string): string {
     return dateTime(iso, this.i18n.lang());
   }
+
+  protected exact(iso: string): string {
+    return clockSec(iso);
+  }
 }
 
 // ── H12-c · รายละเอียดของมาส่ง ─────────────────────────────────
 
 @Component({
   selector: 'app-owner-delivery',
-  imports: [PageHeader],
+  imports: [PageHeader, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'ประวัติ', en: 'History' })" [title]="i18n.t({ th: 'มีของมาส่ง', en: 'Parcel delivered' })" [back]="url('H12')" />
     @if (ev.event(); as h) {
       <div class="stack">
-        <section class="card">
+        <section class="ok-hero info">
+          <span class="okc"><app-icon name="box" [size]="28" /></span>
+          <div>
+            <strong>{{ i18n.t({ th: 'มีของมาส่งที่ตู้', en: 'A parcel arrived' }) }}</strong>
+            <span class="muted small block">{{ when(h.at) }}</span>
+          </div>
+        </section>
+        <section class="card easy-hide">
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'วันเวลา', en: 'Date' }) }}</dt><dd>{{ when(h.at) }}</dd>
             <dt>{{ i18n.t({ th: 'แจ้งโดย', en: 'Reported by' }) }}</dt><dd>{{ i18n.t({ th: 'ไรเดอร์', en: 'Rider' }) }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'รหัสเหตุการณ์', en: 'Event ID' }) }}</dt><dd class="adv-only mono">{{ h.id }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'เวลา (วินาที)', en: 'Exact time' }) }}</dt><dd class="adv-only mono">{{ exact(h.at) }}</dd>
             <dt class="adv-only">{{ i18n.t({ th: 'วิธี', en: 'Method' }) }}</dt><dd class="adv-only">{{ h.method === 'code' ? i18n.t({ th: 'พิมพ์รหัสใต้ QR', en: 'Typed the code' }) : i18n.t({ th: 'สแกน QR หน้าตู้', en: 'Scanned the front QR' }) }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'QR ที่ใช้', en: 'QR used' }) }}</dt><dd class="adv-only mono">slot {{ h.qr_slot ?? 1 }}</dd>
           </dl>
         </section>
         <p class="muted small">{{ i18n.t({ th: 'ระบบไม่เก็บข้อมูลตัวตนของไรเดอร์', en: 'No rider identity is stored' }) }}</p>
+        <p class="muted small">{{ i18n.t({ th: 'ไม่ได้สั่งของ? ถ้าไม่มีของในตู้ แจ้งผู้ดูแลได้ — ระบบเก็บบันทึกไว้แก้ไม่ได้', en: 'Not expecting a parcel? If the box is empty, tell the admin — the log cannot be edited.' }) }}</p>
       </div>
+    }
+  `,
+  styles: `
+    .ok-hero {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px;
+      border-radius: 20px;
+      background: var(--bg);
+      strong { font-size: 1.125rem; }
+    }
+    .okc {
+      display: grid;
+      place-items: center;
+      flex: none;
+      inline-size: 48px;
+      block-size: 48px;
+      border-radius: 50%;
+      background: var(--brand);
+      color: #fff;
     }
   `,
 })
@@ -323,6 +528,10 @@ export class OwnerDelivery {
   protected when(iso: string): string {
     return dateTime(iso, this.i18n.lang());
   }
+
+  protected exact(iso: string): string {
+    return clockSec(iso);
+  }
 }
 
 // ── H12-d · ตู้ไม่ออนไลน์ (เปิดจากแจ้งเตือน · ตามแคนวาสดีไซน์ OwnOffline) ────────────
@@ -332,21 +541,54 @@ export class OwnerDelivery {
   imports: [PageHeader, RouterLink, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [title]="i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' })" [back]="url('H12')" />
+    <app-page-header [caption]="display.advancedMode() ? (box()?.id ?? '') : ''" [title]="i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' })" [back]="url('H12')" />
     <div class="stack grow">
-      <section class="hero-warn">
-        <span class="circ"><app-icon name="wifi" [size]="30" /></span>
-        <strong>{{ headline() }}</strong>
-        <span>{{ i18n.t({ th: 'ระหว่างนี้ตรวจตู้และรับของไม่ได้ SOS ยังใช้ได้ตามปกติ', en: 'Until it is back, inspections and parcels cannot be recorded. SOS still works.' }) }}</span>
-      </section>
-      <section class="card stack">
-        <strong>{{ i18n.t({ th: 'ลองเช็กตามนี้ก่อน', en: 'Try these first' }) }}</strong>
-        <ol class="steps">
-          <li><span class="n">1</span><span><strong>{{ i18n.t({ th: 'ตรวจไฟของตู้', en: 'Check the box power' }) }}</strong><small>{{ i18n.t({ th: 'มีคนถอดปลั๊กหรือปิดสวิตช์หรือเปล่า', en: 'Was it unplugged or switched off?' }) }}</small></span></li>
-          <li><span class="n">2</span><span><strong>{{ i18n.t({ th: 'ตรวจ Wi-Fi บ้าน', en: 'Check your home Wi-Fi' }) }}</strong><small>{{ i18n.t({ th: 'ลองรีสตาร์ตเราเตอร์ ตู้ต่อได้เฉพาะ 2.4 GHz', en: 'Restart the router — the box only works on 2.4 GHz' }) }}</small></span></li>
-          <li><span class="n">3</span><span><strong>{{ i18n.t({ th: 'รอสักครู่', en: 'Wait a little' }) }}</strong><small>{{ i18n.t({ th: 'แผงโซลาร์ต้องได้รับแดดในตอนกลางวัน', en: 'The solar panel needs daylight' }) }}</small></span></li>
-        </ol>
-      </section>
+      @if (display.easyMode()) {
+        <!-- OwnOffline_E: ข้อความใหญ่ + เช็กสั้น ๆ -->
+        <section class="easy-warn">
+          <strong>{{ i18n.t({ th: 'ตู้ติดต่อไม่ได้', en: 'The mailbox is offline' }) }}</strong>
+          <span>{{ i18n.t({ th: 'ตอนนี้ตรวจตู้และรับของไม่ได้ แต่ปุ่ม SOS ยังใช้ได้ตามปกติ', en: 'Checks and parcels cannot be recorded now, but SOS still works' }) }}</span>
+        </section>
+        <section class="card easy-check">
+          <strong>{{ i18n.t({ th: 'ลองดูก่อน', en: 'Try this first' }) }}</strong>
+          <span>{{ i18n.t({ th: 'ไฟตู้ติดอยู่ไหม', en: 'Is the box powered on?' }) }}</span>
+          <span>{{ i18n.t({ th: 'Wi-Fi ที่บ้านใช้ได้ไหม', en: 'Is your home Wi-Fi working?' }) }}</span>
+        </section>
+      } @else {
+        <section class="hero-warn">
+          <span class="circ"><app-icon name="wifi" [size]="30" /></span>
+          <strong>{{ headline() }}</strong>
+          <span>{{ i18n.t({ th: 'ระหว่างนี้ตรวจตู้และรับของไม่ได้ SOS ยังใช้ได้ตามปกติ', en: 'Until it is back, inspections and parcels cannot be recorded. SOS still works.' }) }}</span>
+        </section>
+        <section class="card stack easy-hide">
+          <strong>{{ i18n.t({ th: 'ลองเช็กตามนี้ก่อน', en: 'Try these first' }) }}</strong>
+          <ol class="steps">
+            <li><span class="n">1</span><span><strong>{{ i18n.t({ th: 'ตรวจไฟของตู้', en: 'Check the box power' }) }}</strong><small>{{ i18n.t({ th: 'มีคนถอดปลั๊กหรือปิดสวิตช์หรือเปล่า', en: 'Was it unplugged or switched off?' }) }}</small></span></li>
+            <li><span class="n">2</span><span><strong>{{ i18n.t({ th: 'ตรวจ Wi-Fi บ้าน', en: 'Check your home Wi-Fi' }) }}</strong><small>{{ i18n.t({ th: 'ลองรีสตาร์ตเราเตอร์ ตู้ต่อได้เฉพาะ 2.4 GHz', en: 'Restart the router — the box only works on 2.4 GHz' }) }}</small></span></li>
+            <li><span class="n">3</span><span><strong>{{ i18n.t({ th: 'รอสักครู่', en: 'Wait a little' }) }}</strong><small>{{ i18n.t({ th: 'แผงโซลาร์ต้องได้รับแดดในตอนกลางวัน', en: 'The solar panel needs daylight' }) }}</small></span></li>
+          </ol>
+        </section>
+      }
+      @if (display.advancedMode() && box(); as b) {
+        <!-- OwnOffline_A: ตัวเลขจริงจาก GET /boxes/:id -->
+        <div class="adv-grid">
+          <div class="cell"><span class="label">{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</span><strong class="value mono">{{ b.id }}</strong></div>
+          <div class="cell"><span class="label">{{ i18n.t({ th: 'สถานะ', en: 'State' }) }}</span><strong class="value mono">{{ b.status }}</strong></div>
+          <div class="cell"><span class="label">{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</span><strong class="value mono">{{ b.last_seen_at ? exact(b.last_seen_at) : '—' }}</strong></div>
+          <div class="cell"><span class="label">{{ i18n.t({ th: 'แบตก่อนหลุด', en: 'Battery' }) }}</span><strong class="value">{{ b.battery ? b.battery.pct + '%' : '—' }}</strong></div>
+          <div class="cell"><span class="label">{{ i18n.t({ th: 'รายงานแบตเมื่อ', en: 'Battery reported' }) }}</span><strong class="value mono">{{ b.battery?.reported_at ? exact(b.battery!.reported_at!) : '—' }}</strong></div>
+          <div class="cell"><span class="label">{{ i18n.t({ th: 'ชาร์จ', en: 'Charging' }) }}</span><strong class="value">{{ b.battery?.charging === null || !b.battery ? '—' : b.battery.charging ? i18n.t({ th: 'กำลังชาร์จ', en: 'Charging' }) : i18n.t({ th: 'ไม่ได้ชาร์จ', en: 'Not charging' }) }}</strong></div>
+        </div>
+        <section class="card adv-cause">
+          <strong>{{ i18n.t({ th: 'สาเหตุที่เป็นไปได้ (เรียงตามโอกาส)', en: 'Likely causes (most likely first)' }) }}</strong>
+          <ol>
+            <li>{{ i18n.t({ th: 'สัญญาณ Wi-Fi อ่อน', en: 'Weak Wi-Fi signal' }) }}</li>
+            <li>{{ i18n.t({ th: 'ไฟตัด / แบตต่ำ', en: 'Power cut / low battery' }) }}</li>
+            <li>{{ i18n.t({ th: 'เราเตอร์รีสตาร์ต / เปลี่ยนรหัส Wi-Fi', en: 'Router restarted / Wi-Fi password changed' }) }}</li>
+            <li>{{ i18n.t({ th: 'ใช้ 5 GHz (ตู้รับเฉพาะ 2.4 GHz)', en: 'Using 5 GHz (the box only supports 2.4 GHz)' }) }}</li>
+          </ol>
+        </section>
+      }
       <section class="card last">
         <span class="muted small">{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</span>
         <strong>{{ lastText() }}</strong>
@@ -385,6 +627,42 @@ export class OwnerDelivery {
       font-size: 1.25rem;
       line-height: 1.3;
     }
+    .easy-warn {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      text-align: center;
+      padding: 26px 20px;
+      border-radius: var(--radius);
+      background: var(--ib-warn-bg);
+      color: var(--ib-warn-fg);
+      strong { font-size: 1.875rem; line-height: 1.3; }
+      span { font-size: 1.125rem; line-height: 1.5; }
+    }
+    .easy-check {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 1.125rem;
+      line-height: 1.55;
+      strong { font-size: 1.25rem; }
+    }
+    .adv-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .cell {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px;
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .label { font-size: 0.6875rem; color: var(--text-muted); }
+    .adv-cause ol { margin: 6px 0 0; padding-inline-start: 20px; font-size: 0.8125rem; line-height: 1.7; }
     .steps {
       margin: 0;
       padding: 0;
@@ -423,9 +701,10 @@ export class OwnerDelivery {
 })
 export class OwnerOffline {
   protected readonly i18n = inject(I18n);
+  protected readonly display = inject(DisplaySettings);
   private readonly api = inject(OwnerApi);
   protected readonly url = screenUrl;
-  private readonly box = signal<{ name: string; last_seen_at: string | null; battery: { pct: number } | null } | null>(null);
+  protected readonly box = signal<BoxDetail | null>(null);
 
   protected readonly headline = computed(() => {
     const b = this.box();
@@ -442,6 +721,10 @@ export class OwnerOffline {
     const batt = b.battery ? ' · ' + this.i18n.t({ th: 'แบต ', en: 'battery ' }) + b.battery.pct + '%' : '';
     return new Date(b.last_seen_at).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' }) + batt;
   });
+
+  protected exact(iso: string): string {
+    return clockSec(iso);
+  }
 
   constructor() {
     void this.api

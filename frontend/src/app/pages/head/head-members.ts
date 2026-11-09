@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked, type OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { apiError } from '../../core/api';
+import { DisplaySettings } from '../../core/display-settings';
 import { HeadApi, type Member } from '../../core/head-api';
 import { I18n, type Tr } from '../../core/i18n';
 import { Session } from '../../core/session';
@@ -31,21 +32,27 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
   imports: [RouterLink, PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header
-      [caption]="(api.agency()?.name ?? '') + ' · ' + i18n.t({ th: 'หัวหน้าหน่วยงาน', en: 'Agency head' })"
-      [title]="i18n.t({ th: 'สมาชิก', en: 'Members' })"
-      [bell]="url('L09')"
-    />
+    <app-page-header [title]="i18n.t({ th: 'สมาชิก', en: 'Members' })" [bell]="url('L09')" />
     <div class="stack">
-      @if (pending().length) {
-        <h2 class="section-title danger-text">{{ i18n.t({ th: 'รอยืนยัน', en: 'Waiting for you' }) }} ({{ pending().length }})</h2>
+      <div class="segmented easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'มุมมอง', en: 'View' })">
+        <button type="button" [attr.aria-pressed]="view() === 'pending'" (click)="view.set('pending')">{{ i18n.t({ th: 'รออนุมัติ', en: 'Waiting' }) }} {{ pending().length }}</button>
+        <button type="button" [attr.aria-pressed]="view() === 'all'" (click)="view.set('all')">{{ i18n.t({ th: 'ทั้งหมด', en: 'All' }) }} {{ team().length + pending().length }}</button>
+      </div>
+      @if ((view() === 'pending' || display.easyMode()) && !pending().length) {
+        <p class="card muted easy-hide">{{ i18n.t({ th: 'ไม่มีคนรออนุมัติ', en: 'Nobody is waiting' }) }}</p>
+      }
+      @if (pending().length && (view() === 'pending' || display.easyMode() || display.advancedMode())) {
+        <h2 class="section-title">{{ i18n.t({ th: 'ขอเข้าหน่วยงาน', en: 'Asking to join' }) }}</h2>
         @for (m of pending(); track m.id) {
           <section class="card pending">
             <strong>{{ m.display_name }}</strong>
             @if (m.position || m.staff_no) {
-              <p class="small">{{ m.position }}{{ m.position && m.staff_no ? ' · ' : '' }}{{ m.staff_no ? i18n.t({ th: 'เลขประจำตัว ', en: 'Staff no. ' }) + m.staff_no : '' }}</p>
+              <p class="small">
+                {{ m.position }}<span class="adv-only">{{ m.position && m.staff_no ? ' · ' : '' }}{{ m.staff_no ? i18n.t({ th: 'เลขประจำตัว ', en: 'Staff no. ' }) + m.staff_no : '' }}</span>
+              </p>
             }
             <p class="muted small">{{ i18n.t({ th: 'เบอร์ ', en: 'Phone ' }) }}{{ m.phone }} · {{ i18n.t({ th: 'ขอเมื่อ ', en: 'asked ' }) }}{{ when(m.joined_at) }}</p>
+            <p class="muted small mono adv-only">{{ m.id }} · {{ i18n.t({ th: 'โซน ', en: 'zones ' }) }}{{ zones(m) }}</p>
             <div class="two">
               <button type="button" class="btn secondary" [disabled]="busy()" (click)="decide(m, false)">{{ i18n.t({ th: 'ปฏิเสธ', en: 'Decline' }) }}</button>
               <button type="button" class="btn" [disabled]="busy()" (click)="decide(m, true)">{{ i18n.t({ th: 'อนุมัติ', en: 'Approve' }) }}</button>
@@ -54,13 +61,29 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
         }
       }
 
-      <h2 class="section-title">{{ i18n.t({ th: 'ในทีม', en: 'Team' }) }} ({{ team().length }})</h2>
+      <!-- โหมดง่าย: หลังรายการคำขอ แสดงทีมแบบสั้น + ปุ่มโทร (ตาม HeadMembers_E) -->
+      @if (display.easyMode() && team().length) {
+        <h2 class="section-title">{{ i18n.t({ th: 'ทีมตอนนี้', en: 'Your team' }) }} ({{ team().length }})</h2>
+        @for (m of team().slice(0, 3); track m.id) {
+          <div class="card easy-member">
+            <span class="grow">
+              <strong>{{ m.display_name }}</strong>
+              <span class="muted small block">{{ m.position || zones(m) }}</span>
+            </span>
+            <a class="btn secondary call" [href]="'tel:' + m.phone" [attr.aria-label]="i18n.t({ th: 'โทรหา ', en: 'Call ' }) + m.display_name">{{ i18n.t({ th: 'โทร', en: 'Call' }) }}</a>
+          </div>
+        }
+      }
+
+      @if ((view() === 'all' || display.advancedMode()) && !display.easyMode()) {
+      <h2 class="section-title">{{ i18n.t({ th: 'ในหน่วยงานแล้ว', en: 'In the agency' }) }} ({{ team().length }})</h2>
       <nav class="list">
         @for (m of team(); track m.id) {
           <a class="row" [routerLink]="url('L05-b')" [queryParams]="{ id: m.id }">
             <span class="grow">
               <strong>{{ m.display_name }}@if (m.id === meId()) { <span class="muted small"> ({{ i18n.t({ th: 'คุณ', en: 'you' }) }})</span> }</strong>
               <span class="muted small block">{{ zones(m) }}</span>
+              <span class="muted small block mono adv-only">{{ m.id }} · {{ m.staff_no || '—' }} · {{ i18n.t({ th: 'เข้าเมื่อ ', en: 'joined ' }) }}{{ when(m.joined_at) }}</span>
             </span>
             @if (m.status === 'disabled') {
               <span class="chip">{{ i18n.t({ th: 'ปิดสิทธิ์', en: 'Disabled' }) }}</span>
@@ -79,6 +102,7 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
         <p class="code">{{ code() }}</p>
         <a class="small" [routerLink]="url('L03')">{{ i18n.t({ th: 'แชร์ / แก้ช่องทางติดต่อ', en: 'Share / edit contact' }) }}</a>
       </section>
+      }
     </div>
   `,
   styles: `
@@ -98,6 +122,17 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
     .pending {
       box-shadow: inset 0 0 0 2px var(--brand);
     }
+    .easy-member {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .call {
+      inline-size: auto;
+      min-block-size: 48px;
+      padding: 8px 18px;
+      text-decoration: none;
+    }
     .code {
       font-size: 1.5rem;
       font-weight: 700;
@@ -112,12 +147,16 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
 export class HeadMembers implements OnInit {
   protected readonly i18n = inject(I18n);
   protected readonly api = inject(HeadApi);
+  protected readonly display = inject(DisplaySettings);
   private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
   private readonly session = inject(Session);
   protected readonly meId = computed(() => this.session.me()?.id ?? null);
   protected readonly all = signal<Member[]>([]);
   protected readonly pending = computed(() => this.all().filter((m) => m.status === 'pending'));
+  /** รออนุมัติ / ทั้งหมด (ตามแคนวาสดีไซน์) */
+  protected readonly view = signal<'pending' | 'all'>('pending');
+  private initialViewSet = false;
   protected readonly team = computed(() => this.all().filter((m) => m.status !== 'pending'));
   protected readonly busy = signal(false);
   protected readonly code = computed(() => {
@@ -135,6 +174,10 @@ export class HeadMembers implements OnInit {
 
   private async load(): Promise<void> {
     this.all.set(await this.api.members().catch(() => []));
+    if (!this.initialViewSet) {
+      this.initialViewSet = true;
+      this.view.set(this.pending().length ? 'pending' : 'all');
+    }
   }
 
   protected when(iso: string): string {
@@ -170,12 +213,21 @@ export class HeadMembers implements OnInit {
     @if (member(); as m) {
       <app-page-header [caption]="i18n.t({ th: 'สมาชิก', en: 'Member' })" [title]="m.display_name" [back]="url('L05')" />
       <div class="stack grow">
-        <section class="card">
+        <!-- โหมดง่าย: สรุปใหญ่ + ปุ่มโทร (ตาม HeadMember_E) -->
+        <section class="card easy-only">
+          <strong class="easy-name">{{ m.display_name }}</strong>
+          <p class="muted">{{ m.position || '—' }} · {{ zones(m) }}</p>
+          <p>{{ i18n.t({ th: 'ตรวจล่าสุด ', en: 'Last inspection ' }) }}{{ when(m.last_inspection_at) }}</p>
+          <a class="btn secondary call-btn" [href]="'tel:' + m.phone">{{ i18n.t({ th: 'โทร ', en: 'Call ' }) }}{{ m.phone }}</a>
+        </section>
+        <section class="card easy-hide">
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'ชื่อ', en: 'Name' }) }}</dt><dd>{{ m.name }}</dd>
             <dt>{{ i18n.t({ th: 'เบอร์', en: 'Phone' }) }}</dt><dd><a [href]="'tel:' + m.phone">{{ m.phone }}</a></dd>
             <dt>{{ i18n.t({ th: 'ตำแหน่ง / ยศ', en: 'Position' }) }}</dt><dd>{{ m.position || '—' }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'รหัสสมาชิก', en: 'Member ID' }) }}</dt><dd class="adv-only mono">{{ m.id }}</dd>
             <dt class="adv-only">{{ i18n.t({ th: 'เลขประจำตัว', en: 'Staff no.' }) }}</dt><dd class="adv-only">{{ m.staff_no || '—' }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'เข้าร่วมเมื่อ', en: 'Joined' }) }}</dt><dd class="adv-only">{{ when(m.joined_at) }}</dd>
             <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt>
             <dd>{{ m.status === 'active' ? i18n.t({ th: 'ใช้งาน', en: 'Active' }) : i18n.t({ th: 'ปิดสิทธิ์', en: 'Disabled' }) }}{{ m.is_head ? ' · ' + i18n.t({ th: 'หัวหน้า', en: 'Head' }) : '' }}</dd>
             <dt>{{ i18n.t({ th: 'โซน', en: 'Zones' }) }}</dt><dd>{{ zones(m) }}</dd>
@@ -214,6 +266,14 @@ export class HeadMembers implements OnInit {
   styles: `
     .grow {
       flex: 1;
+    }
+    .easy-name {
+      display: block;
+      font-size: 1.5rem;
+    }
+    .call-btn {
+      margin-block-start: 10px;
+      text-decoration: none;
     }
     .temp {
       font-size: 1.5rem;

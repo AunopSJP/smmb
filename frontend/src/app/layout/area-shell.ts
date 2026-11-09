@@ -5,7 +5,8 @@ import { filter, map, startWith } from 'rxjs';
 import { AdminApi } from '../core/admin-api';
 import { I18n, type Tr } from '../core/i18n';
 import { ToastHost } from '../core/toast';
-import { AREA_LABEL, screen, TABS, type Area } from '../screens/registry';
+import { AREA_LABEL, screen, TABS, TABS_EASY, type Area } from '../screens/registry';
+import { DisplaySettings } from '../core/display-settings';
 import { Icon, type IconName } from '../shared/icon';
 import { TabBar } from '../shared/tab-bar';
 import { screenUrl } from '../screens/registry';
@@ -132,14 +133,14 @@ const MOCK_SCREENS = new Set<string>();
               @if (mini()) {
                 <hr class="sep" />
               } @else {
-                <button type="button" class="group" (click)="toggleGroup(g.id)" [attr.aria-expanded]="!groupClosed(g.id)">
+                <button type="button" class="group" [class.easy-hide]="g.id === 'system'" (click)="toggleGroup(g.id)" [attr.aria-expanded]="!groupClosed(g.id)">
                   <span>{{ i18n.t(g.title) }}</span>
                   <app-icon class="caret" [class.down]="!groupClosed(g.id)" name="chevronRight" [size]="14" />
                 </button>
               }
               @if (mini() || !groupClosed(g.id)) {
                 @for (it of g.items; track it.code + it.label.en) {
-                  <div class="item" [class.within]="within(it)">
+                  <div class="item" [class.within]="within(it)" [class.easy-hide]="g.id === 'system'">
                     <a [routerLink]="url(it.code)" routerLinkActive="active"
                       [routerLinkActiveOptions]="{ paths: it.code === 'D01' ? 'exact' : 'subset', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }"
                       [attr.title]="mini() ? i18n.t(it.label) : null" (click)="it.children && openItem(it)">
@@ -671,7 +672,9 @@ export class AreaShell {
     void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true }));
   }
   protected readonly areaLabel = computed(() => AREA_LABEL[this.area]);
-  protected readonly tabs = computed(() => TABS[this.area]);
+  private readonly display = inject(DisplaySettings);
+  /** โหมดง่ายใช้ชุดแท็บที่ลดเมนูเหลือ 3 รายการตามแคนวาส (โหมดปกติ/ละเอียดใช้ชุดเต็ม) */
+  protected readonly tabs = computed(() => (this.display.easyMode() ? TABS_EASY[this.area] ?? TABS[this.area] : TABS[this.area]));
   /** แถบ "ต้นแบบ" เฉพาะหน้าที่ยังเป็นข้อมูลจำลอง — ที่เหลือใช้ API จริงทั้งหมด */
   protected readonly mock = computed(() => MOCK_SCREENS.has(this.code() ?? ''));
 

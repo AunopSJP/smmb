@@ -77,7 +77,7 @@ const REFRESH_MS = 10_000;
       <app-page-header
         [caption]="i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + b.house_no + (display.mode() === 'advanced' ? ' · ' + b.id : '')"
         [title]="b.name || b.id"
-        [bell]="display.simpleHome() ? undefined : url('H14')"
+        [bell]="url('H14')"
       />
 
       <div class="stack page">
@@ -127,28 +127,50 @@ const REFRESH_MS = 10_000;
           </section>
         }
 
-        <section class="card stack" [class.simple]="display.simpleHome()">
-          @if (b.status === 'offline') {
-            <!-- ตู้ไม่ออนไลน์: ข้อความหลักอยู่ในการ์ดแจ้งด้านบนแล้ว ไม่ซ้ำ -->
-          } @else if (b.status === 'service_closed') {
-            <p class="status off" [class.big]="display.simpleHome()"><app-icon name="alert" [size]="22" />{{ i18n.t({ th: 'ตู้ปิดบริการอยู่', en: 'Mailbox not in service' }) }}</p>
-          } @else if (b.status === 'sleeping') {
-            <p class="status" [class.big]="display.simpleHome()"><span class="dot"></span>{{ i18n.t({ th: 'ตู้พักอยู่ (นอกเวลาตรวจ) ปกติดี', en: 'Asleep outside patrol hours · all good' }) }}</p>
-          } @else {
-            <p class="status" [class.big]="display.simpleHome()"><span class="dot"></span>{{ display.simpleHome() ? i18n.t({ th: 'บ้านคุณปลอดภัยดี', en: 'Your home is safe' }) : i18n.t({ th: 'ตู้ออนไลน์ ปกติดี', en: 'Online · all good' }) }}</p>
-          }
-          @if (display.simpleHome()) {
-            <p class="big-text">{{ i18n.t({ th: 'เจ้าหน้าที่มาตรวจล่าสุด', en: 'Last officer check' }) }}</p>
-            <p class="big-when">{{ lastCheck(b) }}</p>
-            <p class="muted">{{ i18n.t({ th: 'ของมาส่งวันนี้ ', en: 'Parcels today: ' }) }}{{ deliveriesToday(b) }} {{ i18n.t({ th: 'ครั้ง', en: '' }) }}</p>
-          }
+        @if (easy()) {
+          <!-- H03-L โหมดง่าย: สถานะใหญ่ + เวลาตรวจล่าสุด + ปุ่มใหญ่ 2 ปุ่ม (ตาม HomeEasy) -->
+          <section class="card easy-hero" [class.warn]="b.status === 'offline' || b.status === 'service_closed'" role="status">
+            <span class="big-ok" [class.warn]="b.status === 'offline' || b.status === 'service_closed'">
+              <app-icon [name]="b.status === 'offline' || b.status === 'service_closed' ? 'alert' : 'check'" [size]="42" />
+            </span>
+            <strong>{{ easyHeadline(b) }}</strong>
+            <span class="easy-sub">{{ easySubtitle(b) }}</span>
+          </section>
+          <section class="card easy-last">
+            <span class="label">{{ i18n.t({ th: 'เจ้าหน้าที่มาตรวจล่าสุด', en: 'Last officer check' }) }}</span>
+            <strong>{{ lastCheck(b) }}</strong>
+            <span class="muted small">{{ i18n.t({ th: 'ตู้ส่งผลมาทุกครั้งที่มีคนมาตรวจ', en: 'The mailbox reports every check' }) }}</span>
+          </section>
+          <div class="easy-two">
+            <a class="btn secondary easy-big" [routerLink]="url('H12')">
+              <app-icon name="list" [size]="26" />
+              <span>{{ i18n.t({ th: 'ดูประวัติ', en: 'See history' }) }}</span>
+            </a>
+            <a class="btn secondary easy-big" [routerLink]="url('H12')" [queryParams]="{ type: 'delivered' }">
+              <app-icon name="box" [size]="26" />
+              <span>{{ i18n.t({ th: 'ของมาส่ง', en: 'Parcels' }) }}<small>{{ i18n.t({ th: 'วันนี้ ', en: 'today ' }) }}{{ deliveriesToday(b) }} {{ i18n.t({ th: 'ครั้ง', en: '' }) }}</small></span>
+            </a>
+          </div>
+        } @else {
+        <section class="card stack">
+          <div class="hero-row">
+            <span class="okc" [class.warn]="b.status === 'offline' || b.status === 'service_closed'">
+              <app-icon [name]="b.status === 'offline' || b.status === 'service_closed' ? 'alert' : 'check'" [size]="28" />
+            </span>
+            <div>
+              <b>{{ statusTitle(b) }}</b>
+              @if (lastInspection(b); as li) {
+                <span>{{ i18n.t({ th: 'เจ้าหน้าที่ตรวจล่าสุด ', en: 'Last officer check ' }) }}{{ li }}</span>
+              }
+            </div>
+          </div>
           <div class="stats easy-hide">
             <div class="mini">
               <span class="label">{{ i18n.t({ th: 'แบตเตอรี่', en: 'Battery' }) }}</span>
               <strong class="value">{{ b.battery ? b.battery.pct + '%' : '—' }}</strong>
               @if (b.battery) {
                 <span class="bar"><span [style.width.%]="b.battery.pct"></span></span>
-                <span class="label adv-only">{{ b.battery.charging ? i18n.t({ th: 'กำลังชาร์จ', en: 'Charging' }) : i18n.t({ th: 'ไม่ได้ชาร์จ', en: 'Not charging' }) }}</span>
+                <span class="label adv-only">{{ chargingText(b) }}</span>
               }
             </div>
             <div class="mini">
@@ -160,15 +182,43 @@ const REFRESH_MS = 10_000;
                 <strong class="value">{{ b.last_seen_at ? i18n.t({ th: 'เมื่อสักครู่', en: 'just now' }) : '—' }}</strong>
               }
               @if (b.last_seen_at) {
-                <span class="label adv-only mono">{{ time(b.last_seen_at) }}</span>
+                <span class="label adv-only mono">{{ timeSec(b.last_seen_at) }}</span>
               }
+            </div>
+          </div>
+          <!-- HomeAdv: ตัวเลขทางเทคนิคที่ API ส่งมาจริง -->
+          <div class="adv-grid adv-only">
+            <div class="cell">
+              <span class="label">{{ i18n.t({ th: 'แบตเตอรี่', en: 'Battery' }) }}</span>
+              <strong class="value">{{ b.battery ? b.battery.pct + '%' : '—' }}</strong>
+              <span class="label">{{ b.battery ? chargingText(b) : '—' }}</span>
+            </div>
+            <div class="cell">
+              <span class="label">{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</span>
+              <strong class="value mono">{{ b.last_seen_at ? timeSec(b.last_seen_at) : '—' }}</strong>
+            </div>
+            <div class="cell">
+              <span class="label">{{ i18n.t({ th: 'รายงานแบตเมื่อ', en: 'Battery reported' }) }}</span>
+              <strong class="value mono">{{ b.battery?.reported_at ? timeSec(b.battery!.reported_at!) : '—' }}</strong>
+            </div>
+            <div class="cell">
+              <span class="label">{{ i18n.t({ th: 'เวลาตรวจที่ตู้ใช้', en: 'Patrol at the box' }) }}</span>
+              <strong class="value">{{ b.patrol.in_window ? i18n.t({ th: 'อยู่ในเวลาตรวจ', en: 'In patrol hours' }) : i18n.t({ th: 'นอกเวลาตรวจ', en: 'Outside patrol hours' }) }}</strong>
+            </div>
+            <div class="cell">
+              <span class="label">{{ i18n.t({ th: 'สถานะ', en: 'State' }) }}</span>
+              <strong class="value mono">{{ b.status }}</strong>
+            </div>
+            <div class="cell">
+              <span class="label">{{ i18n.t({ th: 'QR หน้าตู้', en: 'Front QR' }) }}</span>
+              <strong class="value mono">{{ b.qr_task ? b.qr_task.health : i18n.t({ th: 'ปกติ', en: 'OK' }) }}</strong>
             </div>
           </div>
           @if (b.patrol.windows.length) {
             <div class="patrol adv-only">
               <div class="label-row">
                 <span class="label">{{ i18n.t({ th: 'เวลาตรวจวันนี้', en: 'Patrol hours today' }) }}</span>
-                <span class="label mono">{{ windowsText(b) }}</span>
+                <span class="label mono">{{ windowsText(b) }} · {{ nowText() }}</span>
               </div>
               <div class="strip" role="img" [attr.aria-label]="windowsText(b)">
                 @for (w of stripWindows(b); track $index) {
@@ -181,25 +231,24 @@ const REFRESH_MS = 10_000;
             </div>
           }
           @if (b.coverage.agency_names.length) {
-            <p class="muted small easy-hide">{{ i18n.t({ th: 'ดูแลโดย ', en: 'Covered by ' }) }}{{ b.coverage.agency_names.join(' · ') }}</p>
+            <p class="chip cover easy-hide"><app-icon name="shield" [size]="16" />{{ i18n.t({ th: 'ดูแลโดย ', en: 'Covered by ' }) }}{{ b.coverage.agency_names.join(' · ') }}</p>
+            <p class="muted small adv-only">{{ i18n.t({ th: 'ตรวจในรายการล่าสุด ', en: 'Checks in recent activity: ' }) }}{{ inspectedRecent(b) }} {{ i18n.t({ th: 'ครั้ง', en: '' }) }}</p>
           }
         </section>
-
-        @if (display.simpleHome()) {
-          <a class="btn secondary" [routerLink]="url('H12')">{{ i18n.t({ th: 'ดูประวัติ', en: 'See history' }) }}</a>
         }
 
-        <div class="title-row easy-hide">
+        @if (!easy()) {
+        <div class="title-row">
           <h2 class="section-title">{{ i18n.t({ th: 'เหตุการณ์ล่าสุด', en: 'Recent activity' }) }}</h2>
           <a class="see-all" [routerLink]="url('H12')">{{ i18n.t({ th: 'ดูทั้งหมด', en: 'See all' }) }}</a>
         </div>
         @if (!b.latest_events.length) {
-          <section class="empty easy-hide">
+          <section class="empty">
             <strong>{{ i18n.t({ th: 'ยังไม่มีเหตุการณ์', en: 'No activity yet' }) }}</strong>
             <span class="muted small">{{ i18n.t({ th: 'การตรวจและการส่งของจะขึ้นที่นี่', en: 'Inspections and deliveries will show here' }) }}</span>
           </section>
         } @else {
-          <ul class="list easy-hide">
+          <ul class="list">
             @for (e of b.latest_events; track e.id) {
               <li>
                <a class="row" [routerLink]="url(e.type === 'inspected' ? 'H12-b' : 'H12-c')" [queryParams]="{ id: e.id }">
@@ -208,20 +257,27 @@ const REFRESH_MS = 10_000;
                   <span class="grow">
                     <strong>{{ i18n.t({ th: 'เจ้าหน้าที่มาตรวจ', en: 'Officer checked' }) }}</strong>
                     <span class="muted small block">{{ e.officer?.agency_name }} · {{ e.officer?.display_name }}</span>
+                    <span class="muted small block adv-only mono">{{ e.id }}@if (e.qr_slot) { · QR {{ e.qr_slot }}}@if (e.has_photo) { · {{ i18n.t({ th: 'มีรูป', en: 'photo' }) }}}</span>
                   </span>
                 } @else {
                   <span class="icon-bubble warn"><app-icon name="box" [size]="20" /></span>
                   <span class="grow">
                     <strong>{{ i18n.t({ th: 'มีของมาส่ง', en: 'Parcel delivered' }) }}</strong>
                     <span class="muted small block">{{ e.method === 'code' ? i18n.t({ th: 'ไรเดอร์พิมพ์รหัส', en: 'Rider typed the code' }) : i18n.t({ th: 'ไรเดอร์สแกน QR', en: 'Rider scanned the QR' }) }}</span>
+                    <span class="muted small block adv-only mono">{{ e.id }} · {{ e.method }}</span>
                   </span>
                 }
-                <span class="muted small">{{ day(e.at) }} {{ time(e.at) }}</span>
+                @if (display.advancedMode()) {
+                  <span class="muted small adv-only mono">{{ timeSec(e.at) }}</span>
+                } @else {
+                  <span class="muted small">{{ day(e.at) }} {{ time(e.at) }}</span>
+                }
                 <app-icon name="chevronRight" [size]="18" />
                </a>
               </li>
             }
           </ul>
+        }
         }
         @if (error()) {
           <p class="muted small center">{{ i18n.t({ th: 'อัปเดตไม่สำเร็จ · กำลังลองอีกครั้ง', en: 'Couldn’t refresh · retrying' }) }}</p>
@@ -232,7 +288,7 @@ const REFRESH_MS = 10_000;
         <button
           type="button"
           class="btn big sos"
-          [class.simple-sos]="display.simpleHome()"
+          [class.simple-sos]="easy()"
           [disabled]="sending()"
           (pointerdown)="startHold($event)"
           (pointerup)="stopHold()"
@@ -304,6 +360,40 @@ const REFRESH_MS = 10_000;
       color: var(--sos);
       box-shadow: none;
     }
+    .hero-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      b {
+        display: block;
+        font-size: 1.1875rem;
+      }
+      span:not(.okc) {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+      }
+    }
+    .okc {
+      display: grid;
+      place-items: center;
+      flex: none;
+      inline-size: 52px;
+      block-size: 52px;
+      border-radius: 50%;
+      background: var(--ib-ok-bg);
+      color: var(--ib-ok-fg);
+      &.warn {
+        background: var(--ib-warn-bg);
+        color: var(--ib-warn-fg);
+      }
+    }
+    .cover {
+      align-self: flex-start;
+      gap: 6px;
+      font-size: 0.8125rem;
+      font-weight: 400;
+      padding: 6px 12px;
+    }
     .offline {
       border: 2px solid var(--brand);
       box-shadow: none;
@@ -345,6 +435,8 @@ export class OwnerHome implements OnDestroy {
     const n = this.me()?.display_name;
     return n ? this.i18n.t({ th: `สวัสดี คุณ${n}`, en: `Hello, ${n}` }) : '';
   });
+  /** หน้าหลักแบบง่าย: โหมดง่าย หรือผู้ใช้เปิด "หน้าหลักแบบเรียบง่าย" ไว้เดิม */
+  protected readonly easy = computed(() => this.display.easyMode() || this.display.simpleHome());
   protected readonly error = signal(false);
   protected readonly sending = signal(false);
   protected readonly sosError = signal(false);
@@ -398,6 +490,61 @@ export class OwnerHome implements OnDestroy {
     } finally {
       this.confirmingQr.set(false);
     }
+  }
+
+  protected statusTitle(b: BoxDetail): string {
+    if (b.status === 'offline') return this.i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' });
+    if (b.status === 'service_closed') return this.i18n.t({ th: 'ตู้ปิดบริการอยู่', en: 'Mailbox not in service' });
+    if (b.status === 'sleeping') return this.i18n.t({ th: 'ตู้พักอยู่ (นอกเวลาตรวจ) ปกติดี', en: 'Asleep outside patrol hours · all good' });
+    return this.i18n.t({ th: 'ตู้ออนไลน์ ปกติดี', en: 'Online · all good' });
+  }
+
+  /** HomeEasy: ประโยคใหญ่ที่บอกว่าบ้านปลอดภัยหรือไม่ */
+  protected easyHeadline(b: BoxDetail): string {
+    if (b.status === 'offline') return this.i18n.t({ th: 'ตู้ติดต่อไม่ได้', en: 'The mailbox is offline' });
+    if (b.status === 'service_closed') return this.i18n.t({ th: 'ตู้ปิดบริการอยู่', en: 'The mailbox is not in service' });
+    if (b.status === 'sleeping') return this.i18n.t({ th: 'ตู้พักอยู่ ปกติดี', en: 'Asleep · all good' });
+    return this.i18n.t({ th: 'บ้านคุณปลอดภัยดี', en: 'Your home is safe' });
+  }
+
+  protected easySubtitle(b: BoxDetail): string {
+    if (b.status === 'offline') {
+      return this.i18n.t({ th: 'ตอนนี้ตรวจตู้และรับของไม่ได้ แต่ปุ่ม SOS ยังใช้ได้ตามปกติ', en: 'Checks and parcels cannot be recorded right now, but SOS still works' });
+    }
+    if (b.status === 'service_closed') {
+      return this.i18n.t({ th: 'ติดต่อผู้ดูแลระบบหากต้องการเปิดใช้ตู้อีกครั้ง', en: 'Contact the admin if you want the mailbox back in service' });
+    }
+    if (b.status === 'sleeping') {
+      return this.i18n.t({ th: 'นอกเวลาตรวจ ตู้จะตื่นเองเมื่อถึงเวลาตรวจ', en: 'Outside patrol hours — it wakes by itself for the next patrol' });
+    }
+    return this.i18n.t({ th: b.name + ' ทำงานปกติ', en: b.name + ' is working normally' });
+  }
+
+  /** สถานะการชาร์จ (null = ตู้ไม่รายงาน) */
+  protected chargingText(b: BoxDetail): string {
+    if (!b.battery || b.battery.charging === null) return '—';
+    return b.battery.charging ? this.i18n.t({ th: 'โซลาร์ · กำลังชาร์จ', en: 'Solar · charging' }) : this.i18n.t({ th: 'ไม่ได้ชาร์จ', en: 'Not charging' });
+  }
+
+  /** HomeAdv: นับการตรวจในรายการล่าสุด (ข้อมูลเท่าที่ API ส่งมา ไม่เดายอดทั้ง 7 วัน) */
+  protected inspectedRecent(b: BoxDetail): number {
+    return b.latest_events.filter((e) => e.type === 'inspected').length;
+  }
+
+  /** เวลาแบบมีวินาทีสำหรับโหมดละเอียด */
+  protected timeSec(iso: string): string {
+    return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
+  }
+
+  /** เวลาปัจจุบันของเวลาตรวจ (มีวินาที) */
+  protected nowText(): string {
+    return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
+  }
+
+  /** ข้อความเวลาตรวจล่าสุด หรือ '' ถ้ายังไม่เคยมี */
+  protected lastInspection(b: BoxDetail): string {
+    const e = b.latest_events.find((x) => x.type === 'inspected');
+    return e ? this.day(e.at) + ' ' + hhmm(e.at) : '';
   }
 
   /** เวลาตรวจล่าสุดแบบอ่านง่าย (โหมดง่าย) */

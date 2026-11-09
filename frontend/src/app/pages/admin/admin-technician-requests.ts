@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject, signal, type OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, type OnInit } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { AdminApi, type AdminTechnicianRequest } from '../../core/admin-api';
+import { DisplaySettings } from '../../core/display-settings';
 import { I18n } from '../../core/i18n';
 import { Toast } from '../../core/toast';
 import { PageHeader } from '../../shared/page-header';
@@ -11,16 +12,16 @@ import { screenUrl } from '../../screens/registry';
   imports: [DatePipe, PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'แอดมิน Smart Mailbox', en: 'Smart Mailbox admin' })" [title]="i18n.t({ th: 'คำขอช่าง', en: 'Technician requests' })" [back]="url('D01')" />
+    <app-page-header [caption]="i18n.t({ th: 'แอดมิน Smart Mailbox', en: 'Smart Mailbox admin' })" [title]="i18n.t({ th: 'คำขอช่าง', en: 'Technician requests' })" [back]="url('D16')" />
     <div class="stack">
-      <div class="segmented chips" role="group">
+      <div class="segmented chips easy-hide" role="group">
         @for (option of filters; track option.value) {
           <button type="button" [attr.aria-pressed]="filter() === option.value" (click)="filter.set(option.value); load()">{{ i18n.t(option.label) }}</button>
         }
       </div>
       @if (error()) { <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดหรือบันทึกคำขอไม่สำเร็จ ลองอีกครั้ง', en: 'Could not load or save requests. Try again.' }) }}</p> }
       <div class="reqs">
-        @for (request of rows(); track request.id) {
+        @for (request of visible(); track request.id) {
           <article class="panel request">
             <div class="grow">
               <header class="rhead">
@@ -28,8 +29,10 @@ import { screenUrl } from '../../screens/registry';
                 <span class="chip" [class.warn]="request.status === 'open'" [class.ok]="request.status === 'scheduled'">{{ i18n.t(statusLabel(request.status)) }}</span>
               </header>
               <span class="muted small block">{{ request.owner_name }} · {{ request.owner_phone }}</span>
+              <a class="btn secondary easy-only call" [href]="'tel:' + request.owner_phone">{{ i18n.t({ th: 'โทรหาเจ้าของ', en: 'Call the owner' }) }}</a>
               <span class="small block">{{ reasonLabel(request.reason) }}</span>
               <span class="muted small block">{{ request.created_at | date:'d MMM yyyy HH:mm' }}</span>
+              <span class="muted small block mono adv-only">{{ request.id }} · status={{ request.status }} · reason={{ request.reason }} · created_at={{ request.created_at }} · scheduled_at={{ request.scheduled_at ?? '—' }}</span>
               @if (request.note) { <p class="request-note">{{ request.note }}</p> }
               @if (request.status === 'open') {
                 <label class="field">
@@ -66,12 +69,14 @@ import { screenUrl } from '../../screens/registry';
     .field { display: grid; gap: 6px; margin: 10px 0; }
     .field input { min-inline-size: 0; min-block-size: 40px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
     .segmented { flex-wrap: wrap; }
+    .call { inline-size: auto; align-self: flex-start; margin-block: 6px; }
   `,
 })
 export class AdminTechnicianRequests implements OnInit {
   protected readonly i18n = inject(I18n);
   private readonly api = inject(AdminApi);
   private readonly toast = inject(Toast);
+  private readonly display = inject(DisplaySettings);
   protected readonly url = screenUrl;
   protected readonly rows = signal<AdminTechnicianRequest[]>([]);
   protected readonly filter = signal<'open' | 'scheduled' | 'done'>('open');
@@ -79,6 +84,8 @@ export class AdminTechnicianRequests implements OnInit {
   protected readonly notes = signal<Record<string, string>>({});
   protected readonly saving = signal<string | null>(null);
   protected readonly error = signal(false);
+  /** โหมดง่าย: ไม่แสดงงานที่ปิดแล้ว เพื่อให้เห็นเฉพาะงานที่ต้องทำ */
+  protected readonly visible = computed(() => (this.display.easyMode() ? this.rows().filter((r) => r.status !== 'done') : this.rows()));
   protected readonly filters = [
     { value: 'open' as const, label: { th: 'รอจัดการ', en: 'Open' } },
     { value: 'scheduled' as const, label: { th: 'นัดแล้ว', en: 'Scheduled' } },
@@ -88,8 +95,11 @@ export class AdminTechnicianRequests implements OnInit {
   ngOnInit(): void { void this.load(); }
 
   protected async load(): Promise<void> {
-    try { this.rows.set(await this.api.technicianRequests(this.filter())); this.error.set(false); }
-    catch { this.error.set(true); }
+    try {
+      // โหมดง่าย: เห็นทั้งรอจัดการและนัดแล้วพร้อมกัน (ไม่มีตัวกรองให้กด)
+      this.rows.set(await this.api.technicianRequests(this.display.easyMode() ? undefined : this.filter()));
+      this.error.set(false);
+    } catch { this.error.set(true); }
   }
 
   protected reasonLabel(reason: AdminTechnicianRequest['reason']): string {

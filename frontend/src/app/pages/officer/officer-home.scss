@@ -143,3 +143,128 @@ ul {
   border-radius: 4px;
   background: #fff;
 }
+
+/* ── โหมดละเอียด (แคนวาส OffAdv) ─────────────────────────────── */
+.adv-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-block-end: -4px;
+  border-radius: var(--radius-sm);
+  background: var(--icon-bg);
+  padding: 6px 10px;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  .m {
+    border-radius: 9px;
+    background: var(--bg);
+    padding: 6px 8px;
+    min-inline-size: 0;
+  }
+  .l {
+    display: block;
+    font-size: 0.625rem;
+    color: var(--text-muted);
+  }
+  .v {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+}
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.strip {
+  position: relative;
+  display: block;
+  block-size: 12px;
+  border-radius: 6px;
+  background: var(--line);
+  overflow: hidden;
+  i {
+    position: absolute;
+    inset-block: 0;
+    background: var(--brand);
+  }
+  s {
+    position: absolute;
+    inset-block: 0;
+    inline-size: 2px;
+    background: var(--text);
+  }
+}
+.legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.625rem;
+}
+.hn {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 46px;
+  block-size: 40px;
+  border-radius: 12px;
+  background: var(--icon-bg);
+  color: var(--brand);
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+.off-adv .kv {
+  margin: 0;
+}
+.logs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.71875rem;
+  line-height: 1.7;
+}
+.stack-tight {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* โหมดง่าย: ตัวเลขใหญ่ ปุ่มอยู่ท้าย — รายละเอียดอื่นซ่อนด้วย .easy-hide */
+:host-context([data-mode='easy']) {
+  .count strong {
+    font-size: 3.25rem;
+  }
+  .count .muted {
+    font-size: 1.125rem;
+  }
+  .bar {
+    block-size: 12px;
+    border-radius: 6px;
+  }
+  .next {
+    font-size: 1.0625rem;
+  }
+}
+
+/* โหมดละเอียด: การ์ดเดิมย่อลง เหลือตัวเลขในกริด + แถบเวลา */
+:host-context([data-mode='advanced']) {
+  .count,
+  .window,
+  .bar {
+    display: none;
+  }
+  .next {
+    background: none;
+    padding: 0;
+    font-size: 0.8125rem;
+  }
+  .adv-strip {
+    background: none;
+    padding: 0;
+  }
+}

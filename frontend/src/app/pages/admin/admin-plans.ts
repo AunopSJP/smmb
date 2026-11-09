@@ -71,16 +71,17 @@ function todayInBangkok(): string {
           <button type="button" class="btn" [disabled]="saving()" (click)="save()">{{ i18n.t({ th: saving() ? 'กำลังบันทึก…' : 'บันทึก', en: saving() ? 'Saving…' : 'Save' }) }}</button>
         </div>
       } @else {
-        <button type="button" class="btn secondary" (click)="edit()">{{ i18n.t({ th: 'เปลี่ยนแพ็กเกจ', en: 'Change plan' }) }}</button>
+        <button type="button" class="btn secondary easy-hide" (click)="edit()">{{ i18n.t({ th: 'เปลี่ยนแพ็กเกจ', en: 'Change plan' }) }}</button>
       }
 
-      <details>
+      <details class="easy-hide">
         <summary>{{ i18n.t({ th: 'ประวัติแพ็กเกจ', en: 'Plan history' }) }} ({{ history().length }})</summary>
         <ul class="history">
           @for (h of history(); track $index) {
             <li>
               <strong>{{ planName(h.plan_code) }}</strong> · {{ date(h.starts_at) }} – {{ h.ends_at ? date(h.ends_at) : i18n.t({ th: 'ปัจจุบัน', en: 'now' }) }}
               <span class="muted small block">{{ i18n.t({ th: 'โดย ', en: 'by ' }) }}{{ h.set_by ?? i18n.t({ th: 'ระบบ', en: 'System' }) }}{{ h.note ? ' · ' + h.note : '' }}</span>
+              <span class="muted small block mono adv-only">{{ h.id }} · user {{ h.user_id }} · {{ h.starts_at }} → {{ h.ends_at ?? 'null' }} · set_by {{ h.set_by ?? '—' }}</span>
             </li>
           }
         </ul>
@@ -230,7 +231,7 @@ export class UserPlan {
   imports: [PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'แพ็กเกจ', en: 'Plans' })" [back]="url('D01')" />
+    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'แพ็กเกจ', en: 'Plans' })" [back]="url('D16')" />
     <div class="stack">
       @if (loading()) {
         <p class="muted">{{ i18n.t({ th: 'กำลังโหลดแพ็กเกจ…', en: 'Loading plans…' }) }}</p>
@@ -240,7 +241,15 @@ export class UserPlan {
           <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Try again' }) }}</button>
         </section>
       }
-      <div class="list">
+      <!-- โหมดง่าย (AdmPlans_E): เฉพาะแพ็กเริ่มต้น + จำนวนบัญชี -->
+      @if (defaultPlan(); as d) {
+        <section class="card easy-only easy-plan">
+          <strong>{{ i18n.t(name(d)) }}</strong>
+          <span>{{ i18n.t({ th: 'แพ็กเริ่มต้น · ผู้ใช้ ', en: 'Default plan · ' }) }}{{ d.owners_count }} {{ i18n.t({ th: 'บัญชี', en: 'accounts' }) }}</span>
+        </section>
+      }
+      <p class="muted small easy-only">{{ i18n.t({ th: 'ช่วงทดลองมีแค่แพ็กเกจฟรี · SOS และการตรวจตู้ใช้ได้ทุกแพ็ก · ไม่มีการชำระเงิน', en: 'The trial has only the free plan · SOS and inspections work on every plan · no payments' }) }}</p>
+      <div class="list easy-hide">
         <div class="list-head pcols desktop-only" aria-hidden="true">
           <span>{{ i18n.t({ th: 'แพ็กเกจ', en: 'Plan' }) }}</span>
           <span>{{ i18n.t({ th: 'เจ้าของบ้าน', en: 'Owners' }) }}</span>
@@ -254,6 +263,7 @@ export class UserPlan {
               @if (p.price_note) {
                 <span class="muted small block">{{ p.price_note }}</span>
               }
+              <span class="muted small block mono adv-only">default {{ p.is_default }} · active {{ p.is_active }} · owners {{ p.owners_count }} · features {{ featuresText(p) }}</span>
             </span>
             <span class="num">{{ p.owners_count }} <span class="muted small">{{ i18n.t({ th: 'คน', en: 'owners' }) }}</span></span>
             <span class="chips">
@@ -279,12 +289,12 @@ export class UserPlan {
           </div>
         }
       </div>
-      <p class="muted small">
+      <p class="muted small easy-hide">
         {{ i18n.t({ th: 'เริ่มต้น = แพ็กที่เจ้าของบ้านได้ตอนสมัคร (คนเดิมไม่เปลี่ยน) · ปิดให้เลือก = คนเดิมใช้ต่อได้ · แพ็กเริ่มต้นปิดไม่ได้', en: 'Default = given at sign-up (existing owners keep theirs) · not offered = existing owners keep it · the default cannot be switched off' }) }}
       </p>
 
       @if (adding()) {
-        <form class="card stack" (submit)="$event.preventDefault(); add()">
+        <form class="card stack easy-hide" (submit)="$event.preventDefault(); add()">
           <strong>{{ i18n.t({ th: 'เพิ่มแพ็กเกจ', en: 'New plan' }) }}</strong>
           <label class="field">
             <span>{{ i18n.t({ th: 'รหัส (แก้ทีหลังไม่ได้)', en: 'Code (cannot change later)' }) }}</span>
@@ -312,7 +322,7 @@ export class UserPlan {
           </div>
         </form>
       } @else {
-        <button type="button" class="btn secondary" (click)="startAdd()">{{ i18n.t({ th: 'เพิ่มแพ็กเกจ', en: 'Add a plan' }) }}</button>
+        <button type="button" class="btn secondary easy-hide" (click)="startAdd()">{{ i18n.t({ th: 'เพิ่มแพ็กเกจ', en: 'Add a plan' }) }}</button>
       }
     </div>
   `,
@@ -326,6 +336,22 @@ export class UserPlan {
     }
     .plan {
       align-items: flex-start;
+    }
+    .easy-plan {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      text-align: center;
+      padding: 24px 20px;
+      border-radius: var(--radius);
+    }
+    .easy-plan strong {
+      font-size: 2rem;
+      line-height: 1.15;
+    }
+    .easy-plan span {
+      font-size: 1rem;
+      color: var(--text-muted);
     }
     .chips {
       display: flex;
@@ -429,6 +455,12 @@ export class AdminPlans implements OnInit {
 
   protected name(plan: AdminPlan): Tr {
     return { th: plan.name_th, en: plan.name_en };
+  }
+
+  protected readonly defaultPlan = computed(() => this.plans().find((p) => p.is_default) ?? this.plans()[0] ?? null);
+  protected featuresText(plan: AdminPlan): string {
+    const entries = Object.entries(plan.features ?? {});
+    return entries.length ? entries.map(([k, v]) => `${k}=${v}`).join(', ') : '—';
   }
 
   protected startAdd(): void {

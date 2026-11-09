@@ -57,7 +57,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar">
-      <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'กรองการแจ้งเตือน', en: 'Filter notifications' })">
+      <div class="segmented easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'กรองการแจ้งเตือน', en: 'Filter notifications' })">
         <button type="button" [attr.aria-pressed]="!onlyUnread()" (click)="onlyUnread.set(false)">{{ i18n.t({ th: 'ทั้งหมด', en: 'All' }) }}</button>
         <button type="button" [attr.aria-pressed]="onlyUnread()" (click)="onlyUnread.set(true)">
           {{ i18n.t({ th: 'ยังไม่อ่าน', en: 'Unread' }) }}
@@ -71,6 +71,9 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
         {{ i18n.t({ th: 'อ่านทั้งหมด', en: 'Mark all read' }) }}
       </button>
     </div>
+    <p class="muted small adv-only mono">
+      GET /me/notifications?per_page=50 · {{ i18n.t({ th: 'ทั้งหมด', en: 'all' }) }} {{ items().length }} · {{ i18n.t({ th: 'ยังไม่อ่าน', en: 'unread' }) }} {{ unreadCount() }}
+    </p>
 
     @for (g of groups(); track g.key) {
       <h2 class="day">{{ g.label }}</h2>
@@ -84,9 +87,13 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
             <span class="txt">
               <span class="top">
                 <strong>{{ plain(n.title) }}</strong>
-                <time [attr.datetime]="n.created_at">{{ when(n.created_at) }}</time>
+                <time class="easy-hide" [attr.datetime]="n.created_at">{{ when(n.created_at) }}</time>
               </span>
-              <span class="body">{{ n.body }}</span>
+              <span class="body easy-hide">{{ n.body }}</span>
+              <span class="adv-only meta mono">{{ meta(n) }}</span>
+              @if (n.link) {
+                <span class="more easy-hide">{{ moreLabel(n.type) }} ›</span>
+              }
             </span>
             @if (!n.read_at) {
               <span class="new" [attr.aria-label]="i18n.t({ th: 'ยังไม่อ่าน', en: 'Unread' })"></span>
@@ -130,6 +137,20 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
       color: #fff;
       font-size: 0.75rem;
       font-weight: 700;
+    }
+    .more {
+      display: block;
+      margin-block-start: 4px;
+      color: var(--brand);
+      font-size: 0.8125rem;
+      font-weight: 700;
+    }
+    .meta {
+      display: block;
+      margin-block-start: 3px;
+      color: var(--text-muted);
+      font-size: 0.6875rem;
+      overflow-wrap: anywhere;
     }
     .read-all {
       display: inline-flex;
@@ -326,8 +347,30 @@ export class NotificationList implements OnInit {
     }
   }
 
+  /** ข้อความลิงก์ใต้การแจ้งเตือน (ตามแคนวาสดีไซน์) */
+  protected moreLabel(type: string): string {
+    if (type === 'inspected') return this.i18n.t({ th: 'ดูรายละเอียดการตรวจ', en: 'See inspection details' });
+    if (type === 'delivered') return this.i18n.t({ th: 'ดูรายละเอียดการส่ง', en: 'See delivery details' });
+    if (type.startsWith('box_') || type === 'low_battery') return this.i18n.t({ th: 'ดูสถานะตู้', en: 'See box status' });
+    if (type.startsWith('sos_')) return this.i18n.t({ th: 'ดู SOS', en: 'See the SOS' });
+    return this.i18n.t({ th: 'ดูรายละเอียด', en: 'See details' });
+  }
+
   protected look(type: string) {
     return ICON[type] ?? { icon: 'bell' as IconName, tone: '' as const };
+  }
+
+  /** เวลาจริง (วันที่ + เวลา วินาที) — เฉพาะโหมดละเอียด */
+  protected exact(iso: string): string {
+    return new Date(iso).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Asia/Bangkok' });
+  }
+
+  /** ข้อมูลเทคนิคของรายการ (ชนิด · id · เวลา · สถานะอ่าน · ปลายทาง) — เฉพาะโหมดละเอียด */
+  protected meta(n: Notification): string {
+    const read = n.read_at
+      ? `${this.i18n.t({ th: 'อ่านแล้ว', en: 'read' })} ${this.exact(n.read_at)}`
+      : this.i18n.t({ th: 'ยังไม่อ่าน', en: 'unread' });
+    return `type=${n.type} · id=${n.id.slice(0, 8)} · ${this.exact(n.created_at)} · ${read}${n.link ? ` · ${n.link}` : ''}`;
   }
 
   /** ภายในชั่วโมง = "x นาทีที่แล้ว" · วันนี้/เมื่อวาน = เวลา · เก่ากว่านั้น = วันที่ + เวลา (หัวกลุ่มบอกวันอยู่แล้ว ใช้แค่เวลา) */

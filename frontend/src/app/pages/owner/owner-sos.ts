@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { DisplaySettings } from '../../core/display-settings';
 import { I18n } from '../../core/i18n';
 import { mmss, OwnerApi, secondsSince, type Sos } from '../../core/owner-api';
 import { screenUrl } from '../../screens/registry';
@@ -47,6 +48,16 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
           {{ i18n.t({ th: 'ติดต่อเซิร์ฟเวอร์ไม่ได้ — โทรแจ้งเหตุเองทันที: 191 / 1669', en: 'Cannot reach the server — call for help yourself now: 191 / 1669' }) }}
         </p>
       }
+      @if (display.easyMode()) {
+        <!-- OwnSosWait_E: หน้าจอเดียว ตัวใหญ่ + ปุ่มโทร -->
+        <div class="easy-sos">
+          <div class="pulse" aria-hidden="true"><i></i></div>
+          <h1>{{ st === 'call_yourself' ? i18n.t({ th: 'โปรดโทรแจ้งเหตุทันที', en: 'Please call for help now' }) : i18n.t({ th: 'กำลังขอความช่วยเหลือ', en: 'Getting help' }) }}</h1>
+          <p>{{ st === 'call_yourself' ? i18n.t({ th: 'SOS ยังเปิดอยู่ ถ้ามีเจ้าหน้าที่รับจะแจ้งให้ทราบทันที', en: 'Your SOS is still open — we will tell you as soon as an officer accepts' }) : i18n.t({ th: 'ส่งถึงเจ้าหน้าที่แล้ว รอคนรับเรื่อง', en: 'Sent to officers — waiting for someone to accept' }) }}</p>
+          <app-call-buttons [big]="true" />
+          <a class="btn secondary easy-cancel" [routerLink]="url('H10')" [queryParams]="{ id: id() }">{{ i18n.t({ th: 'ยกเลิก SOS', en: 'Cancel SOS' }) }}</a>
+        </div>
+      } @else {
       @if (st === 'call_yourself') {
         <header class="sos-head">
           <span class="pill">{{ i18n.t({ th: 'ยังไม่มีคนรับ', en: 'No one has accepted yet' }) }} · {{ time() }}</span>
@@ -57,6 +68,13 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
           <app-call-buttons [big]="true" />
           <p class="note"><span class="dot live"></span>{{ i18n.t({ th: 'ยังรอเจ้าหน้าที่รับเรื่องอยู่เบื้องหลัง', en: 'Still waiting for an officer in the background' }) }}</p>
         </div>
+        @if (display.advancedMode()) {
+          <div class="adv-grid">
+            <div><span>{{ i18n.t({ th: 'รหัส SOS', en: 'SOS ID' }) }}</span><b class="mono">{{ id() }}</b></div>
+            <div><span>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</span><b class="mono">{{ sos()?.status ?? '—' }}</b></div>
+            <div><span>{{ i18n.t({ th: 'ส่งเมื่อ', en: 'Sent' }) }}</span><b class="mono">{{ sos()?.created_at ? exact(sos()!.created_at) : '—' }}</b></div>
+          </div>
+        }
       } @else {
         <header class="sos-head">
           <span class="pill">{{ i18n.t({ th: 'SOS ส่งแล้ว · บ้านเลขที่ ', en: 'SOS sent · house ' }) }}{{ sos()?.box?.house_no }}</span>
@@ -70,6 +88,17 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
               : i18n.t({ th: 'เจ้าหน้าที่ในโซนยังไม่รับ ระบบส่งต่อให้ทุกคนในหน่วยงานแล้ว', en: 'No zone officer yet — sent to everyone in the agency' }) }}
           </p>
         </header>
+
+        @if (display.advancedMode()) {
+          <div class="adv-grid">
+            <div><span>{{ i18n.t({ th: 'รหัส SOS', en: 'SOS ID' }) }}</span><b class="mono">{{ id() }}</b></div>
+            <div><span>{{ i18n.t({ th: 'ขั้น', en: 'Stage' }) }}</span><b class="mono">{{ st === 'zone' ? '1' : '2' }}/3</b></div>
+            <div><span>{{ i18n.t({ th: 'ผ่านมา', en: 'Elapsed' }) }}</span><b class="mono">{{ time() }}</b></div>
+          </div>
+          @if (sos()?.created_at) {
+            <p class="adv-line mono">{{ i18n.t({ th: 'ส่ง ', en: 'sent ' }) }}{{ exact(sos()!.created_at) }} · {{ i18n.t({ th: 'เปลี่ยนขั้น ', en: 'stage ' }) }}{{ exact(sos()!.stage_changed_at) }}</p>
+          }
+        }
 
         <div class="sos-body">
           <ol class="steps">
@@ -111,6 +140,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
         }
         <a class="btn secondary" [routerLink]="url('H10')" [queryParams]="{ id: id() }">{{ i18n.t({ th: 'ยกเลิก SOS', en: 'Cancel SOS' }) }}</a>
       </footer>
+      }
     </div>
   `,
   styles: `
@@ -122,6 +152,76 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       font-weight: 800;
       text-align: center;
       border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    }
+    /* OwnSosWait_E */
+    .easy-sos {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      padding: 40px 24px 24px;
+      text-align: center;
+      flex: 1;
+      h1 {
+        font-size: 2rem;
+        line-height: 1.3;
+        margin: 0;
+      }
+      p {
+        font-size: 1.25rem;
+        line-height: 1.5;
+        margin: 0;
+        color: rgb(255 255 255 / 95%);
+      }
+      app-call-buttons {
+        inline-size: 100%;
+        margin-block-start: auto;
+      }
+    }
+    .pulse {
+      display: grid;
+      place-items: center;
+      inline-size: 120px;
+      block-size: 120px;
+      border-radius: 50%;
+      background: rgb(255 255 255 / 20%);
+      i {
+        inline-size: 70px;
+        block-size: 70px;
+        border-radius: 50%;
+        background: #fff;
+      }
+    }
+    .easy-cancel {
+      inline-size: 100%;
+      min-block-size: 60px;
+      border: 2px solid rgb(255 255 255 / 75%);
+      background: transparent;
+      color: #fff;
+      font-size: 1.25rem;
+    }
+    .adv-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-inline: 16px;
+      div {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 6px 8px;
+        border-radius: var(--radius-sm);
+        background: rgb(255 255 255 / 14%);
+      }
+      span { font-size: 0.6875rem; opacity: 0.85; }
+      b { font-size: 0.8125rem; }
+    }
+    .adv-line {
+      margin: 0 16px;
+      font-size: 0.6875rem;
+      text-align: center;
+      opacity: 0.85;
+      overflow-wrap: anywhere;
     }
     .steps {
       list-style: none;
@@ -188,6 +288,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
 })
 export class SosWaiting {
   protected readonly i18n = inject(I18n);
+  protected readonly display = inject(DisplaySettings);
   private readonly api = inject(OwnerApi);
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
@@ -199,6 +300,10 @@ export class SosWaiting {
   private readonly elapsed = computed(() => (this.now(), this.sos() ? secondsSince(this.sos()!.created_at) : 0));
   protected readonly time = computed(() => mmss(this.elapsed()));
   protected readonly toCall = computed(() => Math.max(0, STAGE_CALL_AT - this.elapsed()));
+
+  protected exact(iso: string): string {
+    return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
+  }
 
   constructor() {
     // ไม่มี ?id (เช่น เปิดลิงก์เก่า) → ไม่มี SOS ให้ติดตาม กลับหน้าหลัก
@@ -235,7 +340,14 @@ export class SosWaiting {
       </header>
       <div class="sos-body">
         <app-call-buttons [big]="true" />
-        <p class="muted small center">{{ i18n.t({ th: 'ระบบบันทึกเหตุนี้ไว้แล้ว ผู้ดูแลระบบจะเห็น', en: 'This event is recorded and the admin will see it' }) }}</p>
+        @if (display.advancedMode()) {
+          <div class="card adv-only adv-note">
+            <strong>{{ i18n.t({ th: 'เหตุที่ SOS ส่งไม่ได้', en: 'Why the SOS cannot be sent' }) }}</strong>
+            <p>{{ i18n.t({ th: 'บ้านนี้ไม่อยู่ในโซนของหน่วยงานใด (coverage.has_officer = false) ระบบจึงไม่ได้สร้างเคส SOS', en: 'This house is not in any agency zone (coverage.has_officer = false), so no SOS case was created.' }) }}</p>
+            <a class="btn secondary" [routerLink]="url('H16')">{{ i18n.t({ th: 'ดูหน่วยงานใกล้บ้าน', en: 'See agencies near you' }) }}</a>
+          </div>
+        }
+        <p class="muted small center easy-hide">{{ i18n.t({ th: 'ระบบบันทึกเหตุนี้ไว้แล้ว ผู้ดูแลระบบจะเห็น', en: 'This event is recorded and the admin will see it' }) }}</p>
       </div>
       <footer class="sos-foot">
         <a class="btn secondary" [routerLink]="url('H03')">{{ i18n.t({ th: 'กลับหน้าหลัก', en: 'Back to home' }) }}</a>
@@ -246,10 +358,19 @@ export class SosWaiting {
     .center {
       text-align: center;
     }
+    .adv-note {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      text-align: start;
+      font-size: 0.8125rem;
+      line-height: 1.6;
+    }
   `,
 })
 export class SosNoOfficer {
   protected readonly i18n = inject(I18n);
+  protected readonly display = inject(DisplaySettings);
   protected readonly url = screenUrl;
 }
 
@@ -264,7 +385,10 @@ export class SosNoOfficer {
       <p class="behind">{{ i18n.t({ th: 'กำลังหาเจ้าหน้าที่…', en: 'Finding an officer…' }) }}</p>
       <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="cancel-title">
         <h2 id="cancel-title">{{ i18n.t({ th: 'ยกเลิก SOS ใช่ไหม?', en: 'Cancel your SOS?' }) }}</h2>
-        <p class="muted small">{{ i18n.t({ th: 'เลือกเหตุผล ระบบจะแจ้งเจ้าหน้าที่ให้ทราบว่ายกเลิกแล้ว', en: 'Pick a reason — officers will be told it is cancelled' }) }}</p>
+        <p class="muted small easy-hide">{{ i18n.t({ th: 'เลือกเหตุผล ระบบจะแจ้งเจ้าหน้าที่ให้ทราบว่ายกเลิกแล้ว', en: 'Pick a reason — officers will be told it is cancelled' }) }}</p>
+        @if (display.advancedMode() && id()) {
+          <p class="muted small mono adv-only">{{ i18n.t({ th: 'รหัสเคส ', en: 'Case ' }) }}{{ id() }}</p>
+        }
         <button type="button" class="btn secondary option" (click)="cancel('safe')">
           <app-icon name="shield" [size]="20" />{{ i18n.t({ th: 'ปลอดภัยแล้ว', en: 'I am safe now' }) }}
         </button>
@@ -297,6 +421,7 @@ export class SosNoOfficer {
 })
 export class SosCancel {
   protected readonly i18n = inject(I18n);
+  protected readonly display = inject(DisplaySettings);
   private readonly api = inject(OwnerApi);
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
@@ -342,8 +467,19 @@ export class SosCancel {
         @if (sos()?.accepted_by?.phone; as phone) {
           <a class="btn" [href]="'tel:' + phone">{{ i18n.t({ th: 'โทรหาเจ้าหน้าที่ ', en: 'Call the officer ' }) }}{{ phone }}</a>
         }
-        @if (sos()?.accepted_by?.at; as at) {
-          <p class="muted small center adv-only">{{ i18n.t({ th: 'รับเรื่องเมื่อ ', en: 'Accepted at ' }) }}<span class="mono">{{ at.slice(11, 16) }}</span> · {{ i18n.t({ th: 'รหัสเรื่อง ', en: 'Case ' }) }}<span class="mono">{{ id() }}</span></p>
+        @if (display.easyMode()) {
+          <p class="tip easy-only">{{ i18n.t({ th: 'ระหว่างรอ อยู่ในที่ปลอดภัย ล็อกประตู และเปิดไฟหน้าบ้านไว้ให้เจ้าหน้าที่หาบ้านเจอ', en: 'While you wait, stay safe, lock the door and keep the porch light on so they can find you.' }) }}</p>
+        }
+        @if (display.advancedMode()) {
+          <section class="card adv-card adv-only">
+            <dl class="kv">
+              <dt>{{ i18n.t({ th: 'รหัสเคส', en: 'Case ID' }) }}</dt><dd class="mono">{{ id() }}</dd>
+              <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt><dd class="mono">{{ sos()?.status }}</dd>
+              <dt>{{ i18n.t({ th: 'ส่ง SOS', en: 'SOS sent' }) }}</dt><dd class="mono">{{ sos()?.created_at ? exact(sos()!.created_at) : '—' }}</dd>
+              <dt>{{ i18n.t({ th: 'รับเรื่อง', en: 'Accepted' }) }}</dt><dd class="mono">{{ sos()?.accepted_by?.at ? exact(sos()!.accepted_by!.at) : '—' }}</dd>
+              <dt>{{ i18n.t({ th: 'รับภายใน', en: 'Accepted within' }) }}</dt><dd class="mono">{{ acceptedWithin() }}</dd>
+            </dl>
+          </section>
         }
         <p class="muted small center">{{ i18n.t({ th: 'เบอร์โทรเห็นได้เฉพาะตอน SOS เปิดอยู่', en: 'The number is only shown while the SOS is open' }) }}</p>
         <p class="note"><span class="dot"></span>{{ i18n.t({ th: 'เมื่อเจ้าหน้าที่ปิดเรื่อง จะแจ้งให้ทราบ', en: 'You will be notified when the officer closes it' }) }}</p>
@@ -383,15 +519,36 @@ export class SosCancel {
       padding: 10px 12px;
       font-size: 0.875rem;
     }
+    .tip {
+      margin: 0;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    .adv-card {
+      font-size: 0.875rem;
+    }
   `,
 })
 export class SosAccepted {
   protected readonly i18n = inject(I18n);
+  protected readonly display = inject(DisplaySettings);
   private readonly api = inject(OwnerApi);
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
   readonly id = input<string>('');
   protected readonly sos = signal<Sos | null>(null);
+
+  protected exact(iso: string): string {
+    return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
+  }
+
+  protected acceptedWithin(): string {
+    const s = this.sos();
+    if (!s?.accepted_by) return '—';
+    return mmss(Math.max(0, Math.round((new Date(s.accepted_by.at).getTime() - new Date(s.created_at).getTime()) / 1000)));
+  }
 
   constructor() {
     pollSos(this.api, () => this.id(), (s) => {
@@ -427,6 +584,16 @@ export class SosAccepted {
             <p>{{ sos()?.close_note }}</p>
           </div>
         </section>
+        @if (display.advancedMode()) {
+          <section class="card adv-only">
+            <dl class="kv">
+              <dt>{{ i18n.t({ th: 'รหัสเคส', en: 'Case ID' }) }}</dt><dd class="mono">{{ id() }}</dd>
+              <dt>{{ i18n.t({ th: 'ส่ง SOS', en: 'SOS sent' }) }}</dt><dd class="mono">{{ sos()?.created_at ? exact(sos()!.created_at) : '—' }}</dd>
+              <dt>{{ i18n.t({ th: 'รับเรื่อง', en: 'Accepted' }) }}</dt><dd class="mono">{{ sos()?.accepted_by?.at ? exact(sos()!.accepted_by!.at) : '—' }}</dd>
+              <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt><dd class="mono">{{ sos()?.status }}</dd>
+            </dl>
+          </section>
+        }
       </div>
       <footer class="sos-foot">
         <button type="button" class="btn" (click)="home()">{{ i18n.t({ th: 'กลับหน้าหลัก', en: 'Back to home' }) }}</button>
@@ -462,10 +629,15 @@ export class SosAccepted {
 })
 export class SosClosed implements OnInit {
   protected readonly i18n = inject(I18n);
+  protected readonly display = inject(DisplaySettings);
   private readonly api = inject(OwnerApi);
   private readonly router = inject(Router);
   readonly id = input<string>('');
   protected readonly sos = signal<Sos | null>(null);
+
+  protected exact(iso: string): string {
+    return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
+  }
   protected readonly toAccept = computed(() => {
     const s = this.sos();
     if (!s?.accepted_by) return null;

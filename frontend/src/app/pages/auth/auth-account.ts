@@ -7,6 +7,7 @@ import { I18n, type Tr } from '../../core/i18n';
 import { Session } from '../../core/session';
 import { AuthDemo, formatPhone, PASSWORD_MIN, ROLE_HOME, type SignupForm } from '../../core/mock/auth-demo';
 import { DemoSession, type DemoRole } from '../../core/mock/demo-session';
+import { TERMS_VERSION } from '../../core/terms';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
@@ -54,7 +55,8 @@ const ADD_ROLE_ERROR: Record<string, Tr> = {
           <span class="icon-bubble"><app-icon [name]="roles[r].icon" [size]="20" /></span>
           <span class="grow">
             <strong>{{ i18n.t({ th: 'ใช้งานเป็น', en: 'Switch to ' }) }}{{ i18n.t(roles[r].label) }}</strong>
-            <span class="muted small block">{{ i18n.t({ th: 'บัญชีเดียวกัน ไม่ต้องเข้าสู่ระบบใหม่', en: 'Same account, no new sign-in' }) }}</span>
+            <span class="muted small block easy-hide">{{ i18n.t({ th: 'บัญชีเดียวกัน ไม่ต้องเข้าสู่ระบบใหม่', en: 'Same account, no new sign-in' }) }}</span>
+            <span class="muted small block mono adv-only">{{ r }}</span>
           </span>
           <app-icon name="chevronRight" [size]="18" />
         </button>
@@ -64,7 +66,7 @@ const ADD_ROLE_ERROR: Record<string, Tr> = {
           <span class="icon-bubble"><app-icon name="shield" [size]="20" /></span>
           <span class="grow">
             <strong>{{ i18n.t({ th: 'คำขอเข้าหน่วยงาน', en: 'Agency request' }) }}</strong>
-            <span class="muted small block">{{ i18n.t({ th: 'หัวหน้ายังไม่ได้ยืนยัน', en: 'Your head has not approved it yet' }) }}</span>
+            <span class="muted small block easy-hide">{{ i18n.t({ th: 'หัวหน้ายังไม่ได้ยืนยัน', en: 'Your head has not approved it yet' }) }}</span>
           </span>
           <span class="chip warn">{{ i18n.t({ th: 'รอ', en: 'Waiting' }) }}</span>
         </a>
@@ -73,7 +75,7 @@ const ADD_ROLE_ERROR: Record<string, Tr> = {
           <span class="icon-bubble"><app-icon name="shield" [size]="20" /></span>
           <span class="grow">
             <strong>{{ i18n.t({ th: 'ขอเข้าหน่วยงาน', en: 'Join an agency' }) }}</strong>
-            <span class="muted small block">{{ i18n.t({ th: 'เป็นเจ้าหน้าที่ด้วย? ใช้รหัสกลุ่มจากหัวหน้า', en: 'Also an officer? Use your head’s group code' }) }}</span>
+            <span class="muted small block easy-hide">{{ i18n.t({ th: 'เป็นเจ้าหน้าที่ด้วย? ใช้รหัสกลุ่มจากหัวหน้า', en: 'Also an officer? Use your head’s group code' }) }}</span>
           </span>
           <app-icon name="chevronRight" [size]="18" />
         </a>
@@ -83,7 +85,7 @@ const ADD_ROLE_ERROR: Record<string, Tr> = {
           <span class="icon-bubble"><app-icon name="home" [size]="20" /></span>
           <span class="grow">
             <strong>{{ i18n.t({ th: 'เพิ่มบทบาทเจ้าของบ้าน', en: 'Add the homeowner role' }) }}</strong>
-            <span class="muted small block">{{ i18n.t({ th: 'มีตู้ที่บ้าน? ใช้บัญชีนี้ ไม่ต้องสมัครใหม่', en: 'Mailbox at home? Same account, no new sign-up' }) }}</span>
+            <span class="muted small block easy-hide">{{ i18n.t({ th: 'มีตู้ที่บ้าน? ใช้บัญชีนี้ ไม่ต้องสมัครใหม่', en: 'Mailbox at home? Same account, no new sign-up' }) }}</span>
           </span>
           <app-icon name="chevronRight" [size]="18" />
         </a>
@@ -92,7 +94,7 @@ const ADD_ROLE_ERROR: Record<string, Tr> = {
         <span class="icon-bubble"><app-icon name="settings" [size]="20" /></span>
         <span class="grow">
           <strong>{{ i18n.t({ th: 'เปลี่ยนรหัสผ่าน', en: 'Change password' }) }}</strong>
-          <span class="muted small block">{{ i18n.t({ th: 'เปลี่ยนแล้วต้องเข้าสู่ระบบใหม่ทุกเครื่อง', en: 'You will be signed out on every device' }) }}</span>
+          <span class="muted small block easy-hide">{{ i18n.t({ th: 'เปลี่ยนแล้วต้องเข้าสู่ระบบใหม่ทุกเครื่อง', en: 'You will be signed out on every device' }) }}</span>
         </span>
         <app-icon name="chevronRight" [size]="18" />
       </a>
@@ -156,11 +158,15 @@ export class AccountActions {
       @if (forced()) {
         <p class="info-box">
           <strong>{{ i18n.t({ th: 'หัวหน้าหรือผู้ดูแลระบบรีเซ็ตรหัสให้คุณ', en: 'Your head or the admin reset your password' }) }}</strong><br />
-          <span class="muted small">{{ i18n.t({ th: 'ใส่รหัสชั่วคราวที่ได้รับ แล้วตั้งรหัสใหม่ที่จำได้ — ยังใช้หน้าอื่นไม่ได้จนกว่าจะเปลี่ยน', en: 'Enter the temporary password you were given, then choose one you will remember — nothing else works until you do' }) }}</span>
+          <span class="muted small easy-hide">{{ i18n.t({ th: 'ใส่รหัสชั่วคราวที่ได้รับ แล้วตั้งรหัสใหม่ที่จำได้ — ยังใช้หน้าอื่นไม่ได้จนกว่าจะเปลี่ยน', en: 'Enter the temporary password you were given, then choose one you will remember — nothing else works until you do' }) }}</span>
         </p>
       }
+      <p class="muted small adv-only mono">
+        POST /auth/change-password · must_change_password={{ forced() }}<br />
+        {{ i18n.t({ th: 'รหัสใหม่ ', en: 'new password ' }) }}{{ min }}–128 · PASSWORD_REUSED
+      </p>
       @if (error(); as e) {
-        <p class="card err" role="alert">{{ i18n.t(e) }}</p>
+        <p class="card err" role="alert">{{ i18n.t(e) }}<span class="mono adv-only"> · {{ errorCode() }}</span></p>
       }
       <app-password-field
         [label]="forced() ? { th: 'รหัสชั่วคราว', en: 'Temporary password' } : { th: 'รหัสผ่านปัจจุบัน', en: 'Current password' }"
@@ -173,7 +179,7 @@ export class AccountActions {
       } @else if (tried() && same()) {
         <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ใช้รหัสเดิมไม่ได้ ตั้งรหัสใหม่', en: 'Choose a different password' }) }}</p>
       }
-      <p class="muted small">{{ i18n.t({ th: 'เปลี่ยนแล้ว ทุกเครื่องจะออกจากระบบ ต้องเข้าสู่ระบบใหม่ด้วยรหัสใหม่', en: 'After changing, every device is signed out — sign in again with the new password' }) }}</p>
+      <p class="muted small easy-hide">{{ i18n.t({ th: 'เปลี่ยนแล้ว ทุกเครื่องจะออกจากระบบ ต้องเข้าสู่ระบบใหม่ด้วยรหัสใหม่', en: 'After changing, every device is signed out — sign in again with the new password' }) }}</p>
       <div class="stack push-end">
         <button type="submit" class="btn" [disabled]="!current() || !next() || !confirm()">{{ i18n.t({ th: 'บันทึกรหัสใหม่', en: 'Save new password' }) }}</button>
         @if (forced()) {
@@ -209,6 +215,8 @@ export class AuthChangePassword {
   protected readonly confirm = signal('');
   protected readonly tried = signal(false);
   protected readonly error = signal<Tr | null>(null);
+  protected readonly errorCode = signal<string | null>(null);
+  protected readonly min = PASSWORD_MIN;
   protected readonly nextOk = computed(() => this.next().length >= PASSWORD_MIN);
   protected readonly match = computed(() => this.next() === this.confirm());
   protected readonly same = computed(() => this.next() === this.current());
@@ -217,12 +225,14 @@ export class AuthChangePassword {
   protected async submit(): Promise<void> {
     this.tried.set(true);
     this.error.set(null);
+    this.errorCode.set(null);
     if (!this.nextOk() || !this.match() || this.same()) return;
     try {
       await firstValueFrom(this.http.post('/api/v1/auth/change-password', { current_password: this.current(), new_password: this.next() }));
     } catch (err) {
       const e = apiError(err);
       this.current.set('');
+      this.errorCode.set(e.code ? `${e.code} · HTTP ${e.status}` : `HTTP ${e.status}`);
       this.error.set(
         e.code === 'ACCOUNT_LOCKED'
           ? { th: 'กรอกผิดหลายครั้ง ระบบพักบัญชีไว้ 15 นาที', en: 'Too many tries — locked for 15 minutes' }
@@ -256,20 +266,27 @@ export class AuthChangePassword {
   template: `
     <app-page-header [caption]="i18n.t({ th: 'บัญชีเดิม · ', en: 'Your account · ' }) + phone()" [title]="i18n.t({ th: 'เพิ่มบทบาทเจ้าของบ้าน', en: 'Add homeowner role' })" [back]="backUrl()" />
     <form class="stack grow" (submit)="$event.preventDefault(); submit()">
-      <p class="info-box muted small">{{ i18n.t({ th: 'ใช้บัญชีนี้ต่อ ไม่ต้องสมัครใหม่ · ได้แพ็กฟรีอัตโนมัติ · ขั้นต่อไปสแกน QR เปิดใช้ตู้', en: 'Keep this account, no new sign-up · free plan included · next you scan the activation QR' }) }}</p>
+      <p class="info-box muted small easy-hide">{{ i18n.t({ th: 'ใช้บัญชีนี้ต่อ ไม่ต้องสมัครใหม่ · ได้แพ็กฟรีอัตโนมัติ · ขั้นต่อไปสแกน QR เปิดใช้ตู้', en: 'Keep this account, no new sign-up · free plan included · next you scan the activation QR' }) }}</p>
+      <p class="small easy-only">{{ i18n.t({ th: 'ใช้บัญชีเดิม · ได้แพ็กฟรี · ขั้นต่อไปสแกน QR เปิดใช้ตู้', en: 'Same account · free plan · next scan the activation QR' }) }}</p>
       <label class="field" [class.invalid]="errorCode() === 'INVALID'">
         <span>{{ i18n.t({ th: 'บ้านเลขที่', en: 'House number' }) }}</span>
         <input autocomplete="address-line1" [value]="f().house_no" (input)="set('house_no', $any($event.target).value)" />
       </label>
-      <label class="field">
+      <label class="field easy-hide">
         <span>{{ i18n.t({ th: 'หมู่บ้าน / ย่าน (ไม่บังคับ)', en: 'Village / area (optional)' }) }}</span>
         <input maxlength="100" autocomplete="address-level3" [placeholder]="i18n.t({ th: 'เช่น หมู่บ้านสุขใจ', en: 'e.g. Sukjai Village' })" [value]="f().area" (input)="set('area', $any($event.target).value)" />
         <small>{{ i18n.t({ th: 'ช่วยให้เจ้าหน้าที่แยกบ้านเลขที่ซ้ำกันคนละหมู่บ้าน', en: 'Helps officers tell apart the same house number in different villages' }) }}</small>
       </label>
       <app-house-fields [(value)]="house" [tried]="tried()" />
+      <p class="muted small adv-only mono">
+        POST /me/roles/owner · terms_version {{ version }}
+        @if (house().location; as loc) {
+          <br />lat {{ loc.lat }}, lng {{ loc.lng }}
+        }
+      </p>
       <app-terms-check from="A15" [returnTo]="from()" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="!!f().house_no.trim() && !f().terms" />
       @if (errorCode(); as e) {
-        <p class="danger-text small" role="alert">{{ i18n.t(errors[e]) }}</p>
+        <p class="danger-text small" role="alert">{{ i18n.t(errors[e]) }}<span class="mono adv-only"> · {{ e }}</span></p>
       }
       <button type="submit" class="btn push-end" [disabled]="!f().terms || busy()">{{ i18n.t({ th: 'เพิ่มบทบาทแล้วไปผูกตู้', en: 'Add role and bind my mailbox' }) }}</button>
     </form>
@@ -288,6 +305,7 @@ export class AuthAddOwner {
   private readonly router = inject(Router);
   protected readonly errors = ADD_ROLE_ERROR;
   protected readonly phone = computed(() => formatPhone(this.realSession.me()?.phone ?? ''));
+  protected readonly version = TERMS_VERSION;
   readonly from = input<string>();
   protected readonly backUrl = computed(() => backTo(this.from(), 'O13'));
   protected readonly f = this.demo.forms.addOwner;
@@ -334,13 +352,14 @@ export class AuthAddOwner {
   template: `
     <app-page-header [caption]="i18n.t({ th: 'บัญชีเดิม · ', en: 'Your account · ' }) + phone()" [title]="i18n.t({ th: 'ขอเข้าหน่วยงาน', en: 'Join an agency' })" [back]="backUrl()" />
     <form class="stack grow" (submit)="$event.preventDefault(); submit()">
-      <p class="info-box muted small">{{ i18n.t({ th: 'ใช้บัญชีนี้ต่อ · หัวหน้าต้องยืนยันก่อนจึงจะใช้หน้าเจ้าหน้าที่ได้ · ระหว่างรอใช้งานแบบเดิมได้ตามปกติ', en: 'Keep this account · your head must approve before you get officer screens · meanwhile everything else works as before' }) }}</p>
+      <p class="info-box muted small easy-hide">{{ i18n.t({ th: 'ใช้บัญชีนี้ต่อ · หัวหน้าต้องยืนยันก่อนจึงจะใช้หน้าเจ้าหน้าที่ได้ · ระหว่างรอใช้งานแบบเดิมได้ตามปกติ', en: 'Keep this account · your head must approve before you get officer screens · meanwhile everything else works as before' }) }}</p>
+      <p class="small easy-only">{{ i18n.t({ th: 'ใช้บัญชีเดิม · หัวหน้าต้องอนุมัติก่อน · ระหว่างรอใช้งานแบบเดิมได้', en: 'Same account · your head must approve first · everything else still works while you wait' }) }}</p>
       <div class="two-col">
         <label class="field" [class.invalid]="joinTried() && !f().position.trim()">
           <span>{{ i18n.t({ th: 'ตำแหน่ง / ยศ', en: 'Position / rank' }) }}</span>
           <input maxlength="100" [placeholder]="i18n.t({ th: 'เช่น ผบ.หมู่ / หัวหน้าเวร', en: 'e.g. Sergeant / shift lead' })" [value]="f().position" (input)="set('position', $any($event.target).value)" />
         </label>
-        <label class="field">
+        <label class="field easy-hide">
           <span>{{ i18n.t({ th: 'เลขประจำตัว (ไม่บังคับ)', en: 'Staff no. (optional)' }) }}</span>
           <input maxlength="50" autocomplete="off" [value]="f().staff_no" (input)="set('staff_no', $any($event.target).value)" />
         </label>
@@ -350,8 +369,9 @@ export class AuthAddOwner {
         <input autocomplete="off" autocapitalize="characters" spellcheck="false" [placeholder]="i18n.t({ th: 'เช่น PX7K-2MQ9', en: 'e.g. PX7K-2MQ9' })" [value]="f().group_code" (input)="set('group_code', $any($event.target).value)" />
       </label>
       <app-terms-check from="A16" [returnTo]="from()" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="!!f().group_code.trim() && !f().terms" />
+      <p class="muted small adv-only mono">POST /me/agency/join · terms_version {{ version }} → pending (A11)</p>
       @if (errorCode(); as e) {
-        <p class="danger-text small" role="alert">{{ i18n.t(errors[e]) }}</p>
+        <p class="danger-text small" role="alert">{{ i18n.t(errors[e]) }}<span class="mono adv-only"> · {{ e }}</span></p>
       }
       <button type="submit" class="btn push-end" [disabled]="!f().terms || !f().group_code.trim() || busy()">{{ i18n.t({ th: 'ส่งคำขอ', en: 'Send request' }) }}</button>
     </form>
@@ -375,6 +395,7 @@ export class AuthJoinAgency {
   private readonly router = inject(Router);
   protected readonly errors = ADD_ROLE_ERROR;
   protected readonly phone = computed(() => formatPhone(this.realSession.me()?.phone ?? ''));
+  protected readonly version = TERMS_VERSION;
   readonly from = input<string>();
   protected readonly backUrl = computed(() => backTo(this.from(), 'H13'));
   protected readonly f = this.demo.forms.join;

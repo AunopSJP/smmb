@@ -56,7 +56,7 @@ export const TABS: Partial<Record<Area, TabDef[]>> = {
   owner: [
     { code: 'H03', icon: 'home', label: { th: 'หน้าหลัก', en: 'Home' } },
     { code: 'H12', icon: 'list', label: { th: 'ประวัติ', en: 'History' } },
-    { code: 'H13', icon: 'target', label: { th: 'ตั้งค่าตู้', en: 'Mailbox' } },
+    { code: 'H13', icon: 'settings', label: { th: 'ตั้งค่า', en: 'Settings' } },
   ],
   officer: [
     { code: 'O01', icon: 'home', label: { th: 'หน้าสรุป', en: 'Summary' } },
@@ -75,6 +75,29 @@ export const TABS: Partial<Record<Area, TabDef[]>> = {
     { code: 'D03', icon: 'box', label: { th: 'ตู้', en: 'Boxes' } },
     { code: 'D09', icon: 'user', label: { th: 'ผู้ใช้', en: 'Users' } },
     { code: 'D16', icon: 'settings', label: { th: 'ระบบ', en: 'System' } },
+  ],
+};
+
+/**
+ * แท็บล่างของ "โหมดง่าย" — ตามแคนวาสดีไซน์ (2026-11-09)
+ * โหมดง่ายลดเมนูเหลือเฉพาะงานหลัก: เจ้าหน้าที่ตัด "ประวัติ" · หัวหน้าตัด "โซน" · แอดมินตัด "ระบบ"
+ * บทบาทที่ไม่อยู่ในรายการนี้ใช้แท็บชุดเดียวกับโหมดปกติ
+ */
+export const TABS_EASY: Partial<Record<Area, TabDef[]>> = {
+  officer: [
+    { code: 'O01', icon: 'home', label: { th: 'สรุป', en: 'Summary' } },
+    { code: 'O12', icon: 'alert', label: { th: 'SOS', en: 'SOS' } },
+    { code: 'O13', icon: 'settings', label: { th: 'ตั้งค่า', en: 'Settings' } },
+  ],
+  head: [
+    { code: 'L04', icon: 'home', label: { th: 'ภาพรวม', en: 'Overview' } },
+    { code: 'L05', icon: 'user', label: { th: 'สมาชิก', en: 'Members' } },
+    { code: 'L11', icon: 'settings', label: { th: 'ตั้งค่า', en: 'Settings' } },
+  ],
+  admin: [
+    { code: 'D01', icon: 'home', label: { th: 'ภาพรวม', en: 'Overview' } },
+    { code: 'D03', icon: 'box', label: { th: 'ตู้', en: 'Boxes' } },
+    { code: 'D09', icon: 'user', label: { th: 'ผู้ใช้', en: 'Users' } },
   ],
 };
 
@@ -109,7 +132,7 @@ export const SCREENS: ScreenDef[] = [
   s('H12-c', 'owner', 'history/delivery', 'รายละเอียดการส่งของ', 'Delivery details'),
   s('H12-d', 'owner', 'history/offline', 'ตู้ไม่ออนไลน์', 'Mailbox offline'),
   s('H12-e', 'owner', 'history/range', 'เลือกช่วงวันที่', 'Pick a date range', { fullscreen: true }),
-  s('H13', 'owner', 'settings', 'ตั้งค่าตู้', 'Mailbox settings', { next: ['H13-b', 'H13-d', 'H15'] }),
+  s('H13', 'owner', 'settings', 'ตั้งค่า', 'Settings', { next: ['H13-b', 'H13-d', 'H15'] }),
   s('H13-b', 'owner', 'settings/wifi', 'เปลี่ยน Wi-Fi', 'Change Wi-Fi', { next: ['H13-c'] }),
   s('H13-c', 'owner', 'settings/technician', 'แจ้งช่างแล้ว', 'Technician requested'),
   s('H13-d', 'owner', 'settings/display', 'การแสดงผล', 'Display'),

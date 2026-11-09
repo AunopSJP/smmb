@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject, input, model, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { I18n, type Tr } from '../../core/i18n';
-import { PASSWORD_MIN } from '../../core/mock/auth-demo';
+import { PASSWORD_MAX, PASSWORD_MIN } from '../../core/mock/auth-demo';
+import { TERMS_VERSION } from '../../core/terms';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 
@@ -30,6 +31,9 @@ import { screenUrl } from '../../screens/registry';
       @if (isNew() && hint()) {
         <small [class.danger-text]="invalid()">{{ i18n.t({ th: 'อย่างน้อย ' + min + ' ตัว', en: 'At least ' + min + ' characters' }) }}</small>
       }
+      @if (isNew()) {
+        <small class="adv-only mono">{{ i18n.t({ th: 'ความยาว ' + min + '–' + max + ' ตัว · ไม่ต้องมีอักขระพิเศษ', en: min + '–' + max + ' characters · no special characters required' }) }}</small>
+      }
     </label>
   `,
   styles: `
@@ -50,6 +54,7 @@ import { screenUrl } from '../../screens/registry';
 export class PasswordField {
   protected readonly i18n = inject(I18n);
   protected readonly min = PASSWORD_MIN;
+  protected readonly max = PASSWORD_MAX;
   readonly value = model('');
   readonly label = input<Tr>({ th: 'รหัสผ่าน', en: 'Password' });
   /** ช่องยืนยัน = ไม่ต้องบอกความยาวซ้ำ */
@@ -75,6 +80,10 @@ export class PasswordField {
     @if (showError()) {
       <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ต้องยอมรับข้อตกลงก่อน จึงจะสร้างบัญชีได้', en: 'You must accept the terms before an account can be created' }) }}</p>
     }
+    <p class="muted small adv-only">
+      {{ i18n.t({ th: 'ฉบับ ', en: 'Version ' }) }}<span class="mono">{{ version }}</span>
+      · <span class="mono">terms_version</span>
+    </p>
   `,
   styles: `
     .terms {
@@ -100,6 +109,7 @@ export class PasswordField {
 export class TermsCheck {
   protected readonly i18n = inject(I18n);
   protected readonly terms = screenUrl('A13');
+  protected readonly version = TERMS_VERSION;
   readonly checked = model(false);
   /** รหัสหน้าที่จะกลับมาหลังอ่านข้อตกลง */
   readonly from = input.required<string>();

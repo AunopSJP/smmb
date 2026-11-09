@@ -136,3 +136,39 @@
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
+
+/* โหมดง่าย: ช่องมองใหญ่ ปุ่มปิดใหญ่ ตัวอักษรชัด (แคนวาส OffScan_E) */
+:host-context([data-mode='easy']) {
+  .top h1 {
+    font-size: 1.5rem;
+  }
+  .round {
+    inline-size: 56px;
+    block-size: 56px;
+  }
+  .sheet {
+    margin-block-start: 16px;
+  }
+}
+
+/* โหมดละเอียด: ช่องมองเล็กลง มีแถบข้อมูลกล้องด้านบน */
+:host-context([data-mode='advanced']) {
+  .camera {
+    gap: 8px;
+    padding-block-start: 8px;
+  }
+  .top {
+    gap: 10px;
+    h1 {
+      font-size: 0.9375rem;
+    }
+  }
+  .round {
+    inline-size: 36px;
+    block-size: 36px;
+  }
+  .aim {
+    margin-block-start: 8px;
+    font-size: 0.8125rem;
+  }
+}

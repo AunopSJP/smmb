@@ -85,7 +85,8 @@
     padding: 20px;
   }
   .section-title {
-    font-size: 1.125rem;
+    font-size: 1.25rem;
+    font-weight: 700;
   }
   .chip {
     font-size: 0.9375rem;
@@ -96,6 +97,17 @@
   }
   .small {
     font-size: 0.9375rem;
+  }
+  .btn {
+    min-block-size: 60px;
+    font-size: 1.0625rem;
+  }
+  .btn.big {
+    min-block-size: 72px;
+    font-size: 1.125rem;
+  }
+  .list .row {
+    padding-block: 14px;
   }
 }
 :root[data-mode='advanced'] {
@@ -129,6 +141,12 @@
 }
 
 /* โหมดเห็นรายละเอียด: .adv-only (รหัส/เวอร์ชัน/ข้อมูลเทคนิค) เห็นเฉพาะโหมดละเอียด · โหมดอื่นซ่อน */
+/* หน้าที่เป็นแดชบอร์ดบนจอคอม: บนมือถือซ่อนส่วนละเอียด ยกเว้นโหมดละเอียด (ตามแคนวาสที่ออกแบบสำหรับมือถือ) */
+@media (max-width: 700px) {
+  :root:not([data-mode='advanced']) .desk-only {
+    display: none !important;
+  }
+}
 :root:not([data-mode='easy']) .easy-only {
   display: none !important;
 }
@@ -1447,9 +1465,9 @@ fieldset {
     background: var(--icon-bg);
   }
   .segmented.chips button[aria-pressed='true'] {
-    background: var(--text);
-    border-color: var(--text);
-    color: var(--surface);
+    background: var(--ib-bg);
+    border-color: var(--brand);
+    color: var(--ib-fg);
   }
 
   // ── ตาราง/รายการ ──

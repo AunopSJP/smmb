@@ -4,7 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { apiError } from '../../core/api';
 import { I18n } from '../../core/i18n';
-import { DELIVERY_LIMIT_PER_HOUR, formatCode, normalizeCode } from '../../core/rider-rules';
+import { CODE_ALPHABET, DELIVERY_LIMIT_PER_HOUR, formatCode, normalizeCode } from '../../core/rider-rules';
 import { screenUrl } from '../../screens/registry';
 import { Brand } from '../../shared/brand';
 import { CodeKeypad } from '../../shared/code-keypad';
@@ -74,10 +74,11 @@ export class RiderApi {
     <form class="stack grow" (submit)="$event.preventDefault(); go()">
       <div>
         <h1>{{ i18n.t({ th: 'พิมพ์รหัสตู้', en: 'Type the mailbox code' }) }}</h1>
-        <p class="muted small">
+        <p class="muted small easy-hide">
           {{ i18n.t({ th: 'ใช้เมื่อสแกน QR ไม่ได้', en: 'Use this if the QR will not scan' }) }}<br />
           {{ i18n.t({ th: 'รหัส 8 ตัว อยู่ใต้ QR หน้าตู้', en: 'The 8-character code is under the QR on the box' }) }}
         </p>
+        <p class="small easy-only">{{ i18n.t({ th: 'รหัส 8 ตัวใต้ QR ที่หน้าตู้ · ไม่ต้องมีบัญชี', en: 'The 8-character code under the QR on the box · no account needed' }) }}</p>
       </div>
       <label class="field">
         <span>{{ i18n.t({ th: 'รหัสตู้', en: 'Mailbox code' }) }}</span>
@@ -100,6 +101,10 @@ export class RiderApi {
       } @else if (offline()) {
         <p class="danger-text small" role="alert">{{ i18n.t({ th: 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ ลองอีกครั้ง', en: 'No connection — try again' }) }}</p>
       }
+      <p class="muted small adv-only mono">
+        POST /public/boxes/by-code · {{ alphabet.length }} {{ i18n.t({ th: 'ตัวอักษร', en: 'characters' }) }} · {{ i18n.t({ th: 'ตั๋ว 10 นาที', en: 'ticket 10 minutes' }) }}<br />
+        {{ i18n.t({ th: 'ผิดซ้ำ → ', en: 'repeated errors → ' }) }}CODE_ATTEMPTS_EXCEEDED / RATE_LIMITED
+      </p>
       @if (display.easyMode()) {
         <app-code-keypad (key)="press($event)" (back)="backspace()" />
       }
@@ -135,6 +140,7 @@ export class RiderCode {
   private readonly router = inject(Router);
   protected readonly code = signal('');
   protected readonly fmt = formatCode;
+  protected readonly alphabet = CODE_ALPHABET;
   protected readonly display = inject(DisplaySettings);
   protected press(c: string): void {
     this.code.set(formatCode(this.code() + c));
@@ -171,31 +177,36 @@ export class RiderCode {
     @if (api.ticket(); as t) {
       <div class="stack grow">
         <section class="card house">
-          <p class="muted small">{{ i18n.t({ th: 'ส่งของถึง', en: 'Delivering to' }) }}</p>
-          <p class="label">{{ i18n.t({ th: 'บ้านเลขที่', en: 'House no.' }) }}</p>
+          <p class="muted small">{{ i18n.t({ th: 'คุณกำลังส่งของที่บ้านเลขที่', en: 'You are delivering to house no.' }) }}</p>
           <p class="no">{{ t.house_no }}</p>
         </section>
-        <section class="card">
+        <section class="card easy-hide">
           <ol class="how">
             <li><strong>{{ i18n.t({ th: 'ใส่ของลงในตู้', en: 'Put the parcel in the box' }) }}</strong></li>
-            <li><strong>{{ i18n.t({ th: 'กดปุ่ม "ส่งของ" ด้านล่าง', en: 'Tap “Delivered” below' }) }}</strong></li>
+            <li><strong>{{ i18n.t({ th: 'กดปุ่ม "วางของในตู้แล้ว" ด้านล่าง', en: 'Tap “Parcel is in the box” below' }) }}</strong></li>
           </ol>
           <p class="muted small">{{ i18n.t({ th: 'เจ้าของบ้านจะได้รับแจ้งเตือนทันที', en: 'The owner is notified right away' }) }}</p>
         </section>
+        <p class="small easy-only">{{ i18n.t({ th: 'วางของลงตู้ก่อน แล้วค่อยกดปุ่ม', en: 'Put the parcel in first, then tap the button' }) }}</p>
+        <p class="muted small adv-only mono">
+          box_status={{ t.box_status }} · {{ i18n.t({ th: 'ตั๋วลงลายเซ็น ใช้ครั้งเดียว 10 นาที', en: 'signed ticket · single use · 10 minutes' }) }}<br />
+          {{ i18n.t({ th: 'ไม่เก็บข้อมูลตัวตนของผู้ส่ง', en: 'the sender’s identity is not stored' }) }}
+        </p>
 
         @if (expired()) {
           <p class="card expired" role="alert">
             {{ i18n.t({ th: 'เปิดหน้านี้ค้างไว้นานเกินไป — สแกน QR หน้าตู้อีกครั้ง', en: 'This page was open too long — scan the QR on the box again' }) }}
             <a [routerLink]="url('R01')">{{ i18n.t({ th: 'หรือพิมพ์รหัสใต้ QR', en: 'or type the code under it' }) }}</a>
+            <span class="mono adv-only"> · TICKET_EXPIRED</span>
           </p>
         }
 
         <div class="stack push-end">
           <button type="button" class="btn big green" [disabled]="busy() || expired()" (click)="deliver()">
             <app-icon name="box" [size]="24" />
-            {{ i18n.t({ th: 'ส่งของ', en: 'Delivered' }) }}
+            {{ i18n.t({ th: 'วางของในตู้แล้ว', en: 'Parcel is in the box' }) }}
           </button>
-          <p class="muted small center">{{ i18n.t({ th: 'เจ้าหน้าที่โปรดสแกนผ่านแอป Smart Mailbox', en: 'Officers: please scan with the Smart Mailbox app' }) }}</p>
+          <p class="muted small center easy-hide">{{ i18n.t({ th: 'เจ้าหน้าที่โปรดสแกนผ่านแอป Smart Mailbox', en: 'Officers: please scan with the Smart Mailbox app' }) }}</p>
           @if (failed()) {
             <p class="danger-text small center" role="alert">{{ i18n.t({ th: 'ส่งไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t send — try again' }) }}</p>
           }
@@ -308,7 +319,8 @@ export class RiderDeliver implements OnInit {
       </div>
       <div class="stack push-end">
         <a class="btn" [routerLink]="url('R01')">{{ i18n.t({ th: 'พิมพ์รหัสใหม่', en: 'Type the code again' }) }}</a>
-        <p class="muted small center">{{ i18n.t({ th: 'สแกนใหม่ได้ด้วยกล้องมือถือ', en: 'You can rescan with your phone camera' }) }}</p>
+        <p class="muted small center easy-hide">{{ i18n.t({ th: 'สแกนใหม่ได้ด้วยกล้องมือถือ', en: 'You can rescan with your phone camera' }) }}</p>
+        <p class="muted small adv-only mono">QR_INVALID · QR_REVOKED · CODE_ATTEMPTS_EXCEEDED · RATE_LIMITED</p>
       </div>
     </div>
   `,
@@ -341,6 +353,7 @@ export class RiderInvalid {
         {{ i18n.t({ th: 'ส่งของผ่านตู้นี้ไม่ได้ตอนนี้', en: 'Deliveries through this box are paused' }) }}<br />
         {{ i18n.t({ th: 'โปรดติดต่อผู้รับโดยตรง', en: 'Please contact the recipient directly' }) }}
       </p>
+      <p class="muted small adv-only mono">BOX_SERVICE_CLOSED · box_status=service_closed</p>
     </div>
   `,
   styles: `
@@ -367,8 +380,9 @@ export class RiderClosed {
         <h1>{{ i18n.t({ th: 'แจ้งส่งของบ่อยเกินไป', en: 'Too many delivery reports' }) }}</h1>
         <p class="muted small">
           {{ i18n.t({ th: 'ตู้นี้แจ้งส่งของได้ไม่เกิน ' + limit + ' ครั้ง/ชั่วโมง', en: 'This box takes at most ' + limit + ' reports an hour' }) }}<br />
-          {{ i18n.t({ th: 'ป้องกันการแจ้งซ้ำจากรูปถ่าย QR', en: 'to stop repeats from photos of the QR' }) }}
+          <span class="easy-hide">{{ i18n.t({ th: 'ป้องกันการแจ้งซ้ำจากรูปถ่าย QR', en: 'to stop repeats from photos of the QR' }) }}</span>
         </p>
+        <p class="muted small adv-only mono">DELIVERY_LIMIT · {{ limit }}/{{ i18n.t({ th: 'ชั่วโมง/ตู้', en: 'hour/box' }) }}</p>
       </div>
       <p class="info-box tip">
         <strong>{{ i18n.t({ th: 'นำของใส่ไว้ในตู้ได้', en: 'Real delivery? Just leave it in the box' }) }}</strong><br />
@@ -405,8 +419,11 @@ export class RiderLimited {
         <h1>{{ i18n.t({ th: 'ส่งสำเร็จ', en: 'Delivered' }) }}</h1>
         <p class="house">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ house() }}</p>
         <p class="small">
-          {{ i18n.t({ th: 'แจ้งเจ้าของบ้านแล้ว ', en: 'Owner notified at ' }) }}{{ at() ?? '' }}<br />
+          {{ i18n.t({ th: 'แจ้งเจ้าของบ้านแล้ว', en: 'Owner notified' }) }}<span class="easy-hide"> {{ at() ?? '' }}</span><br />
           {{ i18n.t({ th: 'ปิดหน้านี้ได้ ขอบคุณที่ใช้บริการ', en: 'You can close this page. Thank you!' }) }}
+        </p>
+        <p class="small adv-only mono">
+          house={{ house() }} · at={{ at() }} · {{ i18n.t({ th: 'ตั๋วใช้แล้ว · ไม่เก็บข้อมูลผู้ส่ง', en: 'ticket used · no sender identity' }) }}
         </p>
       </div>
     </div>
@@ -415,6 +432,9 @@ export class RiderLimited {
     .done {
       background: #157347;
       color: #fff;
+    }
+    .done .adv-only {
+      color: rgb(255 255 255 / 75%);
     }
     .mid {
       margin-block-start: 20vh;

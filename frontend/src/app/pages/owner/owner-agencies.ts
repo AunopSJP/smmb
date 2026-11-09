@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { DisplaySettings } from '../../core/display-settings';
 import { I18n } from '../../core/i18n';
 import { OwnerApi } from '../../core/owner-api';
 import { screenUrl } from '../../screens/registry';
@@ -33,11 +34,19 @@ const km = (a: LatLng, b: LatLng): number => {
   template: `
     <app-page-header [title]="i18n.t({ th: 'หน่วยงานใกล้บ้าน', en: 'Agencies near you' })" [back]="url('H13')" />
     <div class="stack grow">
-      <p class="muted small">{{ i18n.t({ th: 'ดูว่าแต่ละหน่วยงานอยู่ตรงไหน แล้วติดต่อหน่วยงานที่ต้องการ ให้หัวหน้าเพิ่มบ้านคุณเข้าโซน (คุณจะได้รับคำขอให้กดยอมรับ)', en: 'See where each agency is, then contact the one you want. Its head adds your house to a zone and you will get a request to accept.' }) }}</p>
-      @if (!home()) {
-        <p class="info-box small" role="status">{{ i18n.t({ th: 'ปักหมุดบ้านของคุณที่หน้าตั้งค่าตู้ จะเห็นระยะห่างจากแต่ละหน่วยงาน', en: 'Pin your house in the mailbox settings to see the distance to each agency' }) }}</p>
+      <p class="muted small easy-hide">{{ i18n.t({ th: 'ดูว่าแต่ละหน่วยงานอยู่ตรงไหน แล้วติดต่อหน่วยงานที่ต้องการ ให้หัวหน้าเพิ่มบ้านคุณเข้าโซน (คุณจะได้รับคำขอให้กดยอมรับ)', en: 'See where each agency is, then contact the one you want. Its head adds your house to a zone and you will get a request to accept.' }) }}</p>
+      @if (display.easyMode()) {
+        <p class="muted small easy-only">{{ i18n.t({ th: 'แตะที่หน่วยงานเพื่อดูเบอร์โทรและเส้นทาง', en: 'Tap an agency to see its phone number and directions' }) }}</p>
       }
-      <app-agency-map [agencies]="agencies()" [home]="home()" [(selected)]="selected" [height]="320" />
+      @if (!home()) {
+        <p class="info-box small easy-hide" role="status">{{ i18n.t({ th: 'ปักหมุดบ้านของคุณที่หน้าตั้งค่าตู้ จะเห็นระยะห่างจากแต่ละหน่วยงาน', en: 'Pin your house in the mailbox settings to see the distance to each agency' }) }}</p>
+      }
+      @if (!display.easyMode()) {
+        <app-agency-map [agencies]="agencies()" [home]="home()" [(selected)]="selected" [height]="320" />
+      }
+      @if (advanced()) {
+        <p class="muted small adv-only">{{ i18n.t({ th: 'หน่วยงาน ', en: 'Agencies: ' }) }}{{ agencies().length }}{{ i18n.t({ th: ' แห่ง · เรียงตามระยะจากบ้าน', en: ' · sorted by distance from home' }) }}</p>
+      }
       @if (loaded() && !agencies().length) {
         <p class="card muted" role="status">{{ i18n.t({ th: 'ยังไม่มีหน่วยงานที่ปักหมุดไว้', en: 'No agency has put a pin on the map yet' }) }}</p>
       }
@@ -55,12 +64,17 @@ const km = (a: LatLng, b: LatLng): number => {
                   @if (a.item.phone) { <a class="btn small" [href]="'tel:' + a.item.phone">{{ i18n.t({ th: 'โทร', en: 'Call' }) }}</a> }
                   <a class="btn secondary small" [href]="dir(a.item)" target="_blank" rel="noopener">{{ i18n.t({ th: 'นำทาง', en: 'Directions' }) }}</a>
                 </span>
+                @if (advanced()) {
+                  <span class="small block adv-only mono">{{ i18n.t({ th: 'รหัส ', en: 'id ' }) }}{{ a.item.id }} · {{ a.item.type }}</span>
+                  <span class="small block adv-only mono">{{ a.item.lat.toFixed(5) }}, {{ a.item.lng.toFixed(5) }}</span>
+                }
               }
             </span>
             @if (a.km !== null) { <span class="chip">{{ a.km < 10 ? a.km.toFixed(1) : a.km.toFixed(0) }} {{ i18n.t({ th: 'กม.', en: 'km' }) }}</span> }
           </button>
         }
       </div>
+      <p class="muted small easy-hide">{{ i18n.t({ th: 'หมุดคือที่ตั้งหน่วยงาน · หน่วยงานจะดูแลบ้านเมื่อคุณกดยอมรับคำขอเท่านั้น', en: 'The pins are agency locations. An agency only covers your house after you accept its request.' }) }}</p>
     </div>
   `,
   styles: `
@@ -81,11 +95,18 @@ const km = (a: LatLng, b: LatLng): number => {
       min-block-size: 40px;
       padding: 6px 14px;
     }
+    :host-context([data-mode='easy']) .ag {
+      min-block-size: 96px;
+      gap: 16px;
+      strong { font-size: 1.375rem; }
+    }
   `,
 })
 export class OwnerAgencies {
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
+  protected readonly display = inject(DisplaySettings);
+  protected readonly advanced = this.display.advancedMode;
   private readonly http = inject(HttpClient);
   private readonly owner = inject(OwnerApi);
   protected readonly agencies = signal<AgencyMapItem[]>([]);

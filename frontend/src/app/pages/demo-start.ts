@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { ApiConfig } from '../core/api';
 import { DisplaySettings, type TextSize, type Theme } from '../core/display-settings';
 import { I18n, type Lang } from '../core/i18n';
 import { Session } from '../core/session';
@@ -17,19 +18,21 @@ import { Icon, type IconName } from '../shared/icon';
     <main>
       <header>
         <h1>Smart Mailbox</h1>
-        <p class="muted">
+        <p class="muted easy-hide">
           {{ i18n.t({ th: 'เดโมขาย · ใช้ข้อมูลตัวอย่างบน Backend จริง · บอร์ดเชื่อมต่อได้', en: 'Sales demo · sample data on the live backend · hardware can connect' }) }}
         </p>
+        <p class="small easy-only">{{ i18n.t({ th: 'เลือกบทบาทที่จะใช้ตอนนี้ · สลับได้ทุกเมื่อ', en: 'Pick the role to use now · switch anytime' }) }}</p>
       </header>
 
       <h2 class="section-title">{{ i18n.t({ th: 'ดูในฐานะ', en: 'View as' }) }}</h2>
       <nav class="list">
         @for (a of areas; track a.area) {
-          <button class="row" type="button" [disabled]="busy()" (click)="open(a.area)">
+          <button class="row" type="button" [disabled]="busy()" [class.easy-hide]="easyHidden(a.area)" (click)="open(a.area)">
             <span class="icon-bubble"><app-icon [name]="a.icon" [size]="22" /></span>
             <span class="grow">
               <strong>{{ i18n.t(label(a.area)) }}</strong>
-              <span class="muted small block">{{ count(a.area) }} {{ i18n.t({ th: 'หน้า', en: 'screens' }) }}</span>
+              <span class="muted small block easy-hide">{{ count(a.area) }} {{ i18n.t({ th: 'หน้า', en: 'screens' }) }}</span>
+              <span class="muted small block mono adv-only">{{ a.area }} · {{ count(a.area) }}</span>
             </span>
             <app-icon name="chevronRight" [size]="18" />
           </button>
@@ -39,8 +42,26 @@ import { Icon, type IconName } from '../shared/icon';
         <p class="error" role="alert">{{ i18n.t(error()!) }}</p>
       }
 
-      <h2 class="section-title">{{ i18n.t({ th: 'การแสดงผล', en: 'Display' }) }}</h2>
-      <section class="card stack">
+      <section class="card stack adv-only">
+        <h2 class="section-title">{{ i18n.t({ th: 'สภาพแวดล้อม', en: 'Environment' }) }}</h2>
+        <dl class="kv">
+          <dt>origin</dt>
+          <dd class="mono">{{ origin }}</dd>
+          <dt>apiBase</dt>
+          <dd class="mono">{{ api.apiBase() || i18n.t({ th: 'โดเมนเดียวกัน', en: 'same origin' }) }}</dd>
+          <dt>devTools</dt>
+          <dd class="mono">{{ api.devTools() }}</dd>
+          @if (me(); as m) {
+            <dt>user id</dt>
+            <dd class="mono">{{ m.id }}</dd>
+            <dt>roles</dt>
+            <dd class="mono">{{ m.roles.join(', ') }}</dd>
+          }
+        </dl>
+      </section>
+
+      <h2 class="section-title easy-hide">{{ i18n.t({ th: 'การแสดงผล', en: 'Display' }) }}</h2>
+      <section class="card stack easy-hide">
         <label class="field">
           <span>{{ i18n.t({ th: 'ภาษา', en: 'Language' }) }}</span>
           <select [value]="display.lang()" (change)="display.lang.set($any($event.target).value)">
@@ -123,8 +144,12 @@ import { Icon, type IconName } from '../shared/icon';
 export class DemoStart {
   protected readonly i18n = inject(I18n);
   protected readonly display = inject(DisplaySettings);
+  protected readonly api = inject(ApiConfig);
   private readonly session = inject(Session);
   private readonly router = inject(Router);
+  /** ข้อมูลบัญชีที่ล็อกอินอยู่ (แสดงเฉพาะโหมดละเอียด) */
+  protected readonly me = this.session.me;
+  protected readonly origin = location.origin;
   protected readonly busy = signal(false);
   protected readonly error = signal<{ th: string; en: string } | null>(null);
 
@@ -153,6 +178,11 @@ export class DemoStart {
 
   protected label(a: Area) {
     return AREA_LABEL[a];
+  }
+
+  /** โหมดง่าย: เห็น 4 บทบาทหลัก (เจ้าของบ้าน · เจ้าหน้าที่ · หัวหน้า · แอดมิน) */
+  protected easyHidden(a: Area): boolean {
+    return a === 'rider' || a === 'auth';
   }
 
   protected count(a: Area): number {

@@ -14,13 +14,14 @@ import { Icon } from '../../shared/icon';
   imports: [RouterLink, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
+    <p class="muted small adv-only mono">state={{ s.state() }} · push={{ s.showPushBanner() }} · qr={{ s.qrTask() }} · battery={{ s.lowBattery() }} · officer={{ !s.noOfficer() }}</p>
     @if (s.offline()) {
       <!-- H03-c -->
       <section class="alert orange" role="status">
         <h2><app-icon name="alert" [size]="22" />{{ i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' }) }}</h2>
         <p>{{ i18n.t({ th: 'ถึงเวลาตรวจแล้ว แต่ตู้ยังไม่เชื่อมต่อ เจ้าหน้าที่จะตรวจตู้ไม่ได้', en: 'Patrol hours have started but the mailbox is not connected, so officers cannot inspect it' }) }}</p>
         <p class="muted small">{{ i18n.t({ th: 'ติดต่อล่าสุด เมื่อวาน 21:00 · แบตล่าสุด 12%', en: 'Last contact yesterday 21:00 · battery 12%' }) }}</p>
-        <div class="checklist">
+        <div class="checklist easy-hide">
           <strong>{{ i18n.t({ th: 'ลองตรวจสอบเบื้องต้น', en: 'Try these first' }) }}</strong>
           <ol>
             <li>{{ i18n.t({ th: 'แบตตู้อาจหมด — แผงโซลาร์โดนแดดไหม', en: 'Is the box light on? (off = battery empty)' }) }}</li>
@@ -44,7 +45,7 @@ import { Icon } from '../../shared/icon';
       <section class="alert red" role="status">
         <h2>{{ i18n.t({ th: 'QR หน้าตู้ชำรุด', en: 'Front QR is damaged' }) }}</h2>
         <p>{{ i18n.t({ th: 'เปิดตู้ นำ QR สำรองที่เก็บไว้ด้านในมาติดหน้าตู้แทน แล้วกด "ติดแล้ว"', en: 'Open the box, put the backup QR from inside on the front, then tap “Done”' }) }}</p>
-        <ol class="chips-row">
+        <ol class="chips-row easy-hide">
           <li class="chip">1 {{ i18n.t({ th: 'เปิดตู้', en: 'Open' }) }}</li>
           <li class="chip">2 {{ i18n.t({ th: 'ติด QR สำรอง', en: 'Stick backup QR' }) }}</li>
           <li class="chip">3 {{ i18n.t({ th: 'กดติดแล้ว', en: 'Tap done' }) }}</li>

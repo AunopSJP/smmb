@@ -24,13 +24,13 @@ import { firstValueFrom } from 'rxjs';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
-      [caption]="i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + (box()?.house_no ?? '')"
-      [title]="i18n.t({ th: 'ตั้งค่าตู้', en: 'Mailbox settings' })"
+      [caption]="i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + (box()?.house_no ?? '') + (display.advancedMode() && box() ? ' · ' + box()!.id : '')"
+      [title]="i18n.t({ th: 'ตั้งค่า', en: 'Settings' })"
       [bell]="url('H14')"
     />
     <div class="stack grow">
       <!-- 1) เรื่องที่ต้องทำก่อน -->
-      <app-push-status [compact]="true" />
+      <app-push-status class="easy-hide" [compact]="true" />
       @for (r of zoneRequests(); track r.id) {
         <section class="card stack request" role="status">
           <strong>{{ i18n.t({ th: 'หน่วยงานขอดูแลบ้านของคุณ', en: 'An agency asks to cover your house' }) }}</strong>
@@ -58,13 +58,50 @@ import { firstValueFrom } from 'rxjs';
         </div>
       }
 
-      @if (boxes().length) {
-        <a class="btn secondary" [routerLink]="url('A07')" [queryParams]="{ from: 'H13' }">{{ i18n.t({ th: '+ ผูกตู้เพิ่ม', en: '+ Link another mailbox' }) }}</a>
+      @if (display.easyMode()) {
+        <!-- SettingsEasy: เมนูสั้น 4 อย่าง -->
+        <h2 class="group">{{ i18n.t({ th: 'เมนู', en: 'Menu' }) }}</h2>
+        <nav class="list easy-menu">
+          <a class="row" routerLink="/settings/notifications">
+            <span class="icon-bubble"><app-icon name="bell" [size]="22" /></span>
+            <span class="grow">
+              <strong>{{ i18n.t({ th: 'การแจ้งเตือน', en: 'Notifications' }) }}</strong>
+              <span class="chip" [class.ok]="pushOn()" [class.warn]="!pushOn()">{{ pushOn() ? i18n.t({ th: 'เปิดอยู่ในเครื่องนี้', en: 'On for this device' }) : i18n.t({ th: 'ยังไม่ได้เปิด — แตะเพื่อเปิด', en: 'Off — tap to turn on' }) }}</span>
+            </span>
+            <app-icon name="chevronRight" [size]="20" />
+          </a>
+          <a class="row" [routerLink]="url('H13-d')">
+            <span class="icon-bubble"><app-icon name="settings" [size]="22" /></span>
+            <span class="grow">
+              <strong>{{ i18n.t({ th: 'แบบการใช้งาน', en: 'Display mode' }) }}</strong>
+              <span class="muted small block">{{ i18n.t({ th: 'ตอนนี้: ง่าย · ตัวใหญ่', en: 'Now: easy · large text' }) }}</span>
+            </span>
+            <app-icon name="chevronRight" [size]="20" />
+          </a>
+          <a class="row" [routerLink]="url('H13-c')">
+            <span class="icon-bubble"><app-icon name="user" [size]="22" /></span>
+            <span class="grow">
+              <strong>{{ i18n.t({ th: 'ขอให้ช่างมาดู', en: 'Ask a technician' }) }}</strong>
+              <span class="muted small block">{{ i18n.t({ th: 'ตู้เสีย หรืออยากเปลี่ยน Wi-Fi', en: 'Broken box, or want to change Wi-Fi' }) }}</span>
+            </span>
+            <app-icon name="chevronRight" [size]="20" />
+          </a>
+          <a class="row" href="#owner-details">
+            <span class="icon-bubble"><app-icon name="pin" [size]="22" /></span>
+            <span class="grow">
+              <strong>{{ i18n.t({ th: 'ที่อยู่และข้อมูลของฉัน', en: 'My address and details' }) }}</strong>
+              <span class="chip" [class.ok]="addressReady()" [class.warn]="!addressReady()">{{ addressReady() ? i18n.t({ th: 'กรอกแล้ว', en: 'Filled in' }) : i18n.t({ th: 'ยังกรอกไม่ครบ', en: 'Not complete' }) }}</span>
+            </span>
+            <app-icon name="chevronRight" [size]="20" />
+          </a>
+        </nav>
+        <p class="muted small">{{ i18n.t({ th: 'อยากเห็นข้อมูลของตู้มากขึ้น? เปลี่ยนแบบการใช้งานเป็น "ปกติ" หรือ "ละเอียด" ได้ที่ข้อสอง', en: 'Want more detail about the box? Switch the display mode to “normal” or “detailed” in the second item.' }) }}</p>
       }
+
       <!-- 2) ตู้ของฉัน -->
       @if (box(); as b) {
-        <h2 class="group">{{ i18n.t({ th: 'ตู้ของฉัน', en: 'My mailbox' }) }}</h2>
-        <section class="card">
+        <h2 class="group easy-hide">{{ i18n.t({ th: 'ตู้ของฉัน', en: 'My mailbox' }) }}</h2>
+        <section class="card easy-hide">
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'ชื่อตู้', en: 'Name' }) }}</dt>
             <dd>
@@ -108,10 +145,34 @@ import { firstValueFrom } from 'rxjs';
             </dd>
           </dl>
         </section>
+        <a class="btn secondary easy-hide" [routerLink]="url('A07')" [queryParams]="{ from: 'H13' }">{{ i18n.t({ th: '+ ผูกตู้เพิ่ม', en: '+ Link another mailbox' }) }}</a>
+
+        @if (display.advancedMode()) {
+          <!-- SettingsAdv: ข้อมูลทางเทคนิคที่มีใน API จริง (ไม่มีข้อมูลเฟิร์มแวร์/เครื่องที่เข้าสู่ระบบ) -->
+          <h2 class="group">{{ i18n.t({ th: 'ข้อมูลทางเทคนิค', en: 'Technical details' }) }}</h2>
+          <section class="card">
+            <dl class="kv">
+              <dt>{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd class="mono">{{ b.id }}</dd>
+              <dt>{{ i18n.t({ th: 'สถานะ', en: 'State' }) }}</dt><dd class="mono">{{ b.status }}</dd>
+              <dt>{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</dt><dd class="mono">{{ b.last_seen_at ? exact(b.last_seen_at) : '—' }}</dd>
+              <dt>{{ i18n.t({ th: 'แบตเตอรี่', en: 'Battery' }) }}</dt><dd class="mono">{{ b.battery ? b.battery.pct + '%' : '—' }}{{ b.battery ? ' · ' + (b.battery.charging ? i18n.t({ th: 'กำลังชาร์จ', en: 'charging' }) : i18n.t({ th: 'ไม่ได้ชาร์จ', en: 'not charging' })) : '' }}</dd>
+              <dt>{{ i18n.t({ th: 'รายงานแบตเมื่อ', en: 'Battery reported' }) }}</dt><dd class="mono">{{ b.battery?.reported_at ? exact(b.battery!.reported_at!) : '—' }}</dd>
+              <dt>{{ i18n.t({ th: 'คำสั่ง Wi-Fi', en: 'Wi-Fi command' }) }}</dt><dd class="mono">{{ b.wifi_reset.status }} · {{ b.wifi_reset.ap_name }}</dd>
+              @if (b.wifi_reset.requested_at) { <dt>{{ i18n.t({ th: 'สั่งเมื่อ', en: 'Requested' }) }}</dt><dd class="mono">{{ exact(b.wifi_reset.requested_at) }}</dd> }
+              @if (b.wifi_reset.done_at) { <dt>{{ i18n.t({ th: 'ตู้รับคำสั่ง', en: 'Received' }) }}</dt><dd class="mono">{{ exact(b.wifi_reset.done_at) }}</dd> }
+              @if (b.qr_task) {
+                <dt>{{ i18n.t({ th: 'เคส QR', en: 'QR case' }) }}</dt><dd class="mono">{{ b.qr_task.case_id }} · {{ b.qr_task.health }} · {{ exact(b.qr_task.requested_at) }}</dd>
+              }
+              @if (b.open_sos) {
+                <dt>{{ i18n.t({ th: 'SOS ที่เปิดอยู่', en: 'Open SOS' }) }}</dt><dd class="mono">{{ b.open_sos.id }} · {{ b.open_sos.stage }} · {{ b.open_sos.status }}</dd>
+              }
+            </dl>
+          </section>
+        }
 
         <!-- 3) ข้อมูลที่กรอกไว้ (พับเก็บ แตะเพื่อแก้) -->
-        <h2 class="group easy-hide">{{ i18n.t({ th: 'ข้อมูลที่กรอกไว้', en: 'Your details' }) }}</h2>
-        <div class="folds easy-hide">
+        <h2 class="group" id="owner-details">{{ i18n.t({ th: 'ข้อมูลที่กรอกไว้', en: 'Your details' }) }}</h2>
+        <div class="folds">
           <details class="fold" [open]="showAddr()" (toggle)="showAddr.set($any($event.target).open)">
             <summary>
               <span class="icon-bubble"><app-icon name="pin" [size]="20" /></span>
@@ -167,8 +228,8 @@ import { firstValueFrom } from 'rxjs';
       }
 
       <!-- 4) เมนูตั้งค่า -->
-      <h2 class="group">{{ i18n.t({ th: 'ตั้งค่าและบริการ', en: 'Settings and services' }) }}</h2>
-      <nav class="list">
+      <h2 class="group easy-hide">{{ i18n.t({ th: 'ตั้งค่าและบริการ', en: 'Settings and services' }) }}</h2>
+      <nav class="list easy-hide">
         @for (m of menu(); track m.code) {
           @if (m.needsBox && loaded() && !boxes().length) {
             <div class="row disabled" aria-disabled="true">
@@ -193,10 +254,18 @@ import { firstValueFrom } from 'rxjs';
           </a>
           }
         }
+        <a class="row" routerLink="/settings/notifications">
+          <span class="icon-bubble"><app-icon name="bell" [size]="20" /></span>
+          <span class="grow">
+            <strong>{{ i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' }) }}</strong>
+            <span class="muted small block">{{ i18n.t({ th: 'ชนิดที่รับ · ทดสอบ · วิธีแก้ถ้าไม่เด้ง', en: 'What to receive · test · fixes if nothing arrives' }) }}</span>
+          </span>
+          <app-icon name="chevronRight" [size]="18" />
+        </a>
       </nav>
 
       <!-- 5) บัญชี -->
-      <app-account-actions current="owner" from="H13" />
+      <app-account-actions class="easy-hide" current="owner" from="H13" />
 
       <button type="button" class="btn secondary signout" (click)="signout()">
         {{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}
@@ -224,6 +293,22 @@ import { firstValueFrom } from 'rxjs';
       background: var(--surface);
       box-shadow: var(--shadow);
       overflow: hidden;
+    }
+    /* SettingsEasy: แถวใหญ่ กดง่าย */
+    .easy-menu .row {
+      min-block-size: 96px;
+      gap: 16px;
+    }
+    .easy-menu .icon-bubble {
+      inline-size: 54px;
+      block-size: 54px;
+      border-radius: 16px;
+    }
+    .easy-menu strong {
+      font-size: 1.1875rem;
+    }
+    .easy-menu .chip {
+      margin-block-start: 4px;
     }
     .fold + .fold {
       border-block-start: 1px solid var(--line);
@@ -307,6 +392,7 @@ import { firstValueFrom } from 'rxjs';
 export class OwnerSettings {
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
+  protected readonly display = inject(DisplaySettings);
   private readonly api = inject(OwnerApi);
   private readonly session = inject(Session);
   private readonly router = inject(Router);
@@ -338,6 +424,13 @@ export class OwnerSettings {
   protected readonly triedExtras = signal(false);
   /** โหลดรายการตู้เสร็จแล้ว — ยังไม่มีตู้ = ตั้งค่าตู้ไม่ได้ ให้ผูกตู้ก่อน */
   protected readonly loaded = signal(false);
+  /** เครื่องนี้เปิดแจ้งเตือนแล้ว (ใช้ในเมนูโหมดง่าย) */
+  protected readonly pushOn = computed(() => this.session.me()?.push.subscribed === true);
+  /** ที่อยู่กรอกครบหรือยัง (ใช้ป้ายในเมนูโหมดง่าย) */
+  protected readonly addressReady = computed(() => {
+    const a = this.box()?.address;
+    return !!a && !!(a.line && a.subdistrict && a.district && a.province);
+  });
 
   constructor() {
     void this.api.plan().then((p) => this.plan.set(p)).catch(() => undefined);
@@ -355,6 +448,11 @@ export class OwnerSettings {
 
   protected windows(b: BoxDetail): string {
     return b.patrol.windows.map((w) => w.join('–')).join(' · ') || '—';
+  }
+
+  /** เวลาแบบมีวินาที (โหมดละเอียด) */
+  protected exact(iso: string): string {
+    return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
   }
 
   protected startRename(): void {
@@ -527,8 +625,25 @@ export class OwnerSettings {
           </div>
         }
 
+        @if (display.advancedMode()) {
+          <section class="card">
+            <dl class="kv">
+              <dt>{{ i18n.t({ th: 'สถานะคำสั่ง', en: 'Command state' }) }}</dt><dd class="mono">{{ w.status }}</dd>
+              <dt>{{ i18n.t({ th: 'ชื่อ AP', en: 'AP name' }) }}</dt><dd class="mono">{{ w.ap_name }}</dd>
+              <dt>{{ i18n.t({ th: 'สั่งเมื่อ', en: 'Requested' }) }}</dt><dd class="mono">{{ w.requested_at ? exact(w.requested_at) : '—' }}</dd>
+              <dt>{{ i18n.t({ th: 'ตู้รับคำสั่ง', en: 'Received' }) }}</dt><dd class="mono">{{ w.done_at ? exact(w.done_at) : '—' }}</dd>
+            </dl>
+          </section>
+        }
+
         @if (w.status === 'pending' || w.status === 'done') {
-          <ol class="card steps">
+          <!-- OwnWifi_E: 3 ขั้นสั้น -->
+          <ol class="card steps easy-only easy-steps">
+            <li><span class="num">1</span><span><strong>{{ i18n.t({ th: 'ต่อมือถือกับ Wi-Fi', en: 'Join Wi-Fi on your phone' }) }}</strong><small class="mono">{{ w.ap_name }}</small></span></li>
+            <li><span class="num">2</span><span><strong>{{ i18n.t({ th: 'เปิดเว็บ', en: 'Open the page' }) }}</strong><small class="mono">192.168.4.1</small></span></li>
+            <li><span class="num">3</span><span><strong>{{ i18n.t({ th: 'เลือก Wi-Fi บ้าน ใส่รหัส', en: 'Pick home Wi-Fi and enter the password' }) }}</strong></span></li>
+          </ol>
+          <ol class="card steps easy-hide">
             @for (s of steps(w.ap_name); track $index; let i = $index) {
               <li class="now">
                 <span class="num">{{ i + 1 }}</span>
@@ -613,6 +728,17 @@ export class OwnerSettings {
       font-size: 0.8125rem;
       font-weight: 700;
     }
+    .easy-steps {
+      gap: 18px;
+      .num {
+        inline-size: 48px;
+        block-size: 48px;
+        font-size: 1.5rem;
+      }
+      strong {
+        font-size: 1.125rem;
+      }
+    }
     .actions {
       margin-block-start: auto;
       display: flex;
@@ -624,6 +750,7 @@ export class OwnerSettings {
 export class OwnerWifi {
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
+  protected readonly display = inject(DisplaySettings);
   private readonly api = inject(OwnerApi);
   private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(Toast);
@@ -662,6 +789,11 @@ export class OwnerWifi {
   private stopPolling(): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+  }
+
+  /** เวลาแบบมีวินาที (โหมดละเอียด) */
+  protected exact(iso: string): string {
+    return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
   }
 
   protected steps(apName: string): { title: Tr; sub: Tr }[] {
@@ -731,17 +863,52 @@ export class OwnerWifi {
         <span class="check"><app-icon name="check" [size]="30" /></span>
         <h1 class="center">{{ request.status === 'done' ? i18n.t({ th: 'ช่างแก้ไขแล้ว', en: 'Technician visit completed' }) : i18n.t({ th: 'ส่งคำขอแล้ว', en: 'Request sent' }) }}</h1>
         <p class="muted center">{{ request.status === 'open' ? i18n.t({ th: 'ทีมงานจะติดต่อกลับเพื่อนัดหมาย', en: 'The team will contact you to schedule a visit' }) : request.status === 'scheduled' ? i18n.t({ th: 'มีนัดหมายช่างแล้ว', en: 'A technician visit is scheduled' }) : i18n.t({ th: 'ปิดงานเรียบร้อย', en: 'The request is complete' }) }}</p>
+        <div class="st" role="list" [attr.aria-label]="i18n.t({ th: 'สถานะคำขอ', en: 'Request status' })">
+          <span role="listitem" [class.on]="request.status === 'open'">{{ i18n.t({ th: 'รอรับเรื่อง', en: 'Waiting' }) }}</span>
+          <span role="listitem" [class.on]="request.status === 'scheduled'">{{ i18n.t({ th: 'นัดแล้ว', en: 'Scheduled' }) }}</span>
+          <span role="listitem" [class.on]="request.status === 'done'">{{ i18n.t({ th: 'เสร็จ', en: 'Done' }) }}</span>
+        </div>
+        @if (request.scheduled_at) {
+          <section class="card appt">
+            <span class="chip ok">{{ i18n.t({ th: 'นัดแล้ว', en: 'Scheduled' }) }}</span>
+            <strong class="when">{{ request.scheduled_at | date:'d MMM yyyy HH:mm' }}</strong>
+          </section>
+        }
         <section class="card">
-        <dl class="kv">
-          <dt>{{ i18n.t({ th: 'เรื่อง', en: 'Subject' }) }}</dt><dd>{{ reasonLabel(request.reason) }}</dd>
-          @if (request.note) { <dt>{{ i18n.t({ th: 'รายละเอียด', en: 'Details' }) }}</dt><dd>{{ request.note }}</dd> }
-          <dt>{{ i18n.t({ th: 'ส่งเมื่อ', en: 'Sent' }) }}</dt><dd>{{ request.created_at | date:'d MMM yyyy HH:mm' }}</dd>
-          @if (request.scheduled_at) { <dt>{{ i18n.t({ th: 'นัดหมาย', en: 'Appointment' }) }}</dt><dd>{{ request.scheduled_at | date:'d MMM yyyy HH:mm' }}</dd> }
-          @if (request.admin_note) { <dt>{{ i18n.t({ th: 'ข้อความจากทีมงาน', en: 'Team note' }) }}</dt><dd>{{ request.admin_note }}</dd> }
-          <dt>{{ i18n.t({ th: 'เบอร์ติดต่อกลับ', en: 'Call-back number' }) }}</dt><dd>{{ phone }}</dd>
-        </dl>
-      </section>
+          <dl class="kv">
+            <dt>{{ i18n.t({ th: 'เรื่อง', en: 'Subject' }) }}</dt><dd>{{ reasonLabel(request.reason) }}</dd>
+            @if (request.note) { <dt>{{ i18n.t({ th: 'รายละเอียด', en: 'Details' }) }}</dt><dd>{{ request.note }}</dd> }
+            <dt>{{ i18n.t({ th: 'ส่งเมื่อ', en: 'Sent' }) }}</dt><dd>{{ request.created_at | date:'d MMM yyyy HH:mm' }}</dd>
+            @if (request.scheduled_at) { <dt>{{ i18n.t({ th: 'นัดหมาย', en: 'Appointment' }) }}</dt><dd>{{ request.scheduled_at | date:'d MMM yyyy HH:mm' }}</dd> }
+            @if (request.admin_note) { <dt>{{ i18n.t({ th: 'ข้อความจากทีมงาน', en: 'Team note' }) }}</dt><dd>{{ request.admin_note }}</dd> }
+            <dt>{{ i18n.t({ th: 'เบอร์ติดต่อกลับ', en: 'Call-back number' }) }}</dt><dd>{{ phone }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'รหัสคำขอ', en: 'Request ID' }) }}</dt><dd class="adv-only mono">{{ request.id }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd class="adv-only mono">{{ request.box_id }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'สถานะ (ดิบ)', en: 'Raw status' }) }}</dt><dd class="adv-only mono">{{ request.status }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'ส่งเมื่อ (วินาที)', en: 'Sent (seconds)' }) }}</dt><dd class="adv-only mono">{{ exact(request.created_at) }}</dd>
+          </dl>
+        </section>
+        <section class="card easy-hide">
+          <ol class="tl">
+            <li class="done"><span class="d">✓</span><span><b>{{ i18n.t({ th: 'ส่งคำขอแล้ว', en: 'Request sent' }) }}</b><small>{{ exact(request.created_at) }}</small></span></li>
+            <li [class.done]="request.status !== 'open'"><span class="d">{{ request.status !== 'open' ? '✓' : '2' }}</span><span><b>{{ i18n.t({ th: 'ทีมงานรับเรื่องแล้ว', en: 'The team took it' }) }}</b><small>{{ request.status !== 'open' ? i18n.t({ th: 'รับเรื่องแล้ว', en: 'Accepted' }) : i18n.t({ th: 'รอรับเรื่อง', en: 'Waiting' }) }}</small></span></li>
+            <li [class.done]="request.status === 'scheduled' || request.status === 'done'"><span class="d">{{ request.status === 'scheduled' || request.status === 'done' ? '✓' : '3' }}</span><span><b>{{ i18n.t({ th: 'นัดหมาย', en: 'Appointment' }) }}</b><small>{{ request.scheduled_at ? (request.scheduled_at | date:'d MMM yyyy HH:mm') : i18n.t({ th: 'ยังไม่มีนัด', en: 'No appointment yet' }) }}</small></span></li>
+            <li [class.done]="request.status === 'done'"><span class="d">{{ request.status === 'done' ? '✓' : '4' }}</span><span><b>{{ i18n.t({ th: 'ช่างมาที่บ้าน', en: 'Technician visits' }) }}</b><small>{{ request.status === 'done' ? i18n.t({ th: 'เสร็จแล้ว', en: 'Done' }) : i18n.t({ th: 'จะแจ้งเมื่อช่างออกเดินทาง', en: 'We will tell you when they set off' }) }}</small></span></li>
+            <li [class.done]="request.status === 'done'"><span class="d">{{ request.status === 'done' ? '✓' : '5' }}</span><span><b>{{ i18n.t({ th: 'เสร็จงาน', en: 'Work complete' }) }}</b><small>{{ request.status === 'done' ? i18n.t({ th: 'ปิดงานแล้ว', en: 'Closed' }) : i18n.t({ th: 'แล้วให้คุณยืนยันว่าใช้ได้ปกติ', en: 'Then you confirm it works' }) }}</small></span></li>
+          </ol>
+        </section>
       } @else {
+        @if (lastDone(); as done) {
+          <section class="card done-note" role="status">
+            <span class="done-ic"><app-icon name="check" [size]="26" /></span>
+            <div>
+              <strong>{{ i18n.t({ th: 'ช่างทำเสร็จแล้ว', en: 'The technician has finished' }) }}</strong>
+              <span class="muted small block">{{ done.scheduled_at ? (done.scheduled_at | date:'d MMM yyyy HH:mm') : (done.created_at | date:'d MMM yyyy HH:mm') }} · {{ reasonLabel(done.reason) }}</span>
+              @if (done.admin_note) { <span class="small block">{{ done.admin_note }}</span> }
+              <span class="muted small block">{{ i18n.t({ th: 'ถ้ายังมีปัญหา ส่งคำขอใหม่ด้านล่างได้', en: 'If something is still wrong, send a new request below.' }) }}</span>
+            </div>
+          </section>
+        }
         <p class="muted">{{ i18n.t({ th: 'ช่างจะนัดวันเวลามาตั้งค่าหรือซ่อมตู้ให้ ไม่มีค่าใช้จ่ายในช่วงทดลอง', en: 'A technician will book a time to set up or repair the box — free during the trial.' }) }}</p>
         <h2 class="section-title">{{ i18n.t({ th: 'ต้องการให้ช่างทำอะไร', en: 'What do you need?' }) }}</h2>
         <section class="card stack">
@@ -790,6 +957,88 @@ export class OwnerWifi {
     .field select, .field textarea { inline-size: 100%; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text); background: var(--surface); font: inherit; }
     .choice { display: flex; align-items: center; gap: 10px; }
     button:disabled { opacity: 0.6; }
+    .st {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      span {
+        font-size: 0.75rem;
+        padding: 3px 10px;
+        border-radius: 999px;
+        background: var(--icon-bg);
+        color: var(--text-muted);
+      }
+      .on {
+        background: var(--brand);
+        color: #fff;
+        font-weight: 700;
+      }
+    }
+    .appt {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      border: 2px solid var(--brand);
+      box-shadow: none;
+      .when { font-size: 1.3125rem; }
+    }
+    .tl {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      li {
+        display: flex;
+        gap: 12px;
+        position: relative;
+        padding-block-end: 12px;
+        color: var(--text-muted);
+        &:last-child { padding-block-end: 0; }
+        &::before {
+          content: '';
+          position: absolute;
+          inset-inline-start: 11px;
+          inset-block-start: 26px;
+          inset-block-end: 0;
+          inline-size: 2px;
+          background: var(--line);
+        }
+        &:last-child::before { display: none; }
+        &.done { color: var(--text); }
+      }
+      .d {
+        display: grid;
+        place-items: center;
+        flex: none;
+        inline-size: 24px;
+        block-size: 24px;
+        border-radius: 50%;
+        background: var(--icon-bg);
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        font-weight: 700;
+      }
+      .done .d { background: var(--ok); color: #fff; }
+      b, small { display: block; }
+      small { color: var(--text-muted); font-size: 0.8125rem; }
+    }
+    .done-note {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .done-ic {
+      display: grid;
+      place-items: center;
+      flex: none;
+      inline-size: 46px;
+      block-size: 46px;
+      border-radius: 50%;
+      background: var(--ok-bg);
+      color: var(--ok);
+    }
   `,
 })
 export class OwnerTechnician {
@@ -805,6 +1054,8 @@ export class OwnerTechnician {
   protected readonly sending = signal(false);
   protected readonly error = signal(false);
   protected readonly activeRequest = computed(() => this.requests().find((request) => request.status !== 'done') ?? null);
+  /** คำขอล่าสุดที่ปิดงานแล้ว — แสดงสรุปเหนือฟอร์มเมื่อไม่มีคำขอเปิดอยู่ */
+  protected readonly lastDone = computed(() => this.requests().find((request) => request.status === 'done') ?? null);
   protected readonly reasons = [
     { value: 'repair' as const, label: { th: 'ตู้ไม่ออนไลน์ / ต่อ Wi-Fi ไม่ได้', en: 'Mailbox offline / cannot connect to Wi-Fi' } },
     { value: 'wifi_change' as const, label: { th: 'ย้ายตู้ / เปลี่ยน Wi-Fi บ้าน', en: 'Move the box / change home Wi-Fi' } },
@@ -826,6 +1077,10 @@ export class OwnerTechnician {
   protected reasonLabel(reason: TechnicianRequest['reason']): string {
     const choice = this.reasons.find((option) => option.value === reason);
     return choice ? this.i18n.t(choice.label) : reason;
+  }
+
+  protected exact(iso: string): string {
+    return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
   }
 
   protected selectBox(event: Event): void {
@@ -866,40 +1121,40 @@ export class OwnerTechnician {
   imports: [PageHeader, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header
-      [caption]="officer ? i18n.t({ th: 'บัญชี', en: 'Account' }) : i18n.t({ th: 'ตั้งค่า', en: 'Settings' })"
-      [title]="i18n.t({ th: 'การแสดงผล', en: 'Display' })"
-      [back]="url(officer ? 'O13' : 'H13')"
-    />
+    <app-page-header [title]="i18n.t({ th: 'แบบการใช้งาน', en: 'How you use the app' })" [back]="url(officer ? 'O13' : 'H13')" />
     <div class="stack">
-      <section class="card stack">
-        <h2 class="head"><app-icon name="target" [size]="20" />{{ i18n.t({ th: 'ธีม', en: 'Theme' }) }}</h2>
-        <div class="segmented" role="group">
-          @for (o of themes; track o.v) {
-            <button type="button" [attr.aria-pressed]="display.theme() === o.v" (click)="display.theme.set(o.v)">{{ i18n.t(o.label) }}</button>
-          }
-        </div>
-      </section>
+      <p class="muted">{{ i18n.t({ th: 'เลือกแบบที่อ่านง่ายที่สุดสำหรับคุณ เปลี่ยนได้ทุกเมื่อ ข้อมูลและความปลอดภัยเหมือนเดิมทุกแบบ', en: 'Pick the layout that is easiest for you. You can change it anytime — your data and safety stay the same.' }) }}</p>
+
+      <div class="modes" role="radiogroup" [attr.aria-label]="i18n.t({ th: 'โหมดการแสดงผล', en: 'Display mode' })">
+        @for (m of modeOptions; track m.value) {
+          <button type="button" role="radio" class="mode" [class.on]="display.mode() === m.value" [attr.aria-checked]="display.mode() === m.value" (click)="display.setMode(m.value)">
+            <span class="thumb" [attr.data-m]="m.value" aria-hidden="true"><i class="g"></i><i></i><i></i><i></i><i></i><i class="r"></i></span>
+            <span class="mtxt">
+              <strong>{{ i18n.t(m.label) }}@if (display.mode() === m.value) {<span class="tick" aria-hidden="true"><app-icon name="check" [size]="14" /></span>}</strong>
+              <span class="muted small block">{{ i18n.t(m.hint) }}</span>
+            </span>
+          </button>
+        }
+      </div>
 
       <section class="card stack">
-        <h2 class="head"><app-icon name="layers" [size]="20" />{{ i18n.t({ th: 'ภาษา', en: 'Language' }) }}</h2>
-        <div class="segmented" role="group">
-          @for (o of langs; track o.v) {
-            <button type="button" [attr.aria-pressed]="display.lang() === o.v" (click)="display.lang.set(o.v)" [attr.lang]="o.v">{{ o.label }}</button>
-          }
-        </div>
-      </section>
-
-      <section class="card stack">
-        <h2 class="head"><span class="t" aria-hidden="true">T</span>{{ i18n.t({ th: 'ขนาดตัวอักษร', en: 'Text size' }) }}</h2>
+        <span class="lbl">{{ i18n.t({ th: 'ขนาดตัวอักษร', en: 'Text size' }) }}</span>
         <div class="segmented" role="group">
           @for (o of sizes; track o.v) {
             <button type="button" [attr.aria-pressed]="display.textSize() === o.v" (click)="display.textSize.set(o.v)">{{ i18n.t(o.label) }}</button>
           }
         </div>
-        <div class="preview">
-          <p class="muted small">{{ i18n.t({ th: 'ตัวอย่าง', en: 'Preview' }) }}</p>
-          <p class="sample">{{ i18n.t({ th: 'ตู้ออนไลน์ ปกติดี', en: 'Online · all good' }) }}</p>
+        <span class="lbl">{{ i18n.t({ th: 'ธีม', en: 'Theme' }) }}</span>
+        <div class="segmented" role="group">
+          @for (o of themes; track o.v) {
+            <button type="button" [attr.aria-pressed]="display.theme() === o.v" (click)="display.theme.set(o.v)">{{ i18n.t(o.label) }}</button>
+          }
+        </div>
+        <span class="lbl">{{ i18n.t({ th: 'ภาษา', en: 'Language' }) }}</span>
+        <div class="segmented" role="group">
+          @for (o of langs; track o.v) {
+            <button type="button" [attr.aria-pressed]="display.lang() === o.v" (click)="display.lang.set(o.v)" [attr.lang]="o.v">{{ o.label }}</button>
+          }
         </div>
       </section>
 
@@ -916,19 +1171,6 @@ export class OwnerTechnician {
           <p class="muted small">{{ i18n.t({ th: 'ตอนนี้กลางคืน จึงใช้ธีมมืดอยู่', en: 'It’s night now, so the dark theme is on' }) }}</p>
         }
       }
-
-      <fieldset class="card stack modes">
-        <legend class="head"><strong>{{ i18n.t({ th: 'โหมดการแสดงผล', en: 'Display mode' }) }}</strong></legend>
-        @for (m of modeOptions; track m.value) {
-          <label class="toggle">
-            <span>
-              <strong>{{ i18n.t(m.label) }}</strong>
-              <span class="muted small block">{{ i18n.t(m.hint) }}</span>
-            </span>
-            <input type="radio" name="ui-mode" [value]="m.value" [checked]="display.mode() === m.value" (change)="display.setMode(m.value)" />
-          </label>
-        }
-      </fieldset>
 
       <section class="card stack">
         <h2 class="head"><app-icon name="bell" [size]="20" />{{ i18n.t({ th: 'แจ้งเตือนที่ต้องการรับ', en: 'Notifications to receive' }) }}</h2>
@@ -951,6 +1193,93 @@ export class OwnerTechnician {
       align-items: center;
       gap: 8px;
       font-size: 1rem;
+    }
+    .lbl {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+    }
+    .modes {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .mode {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      inline-size: 100%;
+      padding: 14px;
+      border: 2px solid transparent;
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      color: inherit;
+      font: inherit;
+      text-align: start;
+      cursor: pointer;
+    }
+    .mode.on {
+      border-color: var(--brand);
+    }
+    .mtxt {
+      flex: 1;
+      min-inline-size: 0;
+    }
+    .mtxt strong {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1.0625rem;
+    }
+    .tick {
+      display: inline-grid;
+      place-items: center;
+      inline-size: 22px;
+      block-size: 22px;
+      border-radius: 50%;
+      background: var(--brand);
+      color: #fff;
+    }
+    .thumb {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex: none;
+      inline-size: 64px;
+      padding: 8px;
+      border-radius: 12px;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      i {
+        display: block;
+        block-size: 8px;
+        border-radius: 3px;
+        background: #cdd8df;
+      }
+      i.g {
+        block-size: 16px;
+        background: #bfe6cf;
+      }
+      i.r {
+        margin-block-start: auto;
+        background: #d9686b;
+        block-size: 8px;
+      }
+    }
+    /* ง่าย: ก้อนใหญ่น้อยชิ้น · ปกติ: กลาง · ละเอียด: บางหลายแถว */
+    .thumb[data-m='easy'] {
+      i:nth-child(n + 4):not(.r) {
+        display: none;
+      }
+      i.r {
+        block-size: 20px;
+      }
+    }
+    .thumb[data-m='default'] i:nth-child(5):not(.r) {
+      display: none;
+    }
+    .thumb[data-m='advanced'] i:not(.g):not(.r) {
+      block-size: 5px;
     }
     .t {
       inline-size: 20px;

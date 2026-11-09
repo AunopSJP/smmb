@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, si
 import { RouterLink } from '@angular/router';
 import { AdminApi, type AdminLog, type AdminLogType, type BoxConfig } from '../../core/admin-api';
 import { I18n, type Tr } from '../../core/i18n';
+import { Session } from '../../core/session';
 
 type BoxConfigDefaults = Omit<BoxConfig, 'windows'>;
 import { downloadText, toCsv } from '../../core/csv';
@@ -30,7 +31,7 @@ type NumKey = keyof typeof LIMITS;
   imports: [PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'ตั้งค่าตู้', en: 'Mailbox config' })" [back]="url('D01')" />
+    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'ตั้งค่าตู้', en: 'Mailbox config' })" [back]="url('D16')" />
     <form class="stack grow" (submit)="$event.preventDefault(); save()">
       <section class="panel">
         <h2>{{ i18n.t({ th: 'การรายงานของตู้', en: 'Box reporting' }) }}</h2>
@@ -41,7 +42,7 @@ type NumKey = keyof typeof LIMITS;
         </label>
       </section>
 
-      <section class="panel">
+      <section class="panel easy-hide">
         <h2>{{ i18n.t({ th: 'การสแกน QR ประจำตัวเจ้าหน้าที่', en: 'Officer badge scanning' }) }}</h2>
       @for (f of numbers; track f.key) {
         <label class="field" [class.invalid]="!valid(f.key)">
@@ -69,10 +70,25 @@ type NumKey = keyof typeof LIMITS;
       </section>
 
       <p class="info-box muted">{{ i18n.t({ th: 'ช่วงเวลาตรวจไม่ได้ตั้งที่นี่ — มาจากโซนของแต่ละหน่วยงาน · ตั้งค่าเฉพาะตู้ทำได้ที่หน้ารายละเอียดตู้ แท็บ "ตั้งค่า"', en: 'Patrol hours are not set here — they come from each agency’s zones · per-box overrides are on the box page, “Settings” tab' }) }}</p>
+      <p class="muted small easy-only">{{ i18n.t({ th: 'โหมดง่ายแสดงเฉพาะเวลารายงานกับไฟส่องกล้อง — ค่าอื่นใช้ค่าแนะนำอยู่แล้ว', en: 'Easy mode shows only the report time and camera light — other values already use the recommended defaults' }) }}</p>
+
+      <section class="card adv-only stack">
+        <strong>{{ i18n.t({ th: 'ค่าที่เซิร์ฟเวอร์เก็บ (ละเอียด)', en: 'Server values (technical)' }) }}</strong>
+        <dl class="kv small">
+          <dt>config_ver</dt><dd class="mono">{{ ver() !== null ? 'v' + ver() : '—' }}</dd>
+          <dt>report_at</dt><dd class="mono">{{ form().report_at }}</dd>
+          <dt>scan_timeout_s</dt><dd class="mono">{{ form().scan_timeout_s }}</dd>
+          <dt>max_attempts</dt><dd class="mono">{{ form().max_attempts }}</dd>
+          <dt>longpoll_wait_s</dt><dd class="mono">{{ form().longpoll_wait_s }}</dd>
+          <dt>flash_when_dark</dt><dd class="mono">{{ form().flash_when_dark }}</dd>
+          <dt>job_lifetime_s</dt><dd class="mono">{{ jobLife }}</dd>
+        </dl>
+        <p class="muted small">{{ i18n.t({ th: 'ตู้ดึงค่าใหม่ตอน boot และรายงานรายวัน · ช่วงที่รับได้คือค่าที่แสดงใต้ช่องกรอก', en: 'Boxes pick the values up at boot and on the daily report · allowed ranges are shown under each field' }) }}</p>
+      </section>
 
       <div class="savebar">
         <span class="muted small">
-          {{ i18n.t({ th: 'รุ่นปัจจุบัน v', en: 'Current version v' }) }}{{ ver() }} · {{ i18n.t({ th: 'ตู้ดึงค่าใหม่ภายใน 1 วัน', en: 'boxes pick it up within 1 day' }) }}
+          <span class="easy-hide">{{ i18n.t({ th: 'รุ่นปัจจุบัน v', en: 'Current version v' }) }}{{ ver() }} · {{ i18n.t({ th: 'ตู้ดึงค่าใหม่ภายใน 1 วัน', en: 'boxes pick it up within 1 day' }) }}</span>
           @if (changed()) {
             · <strong class="warn-text">{{ i18n.t({ th: 'มีการแก้ที่ยังไม่บันทึก', en: 'unsaved changes' }) }}</strong>
           }
@@ -209,7 +225,7 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
       [bell]="url('D12')"
     />
     <div class="stack">
-      <div class="toolbar">
+      <div class="toolbar easy-hide">
         <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'ประเภท', en: 'Type' })">
           @for (t of types; track t) {
             <button type="button" [attr.aria-pressed]="picked().has(t)" (click)="toggle(t)">{{ i18n.t(meta[t].label) }}</button>
@@ -224,7 +240,8 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
             <span><span class="chip" [class.warn]="m.tone === 'warn'" [class.danger]="m.tone === 'danger' || l.fail">{{ i18n.t(m.label) }}</span></span>
             <span class="grow">
               <strong>{{ i18n.t(title(l)) }}</strong>
-              <span class="muted small block">{{ i18n.t(sub(l)) }}</span>
+              <span class="muted small block easy-hide">{{ i18n.t(sub(l)) }}</span>
+              <span class="muted small block mono adv-only">#{{ l.id }} · {{ l.type }} · box_id={{ l.box_id ?? '—' }} · created_at={{ l.created_at }} · method={{ l.method ?? '—' }} · result={{ l.result ?? '—' }} · details={{ l.details ?? '—' }} · fail={{ l.fail }}</span>
             </span>
             <span class="res">
               @if (l.fail) {
@@ -240,7 +257,7 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
         <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดประวัติไม่สำเร็จ · ลองอีกครั้ง', en: 'Could not load logs · try again' }) }}</p>
         <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button>
       }
-      <p class="muted small">{{ i18n.t({ th: 'บันทึกทุกการสแกน/พิมพ์รหัส แม้ไม่ผ่าน · ลบหรือแก้ไม่ได้', en: 'Every scan or typed code is logged, even failures · cannot be edited' }) }}</p>
+      <p class="muted small easy-hide">{{ i18n.t({ th: 'บันทึกทุกการสแกน/พิมพ์รหัส แม้ไม่ผ่าน · ลบหรือแก้ไม่ได้', en: 'Every scan or typed code is logged, even failures · cannot be edited' }) }}</p>
     </div>
   `,
   styles: `
@@ -379,13 +396,17 @@ export class AdminLogs {
   imports: [PageHeader, NotificationList],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'การแจ้งเตือน', en: 'Notifications' })" [back]="url('D01')" />
+    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'การแจ้งเตือน', en: 'Notifications' })" [back]="url('D16')" />
     <div class="stack">
+      <p class="muted small easy-only">{{ i18n.t({ th: 'แตะรายการเพื่อเปิดดูรายละเอียด · รายการสำคัญจะแจ้งเตือนเอง', en: 'Tap an item to open it · important items notify you automatically' }) }}</p>
       <app-notification-list />
+      <p class="muted small adv-only mono">push subscribed: {{ pushOn() }}</p>
     </div>
   `,
 })
 export class AdminNotifications {
   protected readonly i18n = inject(I18n);
+  private readonly session = inject(Session);
   protected readonly url = screenUrl;
+  protected readonly pushOn = computed(() => this.session.me()?.push.subscribed ?? false);
 }

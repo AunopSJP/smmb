@@ -10,6 +10,7 @@ import { AuthDemo, normalizePhone, PASSWORD_MIN, type SignupForm } from '../../c
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
+import { PushStatus } from '../../shared/push-status';
 import { Steps, type Step } from '../../shared/steps';
 import { SIGNUP_ERROR } from '../auth/auth-owner';
 import { ContactCard } from '../../shared/contact-card';
@@ -47,7 +48,7 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
       <label class="field" [class.invalid]="tried() && !phoneOk()">
         <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
         <input type="tel" inputmode="tel" autocomplete="tel" [value]="f().phone" (input)="set('phone', $any($event.target).value)" />
-        <small>{{ i18n.t({ th: 'ใช้เข้าสู่ระบบ · ผู้ดูแลระบบใช้ติดต่อตอนตรวจคำขอ', en: 'Used to sign in · the admin may call while reviewing' }) }}</small>
+        <small class="easy-hide">{{ i18n.t({ th: 'ใช้เข้าสู่ระบบ · ผู้ดูแลระบบใช้ติดต่อตอนตรวจคำขอ', en: 'Used to sign in · the admin may call while reviewing' }) }}</small>
       </label>
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
       </section>
@@ -71,7 +72,7 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
       <label class="field" [class.invalid]="tried() && !contactOk()">
         <span>{{ i18n.t({ th: 'ช่องทางติดต่อหน่วยงาน', en: 'Agency contact' }) }}</span>
         <input maxlength="200" [placeholder]="i18n.t({ th: 'เช่น สถานี 02-111-2222', en: 'e.g. Station 02-111-2222' })" [value]="f().contact" (input)="set('contact', $any($event.target).value)" />
-        <small>{{ i18n.t({ th: 'แสดงให้คนที่ขอเข้าหน่วยงานเห็น — ใส่เฉพาะที่ยินดีเปิดเผย', en: 'Shown to people asking to join — only what you are happy to share' }) }}</small>
+        <small class="easy-hide">{{ i18n.t({ th: 'แสดงให้คนที่ขอเข้าหน่วยงานเห็น — ใส่เฉพาะที่ยินดีเปิดเผย', en: 'Shown to people asking to join — only what you are happy to share' }) }}</small>
       </label>
       <label class="field" [class.invalid]="tried() && !f().agency_address.trim()">
         <span>{{ i18n.t({ th: 'ที่ตั้งหน่วยงาน', en: 'Agency address' }) }}</span>
@@ -80,7 +81,7 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
       <label class="field">
         <span>{{ i18n.t({ th: 'เลขทะเบียนหน่วยงาน / ใบอนุญาต (ไม่บังคับ)', en: 'Registration / licence no. (optional)' }) }}</span>
         <input maxlength="100" autocomplete="off" [value]="f().registration_no" (input)="set('registration_no', $any($event.target).value)" />
-        <small>{{ i18n.t({ th: 'ผู้ดูแลระบบใช้ประกอบการอนุมัติ ไม่แสดงให้คนอื่นเห็น', en: 'Used by the admin when approving · not shown to others' }) }}</small>
+        <small class="easy-hide">{{ i18n.t({ th: 'ผู้ดูแลระบบใช้ประกอบการอนุมัติ ไม่แสดงให้คนอื่นเห็น', en: 'Used by the admin when approving · not shown to others' }) }}</small>
       </label>
       </section>
       <section class="form-section">
@@ -226,7 +227,7 @@ export class HeadSignup {
 
 @Component({
   selector: 'app-head-pending',
-  imports: [ContactCard],
+  imports: [ContactCard, PushStatus],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack grow">
@@ -252,7 +253,7 @@ export class HeadSignup {
           <h1>{{ i18n.t({ th: 'รอผู้ดูแลระบบตรวจ', en: 'Waiting for the admin' }) }}</h1>
           <p class="muted small">{{ i18n.t({ th: 'ส่งคำขอแล้ว ปกติใช้ไม่เกิน 1 วันทำการ', en: 'Request sent — usually within 1 working day' }) }}</p>
         </div>
-        <section class="card">
+        <section class="card easy-hide">
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'หน่วยงาน', en: 'Agency' }) }}</dt><dd>{{ req()?.name }}</dd>
             @if (req(); as r) {
@@ -260,6 +261,19 @@ export class HeadSignup {
             }
           </dl>
         </section>
+        <!-- โหมดละเอียด: สถานะจริงจาก /agency + /me (ตาม AuthPending_A) -->
+        <section class="card adv-only">
+          <dl class="kv">
+            <dt>{{ i18n.t({ th: 'สถานะคำขอ', en: 'Request status' }) }}</dt><dd class="mono">{{ req()?.status ?? 'pending' }}</dd>
+            <dt>{{ i18n.t({ th: 'รหัสหน่วยงาน', en: 'Agency ID' }) }}</dt><dd class="mono">{{ req()?.id ?? '—' }}</dd>
+            <dt>{{ i18n.t({ th: 'สถานะบัญชี', en: 'Account status' }) }}</dt><dd class="mono">{{ realSession.me()?.agency_status ?? '—' }}</dd>
+            <dt>Web Push</dt><dd class="mono">{{ realSession.me()?.push?.subscribed ? i18n.t({ th: 'เปิดแล้ว', en: 'subscribed' }) : i18n.t({ th: 'ยังไม่เปิด', en: 'not subscribed' }) }}</dd>
+          </dl>
+          <p class="muted small">{{ i18n.t({ th: 'ระหว่างรอ หัวข้อของเจ้าหน้าที่จะตอบ 403 ACCOUNT_PENDING จนกว่าจะอนุมัติ', en: 'Until approved, officer features answer 403 ACCOUNT_PENDING' }) }}</p>
+        </section>
+        <div class="easy-only">
+          <app-push-status [compact]="true" />
+        </div>
         <div class="stack push-end">
           <button type="button" class="btn" (click)="check()">{{ i18n.t({ th: 'ตรวจสถานะอีกครั้ง', en: 'Check again' }) }}</button>
           <button type="button" class="btn secondary" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
@@ -314,7 +328,7 @@ export class HeadPending implements OnInit {
     }
   }
 
-  private readonly realSession = inject(Session);
+  protected readonly realSession = inject(Session);
   /** ออกจากระบบจริง (ลบ session ที่ server + cookie) */
   protected signout(): void {
     void this.realSession.signout().then(() => this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true }));
@@ -361,8 +375,16 @@ const NEXT_STEPS: Step[] = [
           <button type="button" class="btn secondary" (click)="editContact()">{{ i18n.t({ th: 'แก้ไข', en: 'Edit' }) }}</button>
         }
       </section>
-      <h2 class="section-title">{{ i18n.t({ th: 'ต่อไปต้องทำ', en: 'Next steps' }) }}</h2>
-      <app-steps [steps]="steps" [current]="0" />
+      <h2 class="section-title easy-hide">{{ i18n.t({ th: 'ต่อไปต้องทำ', en: 'Next steps' }) }}</h2>
+      <div class="easy-hide"><app-steps [steps]="steps" [current]="0" /></div>
+      <section class="card adv-only">
+        <dl class="kv">
+          <dt>{{ i18n.t({ th: 'รหัสหน่วยงาน', en: 'Agency ID' }) }}</dt><dd class="mono">{{ agencyId() || '—' }}</dd>
+          <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt><dd class="mono">{{ api.agency()?.status ?? '—' }}</dd>
+          <dt>{{ i18n.t({ th: 'รหัสกลุ่ม (ดิบ)', en: 'Raw group code' }) }}</dt><dd class="mono">{{ api.agency()?.group_code ?? '—' }}</dd>
+          <dt>{{ i18n.t({ th: 'ช่องทางติดต่อ', en: 'Contact' }) }}</dt><dd>{{ api.agency()?.contact ?? '—' }}</dd>
+        </dl>
+      </section>
     </div>
   `,
   styles: `
@@ -435,6 +457,7 @@ export class HeadApproved implements OnInit {
   /** GET /agency (group_code) — มีหลังแอดมินอนุมัติ */
   protected readonly code = computed(() => showGroupCode(this.api.agency()?.group_code ?? null));
   protected readonly agency = computed(() => this.api.agency()?.name ?? '');
+  protected readonly agencyId = computed(() => this.api.agency()?.id ?? '');
 
   private text(): string {
     // ไม่ฮาร์ดโค้ดโดเมน — ใช้ origin ที่เปิดอยู่

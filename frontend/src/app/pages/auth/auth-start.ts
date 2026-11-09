@@ -32,10 +32,11 @@ import { PasswordField } from './auth-parts';
           {{ i18n.t({ th: 'กดปุ่มด้านล่างเพื่อเปิดใน Safari / Chrome', en: 'Tap below to open it in Safari / Chrome' }) }}
         </p>
       </div>
-      <p class="info-box">
+      <p class="info-box easy-hide">
         <strong>{{ i18n.t({ th: 'ถ้าปุ่มไม่ทำงาน', en: 'If the button does nothing' }) }}</strong><br />
         <span class="muted small">{{ i18n.t({ th: 'กดจุด 3 จุดมุมขวาบน แล้วเลือก "เปิดในเบราว์เซอร์"', en: 'Tap the ⋮ menu at the top right and choose “Open in browser”' }) }}</span>
       </p>
+      <p class="muted small adv-only mono">{{ external }}</p>
       <div class="stack push-end">
         <!-- LINE เปิดลิงก์ที่มี openExternalBrowser=1 ในเบราว์เซอร์หลักของเครื่อง -->
         <a class="btn" [href]="external">{{ i18n.t({ th: 'เปิดใน Safari / Chrome', en: 'Open in Safari / Chrome' }) }}</a>
@@ -111,14 +112,16 @@ export class AuthLine {
             <rect x="170" y="14" width="40" height="40" rx="10" class="ghost" />
           </svg></span></li>
       </ol>
-      <p class="info-box">
+      <p class="info-box easy-hide">
         <strong>{{ i18n.t({ th: 'ข้อควรรู้ (iPhone)', en: 'Good to know (iPhone)' }) }}</strong><br />
         <span class="small">{{ i18n.t({ th: 'ต้องเปิดเว็บนี้ด้วย Safari เท่านั้น (Chrome บน iPhone เพิ่มลงหน้าจอหลักแบบรับแจ้งเตือนไม่ได้) · ต้องใช้ iOS 16.4 ขึ้นไป · หลังติดตั้ง ให้เปิดจากไอคอนแล้วเข้าสู่ระบบใหม่อีกครั้ง เพราะแอปที่ติดตั้งแยกจาก Safari', en: 'Use Safari only (Chrome on iPhone cannot install it with notifications) · needs iOS 16.4 or newer · after installing, open it from the icon and sign in again — the installed app is separate from Safari' }) }}</span>
       </p>
-      <p class="info-box android">
+      <p class="info-box android easy-hide">
         <strong>{{ i18n.t({ th: 'Android ไม่ต้องติดตั้งก็รับแจ้งเตือนได้', en: 'Android: no install needed for notifications' }) }}</strong><br />
         <span class="small">{{ i18n.t({ th: 'ใช้ Chrome แล้วกด "อนุญาต" ตอนเปิดแจ้งเตือน · ถ้าต้องการไอคอนบนหน้าจอ: เมนู ⋮ → ติดตั้งแอป', en: 'Use Chrome and tap “Allow” when asked · for a home-screen icon: ⋮ menu → Install app' }) }}</span>
       </p>
+      <p class="small easy-only">{{ i18n.t({ th: 'ใช้ Safari เท่านั้น · หลังติดตั้ง เปิดจากไอคอนแล้วเข้าสู่ระบบใหม่', en: 'Safari only · after installing, open from the icon and sign in again' }) }}</p>
+      <p class="muted small adv-only mono">{{ ua }}</p>
       <a class="btn push-end" [routerLink]="url('A03')">{{ i18n.t({ th: 'ทำแล้ว ไปต่อ', en: 'Done, continue' }) }}</a>
     </div>
   `,
@@ -204,6 +207,8 @@ export class AuthLine {
 export class AuthInstall {
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
+  /** ข้อมูลเครื่อง (แสดงเฉพาะโหมดละเอียด) */
+  protected readonly ua = navigator.userAgent;
 }
 
 // ── A03 · เปิดแจ้งเตือน ─────────────────────────────────────
@@ -223,9 +228,10 @@ export class AuthInstall {
         </p>
       </div>
       <p class="info-box">
-        <span class="muted small">{{ i18n.t({ th: 'อนุญาตบนเครื่องนี้ก่อน · ระบบจะผูกกับบัญชีหลังเข้าสู่ระบบ', en: 'Allow on this device · the subscription is linked to your account after sign-in' }) }}</span><br />
+        <span class="muted small easy-hide">{{ i18n.t({ th: 'อนุญาตบนเครื่องนี้ก่อน · ระบบจะผูกกับบัญชีหลังเข้าสู่ระบบ', en: 'Allow on this device · the subscription is linked to your account after sign-in' }) }}</span><br />
         <strong class="danger-text small">{{ i18n.t({ th: 'เจ้าหน้าที่ต้องเปิดไว้ จึงจะได้รับ SOS', en: 'Officers must turn this on or they will miss SOS alerts' }) }}</strong>
       </p>
+      <p class="muted small adv-only mono">permission={{ permission }} · notify={{ i18n.t({ th: 'ผูกกับบัญชีหลังล็อกอิน', en: 'linked after sign-in' }) }}</p>
       <div class="stack push-end">
         <button type="button" class="btn" (click)="allow()">{{ i18n.t({ th: 'อนุญาตแจ้งเตือน', en: 'Allow notifications' }) }}</button>
         <a class="btn secondary" [routerLink]="url('A04')">{{ i18n.t({ th: 'ข้ามไปก่อน', en: 'Skip for now' }) }}</a>
@@ -247,6 +253,8 @@ export class AuthNotifications {
   private readonly router = inject(Router);
   private readonly push = inject(PushNotifications);
   protected readonly url = screenUrl;
+  /** สถานะสิทธิ์แจ้งเตือนของเบราว์เซอร์ (แสดงเฉพาะโหมดละเอียด) */
+  protected readonly permission = typeof Notification === 'undefined' ? 'unsupported' : Notification.permission;
 
   /**
    * ต้นแบบ: แค่แสดงผล · ของจริง: ขอสิทธิ์เบราว์เซอร์ตอนนี้ แล้วส่ง subscription ให้ server หลังล็อกอิน
@@ -291,7 +299,7 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
     @if (choose(); as roles) {
       <div class="stack">
         <h1>{{ i18n.t({ th: 'เข้าใช้งานเป็น', en: 'Continue as' }) }}</h1>
-        <p class="muted small">{{ i18n.t({ th: 'บัญชีนี้มีหลายบทบาท — เลือกที่จะใช้ตอนนี้', en: 'This account has several roles — pick one for now' }) }}</p>
+        <p class="muted small easy-hide">{{ i18n.t({ th: 'บัญชีนี้มีหลายบทบาท — เลือกที่จะใช้ตอนนี้', en: 'This account has several roles — pick one for now' }) }}</p>
         <nav class="list">
           @for (r of roles; track r) {
             <button type="button" class="row pick" (click)="enter(r)">
@@ -308,10 +316,17 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
         @if (asRole(); as r) {
           <p class="info-box">{{ i18n.t(r) }}</p>
         }
+        <p class="muted small adv-only mono">
+          POST /auth/signin · cookie sid (HttpOnly) · {{ i18n.t({ th: 'ล็อกบัญชี 5 ครั้ง/15 นาที', en: 'lockout 5 tries/15 minutes' }) }}<br />
+          INVALID_CREDENTIALS · ACCOUNT_LOCKED · RATE_LIMITED · PASSWORD_CHANGE_REQUIRED · TERMS_UPDATE_REQUIRED
+        </p>
         @if (error(); as e) {
           <p class="card err" role="alert">
             <strong>{{ i18n.t(e.title) }}</strong><br />
             <span class="small">{{ i18n.t(e.sub) }}</span>
+            @if (errorInfo()) {
+              <br /><span class="small mono adv-only">{{ errorInfo() }}</span>
+            }
           </p>
         }
         <label class="field">
@@ -319,9 +334,10 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
           <input type="tel" inputmode="tel" autocomplete="tel" [value]="phone()" (input)="phone.set($any($event.target).value)" />
         </label>
         <app-password-field [(value)]="password" [invalid]="!!error()" />
-        <p class="small">
+        <p class="small easy-hide">
           <span class="danger-text">{{ i18n.t({ th: 'ลืมรหัสผ่าน? ', en: 'Forgot it? ' }) }}</span>
           {{ i18n.t({ th: 'เจ้าหน้าที่ขอให้หัวหน้ารีเซ็ต · ผู้ใช้อื่นติดต่อผู้ดูแลระบบ: ', en: 'Officers ask their head · everyone else contacts the admin: ' }) }}<strong>{{ support() ?? '—' }}</strong>
+          <span class="mono adv-only"> · GET /support</span>
         </p>
 
         <div class="stack push-end">
@@ -383,6 +399,8 @@ export class AuthSignin implements OnInit {
   protected readonly password = signal('');
   protected readonly busy = signal(false);
   protected readonly error = signal<{ title: Tr; sub: Tr } | null>(null);
+  /** รหัส/สถานะจริงของ error — แสดงเฉพาะโหมดละเอียด (กฎข้อ 10: ผู้ใช้ทั่วไปเห็นข้อความ ไม่ใช่ code) */
+  protected readonly errorInfo = signal<string | null>(null);
   protected readonly choose = signal<DemoAccountRole[] | null>(null);
 
   protected ready(): boolean {
@@ -404,9 +422,11 @@ export class AuthSignin implements OnInit {
       // ล้างรหัสเฉพาะเมื่อรหัสผิดจริง — ถูกจำกัด/เน็ตหลุด ไม่ต้องให้พิมพ์ใหม่บนมือถือ
       if (r.code === 'INVALID_CREDENTIALS' || r.code === 'ACCOUNT_LOCKED') this.password.set('');
       this.error.set(this.errorText(r.code, r.status));
+      this.errorInfo.set(r.code ? `${r.code} · HTTP ${r.status}` : `HTTP ${r.status}`);
       return;
     }
     this.error.set(null);
+    this.errorInfo.set(null);
     const me = r.me;
     // ถูกรีเซ็ตรหัส → ต้องเปลี่ยนก่อน (403 PASSWORD_CHANGE_REQUIRED ทุก route)
     if (me.must_change_password) {
@@ -476,13 +496,16 @@ export class AuthSignin implements OnInit {
           <span class="icon-bubble"><app-icon [name]="c.icon" [size]="20" /></span>
           <span class="grow">
             <strong>{{ i18n.t(c.title) }}</strong>
-            <span class="muted small block">{{ i18n.t(c.sub) }}</span>
+            <span class="muted small block easy-hide">{{ i18n.t(c.sub) }}</span>
           </span>
           <app-icon name="chevronRight" [size]="18" />
         </a>
       }
-      <p class="center small push-end">
+      <p class="center small push-end easy-hide">
         {{ i18n.t({ th: 'มีบัญชีแล้ว? ', en: 'Have an account? ' }) }}<a class="link" [routerLink]="url('A04')">{{ i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</a>
+      </p>
+      <p class="muted small adv-only mono">
+        A06 POST /auth/signup/owner · A10 POST /auth/signup/officer · L01 POST /auth/signup/agency
       </p>
     </div>
   `,

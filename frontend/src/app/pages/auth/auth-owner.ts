@@ -14,6 +14,7 @@ import { Steps, type Step } from '../../shared/steps';
 import { ContactCard } from '../../shared/contact-card';
 import { PasswordField, TermsCheck } from './auth-parts';
 import { emptyHouseProfile, HouseFields, houseProfilePayload, houseProfileValid } from '../../shared/house-fields';
+import { TERMS_VERSION } from '../../core/terms';
 
 // เจ้าของบ้าน: A06 สมัคร → A07 สแกน QR เปิดใช้ตู้ → A08 ตั้งชื่อตู้ → A09 เสร็จ (api.md §2, §4.1) — ใช้ API จริง
 
@@ -51,9 +52,14 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
       <label class="field" [class.invalid]="tried() && !phoneOk()">
         <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
         <input type="tel" inputmode="tel" autocomplete="tel" [value]="f().phone" (input)="set('phone', $any($event.target).value)" />
-        <small>{{ i18n.t({ th: 'ใช้เข้าสู่ระบบ · เจ้าหน้าที่เห็นเฉพาะตอนคุณกด SOS', en: 'Used to sign in · officers see it only during your SOS' }) }}</small>
+        <small class="easy-hide">{{ i18n.t({ th: 'ใช้เข้าสู่ระบบ · เจ้าหน้าที่เห็นเฉพาะตอนคุณกด SOS', en: 'Used to sign in · officers see it only during your SOS' }) }}</small>
       </label>
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
+      <p class="small easy-only">{{ i18n.t({ th: 'รหัสผ่านอย่างน้อย 8 ตัว · ลืมแล้วติดต่อผู้ดูแลระบบ', en: 'At least 8 characters · if you forget it, contact the admin' }) }}</p>
+      <p class="muted small adv-only mono">
+        DRAFT signup.owner · POST /auth/signup/owner · {{ i18n.t({ th: 'ส่งจริงตอนจบขั้น 3', en: 'sent at the end of step 3' }) }}<br />
+        PHONE_TAKEN · {{ i18n.t({ th: 'รหัสยาว ', en: 'password length ' }) }}{{ min }}–128
+      </p>
       </section>
       }
       @if (step() === 2) {
@@ -63,21 +69,32 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
         <span>{{ i18n.t({ th: 'บ้านเลขที่', en: 'House number' }) }}</span>
         <input autocomplete="address-line1" [value]="f().house_no" (input)="set('house_no', $any($event.target).value)" />
       </label>
-      <label class="field">
+      <label class="field easy-hide">
         <span>{{ i18n.t({ th: 'หมู่บ้าน / ย่าน (ไม่บังคับ)', en: 'Village / area (optional)' }) }}</span>
         <input maxlength="100" autocomplete="address-level3" [placeholder]="i18n.t({ th: 'เช่น หมู่บ้านสุขใจ', en: 'e.g. Sukjai Village' })" [value]="f().area" (input)="set('area', $any($event.target).value)" />
         <small>{{ i18n.t({ th: 'ช่วยให้เจ้าหน้าที่แยกบ้านเลขที่ซ้ำกันคนละหมู่บ้าน', en: 'Helps officers tell apart the same house number in different villages' }) }}</small>
       </label>
       </section>
       <app-house-fields [(value)]="house" [tried]="tried()" />
+      <p class="small easy-only">{{ i18n.t({ th: 'ปักหมุดบ้านช่วยให้เจ้าหน้าที่มาถึงเร็วขึ้นตอน SOS', en: 'Pinning your house helps officers reach you faster during SOS' }) }}</p>
+      <p class="muted small adv-only mono">
+        {{ i18n.t({ th: 'บังคับ: ที่อยู่ · แขวง/ตำบล · เขต/อำเภอ · จังหวัด', en: 'Required: address · subdistrict · district · province' }) }}
+        @if (house().location; as loc) {
+          <br />lat {{ loc.lat }}, lng {{ loc.lng }}
+        }
+      </p>
       }
       @if (step() === 3) {
       <app-terms-check from="A06" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="filled() && !f().terms" />
+      <p class="muted small adv-only mono">terms_version {{ version }} · POST /auth/signup/owner</p>
       }
 
       @if (error(); as e) {
         <p class="danger-text small" role="alert">
           {{ i18n.t(e) }}
+          @if (errorCode(); as code) {
+            <span class="mono adv-only"> · {{ code }}</span>
+          }
           @if (errorCode() === 'PHONE_TAKEN') {
             · <a [routerLink]="url('A04')">{{ i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</a>
           }
@@ -126,6 +143,7 @@ export class AuthSignupOwner implements OnInit {
   protected readonly busy = signal(false);
   protected readonly url = screenUrl;
   protected readonly min = PASSWORD_MIN;
+  protected readonly version = TERMS_VERSION;
   /** ?state=no-terms = A06-b (กรอกครบแต่ยังไม่ติ๊กยอมรับ) */
   readonly state = input<string>();
   protected readonly f = this.demo.forms.owner;
@@ -247,11 +265,12 @@ const ACTIVATE_STEPS: Step[] = [
             </p>
           } @else if (qr()) {
             <p class="info-box ok-text"><strong>{{ i18n.t({ th: 'เปิดจากลิงก์ QR เปิดใช้ตู้แล้ว — กดผูกตู้ได้ทันที', en: 'Opened from the activation QR link — tap to bind' }) }}</strong></p>
+            <p class="muted small adv-only mono">qr token: {{ i18n.t({ th: 'มี', en: 'present' }) }} · {{ qr()?.length }} chars</p>
           } @else if (scanning()) {
             <app-qr-scanner (scanned)="send({ qr_text: $event.text })" (failed)="scanning.set(false); typing.set(true)" />
           }
           @if (message(); as m) {
-            <p class="danger-text small" role="alert">{{ i18n.t(m) }}</p>
+            <p class="danger-text small" role="alert">{{ i18n.t(m) }}<span class="mono adv-only"> · {{ failCode() }}</span></p>
           }
           @if (typing()) {
             <label class="field">
@@ -317,6 +336,7 @@ export class AuthActivate implements OnInit {
   protected readonly busy = signal(false);
   protected readonly needSignin = signal(false);
   protected readonly message = signal<Tr | null>(null);
+  protected readonly failCode = signal<string | null>(null);
   protected readonly code = signal('');
   protected readonly support = signal<string | null>(null);
   protected readonly here = computed(() => screenUrl('A07') + (this.qr() ? `?qr=${encodeURIComponent(this.qr()!)}` : ''));
@@ -346,12 +366,14 @@ export class AuthActivate implements OnInit {
     this.scanning.set(false);
     this.busy.set(true);
     this.message.set(null);
+    this.failCode.set(null);
     try {
       const r = await firstValueFrom(this.http.post<{ box: BoxSummary }>('/api/v1/boxes/activate', body));
       this.session.use('owner');
       void this.router.navigate([screenUrl('A08')], { queryParams: { box: r.box.id, from: this.from() }, replaceUrl: true });
     } catch (err) {
       const e = apiError(err);
+      this.failCode.set(e.code ? `${e.code} · HTTP ${e.status}` : `HTTP ${e.status}`);
       if (e.code === 'BOX_ALREADY_OWNED' || e.code === 'QR_INVALID') {
         void this.router.navigate([screenUrl('A07')], { queryParams: { state: e.code === 'BOX_ALREADY_OWNED' ? 'taken' : 'invalid', from: this.from() }, replaceUrl: true });
       } else if (e.code === 'CODE_ATTEMPTS_EXCEEDED') {
@@ -385,8 +407,9 @@ export class AuthActivate implements OnInit {
       <label class="field" [class.invalid]="!valid()">
         <span>{{ i18n.t({ th: 'ชื่อตู้', en: 'Mailbox name' }) }}</span>
         <input maxlength="40" [value]="name()" (input)="name.set($any($event.target).value)" />
-        <small>{{ i18n.t({ th: 'ไม่เกิน 40 ตัว', en: 'Up to 40 characters' }) }}</small>
+        <small class="easy-hide">{{ i18n.t({ th: 'ไม่เกิน 40 ตัว', en: 'Up to 40 characters' }) }}</small>
       </label>
+      <p class="muted small adv-only mono">PATCH /boxes/{{ boxId() }} · {{ i18n.t({ th: 'ชื่อ 1–40 ตัว', en: 'name 1–40 characters' }) }}</p>
       <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'ชื่อแนะนำ', en: 'Suggestions' })">
         @for (s of suggestions; track s.th) {
           <button type="button" [attr.aria-pressed]="name() === i18n.t(s)" (click)="name.set(i18n.t(s))">{{ i18n.t(s) }}</button>
@@ -468,6 +491,9 @@ export class AuthNameBox {
         <strong>{{ i18n.t({ th: 'ต่อไป', en: 'Next' }) }}</strong><br />
         <span class="small">{{ i18n.t({ th: 'รอหัวหน้าหน่วยงานเพิ่มบ้านเข้าโซน ระหว่างนี้หน้าหลักจะขึ้นว่า "ยังไม่มีเจ้าหน้าที่ดูแล"', en: 'An agency head will add your house to a zone. Until then your home screen says “No officer yet”' }) }}</span>
       </p>
+      @if (boxInfo(); as b) {
+        <p class="small adv-only mono">box_id {{ b.id }} · status {{ b.status }} · house {{ b.house_no }}</p>
+      }
       <button type="button" class="btn on-color push-end" (click)="home()">{{ i18n.t({ th: 'ไปหน้าหลัก', en: 'Go to home' }) }}</button>
     </div>
   `,
