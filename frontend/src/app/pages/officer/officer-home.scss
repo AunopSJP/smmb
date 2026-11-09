@@ -210,13 +210,23 @@ ul {
   display: grid;
   place-items: center;
   flex: none;
-  inline-size: 46px;
-  block-size: 40px;
+  inline-size: auto;
+  min-inline-size: 46px;
+  max-inline-size: 84px;
+  block-size: auto;
+  min-block-size: 40px;
+  padding: 6px 8px;
   border-radius: 12px;
   background: var(--icon-bg);
   color: var(--brand);
   font-weight: 700;
   font-size: 0.875rem;
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.name {
+  overflow-wrap: anywhere;
 }
 .off-adv .kv {
   margin: 0;

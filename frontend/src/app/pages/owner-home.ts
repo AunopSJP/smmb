@@ -167,10 +167,13 @@ const REFRESH_MS = 10_000;
           <div class="stats easy-hide">
             <div class="mini">
               <span class="label">{{ i18n.t({ th: 'แบตเตอรี่', en: 'Battery' }) }}</span>
-              <strong class="value">{{ b.battery ? b.battery.pct + '%' : '—' }}</strong>
               @if (b.battery) {
+                <strong class="value">{{ b.battery.pct }}%</strong>
                 <span class="bar"><span [style.width.%]="b.battery.pct"></span></span>
                 <span class="label adv-only">{{ chargingText(b) }}</span>
+              } @else {
+                <strong class="value muted">{{ i18n.t({ th: 'รอข้อมูล', en: 'No report yet' }) }}</strong>
+                <span class="label">{{ i18n.t({ th: 'ตู้ยังไม่ส่งระดับแบต', en: 'The mailbox has not reported yet' }) }}</span>
               }
             </div>
             <div class="mini">
@@ -178,11 +181,23 @@ const REFRESH_MS = 10_000;
               @if (ago(b.last_seen_at); as m) {
                 <strong class="value">{{ m }} {{ i18n.t({ th: 'นาที', en: 'min' }) }}</strong>
                 <span class="label">{{ i18n.t({ th: 'ที่แล้ว', en: 'ago' }) }}</span>
+              } @else if (b.last_seen_at) {
+                <strong class="value">{{ i18n.t({ th: 'เมื่อสักครู่', en: 'just now' }) }}</strong>
               } @else {
-                <strong class="value">{{ b.last_seen_at ? i18n.t({ th: 'เมื่อสักครู่', en: 'just now' }) : '—' }}</strong>
+                <strong class="value muted">{{ i18n.t({ th: 'รอข้อมูล', en: 'No report yet' }) }}</strong>
+                <span class="label">{{ i18n.t({ th: 'ยังไม่เคยติดต่อ', en: 'Never connected' }) }}</span>
               }
               @if (b.last_seen_at) {
                 <span class="label adv-only mono">{{ timeSec(b.last_seen_at) }}</span>
+              }
+            </div>
+            <div class="mini cover-cell">
+              <span class="label">{{ i18n.t({ th: 'ดูแลโดย', en: 'Covered by' }) }}</span>
+              @if (b.coverage.agency_names.length) {
+                <strong class="value agency">{{ b.coverage.agency_names.join(' · ') }}</strong>
+              } @else {
+                <strong class="value muted">{{ i18n.t({ th: 'ยังไม่มีหน่วยงาน', en: 'No agency yet' }) }}</strong>
+                <a class="see-all" [routerLink]="url('H16')">{{ i18n.t({ th: 'ดูหน่วยงานใกล้บ้าน', en: 'Find an agency' }) }}</a>
               }
             </div>
           </div>
@@ -231,7 +246,6 @@ const REFRESH_MS = 10_000;
             </div>
           }
           @if (b.coverage.agency_names.length) {
-            <p class="chip cover easy-hide"><app-icon name="shield" [size]="16" />{{ i18n.t({ th: 'ดูแลโดย ', en: 'Covered by ' }) }}{{ b.coverage.agency_names.join(' · ') }}</p>
             <p class="muted small adv-only">{{ i18n.t({ th: 'ตรวจในรายการล่าสุด ', en: 'Checks in recent activity: ' }) }}{{ inspectedRecent(b) }} {{ i18n.t({ th: 'ครั้ง', en: '' }) }}</p>
           }
         </section>
@@ -249,7 +263,7 @@ const REFRESH_MS = 10_000;
           </section>
         } @else {
           <ul class="list">
-            @for (e of b.latest_events; track e.id) {
+            @for (e of eventsFor(b); track e.id) {
               <li>
                <a class="row" [routerLink]="url(e.type === 'inspected' ? 'H12-b' : 'H12-c')" [queryParams]="{ id: e.id }">
                 @if (e.type === 'inspected') {
@@ -529,6 +543,11 @@ export class OwnerHome implements OnDestroy {
   /** HomeAdv: นับการตรวจในรายการล่าสุด (ข้อมูลเท่าที่ API ส่งมา ไม่เดายอดทั้ง 7 วัน) */
   protected inspectedRecent(b: BoxDetail): number {
     return b.latest_events.filter((e) => e.type === 'inspected').length;
+  }
+
+  /** โหมดปกติแสดง 4 รายการล่าสุด · โหมดละเอียดแสดงทั้งหมด */
+  protected eventsFor(b: BoxDetail): BoxDetail['latest_events'] {
+    return this.display.advancedMode() ? b.latest_events : b.latest_events.slice(0, 4);
   }
 
   /** เวลาแบบมีวินาทีสำหรับโหมดละเอียด */

@@ -161,14 +161,31 @@
   }
 }
 .stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
   margin-block-start: 2px;
-  padding-block-start: 14px;
-  border-block-start: 1px solid var(--line);
 }
 .mini {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 86%, var(--text) 4%);
+}
+.cover-cell {
+  grid-column: 1 / -1;
+}
+.agency {
+  font-size: 0.95rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.value.muted {
+  color: var(--text-muted);
+  font-weight: 600;
 }
 .label {
   font-size: 0.75rem;

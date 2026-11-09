@@ -18,6 +18,8 @@
   --text-muted: #5f5f63;
   --ok: #1e5c3e;
   --shadow: 0 1px 3px rgb(0 0 0 / 8%), 0 4px 12px rgb(0 0 0 / 6%);
+  /* รางของ segmented control — ต้องเข้มกว่าพื้นการ์ด เพื่อให้ปุ่มที่เลือกดูลอยขึ้น ไม่จม */
+  --track: #ececec;
 
   --font: 'Noto Sans Thai', 'Leelawadee UI', 'IBM Plex Sans Thai Looped', system-ui, sans-serif;
   /* สเกลตัวอักษร = ที่ผู้ใช้เลือก × โหมดการแสดงผล แล้วบีบด้วย min/max ของชนิดจอ (ดูด้านล่าง) */
@@ -44,6 +46,7 @@
   --text-muted: #a3a9b2;
   --ok: #4cc777;
   --shadow: 0 1px 3px rgb(0 0 0 / 40%);
+  --track: #14171b;
 
   color-scheme: dark;
 }
@@ -520,7 +523,7 @@ app-area-shell main > :not(router-outlet) {
   gap: 3px;
   padding: 3px;
   border-radius: 12px;
-  background: var(--ib-bg);
+  background: var(--track);
 
   button {
     flex: 1;
@@ -1418,6 +1421,7 @@ fieldset {
   --danger-bg: #2e1517;
   --shadow: 0 1px 2px rgb(0 0 0 / 40%);
   --focus: 0 0 0 3px rgb(196 84 92 / 35%);
+  --track: #14171b;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .admin-layout {

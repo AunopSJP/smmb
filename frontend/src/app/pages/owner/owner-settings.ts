@@ -66,7 +66,7 @@ import { firstValueFrom } from 'rxjs';
             <span class="icon-bubble"><app-icon name="bell" [size]="22" /></span>
             <span class="grow">
               <strong>{{ i18n.t({ th: 'การแจ้งเตือน', en: 'Notifications' }) }}</strong>
-              <span class="chip" [class.ok]="pushOn()" [class.warn]="!pushOn()">{{ pushOn() ? i18n.t({ th: 'เปิดอยู่ในเครื่องนี้', en: 'On for this device' }) : i18n.t({ th: 'ยังไม่ได้เปิด — แตะเพื่อเปิด', en: 'Off — tap to turn on' }) }}</span>
+              <span class="chip" [class.ok]="pushOn()" [class.warn]="!pushOn()">{{ pushOn() ? i18n.t({ th: 'เปิดอยู่', en: 'On' }) : i18n.t({ th: 'ยังไม่เปิด', en: 'Off' }) }}</span>
             </span>
             <app-icon name="chevronRight" [size]="20" />
           </a>

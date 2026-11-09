@@ -185,14 +185,16 @@ const toMinutes = (hhmm: string): number | null => {
           <ul class="list easy-hide">
             @for (h of orderedHouses(); track h.box_id) {
               <li class="row">
-                <span class="hn">{{ h.house_no }}</span>
+                <span class="hn" [attr.title]="h.house_no">{{ houseHead(h.house_no) }}</span>
                 <span class="grow">
-                  <strong class="block">{{ h.box_name }}</strong>
+                  <strong class="block name">{{ h.box_name }}</strong>
                   <span class="muted small block">
-                    @if (h.checked_at) {
+                    @if (houseRest(h.house_no); as area) {
+                      {{ area }}@if (h.checked_at) { · {{ time(h.checked_at) }} }
+                    } @else if (h.checked_at) {
                       {{ i18n.t({ th: 'ตรวจแล้ว ', en: 'Checked ' }) }}{{ time(h.checked_at) }}
                     } @else {
-                      {{ i18n.t({ th: 'ยังไม่ตรวจ', en: 'Not checked yet' }) }}
+                      {{ i18n.t({ th: 'ในโซนของคุณ', en: 'In your zone' }) }}
                     }
                   </span>
                   <span class="muted small block mono adv-only">
@@ -313,6 +315,19 @@ export class OfficerHome {
     } catch {
       // ไม่มีบันทึกก็ปล่อยว่าง
     }
+  }
+
+  /** แยกเลขที่บ้านออกจากชื่อหมู่บ้าน/รายละเอียด (ข้อมูลจริงอาจมาเป็น "110/55 หมู่บ้าน…") */
+  protected houseHead(houseNo: string | null | undefined): string {
+    const text = (houseNo ?? '').trim();
+    if (!text) return '—';
+    return text.split(/\s+/)[0];
+  }
+
+  protected houseRest(houseNo: string | null | undefined): string {
+    const text = (houseNo ?? '').trim();
+    const at = text.search(/\s/);
+    return at < 0 ? '' : text.slice(at).trim();
   }
 
   /** เวลาเต็ม (วันที่ + เวลา) สำหรับโหมดละเอียด */
