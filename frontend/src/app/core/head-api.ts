@@ -79,6 +79,9 @@ export interface ZoneHouse {
   box_status: BoxStatus;
   /** รอเจ้าของบ้านกดยอมรับ (ยังไม่อยู่ในโซน · ✅ 2026-11-04) */
   pending: boolean;
+  /** พิกัดบ้าน (null = ยังไม่ปักหมุด) */
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface ZoneDetail extends Zone {
@@ -99,6 +102,9 @@ export interface HouseHit {
   box_status: BoxStatus;
   /** โซนที่บ้านนี้อยู่แล้ว · mine = ของหน่วยงานเรา */
   zones: { agency_name: string; zone_name: string; mine: boolean }[];
+  /** พิกัดบ้าน (null = ยังไม่ปักหมุด) */
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export const AGENCY_TYPE_LABEL: Record<AgencyType, { th: string; en: string }> = {

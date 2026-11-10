@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SMMB · 4 แบบหน้าเพิ่มบ้านเข้าโซน</title>
+<link rel="stylesheet" href="mockup.css" />
+<style>
+  .gallery { display: grid; gap: 12px; max-inline-size: 860px; margin: 0 auto; }
+  .item { display: grid; gap: 4px; text-decoration: none; }
+  .item h2 { font-size: 16px; margin: 0; }
+  .item p { margin: 0; color: var(--muted); font-size: 13px; }
+  .item .tag { font-size: 11px; color: var(--brand); font-weight: 700; }
+  .open { color: var(--brand); font-weight: 700; font-size: 13px; margin-block-start: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap wide">
+  <span class="variant">SMMB · ตัวเลือกหน้า “เพิ่มบ้านเข้าโซน”</span>
+  <h1 style="margin-block-end:4px">4 แบบให้เลือก</h1>
+  <p class="note" style="margin-block-end:16px">กดการ์ดเพื่อเปิด mockup จริง (กดเลือกบ้าน/สลับแท็บ/สลับโหมดมืดได้)</p>
+
+  <div class="gallery">
+    <a class="card item" href="zone-a-tabs.html">
+      <span class="tag">แบบ A · แนะนำ</span>
+      <h2>แท็บในโซน + multi-select</h2>
+      <p>แยก ตั้งค่า / บ้าน / เจ้าหน้าที่ · ค้นหาและติ๊กหลายหลัง · แถบส่งคำขอติดล่าง</p>
+      <span class="open">เปิด mockup →</span>
+    </a>
+
+    <a class="card item" href="zone-b-map-sheet.html">
+      <span class="tag">แบบ B</span>
+      <h2>แผนที่ + bottom sheet</h2>
+      <p>แผนที่เห็นบ้านรอบ ๆ · การ์ดล่างเลื่อนขึ้นมา · เหมาะกับมือถือที่อยากดูตำแหน่งก่อนเพิ่ม</p>
+      <span class="open">เปิด mockup →</span>
+    </a>
+
+    <a class="card item" href="zone-c-split.html">
+      <span class="tag">แบบ C</span>
+      <h2>ค้นหาซ้าย + ตะกร้าขวา</h2>
+      <p>เหมาะกับหัวหน้าที่ใช้คอมพิวเตอร์ · เห็นรายการที่จะส่งคำขอพร้อมกัน · มือถือยุบเป็นคอลัมน์เดียว</p>
+      <span class="open">เปิด mockup →</span>
+    </a>
+
+    <a class="card item" href="zone-d-wizard.html">
+      <span class="tag">แบบ D · ทางเลือก</span>
+      <h2>Wizard 3 ขั้น</h2>
+      <p>บังคับลำดับ ข้อมูลโซน → บ้าน → เจ้าหน้าที่ · เหมาะกับผู้ใช้ใหม่ แต่แก้โซนเดิมช้ากว่า</p>
+      <span class="open">เปิด mockup →</span>
+    </a>
+  </div>
+</div>
+</body>
+</html>

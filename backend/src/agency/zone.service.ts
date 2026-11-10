@@ -40,6 +40,9 @@ export interface ZoneHouseDto {
   box_status: BoxStatus;
   /** ✅ 2026-11-04 true = รอเจ้าของบ้านกดยอมรับ (ยังไม่อยู่ในโซน ยังตรวจไม่ได้) */
   pending: boolean;
+  /** พิกัดบ้าน (null = เจ้าของยังไม่ปักหมุด) */
+  lat: number | null;
+  lng: number | null;
 }
 
 /** api.md §8.3 ผลค้นบ้าน — ใช้ตอนเพิ่มบ้านเข้าโซน · zones = โซนที่บ้านนี้อยู่แล้ว (ทุกหน่วยงาน) */
@@ -56,6 +59,9 @@ export interface HouseSearchDto {
   box_status: BoxStatus;
   /** โซนที่บ้านนี้อยู่แล้ว (ทุกหน่วยงาน) · mine = ของหน่วยงานเรา */
   zones: { agency_name: string; zone_name: string; mine: boolean }[];
+  /** พิกัดบ้าน (null = เจ้าของยังไม่ปักหมุด) — ใช้แสดงบนแผนที่ตอนเพิ่มบ้าน */
+  lat: number | null;
+  lng: number | null;
 }
 
 /** ผลค้นบ้านสูงสุดต่อครั้ง */
@@ -222,8 +228,10 @@ export class ZoneService {
       zones: HouseSearchDto['zones'];
       locality: string;
       pending_mine: boolean;
+      lat: string | null;
+      lng: string | null;
     }>(
-      `SELECT b.box_id, b.house_no, b.name, b.area, b.owner_user_id, b.service_active, b.last_poll_date, b.last_seen_date, b.config_override,
+      `SELECT b.box_id, b.house_no, b.name, b.area, b.owner_user_id, b.service_active, b.last_poll_date, b.last_seen_date, b.config_override, b.lat, b.lng,
               coalesce((SELECT json_agg(json_build_object('agency_name', a.name, 'zone_name', z.name, 'mine', a.agency_id = $3) ORDER BY a.name, z.name)
                 FROM app.zone_box_tb zb
                 JOIN app.zone_tb z ON z.zone_id = zb.zone_id AND z.deleted_date IS NULL
@@ -262,6 +270,8 @@ export class ZoneService {
         pending_mine: r.pending_mine,
         box_status: status.get(r.box_id)!,
         zones: r.zones,
+        lat: r.lat === null ? null : Number(r.lat),
+        lng: r.lng === null ? null : Number(r.lng),
       }))
       .filter((r) => !opt.online || r.box_status === 'online');
   }
@@ -385,8 +395,10 @@ export class ZoneService {
       last_seen_date: Date | null;
       config_override: Record<string, unknown>;
       pending: boolean;
+      lat: string | null;
+      lng: string | null;
     }>(
-      `SELECT b.box_id, b.house_no, b.name, b.area, b.owner_user_id, b.service_active, b.last_poll_date, b.last_seen_date, b.config_override,
+      `SELECT b.box_id, b.house_no, b.name, b.area, b.owner_user_id, b.service_active, b.last_poll_date, b.last_seen_date, b.config_override, b.lat, b.lng,
               m.pending
        FROM (SELECT box_id, false AS pending FROM app.zone_box_tb WHERE zone_id = $1
              UNION ALL
@@ -396,7 +408,16 @@ export class ZoneService {
       [zoneId],
     );
     const status = await this.boxConfigs.statusOf(rows);
-    return rows.map((r) => ({ box_id: r.box_id, house_no: r.house_no, box_name: r.name, area: r.area, box_status: status.get(r.box_id)!, pending: r.pending }));
+    return rows.map((r) => ({
+      box_id: r.box_id,
+      house_no: r.house_no,
+      box_name: r.name,
+      area: r.area,
+      box_status: status.get(r.box_id)!,
+      pending: r.pending,
+      lat: r.lat === null ? null : Number(r.lat),
+      lng: r.lng === null ? null : Number(r.lng),
+    }));
   }
 
   private async officersOf(agencyId: string, zoneId: string): Promise<MemberDto[]> {

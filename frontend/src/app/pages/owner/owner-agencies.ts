@@ -34,67 +34,124 @@ const km = (a: LatLng, b: LatLng): number => {
   template: `
     <app-page-header [title]="i18n.t({ th: 'หน่วยงานใกล้บ้าน', en: 'Agencies near you' })" [back]="url('H13')" />
     <div class="stack grow">
-      <p class="muted small easy-hide">{{ i18n.t({ th: 'ดูว่าแต่ละหน่วยงานอยู่ตรงไหน แล้วติดต่อหน่วยงานที่ต้องการ ให้หัวหน้าเพิ่มบ้านคุณเข้าโซน (คุณจะได้รับคำขอให้กดยอมรับ)', en: 'See where each agency is, then contact the one you want. Its head adds your house to a zone and you will get a request to accept.' }) }}</p>
-      @if (display.easyMode()) {
-        <p class="muted small easy-only">{{ i18n.t({ th: 'แตะที่หน่วยงานเพื่อดูเบอร์โทรและเส้นทาง', en: 'Tap an agency to see its phone number and directions' }) }}</p>
-      }
+      <p class="muted small">{{ i18n.t({ th: 'ดูตำแหน่งและระยะทางจากบ้านคุณ · ติดต่อหน่วยงานที่ต้องการ แล้วให้หัวหน้าเพิ่มบ้านเข้าโซน (คุณต้องกดยอมรับก่อน)', en: 'See where each agency is and how far it is from your home. Contact the one you want, then its head adds your house to a zone (you must accept first).' }) }}</p>
       @if (!home()) {
         <p class="info-box small easy-hide" role="status">{{ i18n.t({ th: 'ปักหมุดบ้านของคุณที่หน้าตั้งค่าตู้ จะเห็นระยะห่างจากแต่ละหน่วยงาน', en: 'Pin your house in the mailbox settings to see the distance to each agency' }) }}</p>
       }
-      @if (!display.easyMode()) {
-        <app-agency-map [agencies]="agencies()" [home]="home()" [(selected)]="selected" [height]="320" />
-      }
+      <app-agency-map [agencies]="items()" [home]="home()" [(selected)]="selected" [height]="display.easyMode() ? 240 : 320" />
       @if (advanced()) {
         <p class="muted small adv-only">{{ i18n.t({ th: 'หน่วยงาน ', en: 'Agencies: ' }) }}{{ agencies().length }}{{ i18n.t({ th: ' แห่ง · เรียงตามระยะจากบ้าน', en: ' · sorted by distance from home' }) }}</p>
       }
       @if (loaded() && !agencies().length) {
         <p class="card muted" role="status">{{ i18n.t({ th: 'ยังไม่มีหน่วยงานที่ปักหมุดไว้', en: 'No agency has put a pin on the map yet' }) }}</p>
       }
-      <div class="list">
-        @for (a of sorted(); track a.item.id) {
-          <button type="button" class="row ag" [class.on]="selected() === a.item.id" (click)="selected.set(a.item.id)">
-            <span class="grow">
-              <strong>{{ a.item.name }}</strong>
-              <span class="muted small block">{{ typeLabel(a.item.type) }}{{ a.item.locality ? ' · ' + a.item.locality : '' }}</span>
-              @if (selected() === a.item.id) {
-                @if (a.item.address) { <span class="small block">{{ a.item.address }}</span> }
-                @if (a.item.coverage_note) { <span class="small block">{{ i18n.t({ th: 'พื้นที่ดูแล: ', en: 'Covers: ' }) }}{{ a.item.coverage_note }}</span> }
-                <span class="small block">{{ i18n.t({ th: 'ติดต่อ: ', en: 'Contact: ' }) }}{{ a.item.contact }}</span>
-                <span class="actions">
-                  @if (a.item.phone) { <a class="btn small" [href]="'tel:' + a.item.phone">{{ i18n.t({ th: 'โทร', en: 'Call' }) }}</a> }
-                  <a class="btn secondary small" [href]="dir(a.item)" target="_blank" rel="noopener">{{ i18n.t({ th: 'นำทาง', en: 'Directions' }) }}</a>
-                </span>
+      <div class="ag-list">
+        @for (a of sorted(); track a.item.id; let i = $index) {
+          <article class="ag card" [class.on]="selected() === a.item.id">
+            <button type="button" class="ag-head" (click)="selected.set(a.item.id)" [attr.aria-expanded]="selected() === a.item.id">
+              <span class="num" aria-hidden="true">{{ i + 1 }}</span>
+              <span class="grow">
+                <strong>{{ a.item.name }}</strong>
+                <span class="muted small block">{{ typeLabel(a.item.type) }}{{ a.item.locality ? ' · ' + a.item.locality : '' }}</span>
+              </span>
+              @if (a.km !== null) {
+                <span class="chip">{{ a.km < 10 ? a.km.toFixed(1) : a.km.toFixed(0) }} {{ i18n.t({ th: 'กม.', en: 'km' }) }}</span>
               }
-            </span>
-            @if (a.km !== null) { <span class="chip">{{ a.km < 10 ? a.km.toFixed(1) : a.km.toFixed(0) }} {{ i18n.t({ th: 'กม.', en: 'km' }) }}</span> }
-          </button>
+            </button>
+            @if (selected() === a.item.id) {
+              <div class="ag-body">
+                @if (a.item.address) { <span class="small">{{ a.item.address }}</span> }
+                @if (a.item.coverage_note) { <span class="small">{{ i18n.t({ th: 'พื้นที่ดูแล: ', en: 'Covers: ' }) }}{{ a.item.coverage_note }}</span> }
+                @if (a.item.contact) { <span class="small">{{ i18n.t({ th: 'ติดต่อ: ', en: 'Contact: ' }) }}{{ a.item.contact }}</span> }
+                <div class="two">
+                  @if (a.item.phone) {
+                    <a class="btn" [href]="'tel:' + a.item.phone">{{ i18n.t({ th: 'โทร', en: 'Call' }) }}</a>
+                  }
+                  <a class="btn secondary" [href]="dir(a.item)" target="_blank" rel="noopener">{{ i18n.t({ th: 'นำทาง', en: 'Directions' }) }}</a>
+                </div>
+              </div>
+            }
+          </article>
         }
       </div>
       <p class="muted small easy-hide">{{ i18n.t({ th: 'หมุดคือที่ตั้งหน่วยงาน · หน่วยงานจะดูแลบ้านเมื่อคุณกดยอมรับคำขอเท่านั้น', en: 'The pins are agency locations. An agency only covers your house after you accept its request.' }) }}</p>
     </div>
   `,
   styles: `
+    .ag-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
     .ag {
-      text-align: start;
-      align-items: flex-start;
+      padding: 0;
+      overflow: hidden;
     }
     .ag.on {
-      box-shadow: inset 0 0 0 2px var(--brand);
+      background: color-mix(in srgb, var(--surface) 94%, var(--brand) 6%);
+      box-shadow:
+        inset 0 0 0 2px var(--brand-text),
+        var(--shadow);
     }
-    .actions {
+    .ag-head {
       display: flex;
-      gap: 8px;
+      align-items: center;
+      gap: 12px;
+      inline-size: 100%;
+      padding: 14px 16px;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: start;
+      cursor: pointer;
+    }
+    .ag-head:active {
+      background: var(--brand-lighter);
+    }
+    .num {
+      display: grid;
+      place-items: center;
+      flex: none;
+      inline-size: 30px;
+      block-size: 30px;
+      border-radius: 50%;
+      background: var(--icon-bg);
+      color: var(--brand-text);
+      font-size: 0.8125rem;
+      font-weight: 700;
+    }
+    .ag.on .num {
+      background: var(--action-bg);
+      color: var(--action-fg);
+    }
+    .ag-body {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 0 16px 16px;
+      border-block-start: 1px solid var(--line);
+      padding-block-start: 12px;
+    }
+    .ag-body .two {
+      display: flex;
+      gap: 10px;
       margin-block-start: 8px;
     }
-    .actions .btn {
-      inline-size: auto;
-      min-block-size: 40px;
-      padding: 6px 14px;
+    .ag-body .two .btn {
+      flex: 1;
     }
-    :host-context([data-mode='easy']) .ag {
-      min-block-size: 96px;
-      gap: 16px;
-      strong { font-size: 1.375rem; }
+    :host-context([data-mode='easy']) .ag-head {
+      min-block-size: 84px;
+      padding: 18px;
+    }
+    :host-context([data-mode='easy']) .ag-head strong {
+      font-size: 1.25rem;
+    }
+    :host-context([data-mode='easy']) .num {
+      inline-size: 36px;
+      block-size: 36px;
+      font-size: 1rem;
     }
   `,
 })
@@ -117,6 +174,8 @@ export class OwnerAgencies {
       .map((item) => ({ item, km: h ? km(h, { lat: item.lat, lng: item.lng }) : null }))
       .sort((a, b) => (a.km !== null && b.km !== null ? a.km - b.km : a.item.name.localeCompare(b.item.name)));
   });
+  /** ส่งให้แผนที่ตามลำดับเดียวกับลิสต์ — หมุดมีเลข 1,2,3 ตรงกัน */
+  protected readonly items = computed(() => this.sorted().map((a) => a.item));
 
   constructor() {
     void firstValueFrom(this.http.get<AgencyMapItem[]>('/api/v1/agencies/map'))

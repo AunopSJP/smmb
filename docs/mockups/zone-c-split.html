@@ -1,0 +1,120 @@
+﻿<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mockup C · Master–detail</title>
+<link rel="stylesheet" href="mockup.css" />
+</head>
+<body>
+<div class="wrap wide">
+  <div class="scheme">
+    <button data-scheme="light">สว่าง</button>
+    <button data-scheme="dark">มืด</button>
+  </div>
+  <span class="variant">แบบ C · ค้นหาซ้าย + ตะกร้าขวา (เดสก์ท็อป)</span>
+
+  <div class="appbar">
+    <button class="back" aria-label="ย้อนกลับ">‹</button>
+    <div>
+      <h1>เพิ่มบ้านเข้าโซน · สาย 1</h1>
+      <p class="sub">กรุงเทพมหานคร · บางรัก · บางรัก · 00:00–23:59</p>
+    </div>
+  </div>
+
+  <div class="split">
+    <div class="panel stack">
+      <div class="card">
+        <div class="section-title"><h2>ค้นหาบ้าน</h2><span class="chip">พบ 4 หลัง</span></div>
+        <div class="search-row" style="margin-block-start:8px">
+          <input placeholder="บ้านเลขที่ / หมู่บ้าน / รหัสตู้" aria-label="ค้นบ้าน" value="บางรัก" />
+          <button class="btn secondary small">ค้น</button>
+        </div>
+        <div class="filters" style="margin-block-start:8px">
+          <label class="filter"><input type="checkbox" checked /> ยังไม่มีใครดูแล</label>
+          <label class="filter"><input type="checkbox" /> ตู้ออนไลน์</label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">
+          <h2>ผลค้นหา</h2>
+          <button class="see-all" data-select-all>เลือกทั้งหมด</button>
+        </div>
+
+        <label class="house">
+          <input class="pick" type="checkbox" value="101-2" />
+          <span class="grow">
+            <strong>101/2</strong>
+            <span class="meta">BX-00012 · ตู้หน้าบ้าน · 120 ม.</span>
+            <span class="line"><span class="chip ok">ตู้ออนไลน์</span><span class="chip">ยังไม่มีใครดูแล</span></span>
+          </span>
+          <span class="icon-btn" aria-hidden="true" title="ดูบนแผนที่">⌖</span>
+        </label>
+
+        <label class="house">
+          <input class="pick" type="checkbox" value="102-5" />
+          <span class="grow">
+            <strong>102/5</strong>
+            <span class="meta">BX-00015 · ตู้ข้างบ้าน · 260 ม.</span>
+            <span class="line"><span class="chip">ตู้พัก</span><span class="chip">ยังไม่มีใครดูแล</span></span>
+          </span>
+          <span class="icon-btn" aria-hidden="true" title="ดูบนแผนที่">⌖</span>
+        </label>
+
+        <div class="house done">
+          <input class="pick" type="checkbox" disabled />
+          <span class="grow">
+            <strong>99/9</strong>
+            <span class="meta">BX-00001 · อยู่ใกล้หมุดบ้าน</span>
+            <span class="line"><span class="chip ok">อยู่ในโซนนี้แล้ว</span></span>
+          </span>
+        </div>
+
+        <div class="house pending">
+          <input class="pick" type="checkbox" disabled />
+          <span class="grow">
+            <strong>88/8</strong>
+            <span class="meta">BX-00009 · 480 ม.</span>
+            <span class="line"><span class="chip warn">รอเจ้าของบ้านยืนยัน</span></span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel stack cart">
+      <div class="card">
+        <div class="section-title"><h2>จะส่งคำขอ</h2><span class="chip brand"><span data-count>0</span> หลัง</span></div>
+        <div class="cart-row" data-id="101-2" hidden><span class="grow"><strong>101/2</strong><span class="meta">BX-00012 · ตู้ออนไลน์</span></span><button class="icon-btn">×</button></div>
+        <div class="cart-row" data-id="102-5" hidden><span class="grow"><strong>102/5</strong><span class="meta">BX-00015 · ตู้พัก</span></span><button class="icon-btn">×</button></div>
+        <p class="cart-empty">ยังไม่ได้เลือกบ้าน — ติ๊กจากรายการด้านซ้าย</p>
+        <div class="notice info" style="margin-block-start:10px">เจ้าของบ้านแต่ละหลังต้องกดยอมรับก่อน บ้านจึงเข้าโซน</div>
+        <button class="btn" style="inline-size:100%;margin-block-start:12px" disabled data-send>ส่งคำขอ <span data-count>0</span> หลัง</button>
+      </div>
+
+      <div class="card">
+        <div class="section-title"><h2>บ้านในโซน (12)</h2></div>
+        <div class="house"><span class="grow"><strong>99/9</strong><span class="meta">ตู้หน้าบ้าน</span></span><span class="chip ok">อยู่ในโซน</span></div>
+        <div class="house pending"><span class="grow"><strong>105/1</strong><span class="meta">ตู้ข้างบ้าน</span></span><span class="chip warn">รอเจ้าของ</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="selbar" data-selbar hidden>
+  <span class="count">เลือก <span data-count>0</span> หลัง</span>
+  <button class="clear" data-select-all>เลือกทั้งหมด</button>
+  <button class="btn">ส่งคำขอ <span data-count>0</span></button>
+</div>
+
+<script src="mockup.js"></script>
+<script>
+  // เปิดปุ่มส่งเมื่อมีการเลือก
+  const send = document.querySelector('[data-send]');
+  const sync = () => (send.disabled = !document.querySelector('.pick:checked'));
+  document.addEventListener('change', sync);
+  sync();
+</script>
+</body>
+</html>
+

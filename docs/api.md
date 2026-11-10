@@ -600,7 +600,7 @@ interface Member { id; name; display_name; phone; status: "pending" | "active" |
 
 ```ts
 interface Zone { id; name; windows: [string, string][]; tz: "Asia/Bangkok"; houses_count; officers_count; is_mine: boolean; updated_at }
-interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus }
+interface ZoneHouse { box_id; house_no; box_name; box_status: BoxStatus; pending: boolean; lat: number | null; lng: number | null }
 ```
 
 - ✅ (2026-10-27 เขียนแล้ว) `GET`/`POST`/`PATCH`/`DELETE` โซน + `PUT …/officers` · `GET /agency/zones?zone=mine|all` (ตัวกรอง ไม่ใช่สิทธิ์) · ✅ (2026-10-28) `PUT …/houses` + `GET /agency/houses/search?q=` (ค้นบ้านเลขที่หรือรหัสตู้ · เฉพาะตู้ที่มีเจ้าของ · สูงสุด 20 รายการ · `zones` บอกโซนของทุกหน่วยงานที่ดูแลบ้านนั้นอยู่) · **บ้านหลังเดียวอยู่ในโซนของหลายหน่วยงานได้** (ผู้ใช้ตอบ 2026-10-28) → SOS ขั้นหน่วยงานแจ้งทุกหน่วยงานที่ดูแลบ้านนั้น (§7)

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mockup D · Wizard 3 ขั้น</title>
+<link rel="stylesheet" href="mockup.css" />
+</head>
+<body>
+<div class="wrap">
+  <div class="scheme">
+    <button data-scheme="light">สว่าง</button>
+    <button data-scheme="dark">มืด</button>
+  </div>
+  <span class="variant">แบบ D · Wizard 3 ขั้น (ทางเลือก)</span>
+
+  <div class="appbar">
+    <button class="back" aria-label="ย้อนกลับ">‹</button>
+    <div>
+      <h1>สร้างโซนใหม่</h1>
+      <p class="sub">ขั้น 2 จาก 3 · เลือกบ้านเข้าโซน</p>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="steps">
+      <div class="step done">1 · ข้อมูลโซน</div>
+      <div class="step on">2 · เลือกบ้าน</div>
+      <div class="step">3 · เจ้าหน้าที่</div>
+    </div>
+
+    <div class="card">
+      <div class="notice info">พื้นที่: กรุงเทพมหานคร · บางรัก · บางรัก — แก้ได้ในขั้น 1</div>
+      <div class="search-row" style="margin-block-start:10px">
+        <input placeholder="บ้านเลขที่ / หมู่บ้าน / รหัสตู้" aria-label="ค้นบ้าน" />
+        <button class="btn secondary small">ค้น</button>
+      </div>
+
+      <div class="section-title" style="margin-block-start:12px">
+        <h2>บ้านที่ยังไม่มีใครดูแล</h2>
+        <button class="see-all" data-select-all>เลือกทั้งหมด</button>
+      </div>
+
+      <label class="house">
+        <input class="pick" type="checkbox" value="101-2" />
+        <span class="grow">
+          <strong>101/2</strong>
+          <span class="meta">BX-00012 · ตู้หน้าบ้าน</span>
+          <span class="line"><span class="chip ok">ตู้ออนไลน์</span><span class="chip">ยังไม่มีใครดูแล</span></span>
+        </span>
+      </label>
+      <label class="house">
+        <input class="pick" type="checkbox" value="102-5" />
+        <span class="grow">
+          <strong>102/5</strong>
+          <span class="meta">BX-00015 · ตู้ข้างบ้าน</span>
+          <span class="line"><span class="chip">ตู้พัก</span><span class="chip">ยังไม่มีใครดูแล</span></span>
+        </span>
+      </label>
+      <div class="house done">
+        <input class="pick" type="checkbox" disabled />
+        <span class="grow">
+          <strong>99/9</strong>
+          <span class="meta">BX-00001 · อยู่ในโซนนี้แล้ว</span>
+        </span>
+      </div>
+
+      <p class="note" style="margin-block-start:10px">เลือกแล้วระบบจะส่งคำขอ — เจ้าของบ้านต้องกดยอมรับก่อน</p>
+    </div>
+
+    <div class="wizard-foot">
+      <button class="btn secondary">ย้อนกลับ</button>
+      <button class="btn">ถัดไป · เจ้าหน้าที่</button>
+    </div>
+  </div>
+</div>
+
+<div class="selbar" data-selbar hidden>
+  <span class="count">เลือก <span data-count>0</span> หลัง</span>
+  <button class="clear" data-select-all>เลือกทั้งหมด</button>
+  <button class="btn">ถัดไป · <span data-count>0</span> หลัง</button>
+</div>
+
+<script src="mockup.js"></script>
+</body>
+</html>

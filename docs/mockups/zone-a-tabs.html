@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mockup A · แท็บ + ลิสต์</title>
+<link rel="stylesheet" href="mockup.css" />
+</head>
+<body>
+<div class="wrap">
+  <div class="scheme">
+    <button data-scheme="light">สว่าง</button>
+    <button data-scheme="dark">มืด</button>
+  </div>
+  <span class="variant">แบบ A · แท็บในโซน + multi-select</span>
+
+  <div class="appbar">
+    <button class="back" aria-label="ย้อนกลับ">‹</button>
+    <div>
+      <h1>แก้โซน · สาย 1</h1>
+      <p class="sub">ทั้งวัน 00:00–23:59 · หน่วยงาน สภ.เมือง</p>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card summary">
+      <div class="stat"><span>บ้านในโซน</span><b>12</b></div>
+      <div class="stat"><span>รอเจ้าของยืนยัน</span><b>2</b></div>
+      <div class="stat"><span>เจ้าหน้าที่</span><b>3</b></div>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button data-tab="settings" role="tab">ตั้งค่า</button>
+      <button data-tab="houses" class="active" role="tab">บ้าน 12</button>
+      <button data-tab="officers" role="tab">เจ้าหน้าที่ 3</button>
+    </div>
+
+    <div data-panel="settings" hidden>
+      <div class="card stack">
+        <div class="section-title"><h2>ชื่อโซน</h2></div>
+        <div class="search-row"><input value="สาย 1" aria-label="ชื่อโซน" /></div>
+        <div class="notice info">พื้นที่โซน: กรุงเทพมหานคร · บางรัก · บางรัก</div>
+        <div class="section-title"><h2>เวลาตรวจ</h2><button class="see-all">แก้ไข</button></div>
+        <div class="line"><span class="chip brand">00:00–23:59</span><span class="chip">ทั้งวัน</span></div>
+        <button class="btn">บันทึกการตั้งค่า</button>
+      </div>
+    </div>
+
+    <div data-panel="houses">
+      <div class="stack">
+        <div class="card">
+          <div class="section-title"><h2>ค้นหาเพื่อเพิ่มบ้าน</h2></div>
+          <div class="search-row" style="margin-block-start:10px">
+            <input placeholder="บ้านเลขที่ / หมู่บ้าน / รหัสตู้" aria-label="ค้นบ้าน" />
+            <button class="btn secondary small">ค้น</button>
+          </div>
+          <div class="filters" style="margin-block-start:8px">
+            <label class="filter"><input type="checkbox" checked /> ยังไม่มีใครดูแล</label>
+            <label class="filter"><input type="checkbox" /> ตู้ออนไลน์</label>
+          </div>
+
+          <div class="section-title" style="margin-block-start:14px">
+            <h2>พบ 4 หลัง</h2>
+            <button class="see-all" data-select-all>เลือกทั้งหมด</button>
+          </div>
+
+          <label class="house">
+            <input class="pick" type="checkbox" value="101-2" />
+            <span class="grow">
+              <strong>101/2</strong>
+              <span class="meta">BX-00012 · ตู้หน้าบ้าน · บางรัก บางรัก</span>
+              <span class="line"><span class="chip ok">ตู้ออนไลน์</span><span class="chip">ยังไม่มีใครดูแล</span></span>
+            </span>
+          </label>
+
+          <label class="house">
+            <input class="pick" type="checkbox" value="102-5" />
+            <span class="grow">
+              <strong>102/5</strong>
+              <span class="meta">BX-00015 · ตู้ข้างบ้าน · บางรัก บางรัก</span>
+              <span class="line"><span class="chip">ตู้พัก</span><span class="chip">ยังไม่มีใครดูแล</span></span>
+            </span>
+          </label>
+
+          <div class="house done">
+            <input class="pick" type="checkbox" disabled />
+            <span class="grow">
+              <strong>99/9</strong>
+              <span class="meta">BX-00001 · ตู้หน้าบ้าน · บางรัก บางรัก</span>
+              <span class="line"><span class="chip ok">อยู่ในโซนนี้แล้ว</span></span>
+            </span>
+          </div>
+
+          <div class="house pending">
+            <input class="pick" type="checkbox" disabled />
+            <span class="grow">
+              <strong>88/8</strong>
+              <span class="meta">BX-00009 · บ้านคุณสมชาย · บางรัก บางรัก</span>
+              <span class="line"><span class="chip warn">รอเจ้าของบ้านยืนยัน</span></span>
+            </span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-title"><h2>บ้านในโซน (12)</h2></div>
+          <div class="house">
+            <span class="grow"><strong>99/9</strong><span class="meta">ตู้หน้าบ้าน · บางรัก</span></span>
+            <span class="chip ok">อยู่ในโซน</span>
+            <button class="icon-btn" aria-label="นำบ้าน 99/9 ออกจากโซน">×</button>
+          </div>
+          <div class="house pending">
+            <span class="grow"><strong>105/1</strong><span class="meta">ตู้ข้างบ้าน · บางรัก</span></span>
+            <span class="chip warn">รอเจ้าของ</span>
+            <button class="icon-btn" aria-label="ยกเลิกคำขอ 105/1">×</button>
+          </div>
+        </div>
+
+        <p class="note">เพิ่มแล้วเจ้าของบ้านต้องกดยอมรับก่อน · เลือกหลายหลังแล้วส่งคำขอครั้งเดียวได้</p>
+      </div>
+    </div>
+
+    <div data-panel="officers" hidden>
+      <div class="card">
+        <div class="section-title"><h2>เจ้าหน้าที่ในโซน (3)</h2></div>
+        <label class="house"><input type="checkbox" checked /><span class="grow"><strong>ส.ต.ต. สมชาย</strong><span class="meta">หัวหน้า · ดูแล 3 โซน</span></span></label>
+        <label class="house"><input type="checkbox" checked /><span class="grow"><strong>ด.ต. มานะ</strong><span class="meta">เจ้าหน้าที่ · ดูแล 2 โซน</span></span></label>
+        <label class="house"><input type="checkbox" /><span class="grow"><strong>ร.ต.อ. วิชัย</strong><span class="meta">เจ้าหน้าที่ · ยังไม่ถูกเพิ่มในโซนนี้</span></span></label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="selbar" data-selbar hidden>
+  <span class="count">เลือก <span data-count>0</span> หลัง</span>
+  <button class="clear" data-select-all>เลือกทั้งหมด</button>
+  <button class="btn">ส่งคำขอ <span data-count>0</span></button>
+</div>
+
+<script src="mockup.js"></script>
+</body>
+</html>

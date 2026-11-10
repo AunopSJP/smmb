@@ -1,6 +1,30 @@
 .grow {
   flex: 1;
 }
+.tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--surface);
+  padding: 4px;
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+
+  button {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 10px 6px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.8125rem;
+    cursor: pointer;
+  }
+  button.active {
+    background: var(--brand-lighter);
+    color: var(--brand-text);
+  }
+}
 /* โหมดละเอียด: รหัสโซน/เขตเวลา/เวลาอัปเดต — แสดงเฉพาะ .adv-only */
 .zone-code {
   margin: 0 2px;
@@ -105,4 +129,94 @@
 .pill.pending {
   border-style: dashed;
   opacity: 0.8;
+}
+
+/* ── เพิ่มบ้านเข้าโซน (multi-select) ── */
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  input {
+    flex: 1;
+    min-inline-size: 0;
+    font: inherit;
+    min-block-size: 44px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+  }
+}
+.house-list,
+.hit-list {
+  display: flex;
+  flex-direction: column;
+}
+.house-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-block-start: 1px solid var(--line);
+}
+.house-row:first-child {
+  border-block-start: 0;
+}
+.icon-btn {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 40px;
+  block-size: 40px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--sos);
+    border-color: var(--sos);
+  }
+}
+.result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pick-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-lighter);
+
+  .btn {
+    inline-size: auto;
+    min-block-size: 40px;
+    padding: 8px 16px;
+    margin-inline-start: auto;
+  }
+}
+.hit.done {
+  opacity: 0.72;
+}
+.hit.picked {
+  background: var(--brand-lighter);
+  border-radius: 10px;
+  padding-inline: 8px;
+  margin-inline: -8px;
+}
+:host-context([data-mode='easy']) .hit,
+:host-context([data-mode='easy']) .house-row {
+  min-block-size: 64px;
+}
+:host-context([data-mode='easy']) .search-row input {
+  min-block-size: 52px;
+  font-size: 1.0625rem;
 }

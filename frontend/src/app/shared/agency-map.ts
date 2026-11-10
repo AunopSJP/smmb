@@ -45,6 +45,15 @@ const DEFAULT_CENTER: LatLng = { lat: 13.7563, lng: 100.5018 };
       border: 3px solid #fff;
       transform: rotate(-45deg);
       box-shadow: 0 2px 6px rgb(0 0 0 / 35%);
+      display: grid;
+      place-items: center;
+    }
+    :host ::ng-deep .ag-pin span {
+      transform: rotate(45deg);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
     }
     :host ::ng-deep .ag-pin.sel {
       background: #6f1f25;
@@ -105,9 +114,9 @@ export class AgencyMap {
     const map = this.map;
     if (!L || !map) return;
     const seen = new Set<string>();
-    for (const a of list) {
+    for (const [i, a] of list.entries()) {
       seen.add(a.id);
-      const html = `<div class="ag-pin${a.id === selected ? ' sel' : ''}"></div>`;
+      const html = `<div class="ag-pin${a.id === selected ? ' sel' : ''}"><span>${i + 1}</span></div>`;
       const icon = L.divIcon({ className: '', html, iconSize: [26, 26], iconAnchor: [13, 26] });
       const old = this.markers.get(a.id);
       if (old) {
