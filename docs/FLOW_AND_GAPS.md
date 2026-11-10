@@ -1,8 +1,9 @@
-# SMMB — ผลตรวจโฟลวและช่องว่าง (Flow & Gap Audit)
+﻿# SMMB — ผลตรวจโฟลวและช่องว่าง (Flow & Gap Audit)
 
 > ตรวจเมื่อ **2026-11-10 09:05–09:30 (ไทย)** · commit `8e748bb` · working tree สะอาด
 > **อัปเดตรอบที่ 2: 2026-11-10 (ไทย)** — เก็บงาน W-08/W-09/W-13/W-15/W-16/W-17 แล้ว (commit `99b14e3`, `5279344`)
-> **อัปเดตรอบที่ 3: 2026-11-10 (ไทย)** — ตรวจ UX/โฟลวทุกโหมด + ทุกบทบาท แล้วแก้ชุดใหญ่ (ดู §3.1) · migration ใหม่ `0034`–`0036` (ทดสอบกับ PGlite ผ่าน) · frontend build `main-WBMGQQNF.js` · test 83 (frontend) + 81 (backend) ผ่านหมด · **ยังไม่ commit · ยังไม่ deploy → W-02 ยังเปิด**
+> **อัปเดตรอบที่ 3: 2026-11-10 (ไทย)** — ตรวจ UX/โฟลวทุกโหมด + ทุกบทบาท แล้วแก้ชุดใหญ่ (ดู §3.1) · migration ใหม่ `0034`–`0036` (ทดสอบกับ PGlite ผ่าน) · frontend build `main-WBMGQQNF.js` · test 83 (frontend) + 81 (backend) ผ่านหมด
+> **อัปเดตรอบที่ 4: 2026-11-10 (ไทย) — deploy แล้ว** · commit `05e540b` ขึ้น production ผ่าน Docker Compose (host นี้ไม่มี user `smmb`) · เว็บเสิร์ฟ `main-WBMGQQNF.js` ตรงกับ dist · `config.json` มี `devTools:false` · health 200 `ok` (postgres/redis/push up) · migration ล่าสุด `0036_admin_audit.sql` → **ปิด W-02 (drift)** · ยังค้าง: nginx header/CSP (W-18), ซ้อม rollback, backup/monitor
 > ผู้ตรวจ: agent (read-only สำหรับผลตรวจรอบแรก) · วิธีตรวจ: `node scripts/project-guardian.mjs --full` + อ่านโค้ดเส้นทางหลัก + ยิง health/หน้าเว็บ production + build production เทียบ hash
 > **เอกสารนี้ไม่ใช่สเปกฟีเจอร์** — เป็นรายการงานค้างที่ยืนยันด้วยหลักฐาน พร้อมเกณฑ์เสร็จ (DoD) เพื่อใช้สั่งงานรอบถัดไป
 > อัปเดตเอกสารนี้ทุกครั้งที่ตรวจใหญ่ · ถ้าข้อไหนแก้แล้วให้เปลี่ยนสถานะเป็น ✅ พร้อมวันที่และหลักฐาน
@@ -29,16 +30,18 @@
 | Frontend build / unit / lint | ✅ | build + 83 unit + oxlint ผ่าน |
 | Backend build / lint / unit | ✅ | build + lint (exit 0) + 81 unit ผ่าน |
 
-### สถานะ production (ยิงจริง 2026-11-10 09:11 ไทย)
+### สถานะ production (ยิงจริง 2026-11-10 09:11 ไทย · ตรวจซ้ำหลัง deploy 12:18 ไทย)
 
 | จุด | ผล |
 |---|---|
 | `https://hub.sjp-dev.net/smmb/` | 200 |
 | `/smmb-api/api/health/live` | 200 |
 | `/smmb-api/api/health` | 200 · `postgres=up, redis=up, push=up` · uptime ~16 ชม. |
-| bundle ที่เสิร์ฟ | `main-WFSM5UAM.js` (ตรวจซ้ำ 10 พ.ย.) |
-| bundle จาก HEAD (`build:hub`) | `main-WBMGQQNF.js` → **ไม่ตรง (W-02)** |
-| `config.json` ที่ `build:hub` สร้าง | `{"apiBase":"/smmb-api","devTools":false}` — prod ยังไม่มี `devTools` จนกว่าจะ deploy |
+| bundle ที่เสิร์ฟ | `main-WBMGQQNF.js` (ตรวจซ้ำ 10 พ.ย. 2026 หลัง deploy `05e540b`) |
+| bundle จาก HEAD (`build:hub`) | `main-WBMGQQNF.js` → **ตรงกัน (ปิด W-02)** |
+| `config.json` บน prod | `{"apiBase":"/smmb-api","devTools":false}` ✅ |
+| health หลัง deploy | 200 · `status:"ok"` · postgres/redis/push = up |
+| migration ล่าสุด | `0036_admin_audit.sql` |
 
 ---
 
@@ -63,7 +66,7 @@
 | ID | ระดับ | เรื่อง | สถานะ |
 |---|---|---|---|
 | W-01 | 🔴 P0 | ตู้จริง (ESP32-CAM) ยังไม่เคยรันกับระบบ | ⬜ (ฮาร์ดแวร์) |
-| W-02 | 🔴 P0 | production ไม่ตรงกับ HEAD + สคริปต์ deploy/rollback | 🟡 โค้ดพร้อม · รอรันบนเซิร์ฟเวอร์ (build ใหม่ `main-WBMGQQNF.js`) |
+| W-02 | 🔴 P0 | production ไม่ตรงกับ HEAD + สคริปต์ deploy/rollback | ✅ 10 พ.ย. (deploy `05e540b` · hash ตรง · health 200 · migration 0036) · เหลือซ้อม rollback |
 | W-03 | 🔴 P0 | ไม่มี browser E2E (Playwright) | ⬜ |
 | W-04 | 🔴 P0 | ยังไม่ตัดสินโดเมนจริงก่อนพิมพ์ QR ตู้ | ⬜ (รอผู้ใช้ตัดสิน) |
 | W-05 | 🔴 P0 | backup ยังเป็นเอกสาร ไม่มีระบบ/ไม่เคยซ้อม restore | ⬜ (เซิร์ฟเวอร์) |
@@ -95,8 +98,13 @@
 
 - **✅ ตัดสิน 10 พ.ย. 2026 (ผู้ใช้):** deploy **ด้วยมือเท่านั้น** — `git pull` บนเซิร์ฟเวอร์ แล้วสั่ง Codex รัน `scripts/deploy.sh` · **ไม่ทำ auto-deploy** (GitHub Actions / self-hosted runner / systemd timer) เพราะยุ่งยากเกินความจำเป็นของทีมขนาดนี้ · ห้ามเสนอซ้ำ
 
-- **สถานะ 10 พ.ย. 2026:** 🟡 โค้ดฝั่ง repo พร้อมแล้ว — เพิ่ม `scripts/deploy.sh` (build → backup → publish → hash verify → restart → health → rollback) และ guardian ตรวจ drift แบบ opt-in (`GUARDIAN_DEPLOY_URL`) แต่ **ยังต้องรันบนเซิร์ฟเวอร์** และซ้อม rollback 1 ครั้ง
-- **อาการ:** prod เสิร์ฟ `main-WFSM5UAM.js` · build จาก HEAD ได้ `main-RESLRBDK.js` (ตรวจซ้ำ 10 พ.ย.) · `config.json` บน prod ไม่มีคีย์ `devTools` แต่ `build:hub` เขียน `{"apiBase":"/smmb-api","devTools":false}`
+- **สถานะ 10 พ.ย. 2026 (deploy แล้ว):** ✅ commit `05e540b` ขึ้น production ผ่าน **Docker Compose** (host นี้ไม่มี user `smmb` จึงไม่ใช้ `sudo -u smmb`/`scripts/deploy.sh` ตรง ๆ)
+  - เว็บเสิร์ฟ `main-WBMGQQNF.js` = hash ใน `frontend/dist/smmb-web/browser/index.html` ✅ (guardian: `Deploy drift — prod = dist`)
+  - `config.json` บน prod = `{"apiBase":"/smmb-api","devTools":false}` ✅
+  - health 200 · `status:"ok"` · postgres/redis/push = up ✅
+  - migration ล่าสุด `0036_admin_audit.sql` ✅
+  - **ยังเหลือ:** ซ้อม rollback 1 ครั้ง (ช่วง maintenance) — ยังไม่เคยทดสอบบน host นี้
+- **อาการเดิม (ก่อน deploy):** prod เสิร์ฟ `main-WFSM5UAM.js` · build จาก HEAD ได้ `main-RESLRBDK.js` (ตรวจซ้ำ 10 พ.ย.) · `config.json` บน prod ไม่มีคีย์ `devTools` แต่ `build:hub` เขียน `{"apiBase":"/smmb-api","devTools":false}`
 - **หลักฐาน:** ยิง `https://hub.sjp-dev.net/smmb/` เทียบกับ `frontend/dist/smmb-web/browser/` หลัง `npm run build:hub` · uptime prod เริ่ม ~9 พ.ย. 17:00 (หลัง commit สุดท้าย 16:59) จึงเป็นการ deploy ครั้งก่อนหน้า ไม่ใช่ HEAD
 - **งาน:**
   1. `scripts/deploy.sh` — build:hub → rsync ไป `/var/www/smmb/` → เทียบ hash ที่เสิร์ฟกับ dist → restart backend → `curl health` → ล้มเหลวให้ rollback จาก `dist.prev/`
@@ -201,6 +209,7 @@
 ### W-18 🟡 P2 — nginx ยังไม่เปิด HSTS/CSP
 
 - **สถานะ 10 พ.ย. 2026:** 🟡 แก้ `deploy/nginx-smmb.conf` แล้ว — คัดลอกชุด header ความปลอดภัยลง **ทุก location ที่ประกาศ `add_header` เอง** (แก้ปัญหา index.html เสีย header) · เพิ่ม `Permissions-Policy` · CSP เป็น `Report-Only` ก่อน (ไม่บล็อก Leaflet/inline style/Google Fonts) · HSTS เขียนเป็นขั้นตอน (เริ่ม 1 วัน)
+- **ตรวจซ้ำหลัง deploy 05e540b (12:18 ไทย):** ยังไม่ได้เอา config ใหม่ขึ้น — `curl -I` ทั้ง `/smmb/` และ `/smmb/index.html` เห็นแค่ `Cache-Control: no-cache` ไม่มี `X-Content-Type-Options` / `X-Frame-Options` / `Referrer-Policy` / CSP เลย (ตรงกับปัญหา add_header ไม่สะสมข้ามชั้น) · `GET /smmb-api/v1/box/jobs?wait=1` = 401 (long-poll ยังผ่าน nginx ถูก)
 - **หลักฐานเดิม:** `deploy/nginx-smmb.conf` บรรทัด 71–72 (HSTS comment) · ไม่มี CSP · `location = /smmb/index.html` ทิ้ง header ของ `server {}`
 - **งานบนเซิร์ฟเวอร์:** deploy config ใหม่ → ตรวจ header ครบ → เดิน 5 flow + PWA offline → ไม่มี violation จึงเปลี่ยนเป็น `Content-Security-Policy` และเพิ่ม HSTS
 - **DoD:** ไม่มี CSP violation ใน console ระหว่างเดิน 5 flow หลัก · `curl -I` เห็น header ครบทั้ง `/smmb/` และ `/smmb/index.html`
@@ -247,32 +256,27 @@
 
 > ส่วนนี้ agent ในเครื่อง dev ทำต่อไม่ได้ (ไม่มี SSH ไป `hub.sjp-dev.net`) — คัดลอกคำสั่งนี้ให้ Codex บนเซิร์ฟเวอร์ทำทีละข้อ แล้วบันทึกผลกลับในเอกสารนี้
 
-### S-02 🔴 deploy + rollback (ปิด W-02)
+### S-02 🟠 deploy + rollback (ปิด W-02)
 
-```bash
-cd /opt/smmb
-sudo -u smmb git pull
-sudo -u smmb bash scripts/deploy.sh --migrate
-```
+- **สถานะ 10 พ.ย. 2026:** ✅ deploy `05e540b` แล้วผ่าน **Docker Compose** (host นี้ไม่มี user `smmb` — ห้ามใช้ `sudo -u smmb` บนเครื่องนี้) · hash/health/migration ตรวจผ่าน (ดู W-02) · **เหลือซ้อม rollback**
+- ขั้นตอน deploy บน host นี้: `git pull` → build/publish ตามวิธีที่ผู้ดูแลใช้ (Docker Compose) → ตรวจ 4 ข้อด้านล่าง
 
-ตรวจหลัง deploy:
+ตรวจหลัง deploy (ใช้ได้ทุกวิธี):
 
 ```bash
 grep -oE 'main-[A-Z0-9]+\.js' /var/www/smmb/index.html
 grep -oE 'main-[A-Z0-9]+\.js' /opt/smmb/frontend/dist/smmb-web/browser/index.html
 cat /var/www/smmb/config.json     # ต้องมี apiBase=/smmb-api และ devTools=false
 curl -fsS https://hub.sjp-dev.net/smmb-api/api/health
-sudo -u smmb env GUARDIAN_DEPLOY_URL=https://hub.sjp-dev.net/smmb node scripts/project-guardian.mjs --full
+# จากเครื่อง dev (ไม่ต้อง SSH):
+GUARDIAN_DEPLOY_URL=https://hub.sjp-dev.net/smmb node scripts/project-guardian.mjs --full
 ```
 
-ซ้อม rollback 1 ครั้ง (ช่วง maintenance):
+ซ้อม rollback 1 ครั้ง (ช่วง maintenance — ถามเจ้าของระบบก่อน):
+- บน host ที่ใช้ Compose: tag image/release ปัจจุบันไว้ → สลับกลับ release ก่อนหน้า → ตรวจ hash + health → สลับกลับ
+- บน host ที่ใช้ `scripts/deploy.sh`: `HEALTH_URL=http://127.0.0.1:9/ HEALTH_TIMEOUT=2 bash scripts/deploy.sh` ต้อง exit ≠ 0 และเว็บกลับชุดก่อนหน้า
 
-```bash
-sudo -u smmb env HEALTH_URL=http://127.0.0.1:9/ HEALTH_TIMEOUT=2 bash scripts/deploy.sh
-# ต้อง exit 1 และ /var/www/smmb กลับไปเป็นชุดก่อนหน้า
-```
-
-**DoD:** hash prod = dist · `devTools:false` · guardian ไม่มี `Deploy drift` FAIL · rollback ทำงานและบันทึกเวลา
+**DoD:** hash prod = dist ✅ · `devTools:false` ✅ · guardian ไม่มี `Deploy drift` FAIL ✅ · rollback ทำงานและบันทึกเวลา ⬜
 
 ### S-19 🟠 ตรวจ migration 0034–0036 + พฤติกรรมใหม่หลัง deploy
 
@@ -397,7 +401,7 @@ W-08 (frontend lint) ✅ → W-09 (advisory lock) ✅ → W-13 (README) ✅ → 
 P0/P1 จาก audit (§3.1) ✅ → migration 0034–0036 ✅ → build/lint/test เขียว ✅
 
 **รอบ 1 — ปิดช่อง "เทสต์ผ่านแต่ของจริงพัง" (1–2 วัน)**
-S-02 (deploy+rollback) → S-19 (ตรวจ migration/health หลัง deploy) → S-05 (backup+restore) → S-06 (monitor) → tag `v0.1.0` + อัปเดต CHANGELOG
+S-02 (ซ้อม rollback เท่านั้น — deploy ผ่านแล้ว `05e540b`) → S-19 (ตรวจ migration/health หลัง deploy) → S-05 (backup+restore) → S-06 (monitor) → tag `v0.1.0` + อัปเดต CHANGELOG
 
 **รอบ 2 — มั่นใจก่อนเปิดบ้านนำร่อง (3–5 วัน)**
 W-03 (Playwright 5 เส้น) → W-07 (e2e ใน CI) → S-11 (push มือถือจริง) → U-01 (false-empty)
@@ -432,3 +436,4 @@ Invoke-WebRequest https://hub.sjp-dev.net/smmb-api/api/health -UseBasicParsing |
 ```
 
 > หมายเหตุ: `reports/` อยู่ใน `.gitignore` — รายงานดิบจะไม่ติดไปกับ repo จึงต้องสรุปผลลงเอกสารนี้ทุกครั้ง
+

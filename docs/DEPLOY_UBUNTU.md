@@ -2,6 +2,9 @@
 
 > เขียน 29 ต.ค. 2026 · ต่างจาก `CODEX_SERVER_SETUP.txt` (นั่นคือ hub ทดสอบที่รันโหมด mock) — เอกสารนี้คือ **production**: PostgreSQL + Redis เป็น container, backend รันด้วย systemd, nginx หน้า
 > ทำตามลำดับ · ทุกขั้นสั่งผ่าน SSH ได้ · ไม่ต้องมีเบราว์เซอร์บนเครื่อง server (ใช้เครื่องอื่นเปิดหน้าแอดมิน)
+>
+> **หมายเหตุสภาพจริง (10 พ.ย. 2026):** host `hub.sjp-dev.net` **ไม่มี user `smmb`** — deploy ทำผ่าน **Docker Compose** ไม่ใช่ `sudo -u smmb`/`scripts/deploy.sh`
+> คำสั่ง `sudo -u smmb` ในเอกสารนี้ใช้กับเครื่องที่ติดตั้งแบบ systemd ตามหัวข้อ 5–7 เท่านั้น · การตรวจหลัง deploy (hash/config/health/migration) ใช้ได้ทั้งสองแบบ — ดู `docs/FLOW_AND_GAPS.md` S-02
 
 ## ภาพรวม
 
