@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, effect, ElementRef, inj
 import type * as Leaflet from 'leaflet';
 import { I18n } from '../core/i18n';
 import { Icon } from './icon';
+import { addBaseTiles } from './map-tiles';
 
 export interface LatLng {
   lat: number;
@@ -97,11 +98,15 @@ export class MapPin {
   private L: typeof Leaflet | null = null;
   private map: Leaflet.Map | null = null;
   private marker: Leaflet.Marker | null = null;
+  private resize: ResizeObserver | null = null;
 
   constructor() {
     void this.init();
     effect(() => this.sync(this.value()));
-    inject(DestroyRef).onDestroy(() => this.map?.remove());
+    inject(DestroyRef).onDestroy(() => {
+      this.resize?.disconnect();
+      this.map?.remove();
+    });
   }
 
   private async init(): Promise<void> {
@@ -109,14 +114,16 @@ export class MapPin {
     this.L = L;
     const start = this.value() ?? DEFAULT_CENTER;
     const map = L.map(this.host().nativeElement, { zoomControl: true, attributionControl: true }).setView([start.lat, start.lng], this.value() ? 17 : 11);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap',
-    }).addTo(map);
+    addBaseTiles(L, map);
     if (this.editable()) map.on('click', (e: Leaflet.LeafletMouseEvent) => this.value.set({ lat: round6(e.latlng.lat), lng: round6(e.latlng.lng) }));
     this.map = map;
     this.sync(this.value());
-    // แผนที่อยู่ในการ์ดที่เพิ่งแสดง — ขนาดยังไม่นิ่งตอนสร้าง
+    // แผนที่อยู่ในการ์ด/details ที่อาจถูกซ่อนตอนสร้าง (ขนาด 0) — พอแสดงจริงต้องบอก Leaflet วัดขนาดใหม่
+    // (เดิมใช้ setTimeout 200ms ครั้งเดียว ซึ่งยังไม่ทันตอนผู้ใช้เพิ่งกดเปิด details → แผนที่ว่าง/หมุดเยื้อง)
+    this.resize = new ResizeObserver(() => {
+      if (this.host().nativeElement.clientWidth > 0) this.map?.invalidateSize();
+    });
+    this.resize.observe(this.host().nativeElement);
     setTimeout(() => map.invalidateSize(), 200);
   }
 

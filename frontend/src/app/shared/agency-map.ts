@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, ElementRef, inject, input, model, viewChild } from '@angular/core';
 import type * as Leaflet from 'leaflet';
 import { I18n } from '../core/i18n';
+import { addBaseTiles } from './map-tiles';
 import type { LatLng } from './map-pin';
 
 /** หน่วยงานที่แสดงบนแผนที่ (api.md §8.1b `GET /agencies/map`) */
@@ -71,11 +72,15 @@ export class AgencyMap {
   private markers = new Map<string, Leaflet.Marker>();
   private homeMarker: Leaflet.Marker | null = null;
   private fitted = false;
+  private resize: ResizeObserver | null = null;
 
   constructor() {
     void this.init();
     effect(() => this.sync(this.agencies(), this.home(), this.selected()));
-    inject(DestroyRef).onDestroy(() => this.map?.remove());
+    inject(DestroyRef).onDestroy(() => {
+      this.resize?.disconnect();
+      this.map?.remove();
+    });
   }
 
   private async init(): Promise<void> {
@@ -83,9 +88,13 @@ export class AgencyMap {
     this.L = L;
     const c = this.home() ?? DEFAULT_CENTER;
     const map = L.map(this.host().nativeElement, { zoomControl: true, attributionControl: true }).setView([c.lat, c.lng], 12);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+    addBaseTiles(L, map);
     this.map = map;
     this.sync(this.agencies(), this.home(), this.selected());
+    this.resize = new ResizeObserver(() => {
+      if (this.host().nativeElement.clientWidth > 0) this.map?.invalidateSize();
+    });
+    this.resize.observe(this.host().nativeElement);
     setTimeout(() => map.invalidateSize(), 200);
   }
 

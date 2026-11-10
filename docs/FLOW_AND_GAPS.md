@@ -447,3 +447,4 @@ Invoke-WebRequest https://hub.sjp-dev.net/smmb-api/api/health -UseBasicParsing |
 
 > หมายเหตุ: `reports/` อยู่ใน `.gitignore` — รายงานดิบจะไม่ติดไปกับ repo จึงต้องสรุปผลลงเอกสารนี้ทุกครั้ง
 
+
