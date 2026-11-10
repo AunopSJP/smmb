@@ -357,7 +357,7 @@ import { firstValueFrom } from 'rxjs';
       display: flex;
       flex-direction: column;
       gap: 8px;
-      border-color: var(--brand);
+      border-color: var(--brand-text);
     }
     .row.disabled {
       opacity: 0.55;
@@ -388,9 +388,10 @@ import { firstValueFrom } from 'rxjs';
     .link {
       border: 0;
       background: none;
-      padding: 0 4px;
+      padding: 6px;
+      margin: -6px;
       font: inherit;
-      color: var(--brand);
+      color: var(--brand-text);
       cursor: pointer;
     }
     .link.strong {
@@ -398,7 +399,7 @@ import { firstValueFrom } from 'rxjs';
     }
     .signout {
       margin-block-start: auto;
-      color: var(--brand);
+      color: var(--brand-text);
       box-shadow: inset 0 0 0 1.5px var(--line);
     }
   `,
@@ -719,7 +720,7 @@ export class OwnerSettings {
         border-color: var(--ok);
       }
       &.warn {
-        border-color: var(--brand);
+        border-color: var(--brand-text);
       }
     }
     .steps {
@@ -920,25 +921,6 @@ export class OwnerWifi {
           </ol>
         </section>
       } @else {
-        @if (lastDone(); as done) {
-          <section class="card done-note" role="status">
-            <span class="done-ic"><app-icon name="check" [size]="26" /></span>
-            <div>
-              <strong>{{ i18n.t({ th: 'ช่างทำเสร็จแล้ว', en: 'The technician has finished' }) }}</strong>
-              <span class="muted small block">{{ done.scheduled_at ? (done.scheduled_at | date:'d MMM yyyy HH:mm') : (done.created_at | date:'d MMM yyyy HH:mm') }} · {{ reasonLabel(done.reason) }}</span>
-              @if (done.admin_note) { <span class="small block">{{ done.admin_note }}</span> }
-              <span class="muted small block">{{ i18n.t({ th: 'ถ้ายังมีปัญหา ส่งคำขอใหม่ด้านล่างได้', en: 'If something is still wrong, send a new request below.' }) }}</span>
-              @if (done.owner_result === 'ok') {
-                <span class="chip ok block">{{ i18n.t({ th: 'ยืนยันแล้วว่าใช้งานได้ปกติ', en: 'Confirmed working' }) }}</span>
-              } @else {
-                <div class="two confirm-row">
-                  <button type="button" class="btn" [disabled]="confirming() === done.id" (click)="confirmDone(done.id, 'ok')">{{ i18n.t({ th: 'ใช้งานได้ปกติ', en: 'It works now' }) }}</button>
-                  <button type="button" class="btn secondary" [disabled]="confirming() === done.id" (click)="confirmDone(done.id, 'still_broken')">{{ i18n.t({ th: 'ยังมีปัญหา', en: 'Still a problem' }) }}</button>
-                </div>
-              }
-            </div>
-          </section>
-        }
         <p class="muted">{{ i18n.t({ th: 'ช่างจะนัดวันเวลามาตั้งค่าหรือซ่อมตู้ให้ ไม่มีค่าใช้จ่ายในช่วงทดลอง', en: 'A technician will book a time to set up or repair the box — free during the trial.' }) }}</p>
         <h2 class="section-title">{{ i18n.t({ th: 'ต้องการให้ช่างทำอะไร', en: 'What do you need?' }) }}</h2>
         <section class="card stack">
@@ -954,6 +936,27 @@ export class OwnerWifi {
         <button type="button" class="btn" [disabled]="sending() || !boxId()" (click)="submit()">
           {{ sending() ? i18n.t({ th: 'กำลังส่ง…', en: 'Sending…' }) : i18n.t({ th: 'ส่งคำขอ', en: 'Send request' }) }}
         </button>
+        @if (lastDone(); as done) {
+          <!-- งานครั้งก่อนอยู่ใต้ฟอร์ม: ไม่แย่งความสนใจ/UPS กับการส่งคำขอใหม่ -->
+          <h2 class="section-title">{{ i18n.t({ th: 'งานครั้งก่อน', en: 'Previous request' }) }}</h2>
+          <section class="card done-note" role="status">
+            <span class="done-ic"><app-icon name="check" [size]="26" /></span>
+            <div>
+              <strong>{{ i18n.t({ th: 'ช่างทำเสร็จแล้ว', en: 'The technician has finished' }) }}</strong>
+              <span class="muted small block">{{ done.scheduled_at ? (done.scheduled_at | date:'d MMM yyyy HH:mm') : (done.created_at | date:'d MMM yyyy HH:mm') }} · {{ reasonLabel(done.reason) }}</span>
+              @if (done.admin_note) { <span class="small block">{{ done.admin_note }}</span> }
+              <span class="muted small block">{{ i18n.t({ th: 'งานนี้ใช้ได้ปกติไหม?', en: 'Did this fix work?' }) }}</span>
+              @if (done.owner_result === 'ok') {
+                <span class="chip ok block">{{ i18n.t({ th: 'ยืนยันแล้วว่าใช้งานได้ปกติ', en: 'Confirmed working' }) }}</span>
+              } @else {
+                <div class="two confirm-row">
+                  <button type="button" class="btn" [disabled]="confirming() === done.id" (click)="confirmDone(done.id, 'ok')">{{ i18n.t({ th: 'ใช้งานได้ปกติ', en: 'It works now' }) }}</button>
+                  <button type="button" class="btn secondary" [disabled]="confirming() === done.id" (click)="confirmDone(done.id, 'still_broken')">{{ i18n.t({ th: 'ยังมีปัญหา', en: 'Still a problem' }) }}</button>
+                </div>
+              }
+            </div>
+          </section>
+        }
       }
       }
       <a class="back-link" [routerLink]="url('H03')">{{ i18n.t({ th: 'กลับหน้าหลัก', en: 'Back to home' }) }}</a>
@@ -1253,7 +1256,7 @@ export class OwnerTechnician {
         </dl>
       </section>
 
-      <a class="btn easy-hide" [routerLink]="backUrl()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</a>
+      <a class="btn" [routerLink]="backUrl()">{{ i18n.t({ th: 'เสร็จแล้ว', en: 'Done' }) }}</a>
     </div>
   `,
   styles: `
@@ -1294,7 +1297,7 @@ export class OwnerTechnician {
       cursor: pointer;
     }
     .mode.on {
-      border-color: var(--brand);
+      border-color: var(--brand-text);
     }
     .mtxt {
       flex: 1;

@@ -96,7 +96,7 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
         overflow-wrap: break-word;
       }
       .fix {
-        color: var(--brand);
+        color: var(--brand-text);
       }
     }
     .status {

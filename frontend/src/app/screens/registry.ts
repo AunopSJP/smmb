@@ -134,7 +134,7 @@ export const SCREENS: ScreenDef[] = [
   s('H12-e', 'owner', 'history/range', 'เลือกช่วงวันที่', 'Pick a date range', { fullscreen: true }),
   s('H13', 'owner', 'settings', 'ตั้งค่า', 'Settings', { next: ['H13-b', 'H13-d', 'H15'] }),
   s('H13-b', 'owner', 'settings/wifi', 'เปลี่ยน Wi-Fi', 'Change Wi-Fi', { next: ['H13-c'] }),
-  s('H13-c', 'owner', 'settings/technician', 'แจ้งช่างแล้ว', 'Technician requested'),
+  s('H13-c', 'owner', 'settings/technician', 'แจ้งช่าง', 'Request a technician'),
   s('H13-d', 'owner', 'settings/display', 'การแสดงผล', 'Display'),
   s('H14', 'owner', 'notifications', 'แจ้งเตือน', 'Notifications'),
   s('H16', 'owner', 'agencies', 'หน่วยงานใกล้บ้าน', 'Agencies near you', { noTabs: true }),

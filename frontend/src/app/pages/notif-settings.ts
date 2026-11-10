@@ -93,7 +93,7 @@ interface Option {
     .toggle + .toggle { border-block-start: 1px solid var(--line); }
     .device { display: flex; align-items: center; gap: 12px; padding-block: 8px; }
     .device + .device { border-block-start: 1px solid var(--line); }
-    .always { border-color: var(--brand); }
+    .always { border-color: var(--brand-text); }
     .ok { justify-self: start; }
     .push-end { margin-block-start: auto; }
   `,

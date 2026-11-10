@@ -259,7 +259,7 @@ interface RecentLog {
       font-size: 3.5rem;
       font-weight: 800;
       line-height: 1;
-      color: var(--brand);
+      color: var(--brand-text);
     }
     .hero-n small {
       font-size: 1.25rem;
@@ -304,7 +304,7 @@ interface RecentLog {
       block-size: 52px;
       border-radius: 16px;
       background: var(--icon-bg);
-      color: var(--brand);
+      color: var(--brand-text);
     }
     .big.warn .big-ic {
       background: var(--ib-warn-bg);

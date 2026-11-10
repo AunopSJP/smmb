@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { HeadApi, showGroupCode } from '../../core/head-api';
 import { I18n } from '../../core/i18n';
 import { Toast } from '../../core/toast';
+import { Confirm } from '../../shared/confirm-dialog';
 import { screenUrl } from '../../screens/registry';
 import { AgencyFields, agencyDetailPayload, agencyDetailValid, emptyAgencyDetail, type AgencyDetailForm } from '../../shared/agency-fields';
 import { PageHeader } from '../../shared/page-header';
@@ -63,7 +64,7 @@ import { PageHeader } from '../../shared/page-header';
       font-size: 1.75rem;
       font-weight: 700;
       letter-spacing: 0.08em;
-      color: var(--brand);
+      color: var(--brand-text);
     }
     .two {
       display: grid;
@@ -81,6 +82,7 @@ export class HeadAgencyProfile {
   protected readonly api = inject(HeadApi);
   private readonly http = inject(HttpClient);
   private readonly toast = inject(Toast);
+  private readonly confirm = inject(Confirm);
   protected readonly url = screenUrl;
   protected readonly contact = signal('');
   protected readonly address = signal('');
@@ -120,7 +122,15 @@ export class HeadAgencyProfile {
   /** POST /agency/group-code/rotate — รหัสเก่าใช้ไม่ได้ทันที */
   protected async rotate(): Promise<void> {
     if (this.busyCode()) return;
-    if (!confirm(this.i18n.t({ th: 'สร้างรหัสกลุ่มใหม่? รหัสเดิมจะใช้ไม่ได้ทันที', en: 'Create a new group code? The old one stops working immediately.' }))) return;
+    if (
+      !(await this.confirm.ask({
+        title: { th: 'สร้างรหัสกลุ่มใหม่?', en: 'Create a new group code?' },
+        body: { th: 'รหัสเดิมจะใช้ไม่ได้ทันที', en: 'The old one stops working immediately.' },
+        confirm: { th: 'สร้างรหัสใหม่', en: 'Create a new code' },
+        danger: true,
+      }))
+    )
+      return;
     this.busyCode.set(true);
     try {
       await this.api.rotateCode();

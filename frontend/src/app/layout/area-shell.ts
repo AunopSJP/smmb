@@ -9,6 +9,7 @@ import { AREA_LABEL, screen, TABS, TABS_EASY, type Area } from '../screens/regis
 import { DisplaySettings } from '../core/display-settings';
 import { Icon, type IconName } from '../shared/icon';
 import { TabBar } from '../shared/tab-bar';
+import { ConfirmDialog } from '../shared/confirm-dialog';
 import { screenUrl } from '../screens/registry';
 import { Session } from '../core/session';
 import { RouterLinkActive } from '@angular/router';
@@ -113,7 +114,7 @@ const MOCK_SCREENS = new Set<string>();
  */
 @Component({
   selector: 'app-area-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, TabBar, ToastHost, Icon],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, TabBar, ToastHost, Icon, ConfirmDialog],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="frame" [class.admin-layout]="isAdmin" [class.auth-layout]="area === 'auth'" [class.nav-mini]="mini()" [attr.data-area]="area">
@@ -195,6 +196,7 @@ const MOCK_SCREENS = new Set<string>();
         <router-outlet />
       </main>
       <app-toast />
+      <app-confirm-dialog />
       @if (tabs(); as t) {
         @if (!hideTabs()) {
           <app-tab-bar [tabs]="t" />
@@ -401,8 +403,8 @@ const MOCK_SCREENS = new Set<string>();
       inline-size: 38px;
       block-size: 38px;
       border-radius: 10px;
-      background: var(--brand);
-      color: #fff;
+      background: var(--action-bg);
+      color: var(--action-fg);
       font-weight: 800;
       font-size: 1.25rem;
     }
@@ -478,7 +480,7 @@ const MOCK_SCREENS = new Set<string>();
       font-weight: 700;
     }
     .side a.active app-icon {
-      color: var(--brand);
+      color: var(--brand-text);
     }
     .side a.active::before {
       content: '';

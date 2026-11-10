@@ -134,7 +134,7 @@ export class AuthLine {
     }
     .android {
       background: var(--brand-lighter);
-      color: var(--brand);
+      color: var(--brand-text);
     }
     .pic {
       display: block;
@@ -363,7 +363,7 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
       box-shadow: none;
     }
     .link {
-      color: var(--brand);
+      color: var(--brand-text);
       font-weight: 700;
     }
     .pick {
@@ -527,7 +527,7 @@ export class AuthSignin implements OnInit {
       display: block;
     }
     .link {
-      color: var(--brand);
+      color: var(--brand-text);
       font-weight: 700;
     }
   `,

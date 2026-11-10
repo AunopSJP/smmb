@@ -184,6 +184,8 @@ const RESULT_TEXT: Record<string, Tr> = {
     }
     .filters > summary {
       cursor: pointer;
+      padding-block: 10px;
+      margin-block: -10px;
       font-weight: 700;
       display: flex;
       align-items: center;

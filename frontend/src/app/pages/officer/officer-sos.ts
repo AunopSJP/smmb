@@ -248,8 +248,8 @@ export class OfficerSosList {
   `,
   styles: `
     .incoming {
-      background: var(--sos);
-      color: #fff;
+      background: var(--sos-bg);
+      color: var(--sos-fg);
       h1 {
         font-size: 2rem;
         line-height: 1.35;
@@ -378,8 +378,8 @@ export class OfficerSosCase implements OnInit {
   `,
   styles: `
     .head {
-      background: var(--sos);
-      color: #fff;
+      background: var(--sos-bg);
+      color: var(--sos-fg);
       padding: 14px 16px 20px;
       border-radius: 0 0 20px 20px;
       h1 {
@@ -472,7 +472,7 @@ const OUTCOMES: { v: string; label: Tr }[] = [
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      color: var(--brand);
+      color: var(--brand-text);
       font-weight: 700;
       font-size: 0.875rem;
       text-decoration: none;
@@ -493,7 +493,7 @@ const OUTCOMES: { v: string; label: Tr }[] = [
     }
     textarea:focus {
       outline: none;
-      border-color: var(--brand);
+      border-color: var(--brand-text);
     }
     .tech {
       margin: 0;

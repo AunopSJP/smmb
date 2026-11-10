@@ -5,6 +5,7 @@ import { AdminApi, type AdminBoxDetail } from '../../core/admin-api';
 import { ApiConfig } from '../../core/api';
 import { I18n } from '../../core/i18n';
 import { Toast } from '../../core/toast';
+import { Confirm } from '../../shared/confirm-dialog';
 import { AdminBox } from './admin-boxes';
 
 const config = {
@@ -47,7 +48,7 @@ describe('AdminBox reset action', () => {
       resetBoxConfig: vi.fn().mockResolvedValue({ box_id: 'BX-00001', config_ver: 12, config }),
     };
     const toast = { show: vi.fn() };
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirm = { ask: vi.fn().mockResolvedValue(true) };
     TestBed.configureTestingModule({
       imports: [AdminBox],
       providers: [
@@ -55,6 +56,7 @@ describe('AdminBox reset action', () => {
         { provide: ApiConfig, useValue: { apiBase: signal('/smmb-api') } },
         { provide: I18n, useValue: { t: (message: { th: string }) => message.th } },
         { provide: Toast, useValue: toast },
+        { provide: Confirm, useValue: confirm },
         { provide: Router, useValue: { navigateByUrl: vi.fn() } },
       ],
     });
@@ -71,14 +73,19 @@ describe('AdminBox reset action', () => {
     await vi.waitFor(() => expect(toast.show).toHaveBeenCalledOnce());
 
     expect(adminApi.box).toHaveBeenCalledTimes(2);
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('เจ้าของ, QR และประวัติไว้'));
+    expect(confirm.ask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ th: expect.stringContaining('เจ้าของ, QR และประวัติไว้') }),
+        danger: true,
+      }),
+    );
     expect(toast.show).toHaveBeenCalledWith({ th: 'คืนค่าแล้ว · บอร์ดรับค่ากลางแล้ว', en: 'Restored · the board has applied shared settings' });
     fixture.destroy();
   });
 
   it('does not call the backend when the administrator cancels confirmation', async () => {
     const adminApi = { box: vi.fn().mockResolvedValue(boxDetail(false)), resetBoxConfig: vi.fn() };
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const confirm = { ask: vi.fn().mockResolvedValue(false) };
     TestBed.configureTestingModule({
       imports: [AdminBox],
       providers: [
@@ -86,6 +93,7 @@ describe('AdminBox reset action', () => {
         { provide: ApiConfig, useValue: { apiBase: signal('/smmb-api') } },
         { provide: I18n, useValue: { t: (message: { th: string }) => message.th } },
         { provide: Toast, useValue: { show: vi.fn() } },
+        { provide: Confirm, useValue: confirm },
         { provide: Router, useValue: { navigateByUrl: vi.fn() } },
       ],
     });

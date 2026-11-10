@@ -41,7 +41,7 @@ import { I18n } from '../core/i18n';
     }
     .back {
       grid-column: span 2;
-      color: var(--brand);
+      color: var(--brand-text);
     }
   `,
 })

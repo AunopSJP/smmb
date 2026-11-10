@@ -390,7 +390,7 @@ export class TechChecklist {
       display: flex;
       flex-direction: column;
       background: var(--brand-lighter);
-      color: var(--brand);
+      color: var(--brand-text);
       box-shadow: none;
     }
     .nets {

@@ -7,6 +7,7 @@ import { minutesAgo, type BoxStatus } from '../../core/owner-api';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { BoxTest } from '../../shared/box-test';
+import { Confirm } from '../../shared/confirm-dialog';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { QrImage } from '../../shared/qr-image';
@@ -219,7 +220,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       color: var(--text-muted);
     }
     .search-box:focus-within {
-      border-color: var(--brand);
+      border-color: var(--brand-text);
     }
     .search-box input {
       flex: 1;
@@ -287,7 +288,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       background: var(--orange-line);
     }
     .go {
-      color: var(--brand);
+      color: var(--brand-text);
       font-weight: 600;
       justify-self: end;
     }
@@ -1193,11 +1194,11 @@ export class AdminBoxes implements OnInit {
       transition: border-color 0.12s, background 0.12s;
     }
     .beep:hover:not([disabled]) {
-      border-color: var(--brand);
+      border-color: var(--brand-text);
       background: var(--brand-lighter);
     }
     .beep.on {
-      border-color: var(--brand);
+      border-color: var(--brand-text);
       background: var(--brand-light);
     }
     .beep[disabled] {
@@ -1230,8 +1231,8 @@ export class AdminBoxes implements OnInit {
       color: var(--text);
     }
     .tabs button.on {
-      color: var(--brand);
-      border-block-end-color: var(--brand);
+      color: var(--brand-text);
+      border-block-end-color: var(--brand-text);
     }
     .stack.grow {
       max-inline-size: 860px;
@@ -1368,6 +1369,7 @@ export class AdminBox implements OnInit {
   private readonly router = inject(Router);
   private readonly api = inject(AdminApi);
   private readonly toast = inject(Toast);
+  private readonly confirm = inject(Confirm);
   protected readonly url = screenUrl;
   protected readonly boxBadge = boxBadge;
   protected readonly seen = seenText;
@@ -1571,10 +1573,18 @@ export class AdminBox implements OnInit {
     const id = this.id();
     const reason = this.unbindReason().trim();
     if (!id || !reason || this.unbinding()) return;
-    if (!window.confirm(this.i18n.t({
-      th: `คืน ${id} เป็นตู้ใหม่ใช่ไหม? เจ้าของเดิมจะไม่เห็นตู้นี้อีก ตู้ถูกถอดออกจากทุกโซนและล้างค่าเฉพาะตู้${this.unbindResetWifi() ? ' · ตู้จะลืม Wi-Fi และต้องตั้งใหม่ที่หน้างาน' : ''}`,
-      en: `Return ${id} as new? The owner will no longer see it, it leaves every zone and its per-box settings are cleared${this.unbindResetWifi() ? ' · it forgets its Wi-Fi and must be set up on site' : ''}.`,
-    }))) return;
+    if (
+      !(await this.confirm.ask({
+        title: { th: `คืน ${id} เป็นตู้ใหม่ใช่ไหม?`, en: `Return ${id} as new?` },
+        body: {
+          th: `เจ้าของเดิมจะไม่เห็นตู้นี้อีก ตู้ถูกถอดออกจากทุกโซนและล้างค่าเฉพาะตู้${this.unbindResetWifi() ? ' · ตู้จะลืม Wi-Fi และต้องตั้งใหม่ที่หน้างาน' : ''}`,
+          en: `The owner will no longer see it, it leaves every zone and its per-box settings are cleared${this.unbindResetWifi() ? ' · it forgets its Wi-Fi and must be set up on site' : ''}.`,
+        },
+        confirm: { th: 'คืนตู้เป็นตู้ใหม่', en: 'Return as new' },
+        danger: true,
+      }))
+    )
+      return;
     this.unbinding.set(true);
     try {
       const r = await this.api.unbind(id, reason, this.unbindResetWifi());
@@ -1595,10 +1605,18 @@ export class AdminBox implements OnInit {
   protected async requestWifiReset(): Promise<void> {
     const id = this.id();
     if (!id || this.resetBusy()) return;
-    if (!window.confirm(this.i18n.t({
-      th: `สั่ง ${id} ลืม Wi-Fi ใช่ไหม? ตู้จะหลุดจากเครือข่ายเดิมและต้องตั้งค่า Wi-Fi ใหม่ที่หน้างาน`,
-      en: `Make ${id} forget its Wi-Fi? It leaves the current network and must be set up again on site.`,
-    }))) return;
+    if (
+      !(await this.confirm.ask({
+        title: { th: `สั่ง ${id} ลืม Wi-Fi ใช่ไหม?`, en: `Make ${id} forget its Wi-Fi?` },
+        body: {
+          th: 'ตู้จะหลุดจากเครือข่ายเดิมและต้องตั้งค่า Wi-Fi ใหม่ที่หน้างาน',
+          en: 'It leaves the current network and must be set up again on site.',
+        },
+        confirm: { th: 'สั่งลืม Wi-Fi', en: 'Forget Wi-Fi' },
+        danger: true,
+      }))
+    )
+      return;
     this.resetBusy.set(true);
     try {
       await this.api.requestWifiReset(id);
@@ -1629,7 +1647,19 @@ export class AdminBox implements OnInit {
   protected async setService(active: boolean): Promise<void> {
     const id = this.id();
     if (!id || this.serviceBusy()) return;
-    if (!active && !window.confirm(this.i18n.t({ th: `ปิดบริการ ${id} ใช่ไหม? เจ้าหน้าที่จะตรวจตู้นี้ไม่ได้จนกว่าจะเปิดใหม่`, en: `Switch ${id} off? Officers cannot check it until it is switched back on.` }))) return;
+    if (
+      !active &&
+      !(await this.confirm.ask({
+        title: { th: `ปิดบริการ ${id} ใช่ไหม?`, en: `Switch ${id} off?` },
+        body: {
+          th: 'เจ้าหน้าที่จะตรวจตู้นี้ไม่ได้จนกว่าจะเปิดใหม่',
+          en: 'Officers cannot check it until it is switched back on.',
+        },
+        confirm: { th: 'ปิดบริการ', en: 'Switch off' },
+        danger: true,
+      }))
+    )
+      return;
     this.serviceBusy.set(true);
     try {
       await this.api.setService(id, active, this.serviceReason().trim());
@@ -1644,10 +1674,15 @@ export class AdminBox implements OnInit {
   }
 
   protected async removeFirmware(version: string): Promise<void> {
-    const ok = window.confirm(this.i18n.t({
-      th: `ลบไฟล์เฟิร์มแวร์ ${version} ใช่ไหม? ตู้ที่รันเวอร์ชันนี้อยู่ไม่กระทบ แต่จะสั่งอัปเดตเป็นเวอร์ชันนี้อีกไม่ได้จนกว่าจะอัปโหลดใหม่`,
-      en: `Delete firmware ${version}? Boxes already running it are not affected, but it can’t be sent again until uploaded again.`,
-    }));
+    const ok = await this.confirm.ask({
+      title: { th: `ลบไฟล์เฟิร์มแวร์ ${version} ใช่ไหม?`, en: `Delete firmware ${version}?` },
+      body: {
+        th: 'ตู้ที่รันเวอร์ชันนี้อยู่ไม่กระทบ แต่จะสั่งอัปเดตเป็นเวอร์ชันนี้อีกไม่ได้จนกว่าจะอัปโหลดใหม่',
+        en: 'Boxes already running it are not affected, but it can’t be sent again until uploaded again.',
+      },
+      confirm: { th: 'ลบไฟล์นี้', en: 'Delete it' },
+      danger: true,
+    });
     if (!ok) return;
     try {
       await this.api.deleteFirmware(version);
@@ -1660,10 +1695,18 @@ export class AdminBox implements OnInit {
 
   protected async setAuto(version: string | null): Promise<void> {
     if (this.fwAutoBusy()) return;
-    if (version && !window.confirm(this.i18n.t({
-      th: `ให้ตู้ทุกใบที่ออนไลน์อัปเดตเป็น ${version} ใช่ไหม? ถ้าไฟล์มีปัญหาจะกระทบทุกตู้ ควรทดสอบกับตู้เดียวก่อน`,
-      en: `Make every online box update to ${version}? A bad file affects every box — test on one box first.`,
-    }))) return;
+    if (
+      version &&
+      !(await this.confirm.ask({
+        title: { th: `ให้ตู้ทุกใบที่ออนไลน์อัปเดตเป็น ${version} ใช่ไหม?`, en: `Make every online box update to ${version}?` },
+        body: {
+          th: 'ถ้าไฟล์มีปัญหาจะกระทบทุกตู้ ควรทดสอบกับตู้เดียวก่อน',
+          en: 'A bad file affects every box — test on one box first.',
+        },
+        confirm: { th: 'เปิดอัปเดตอัตโนมัติ', en: 'Turn on auto-update' },
+      }))
+    )
+      return;
     this.fwAutoBusy.set(true);
     try {
       this.fwAuto.set((await this.api.setFirmwareAuto(version)).version);
@@ -1735,10 +1778,15 @@ export class AdminBox implements OnInit {
   protected async deleteUnusedBox(): Promise<void> {
     const id = this.id();
     if (!id || !this.box()?.can_delete) return;
-    const confirmed = window.confirm(this.i18n.t({
-      th: `ยืนยันลบตู้ ${id}? QR และข้อมูลตู้ที่ยังไม่เปิดใช้จะถูกลบถาวร`,
-      en: `Delete box ${id}? Its unused QR codes and box record will be permanently removed.`,
-    }));
+    const confirmed = await this.confirm.ask({
+      title: { th: `ยืนยันลบตู้ ${id}?`, en: `Delete box ${id}?` },
+      body: {
+        th: 'QR และข้อมูลตู้ที่ยังไม่เปิดใช้จะถูกลบถาวร',
+        en: 'Its unused QR codes and box record will be permanently removed.',
+      },
+      confirm: { th: 'ลบตู้', en: 'Delete the box' },
+      danger: true,
+    });
     if (!confirmed) return;
     try {
       await this.api.deleteBox(id);
@@ -1753,10 +1801,15 @@ export class AdminBox implements OnInit {
   protected async resetConfig(): Promise<void> {
     const id = this.id();
     if (!id || this.resettingConfig()) return;
-    const confirmed = window.confirm(this.i18n.t({
-      th: `คืนค่าการตั้งค่าการทำงานของ ${id} ให้ใช้ค่ากลางใช่ไหม? เวลาตรวจยังมาจากโซน และระบบจะเก็บ Wi-Fi, รหัสบอร์ด, เจ้าของ, QR และประวัติไว้`,
-      en: `Restore ${id} to shared settings? Patrol hours stay with its zones. Wi-Fi, board credentials, ownership, QR codes, and history are kept.`,
-    }));
+    const confirmed = await this.confirm.ask({
+      title: { th: `คืนค่าการตั้งค่าของ ${id} เป็นค่ากลางใช่ไหม?`, en: `Restore ${id} to shared settings?` },
+      body: {
+        th: 'เวลาตรวจยังมาจากโซน และระบบจะเก็บ Wi-Fi, รหัสบอร์ด, เจ้าของ, QR และประวัติไว้',
+        en: 'Patrol hours stay with its zones. Wi-Fi, board credentials, ownership, QR codes, and history are kept.',
+      },
+      confirm: { th: 'คืนค่า', en: 'Restore' },
+      danger: true,
+    });
     if (!confirmed) return;
     this.resettingConfig.set(true);
     try {

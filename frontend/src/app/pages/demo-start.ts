@@ -80,7 +80,7 @@ import { Icon, type IconName } from '../shared/icon';
       gap: 12px;
     }
     h1 {
-      color: var(--brand);
+      color: var(--brand-text);
       font-size: 1.75rem;
     }
     button.row {

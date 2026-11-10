@@ -8,6 +8,7 @@ import { Session } from '../../core/session';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
+import { LoadingRows } from '../../shared/state-view';
 import { liveRefresh } from '../../core/live-refresh';
 
 /** รีเฟรชหน้าสรุปทุกกี่วินาที (เพื่อนในโซนตรวจบ้านไป / ถึงเวลาตรวจ) */
@@ -33,7 +34,7 @@ const toMinutes = (hhmm: string): number | null => {
 /** O01 หน้าสรุปเจ้าหน้าที่ (api.md §6.1) · O01-d นอกเวลาตรวจ · O01-e ตรวจครบแล้ว — ข้อมูลจริง */
 @Component({
   selector: 'app-officer-home',
-  imports: [RouterLink, PageHeader, Icon],
+  imports: [RouterLink, PageHeader, Icon, LoadingRows],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="caption()" [title]="session.me()?.display_name ?? ''" [bell]="url('O14')" />
@@ -228,7 +229,7 @@ const toMinutes = (hhmm: string): number | null => {
           </div>
         </section>
       } @else if (!error()) {
-        <p class="muted center">{{ i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
+        <app-loading-rows [rows]="4" [label]="i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' })" />
       }
     </div>
   `,

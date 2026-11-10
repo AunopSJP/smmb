@@ -100,7 +100,7 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
       <section class="card">
         <span class="muted small">{{ i18n.t({ th: 'รหัสกลุ่ม (ให้ลูกทีมใช้สมัคร)', en: 'Group code (for your team to sign up)' }) }}</span>
         <p class="code">{{ code() }}</p>
-        <a class="small" [routerLink]="url('L03')">{{ i18n.t({ th: 'แชร์ / แก้ช่องทางติดต่อ', en: 'Share / edit contact' }) }}</a>
+        <a class="small tap" [routerLink]="url('L03')">{{ i18n.t({ th: 'แชร์ / แก้ช่องทางติดต่อ', en: 'Share / edit contact' }) }}</a>
       </section>
       }
     </div>
@@ -139,7 +139,7 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
       letter-spacing: 0.06em;
     }
     a.small {
-      color: var(--brand);
+      color: var(--brand-text);
       font-weight: 700;
     }
   `,

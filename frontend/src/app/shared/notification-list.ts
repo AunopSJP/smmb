@@ -146,7 +146,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
     .more {
       display: block;
       margin-block-start: 4px;
-      color: var(--brand);
+      color: var(--brand-text);
       font-size: 0.8125rem;
       font-weight: 700;
     }
@@ -165,7 +165,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
       border: 1px solid var(--line);
       border-radius: 999px;
       background: var(--surface);
-      color: var(--brand);
+      color: var(--brand-text);
       font: inherit;
       font-size: 0.875rem;
       font-weight: 700;

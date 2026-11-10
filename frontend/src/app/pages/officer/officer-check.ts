@@ -272,8 +272,10 @@ const CAMERA_NOTE: Record<string, Tr> = {
     .back-link {
       display: inline-flex;
       align-items: center;
+      min-block-size: 36px;
+      padding-block: 6px;
       gap: 4px;
-      color: var(--brand);
+      color: var(--brand-text);
       font-weight: 700;
       font-size: 0.875rem;
       text-decoration: none;
@@ -305,7 +307,7 @@ const CAMERA_NOTE: Record<string, Tr> = {
     }
     input:focus {
       outline: none;
-      border-color: var(--brand);
+      border-color: var(--brand-text);
     }
     input[aria-invalid='true'] {
       border-color: var(--sos);
@@ -424,9 +426,9 @@ const CONDITIONS: { v: QrCondition; label: Tr; wide?: boolean }[] = [
         cursor: pointer;
       }
       button[aria-checked='true'] {
-        border-color: var(--brand);
+        border-color: var(--brand-text);
         background: var(--brand-lighter);
-        color: var(--brand);
+        color: var(--brand-text);
       }
       .wide {
         grid-column: 1 / -1;

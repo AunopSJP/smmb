@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, Injectable, signal } from '
 import { I18n, type Tr } from './i18n';
 import { Icon } from '../shared/icon';
 
-/** ข้อความยืนยันสั้น ๆ ด้านล่างจอ (เช่น "อนุมัติแล้ว") — หายเองใน 2.5 วิ */
+/** ข้อความยืนยันสั้น ๆ ด้านล่างจอ (เช่น "อนุมัติแล้ว") — หายเองใน 4 วิ */
 @Injectable({ providedIn: 'root' })
 export class Toast {
   readonly message = signal<Tr | null>(null);
@@ -11,7 +11,7 @@ export class Toast {
   show(message: Tr): void {
     this.message.set(message);
     if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.message.set(null), 2500);
+    this.timer = setTimeout(() => this.message.set(null), 4000);
   }
 }
 

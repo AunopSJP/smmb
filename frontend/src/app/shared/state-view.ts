@@ -143,7 +143,7 @@ export class LoadingRows {
       block-size: 72px;
       border-radius: 50%;
       background: var(--brand-light);
-      color: var(--brand);
+      color: var(--brand-text);
     }
     strong {
       font-size: 1.0625rem;

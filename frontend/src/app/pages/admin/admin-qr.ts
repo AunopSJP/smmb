@@ -274,10 +274,10 @@ export class QrPrintSheet {
     }
     .who.me {
       font-weight: 700;
-      color: var(--brand);
+      color: var(--brand-text);
     }
     .go {
-      color: var(--brand);
+      color: var(--brand-text);
       font-weight: 600;
       justify-self: end;
     }
@@ -571,7 +571,7 @@ const REISSUE_STEPS: FlowStep[] = [
     .crumb {
       display: inline-block;
       margin-block-start: 8px;
-      color: var(--brand);
+      color: var(--brand-text);
       font-weight: 600;
       text-decoration: none;
     }
@@ -607,7 +607,7 @@ const REISSUE_STEPS: FlowStep[] = [
       padding: 18px 20px;
     }
     .panel.now {
-      border-color: var(--brand);
+      border-color: var(--brand-text);
       border-width: 2px;
     }
     .panel.now.done {
@@ -616,7 +616,7 @@ const REISSUE_STEPS: FlowStep[] = [
     .eyebrow {
       font-size: 0.8125rem;
       font-weight: 700;
-      color: var(--brand);
+      color: var(--brand-text);
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
@@ -657,7 +657,7 @@ const REISSUE_STEPS: FlowStep[] = [
       cursor: pointer;
     }
     .options label:has(input:checked) {
-      border-color: var(--brand);
+      border-color: var(--brand-text);
       background: var(--brand-lighter);
     }
     .options label:has(input:disabled) {
@@ -715,9 +715,9 @@ const REISSUE_STEPS: FlowStep[] = [
       color: #fff;
     }
     .steps li.now .num {
-      background: var(--brand);
-      border-color: var(--brand);
-      color: #fff;
+      background: var(--action-bg);
+      border-color: var(--brand-text);
+      color: var(--action-fg);
     }
     .steps small {
       display: block;

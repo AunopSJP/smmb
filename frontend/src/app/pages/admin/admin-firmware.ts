@@ -109,7 +109,7 @@ const kb = (n: number) => (n >= 1_048_576 ? (n / 1_048_576).toFixed(1) + ' MB' :
       font-size: 3rem;
       font-weight: 800;
       line-height: 1;
-      color: var(--brand);
+      color: var(--brand-text);
       font-variant-numeric: tabular-nums;
     }
     .easy-n small {

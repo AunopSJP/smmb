@@ -10,6 +10,7 @@ import { LOW_BATTERY_PCT, seenText } from './admin/admin-boxes';
 import { screenUrl } from '../screens/registry';
 import { Icon, type IconName } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
+import { LoadingRows } from '../shared/state-view';
 
 type Tone = 'danger' | 'warn' | '';
 
@@ -24,7 +25,7 @@ interface Segment {
 /** D01 ภาพรวมแอดมิน — ตัวเลขสรุปก่อน → สถานะรวม → รายการที่ต้องลงมือทำ (ทุกอย่างกดไปจัดการต่อได้) */
 @Component({
   selector: 'app-admin-home',
-  imports: [RouterLink, PageHeader, Icon],
+  imports: [RouterLink, PageHeader, Icon, LoadingRows],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
@@ -34,6 +35,11 @@ interface Segment {
     />
 
     <div class="stack page">
+      @if (!loaded()) {
+        <div class="page-loading" role="status">
+          <app-loading-rows [rows]="5" [label]="i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' })" />
+        </div>
+      }
       <div class="asof easy-hide desk-only">
         <span class="muted small">{{ i18n.t({ th: 'ข้อมูล ณ ', en: 'As of ' }) }}{{ asOf() }}</span>
         <button type="button" class="btn secondary small-btn" [disabled]="refreshing()" (click)="refresh()">{{ refreshing() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'รีเฟรช', en: 'Refresh' }) }}</button>
@@ -105,7 +111,7 @@ interface Segment {
                     <td class="num">{{ s.n }}</td>
                     <td class="act">
                       @if (s.n > 0 && s.query) {
-                        <a [routerLink]="url('D03')" [queryParams]="s.query">{{ i18n.t({ th: 'ดู', en: 'View' }) }}</a>
+                        <a class="tap" [routerLink]="url('D03')" [queryParams]="s.query">{{ i18n.t({ th: 'ดู', en: 'View' }) }}</a>
                       }
                     </td>
                   </tr>
@@ -319,6 +325,17 @@ interface Segment {
     </div>
   `,
   styles: `
+    .page {
+      position: relative;
+    }
+    /* skeleton ระหว่างโหลดรอบแรก — ซ่อนตัวเลข 0 ที่ยังไม่ใช่ข้อมูลจริง */
+    .page-loading {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      padding-block-start: 4px;
+      background: var(--bg);
+    }
     .grow {
       flex: 1;
       min-inline-size: 0;
@@ -510,7 +527,7 @@ interface Segment {
     }
     .panel header a {
       font-size: 0.875rem;
-      color: var(--brand);
+      color: var(--brand-text);
       font-weight: 600;
     }
     .empty {
@@ -563,7 +580,7 @@ interface Segment {
       inline-size: 72px;
     }
     .act a {
-      color: var(--brand);
+      color: var(--brand-text);
       font-weight: 600;
       font-size: 0.875rem;
     }
@@ -636,7 +653,7 @@ interface Segment {
       gap: 8px;
     }
     .signout {
-      color: var(--brand);
+      color: var(--brand-text);
     }
 
     /* โหมดง่าย (AdmEasy): การ์ดใหญ่ ตัวเลขชัด ปุ่มหลัก 2 ปุ่ม */
@@ -709,7 +726,7 @@ interface Segment {
     }
     .adv-head a {
       font-size: 0.875rem;
-      color: var(--brand);
+      color: var(--brand-text);
       font-weight: 600;
       text-decoration: none;
     }
@@ -876,6 +893,8 @@ export class AdminHome implements OnInit {
   protected readonly asOf = signal('');
   protected readonly asOfIso = signal('');
   protected readonly refreshing = signal(false);
+  /** false = ยังโหลดรอบแรกไม่เสร็จ → แสดง skeleton แทนตัวเลข 0 */
+  protected readonly loaded = signal(false);
 
   protected async refresh(): Promise<void> {
     this.refreshing.set(true);
@@ -908,6 +927,7 @@ export class AdminHome implements OnInit {
     const now = new Date();
     this.asOf.set(now.toLocaleTimeString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { hour: '2-digit', minute: '2-digit' }));
     this.asOfIso.set(now.toISOString());
+    this.loaded.set(true);
   }
 
   protected editSupport(): void {

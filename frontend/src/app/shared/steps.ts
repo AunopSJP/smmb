@@ -72,7 +72,7 @@ export interface Step {
     }
     li.now .num {
       background: var(--brand);
-      border-color: var(--brand);
+      border-color: var(--brand-text);
       color: #fff;
     }
     li.done .num {

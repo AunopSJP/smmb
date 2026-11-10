@@ -10,6 +10,12 @@
   --brand-light: #efefef;
   --brand-lighter: #f5f5f5;
   --sos: #9e2227;
+  /* พื้นปุ่มที่ต้องมีตัวอักษรขาวทับ — แยกจาก --brand/--sos ที่ใช้เป็นสีตัวอักษร
+     เพื่อให้ contrast ของตัวอักษรขาวผ่าน AA ทั้งโหมดสว่างและมืด */
+  --action-bg: #9a2f36;
+  --action-fg: #fff;
+  --sos-bg: #9e2227;
+  --sos-fg: #fff;
   --icon-bg: #efefef;
 
   --bg: #f5f5f5;
@@ -41,6 +47,11 @@
   --brand-light: #2a2b2f;
   --brand-lighter: #222327;
   --sos: #e05a60;
+  /* พื้นปุ่มโหมดมืด: เข้มพอให้ตัวอักษรขาวผ่าน AA (≥4.5) แต่ยังแยกจากพื้นหลัง ≥3:1 */
+  --action-bg: #b03b44;
+  --action-fg: #fff;
+  --sos-bg: #b03a42;
+  --sos-fg: #fff;
   --icon-bg: #2a2e35;
 
   --bg: #121417;
@@ -176,7 +187,6 @@
   --radius: 14px;
   --radius-sm: 10px;
   --gap: 10px;
-  --text-scale-mode: 0.96;
 
   .card {
     padding: 12px 14px;
@@ -190,12 +200,18 @@
     gap: 6px 14px;
   }
   .section-title {
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     letter-spacing: 0.04em;
     color: var(--text-muted);
   }
   .stat .value {
     font-size: 1.5rem;
+  }
+}
+/* โหมดละเอียดย่อตัวอักษรเฉพาะจอคอม — มือถือต้องอ่านได้ ไม่ควรเล็กกว่าโหมดปกติ */
+@media (min-width: 1024px) {
+  :root[data-mode='advanced'] {
+    --text-scale-mode: 0.96;
   }
 }
 .mono {
@@ -226,6 +242,26 @@
 .clamp-2 { -webkit-line-clamp: 2; }
 .clamp-3 { -webkit-line-clamp: 3; }
 .clamp-4 { -webkit-line-clamp: 4; }
+/* ลิงก์ข้อความขนาดเล็ก — ขยายพื้นที่แตะขั้นต่ำ ~32px (WCAG 2.5.8) โดยหน้าตาไม่เปลี่ยน */
+.see-all,
+.tap {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 32px;
+  padding-block: 4px;
+}
+/* แผนที่ Leaflet: ปุ่มซูมใหญ่พอแตะ + เครดิตอ่านออก (ค่าเริ่มต้นเล็ก/จางเกินไป) */
+.leaflet-control-zoom a {
+  inline-size: 40px !important;
+  block-size: 40px !important;
+  line-height: 40px !important;
+  font-size: 1.125rem !important;
+}
+.leaflet-control-attribution {
+  font-size: 0.75rem !important;
+  background: rgb(255 255 255 / 88%) !important;
+  color: #333 !important;
+}
 .sr-only {
   position: absolute;
   inline-size: 1px;
@@ -448,15 +484,15 @@ button.row:active {
   font-size: 1rem;
   cursor: pointer;
   text-decoration: none;
-  background: var(--brand);
-  color: #fff;
+  background: var(--action-bg);
+  color: var(--action-fg);
 
   &:active {
-    background: var(--brand-dark);
+    background: color-mix(in srgb, var(--action-bg) 86%, #000);
   }
   &.secondary {
     background: var(--surface);
-    color: var(--brand);
+    color: var(--brand-text);
     box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text-muted) 40%, transparent);
   }
   &.big {
@@ -708,8 +744,8 @@ app-area-shell main > :not(router-outlet) {
   flex-direction: column;
 }
 .sos-head {
-  background: var(--sos);
-  color: #fff;
+  background: var(--sos-bg);
+  color: var(--sos-fg);
   text-align: center;
   padding: 20px 16px 24px;
   border-radius: 0 0 24px 24px;

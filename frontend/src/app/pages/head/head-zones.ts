@@ -4,6 +4,7 @@ import { apiError } from '../../core/api';
 import { HeadApi, type HouseHit, type Member, type Zone, type ZoneDetail } from '../../core/head-api';
 import { I18n, type Tr } from '../../core/i18n';
 import { Toast } from '../../core/toast';
+import { Confirm } from '../../shared/confirm-dialog';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
 import { liveRefresh } from '../../core/live-refresh';
@@ -358,7 +359,7 @@ export class HeadZones implements OnInit {
       }
       li.on {
         background: var(--brand-lighter);
-        color: var(--brand);
+        color: var(--brand-text);
       }
     }
     .browse {
@@ -396,6 +397,7 @@ export class HeadZoneEdit {
   protected readonly i18n = inject(I18n);
   private readonly api = inject(HeadApi);
   private readonly toast = inject(Toast);
+  private readonly confirm = inject(Confirm);
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
   protected readonly maxWindows = MAX_WINDOWS;
@@ -643,7 +645,19 @@ export class HeadZoneEdit {
 
   protected async remove(): Promise<void> {
     const z = this.zone();
-    if (!z || !confirm(this.i18n.t({ th: `ลบโซน "${z.name}"?`, en: `Delete zone "${z.name}"?` }))) return;
+    if (
+      !z ||
+      !(await this.confirm.ask({
+        title: { th: `ลบโซน "${z.name}"?`, en: `Delete zone "${z.name}"?` },
+        body: {
+          th: 'บ้านและเจ้าหน้าที่ในโซนนี้จะถูกถอดออกจากโซน (ข้อมูลบ้านไม่ถูกลบ)',
+          en: 'Houses and officers are removed from this zone (house records are kept).',
+        },
+        confirm: { th: 'ลบโซน', en: 'Delete zone' },
+        danger: true,
+      }))
+    )
+      return;
     try {
       await this.api.removeZone(z.id);
       void this.router.navigateByUrl(screenUrl('L06'));

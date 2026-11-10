@@ -92,11 +92,11 @@ export class PasswordField {
       inline-size: 24px;
       block-size: 24px;
       margin: 0;
-      accent-color: var(--brand);
+      accent-color: var(--brand-text);
       flex: none;
     }
     a {
-      color: var(--brand);
+      color: var(--brand-text);
       font-weight: 700;
     }
   `,

@@ -8,6 +8,7 @@ import { type BoxDetail, minutesAgo, OwnerApi, type Sos } from '../core/owner-ap
 import { screenUrl } from '../screens/registry';
 import { Icon } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
+import { LoadingRows } from '../shared/state-view';
 import { Toast } from '../core/toast';
 import { Session } from '../core/session';
 import { liveRefresh } from '../core/live-refresh';
@@ -20,7 +21,7 @@ const REFRESH_MS = 10_000;
 /** H03 หน้าหลักเจ้าของบ้าน (api.md §4.2) · H03-L แบบเรียบง่าย · H03-e กดค้าง SOS — ข้อมูลจริง */
 @Component({
   selector: 'app-owner-home',
-  imports: [RouterLink, PageHeader, Icon],
+  imports: [RouterLink, PageHeader, Icon, LoadingRows],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (noBox()) {
@@ -72,6 +73,11 @@ const REFRESH_MS = 10_000;
           </a>
           <p class="muted small center">{{ i18n.t({ th: 'ไม่พบ QR ในตู้? ติดต่อผู้ติดตั้งหรือผู้ดูแลระบบ', en: 'No QR inside? Contact your installer or the admin' }) }}</p>
         </div>
+      </div>
+    } @else if (!b()) {
+      <app-page-header [caption]="greeting()" [title]="i18n.t({ th: 'หน้าหลัก', en: 'Home' })" />
+      <div class="stack page">
+        <app-loading-rows [rows]="4" [label]="i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' })" />
       </div>
     } @else if (b(); as b) {
       <app-page-header
@@ -318,10 +324,9 @@ const REFRESH_MS = 10_000;
           <span class="sos-text">
             {{ sending() ? i18n.t({ th: 'กำลังส่ง SOS…', en: 'Sending SOS…' }) : i18n.t({ th: 'SOS ขอความช่วยเหลือ', en: 'SOS — Get help' }) }}
             <small>
+              {{ easy() ? i18n.t({ th: 'แตะ แล้วยืนยันอีกครั้ง', en: 'Tap, then confirm' }) : i18n.t({ th: 'กดค้างไว้ 3 วินาที', en: 'Press and hold 3 seconds' }) }}
               @if (b.status === 'offline') {
-                {{ i18n.t({ th: 'ยังใช้ได้ แม้ตู้ไม่ออนไลน์', en: 'Still works while the mailbox is offline' }) }}
-              } @else {
-                {{ i18n.t({ th: 'กดค้างไว้ 3 วินาที', en: 'Press and hold 3 seconds' }) }}
+                · {{ i18n.t({ th: 'ใช้ได้แม้ตู้ไม่ออนไลน์', en: 'works while offline' }) }}
               }
             </small>
           </span>
@@ -346,6 +351,18 @@ const REFRESH_MS = 10_000;
           </p>
         </div>
       }
+
+      @if (confirmSos()) {
+        <!-- โหมดง่าย: แตะ 1 ครั้ง → ยืนยันอีกครั้ง (ไม่ต้องกดค้าง เหมาะกับผู้ที่มือไม่มั่นคง) -->
+        <div class="hold confirm" role="alertdialog" aria-modal="true" aria-labelledby="sos-confirm-title">
+          <h2 id="sos-confirm-title">{{ i18n.t({ th: 'ส่ง SOS เลยไหม', en: 'Send SOS now?' }) }}</h2>
+          <p class="small">{{ i18n.t({ th: 'เจ้าหน้าที่จะได้รับแจ้งทันที กดยืนยันเพื่อส่ง', en: 'Officers are alerted right away. Confirm to send.' }) }}</p>
+          <button type="button" id="sos-confirm-send" class="btn sos" [disabled]="sending()" (click)="sendConfirmed()">
+            {{ i18n.t({ th: 'ยืนยัน ส่ง SOS', en: 'Yes, send SOS' }) }}
+          </button>
+          <button type="button" class="btn secondary" (click)="cancelSos()">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
+        </div>
+      }
     } @else if (error()) {
       <div class="stack page">
         <p class="card err" role="alert">{{ i18n.t({ th: 'โหลดข้อมูลไม่สำเร็จ', en: 'Couldn’t load' }) }}</p>
@@ -357,12 +374,103 @@ const REFRESH_MS = 10_000;
   `,
   styleUrl: './owner-home.scss',
   styles: `
+    /* แถบ SOS — ลอยเหนือแท็บล่างตลอดเวลา เพื่อให้กดถึงได้แม้เลื่อนอยู่กลางหน้า */
+    .sos-bar {
+      position: sticky;
+      inset-block-end: calc(76px + env(safe-area-inset-bottom, 0px));
+      z-index: 5;
+      margin-block-start: auto;
+      padding-block: 8px;
+    }
+    .sos {
+      background: var(--sos-bg);
+      color: var(--sos-fg);
+    }
+    .sos-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      align-items: center;
+      line-height: 1.25;
+    }
+    .sos-text small {
+      font-size: 0.8125rem;
+      font-weight: 500;
+      opacity: 0.92;
+    }
+    /* กดค้าง / ยืนยัน SOS — ลอยเต็มจอเหนือเนื้อหา */
+    .hold {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 24px;
+      background: rgb(10 12 14 / 78%);
+      color: #fff;
+      text-align: center;
+
+      p {
+        margin: 0;
+        font-size: 1.125rem;
+        font-weight: 700;
+      }
+    }
+    .ring {
+      position: relative;
+      display: grid;
+      place-content: center;
+      justify-items: center;
+      inline-size: 176px;
+      block-size: 176px;
+      border-radius: 50%;
+      background: conic-gradient(#fff calc(var(--p, 0) * 1turn), rgb(255 255 255 / 20%) 0);
+
+      &::before {
+        content: '';
+        position: absolute;
+        inset: 12px;
+        border-radius: 50%;
+        background: #15181c;
+      }
+      > * {
+        position: relative;
+      }
+      span {
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        opacity: 0.8;
+      }
+      strong {
+        font-size: 3rem;
+        line-height: 1.05;
+      }
+      small {
+        font-size: 0.75rem;
+        opacity: 0.75;
+      }
+    }
+    .hold.confirm {
+      gap: 12px;
+
+      h2 {
+        margin: 0;
+        font-size: 1.5rem;
+      }
+      .btn {
+        inline-size: min(100%, 360px);
+      }
+    }
     .sos-open {
       display: flex;
       align-items: center;
       gap: 10px;
-      background: var(--sos);
-      color: #fff;
+      background: var(--sos-bg);
+      color: var(--sos-fg);
       text-decoration: none;
     }
     .warn-card {
@@ -458,6 +566,7 @@ export class OwnerHome implements OnDestroy {
   protected readonly confirmingQr = signal(false);
 
   protected readonly holding = signal(false);
+  protected readonly confirmSos = signal(false);
   private readonly heldMs = signal(0);
   private timer: ReturnType<typeof setInterval> | null = null;
   protected readonly progress = computed(() => Math.min(1, this.heldMs() / (HOLD_SEC * 1000)));
@@ -607,6 +716,11 @@ export class OwnerHome implements OnDestroy {
   protected startHold(event: Event): void {
     event.preventDefault();
     if (this.timer || this.sending()) return; // ปุ่มคีย์บอร์ดค้างส่ง keydown ซ้ำ
+    // โหมดง่าย: กดค้าง 3 วินาทียากสำหรับผู้สูงอายุ/มือไม่มั่นคง → แตะแล้วยืนยันอีกครั้ง
+    if (this.easy()) {
+      this.openSosConfirm();
+      return;
+    }
     // ล็อกการสัมผัสไว้กับปุ่ม: นิ้วเลื่อนเล็กน้อยก็ไม่ถูกนับว่าออกจากปุ่ม
     if (event instanceof PointerEvent) (event.currentTarget as Element | null)?.setPointerCapture?.(event.pointerId);
     const started = Date.now();
@@ -625,6 +739,21 @@ export class OwnerHome implements OnDestroy {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
     this.holding.set(false);
+  }
+
+  /** โหมดง่าย: เปิดกล่องยืนยัน SOS แทนการกดค้าง 3 วินาที */
+  private openSosConfirm(): void {
+    this.confirmSos.set(true);
+    setTimeout(() => document.getElementById('sos-confirm-send')?.focus(), 0);
+  }
+
+  protected cancelSos(): void {
+    this.confirmSos.set(false);
+  }
+
+  protected sendConfirmed(): void {
+    this.confirmSos.set(false);
+    void this.sendSos();
   }
 
   /** POST /sos → H09 รอเจ้าหน้าที่ · ไม่มีโซน → H08 โทรเอง · มีอยู่แล้ว → หน้าเดิม */
