@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, OnDestroy, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, OnDestroy, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { apiError } from '../core/api';
 import { DisplaySettings } from '../core/display-settings';

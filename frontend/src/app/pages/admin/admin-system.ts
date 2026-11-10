@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, type OnInit } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { AdminApi, type AdminLog, type AdminLogType, type BoxConfig } from '../../core/admin-api';
 import { I18n, type Tr } from '../../core/i18n';
 import { Session } from '../../core/session';
@@ -8,10 +7,9 @@ type BoxConfigDefaults = Omit<BoxConfig, 'windows'>;
 import { downloadText, toCsv } from '../../core/csv';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
-import { Icon, type IconName } from '../../shared/icon';
+import { type IconName } from '../../shared/icon';
 import { NotificationList } from '../../shared/notification-list';
 import { PageHeader } from '../../shared/page-header';
-import { caseUrl } from './admin-qr';
 
 // ── D10 · ตั้งค่าตู้ ──────────────────────────────────────
 

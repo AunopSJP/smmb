@@ -27,6 +27,7 @@
     "admin:create": "nest build && node --env-file-if-exists=.env dist/db/create-admin-cli.js",
     "testers:create": "nest build && node --env-file-if-exists=.env dist/db/create-testers-cli.js",
     "box:sim": "node scripts/box-sim.mjs",
+    "mock:clean": "node scripts/mock-clean.mjs",
     "dev:mock": "nest build && node --env-file-if-exists=.env scripts/dev-mock.mjs"
   },
   "dependencies": {

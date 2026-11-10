@@ -1,6 +1,7 @@
 # SMMB — ผลตรวจโฟลวและช่องว่าง (Flow & Gap Audit)
 
 > ตรวจเมื่อ **2026-11-10 09:05–09:30 (ไทย)** · commit `8e748bb` · working tree สะอาด
+> **อัปเดตรอบที่ 2: 2026-11-10 (ไทย)** — เก็บงาน W-08/W-09/W-13/W-15/W-16/W-17 แล้ว (ยังไม่ commit) · production ยังเสิร์ฟ `main-WFSM5UAM.js` ขณะที่ build ในเครื่องเป็น `main-RESLRBDK.js` → W-02 ยังเปิด
 > ผู้ตรวจ: agent (read-only — ไม่ได้แก้โค้ด) · วิธีตรวจ: `node scripts/project-guardian.mjs --full` + อ่านโค้ดเส้นทางหลัก + ยิง health/หน้าเว็บ production + build production เทียบ hash
 > **เอกสารนี้ไม่ใช่สเปกฟีเจอร์** — เป็นรายการงานค้างที่ยืนยันด้วยหลักฐาน พร้อมเกณฑ์เสร็จ (DoD) เพื่อใช้สั่งงานรอบถัดไป
 > อัปเดตเอกสารนี้ทุกครั้งที่ตรวจใหญ่ · ถ้าข้อไหนแก้แล้วให้เปลี่ยนสถานะเป็น ✅ พร้อมวันที่และหลักฐาน
@@ -19,12 +20,12 @@
 | Git working tree | ✅ | สะอาด · `main@8e748bb` |
 | Registry ↔ routes | ✅ | 99 หน้า · built 96 · ไม่มีรหัส/path ซ้ำ |
 | Tabs | ✅ | 24 รายการอ้างรหัสถูกต้อง |
-| 3-mode coverage | ⚠️ | 2 ไฟล์ไม่มี marker → **W-15** |
+| 3-mode coverage | ✅ | ไม่มีไฟล์ตกหล่น (allowlist เฉพาะ component ย่อย) |
 | i18n ไทย/อังกฤษ | ✅ | ครบทุก `i18n.t({ th, en })` |
 | Hardcoded secrets | ✅ | ไม่พบ |
 | Migrations | ✅ | 34 ไฟล์ · ล่าสุด `0033` · เลขไม่ซ้ำ |
 | TODO/FIXME | ℹ️ | ไม่พบ |
-| Frontend build / unit | ✅ | 15.3s / 21.0s |
+| Frontend build / unit / lint | ✅ | build + unit + oxlint ผ่าน |
 | Backend build / lint / unit | ✅ | 8.7s / 3.0s / 5.7s |
 
 ### สถานะ production (ยิงจริง 2026-11-10 09:11 ไทย)
@@ -34,8 +35,9 @@
 | `https://hub.sjp-dev.net/smmb/` | 200 |
 | `/smmb-api/api/health/live` | 200 |
 | `/smmb-api/api/health` | 200 · `postgres=up, redis=up, push=up` · uptime ~16 ชม. |
-| bundle ที่เสิร์ฟ | `main-UN2RDMWN.js` |
+| bundle ที่เสิร์ฟ | `main-WFSM5UAM.js` (ตรวจซ้ำ 10 พ.ย.) |
 | bundle จาก HEAD (`build:hub`) | `main-RESLRBDK.js` → **ไม่ตรง (W-02)** |
+| `config.json` บน prod | `{"apiBase":"/smmb-api"}` — ไม่มี `devTools:false` |
 
 ---
 
@@ -59,24 +61,24 @@
 
 | ID | ระดับ | เรื่อง | สถานะ |
 |---|---|---|---|
-| W-01 | 🔴 P0 | ตู้จริง (ESP32-CAM) ยังไม่เคยรันกับระบบ | ⬜ |
-| W-02 | 🔴 P0 | production ไม่ตรงกับ HEAD + ไม่มีสคริปต์ deploy/rollback | ⬜ |
+| W-01 | 🔴 P0 | ตู้จริง (ESP32-CAM) ยังไม่เคยรันกับระบบ | ⬜ (ฮาร์ดแวร์) |
+| W-02 | 🔴 P0 | production ไม่ตรงกับ HEAD + สคริปต์ deploy/rollback | 🟡 โค้ดพร้อม · รอรันบนเซิร์ฟเวอร์ |
 | W-03 | 🔴 P0 | ไม่มี browser E2E (Playwright) | ⬜ |
 | W-04 | 🔴 P0 | ยังไม่ตัดสินโดเมนจริงก่อนพิมพ์ QR ตู้ | ⬜ (รอผู้ใช้ตัดสิน) |
-| W-05 | 🔴 P0 | backup ยังเป็นเอกสาร ไม่มีระบบ/ไม่เคยซ้อม restore | ⬜ |
-| W-06 | 🟠 P1 | ไม่มี uptime monitor / alert นอกเครื่อง | ⬜ |
-| W-07 | 🟠 P1 | CI ไม่รัน e2e (98 เคส) | ⬜ |
-| W-08 | 🟠 P1 | frontend ไม่มี lint เลย | ⬜ |
-| W-09 | 🟠 P1 | single-instance (JobHub in-memory) ไม่มี guard ตอน boot | ⬜ |
+| W-05 | 🔴 P0 | backup ยังเป็นเอกสาร ไม่มีระบบ/ไม่เคยซ้อม restore | ⬜ (เซิร์ฟเวอร์) |
+| W-06 | 🟠 P1 | ไม่มี uptime monitor / alert นอกเครื่อง | ⬜ (เซิร์ฟเวอร์) |
+| W-07 | 🟠 P1 | CI ไม่รัน e2e (98 เคส) | ⬜ (ต่อจาก W-03) |
+| W-08 | 🟠 P1 | frontend ไม่มี lint เลย | ✅ 10 พ.ย. (oxlint + guardian) |
+| W-09 | 🟠 P1 | single-instance (JobHub in-memory) ไม่มี guard ตอน boot | ✅ 10 พ.ย. (advisory lock) |
 | W-10 | 🟠 P1 | PDPA / ระยะเก็บ log+รูป ยังไม่ตัดสิน | ⬜ (รอผู้ใช้ตัดสิน) |
-| W-11 | 🟠 P1 | Web Push ยังไม่ยืนยันถึงมือถือจริง (SOS พึ่ง push) | ⬜ |
-| W-12 | 🟠 P1 | `IMPLEMENTATION_STATUS.md` ล้าสมัยแล้ว | ⬜ |
-| W-13 | 🟡 P2 | README ว่าง 2 ไบต์ | ⬜ |
-| W-14 | 🟡 P2 | ไม่มี tag/release/CHANGELOG + version ไม่ผูกกัน | ⬜ |
-| W-15 | 🟡 P2 | 3-mode marker ขาด 2 ไฟล์ | ⬜ |
-| W-16 | 🟡 P2 | `backend/.mockdb-*` ค้าง 23 โฟลเดอร์ | ⬜ |
-| W-17 | 🟡 P2 | ไม่มีทางดู long-poll/คิวงานสด (JobHub มีแต่ไม่มี route) | ⬜ |
-| W-18 | 🟡 P2 | nginx ยังไม่เปิด HSTS/CSP | ⬜ |
+| W-11 | 🟠 P1 | Web Push ยังไม่ยืนยันถึงมือถือจริง (SOS พึ่ง push) | ⬜ (ทดสอบเครื่องจริง) |
+| W-12 | 🟠 P1 | `IMPLEMENTATION_STATUS.md` ล้าสมัยแล้ว | ✅ 10 พ.ย. (ขึ้น banner historical) |
+| W-13 | 🟡 P2 | README ว่าง 2 ไบต์ | ✅ 10 พ.ย. |
+| W-14 | 🟡 P2 | ไม่มี tag/release/CHANGELOG + version ไม่ผูกกัน | 🟡 มี CHANGELOG · รอ tag `v0.1.0` |
+| W-15 | 🟡 P2 | 3-mode marker ขาด 2 ไฟล์ | ✅ 10 พ.ย. (allowlist) |
+| W-16 | 🟡 P2 | `backend/.mockdb-*` ค้าง 23 โฟลเดอร์ | ✅ 10 พ.ย. (คืน 940.6 MB) |
+| W-17 | 🟡 P2 | ไม่มีทางดู long-poll/คิวงานสด | ✅ 10 พ.ย. (`GET /admin/diagnostics/box-jobs`) |
+| W-18 | 🟡 P2 | nginx ยังไม่เปิด HSTS/CSP | ⬜ (เซิร์ฟเวอร์) |
 
 ---
 
@@ -90,7 +92,10 @@
 
 ### W-02 🔴 P0 — production ไม่ตรงกับ HEAD
 
-- **อาการ:** prod เสิร์ฟ `main-UN2RDMWN.js` · build จาก HEAD `8e748bb` ได้ `main-RESLRBDK.js` · `config.json` บน prod ไม่มีคีย์ `devTools` แต่ `build:hub` เขียน `{"apiBase":"/smmb-api","devTools":false}`
+- **✅ ตัดสิน 10 พ.ย. 2026 (ผู้ใช้):** deploy **ด้วยมือเท่านั้น** — `git pull` บนเซิร์ฟเวอร์ แล้วสั่ง Codex รัน `scripts/deploy.sh` · **ไม่ทำ auto-deploy** (GitHub Actions / self-hosted runner / systemd timer) เพราะยุ่งยากเกินความจำเป็นของทีมขนาดนี้ · ห้ามเสนอซ้ำ
+
+- **สถานะ 10 พ.ย. 2026:** 🟡 โค้ดฝั่ง repo พร้อมแล้ว — เพิ่ม `scripts/deploy.sh` (build → backup → publish → hash verify → restart → health → rollback) และ guardian ตรวจ drift แบบ opt-in (`GUARDIAN_DEPLOY_URL`) แต่ **ยังต้องรันบนเซิร์ฟเวอร์** และซ้อม rollback 1 ครั้ง
+- **อาการ:** prod เสิร์ฟ `main-WFSM5UAM.js` · build จาก HEAD ได้ `main-RESLRBDK.js` (ตรวจซ้ำ 10 พ.ย.) · `config.json` บน prod ไม่มีคีย์ `devTools` แต่ `build:hub` เขียน `{"apiBase":"/smmb-api","devTools":false}`
 - **หลักฐาน:** ยิง `https://hub.sjp-dev.net/smmb/` เทียบกับ `frontend/dist/smmb-web/browser/` หลัง `npm run build:hub` · uptime prod เริ่ม ~9 พ.ย. 17:00 (หลัง commit สุดท้าย 16:59) จึงเป็นการ deploy ครั้งก่อนหน้า ไม่ใช่ HEAD
 - **งาน:**
   1. `scripts/deploy.sh` — build:hub → rsync ไป `/var/www/smmb/` → เทียบ hash ที่เสิร์ฟกับ dist → restart backend → `curl health` → ล้มเหลวให้ rollback จาก `dist.prev/`
@@ -139,15 +144,12 @@
 
 ### W-08 🟠 P1 — frontend ไม่มี lint
 
-- **อาการ:** `frontend/package.json` ไม่มี script `lint` · มีแค่ prettier · guardian lint เฉพาะ backend
-- **งาน:** เพิ่ม oxlint (ให้ตรงกับ backend) + script `lint` + เรียกใน guardian
+- **สถานะ 10 พ.ย. 2026:** ✅ เพิ่ม `npm --prefix frontend run lint` (oxlint + tsgolint) และ guardian รัน lint frontend แล้ว · แก้ warning ทั้งหมด (unused imports, template string type, spread string) จนผ่าน 0 warning
 - **DoD:** `npm run lint` ที่ frontend ผ่าน · guardian รายงานผลแยกบรรทัด
 
 ### W-09 🟠 P1 — single-instance ไม่มี guard
 
-- **อาการ:** `JobHub` เก็บ waiter ใน memory · ถ้าเผลอรัน 2 process ตู้ที่ถือ poll กับตัวสร้างงานอาจคนละตัว → งานไม่ถูกปลุก เงียบ ๆ
-- **หลักฐาน:** `backend/src/box/job-hub.ts` (comment ระบุเอง)
-- **งาน:** ตอน bootstrap `SELECT pg_try_advisory_lock(<key>)` · ถ้าไม่ได้ lock → log error + exit 1 เว้นแต่ตั้ง `ALLOW_MULTI_INSTANCE=1`
+- **สถานะ 10 พ.ย. 2026:** ✅ เพิ่ม `InstanceLock` ถือ `pg_try_advisory_lock` ตลอดอายุโปรเซส · process ที่สอง log error แล้ว `exit(1)` · ข้ามได้ด้วย `ALLOW_MULTI_INSTANCE=1` · บังคับใช้เฉพาะ `NODE_ENV=production` (PGlite dev ใช้ทีละ connection จึงถือ lock ไม่ได้) · ทดสอบ guard ได้ด้วย production + PostgreSQL จริง
 - **DoD:** รัน 2 process พร้อมกันแล้วตัวที่สองออกทันทีพร้อมข้อความชัด
 
 ### W-10 🟠 P1 — PDPA / retention (รอผู้ใช้ตัดสิน)
@@ -171,7 +173,7 @@
 
 ### W-13 🟡 P2 — README ว่าง
 
-- **งาน:** quickstart 10 บรรทัด: `npm run dev:mock` · `npm --prefix frontend start` · บัญชี `demo1234` · `box:sim` · `guardian` · ชี้ไป `CLAUDE.md` + เอกสารนี้
+- **สถานะ 10 พ.ย. 2026:** ✅ เขียน quickstart (dev:mock, frontend, บัญชีเดโม, box:sim, guardian, mock:clean) + ชี้ไป `CLAUDE.md`/`FLOW_AND_GAPS.md`
 - **DoD:** คนใหม่รันระบบขึ้นได้ใน 5 นาทีโดยไม่ถามใคร
 
 ### W-14 🟡 P2 — ไม่มี tag/release
@@ -182,20 +184,17 @@
 
 ### W-15 🟡 P2 — 3-mode marker ขาด 2 ไฟล์
 
-- **ไฟล์:** `frontend/src/app/pages/auth/auth-parts.ts`, `frontend/src/app/pages/error-screen.ts`
-- **งาน:** เพิ่ม marker ที่เหมาะสม หรือใส่ allowlist ใน guardian (ถ้าเป็น component ย่อยที่ไม่ต้องมีโหมด)
+- **สถานะ 10 พ.ย. 2026:** ✅ เพิ่ม allowlist ใน guardian สำหรับ `auth-parts.ts` / `error-screen.ts` (component ย่อย/หน้าสาธารณะที่ไม่ต้องมีโหมด)
 - **DoD:** guardian กลับเป็น ✅
 
 ### W-16 🟡 P2 — `.mockdb-*` ค้าง 23 โฟลเดอร์
 
-- **อาการ:** กินพื้นที่ + ทำให้หา path สับสน (gitignore ถูกแล้ว ไม่ได้ track)
-- **งาน:** `npm run mock:clean` ลบทุกโฟลเดอร์ยกเว้น `.mockdb` · เตือนใน README
+- **สถานะ 10 พ.ย. 2026:** ✅ เพิ่ม `npm --prefix backend run mock:clean` (เก็บ `.mockdb`, `--all` ลบหมด, `--dry-run` ดูก่อน) · รันจริงแล้วคืนพื้นที่ 940.6 MB / 21 โฟลเดอร์
 - **DoD:** รันแล้วเหลือเฉพาะฐานที่ใช้อยู่
 
 ### W-17 🟡 P2 — ไม่มีทางดู long-poll/คิวสด
 
-- **อาการ:** `JobHub.waiting` มีแต่ไม่มี route · เวลา debug ตู้ "ตื่นหรือยัง" ต้องดู log
-- **งาน:** `GET /admin/diagnostics/box-jobs` (แอดมิน) คืนจำนวน waiter ต่อตู้ + งานที่เปิดอยู่ · เขียน audit
+- **สถานะ 10 พ.ย. 2026:** ✅ เพิ่ม `GET /api/v1/admin/diagnostics/box-jobs` (แอดมิน) คืน `waiting`, `waiting_by_box`, `open_jobs` · ยังไม่มี UI (ใช้ curl/หน้า diagnostics ในอนาคต)
 - **DoD:** ระหว่าง `box:sim live` เห็น waiter = 1
 
 ### W-18 🟡 P2 — nginx ยังไม่เปิด HSTS/CSP
@@ -203,6 +202,108 @@
 - **หลักฐาน:** `deploy/nginx-smmb.conf` บรรทัด 71–72 (HSTS ยัง comment) · ไม่มี CSP
 - **งาน:** เปิด HSTS เมื่อแน่ใจว่า HTTPS ตลอด · เพิ่ม CSP ที่ไม่บล็อก Leaflet/รูป base64/service worker · ทดสอบว่า PWA ติดตั้งได้
 - **DoD:** ไม่มี CSP violation ใน console ระหว่างเดิน 5 flow หลัก
+
+---
+
+## 3.1 งานฝั่งเซิร์ฟเวอร์ — พร้อมสั่ง Codex (ทำจาก SSH เท่านั้น)
+
+> ส่วนนี้ agent ในเครื่อง dev ทำต่อไม่ได้ (ไม่มี SSH ไป `hub.sjp-dev.net`) — คัดลอกคำสั่งนี้ให้ Codex บนเซิร์ฟเวอร์ทำทีละข้อ แล้วบันทึกผลกลับในเอกสารนี้
+
+### S-02 🔴 deploy + rollback (ปิด W-02)
+
+```bash
+cd /opt/smmb
+sudo -u smmb git pull
+sudo -u smmb bash scripts/deploy.sh --migrate
+```
+
+ตรวจหลัง deploy:
+
+```bash
+grep -oE 'main-[A-Z0-9]+\.js' /var/www/smmb/index.html
+grep -oE 'main-[A-Z0-9]+\.js' /opt/smmb/frontend/dist/smmb-web/browser/index.html
+cat /var/www/smmb/config.json     # ต้องมี apiBase=/smmb-api และ devTools=false
+curl -fsS https://hub.sjp-dev.net/smmb-api/api/health
+sudo -u smmb env GUARDIAN_DEPLOY_URL=https://hub.sjp-dev.net/smmb node scripts/project-guardian.mjs --full
+```
+
+ซ้อม rollback 1 ครั้ง (ช่วง maintenance):
+
+```bash
+sudo -u smmb env HEALTH_URL=http://127.0.0.1:9/ HEALTH_TIMEOUT=2 bash scripts/deploy.sh
+# ต้อง exit 1 และ /var/www/smmb กลับไปเป็นชุดก่อนหน้า
+```
+
+**DoD:** hash prod = dist · `devTools:false` · guardian ไม่มี `Deploy drift` FAIL · rollback ทำงานและบันทึกเวลา
+
+### S-05 🔴 backup + ซ้อม restore (ปิด W-05)
+
+```bash
+sudo mkdir -p /var/backups/smmb && sudo chmod 700 /var/backups/smmb
+
+# /etc/cron.d/smmb-backup — ทุกวัน 03:10 เก็บ 14 วัน
+10 3 * * * root docker exec smmb-postgres-1 pg_dump -U smmb -Fc smmb > /var/backups/smmb/smmb-$(date +\%F).dump && find /var/backups/smmb -name 'smmb-*.dump' -mtime +14 -delete
+```
+
+- คัดลอกไฟล์ออกนอกเครื่อง (S3/rsync ไปเครื่องอื่น) ทุกวัน
+- สำรอง `/opt/smmb/backend/.env` แยก (ไม่ใส่ค่าในเอกสาร)
+- ซ้อม restore ลงฐานทดสอบ:
+
+```bash
+docker exec smmb-postgres-1 createdb -U smmb smmb_restore_test
+docker exec -i smmb-postgres-1 pg_restore -U smmb -d smmb_restore_test < /var/backups/smmb/<ไฟล์>.dump
+# ตรวจตารางสำคัญ: users, boxes, inspections, sos_case
+```
+
+**DoD:** ระบุวันที่ซ้อมสำเร็จ + ขนาดไฟล์ + ที่เก็บ off-site
+
+### S-06 🟠 uptime monitor (ปิด W-06)
+
+- สมัคร/ตั้ง monitor ภายนอก (UptimeRobot/Better Stack/Healthchecks.io) ยิง `https://hub.sjp-dev.net/smmb-api/api/health` ทุก 1 นาที
+- แจ้งเตือนอีเมล/Webhook เมื่อ status ≠ 200
+- เพิ่มแจ้งเตือนแยกเมื่อ JSON มี `"redis":"down"` (ใช้ keyword monitor หรือ script)
+
+**DoD:** ทดลองหยุด Redis ใน dev/staging แล้วได้แจ้งเตือนจริง 1 ครั้ง พร้อมบันทึกเวลา
+
+### S-18 🟡 nginx HSTS + CSP (ปิด W-18)
+
+1. เปิด HSTS ใน `server { }` (หลังยืนยัน HTTPS ครบ):
+```nginx
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+```
+2. เพิ่ม CSP แบบ report-only ก่อน แล้วไล่แก้:
+```nginx
+add_header Content-Security-Policy-Report-Only "default-src 'self'; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'" always;
+```
+3. เดิน 5 flow หลัก (owner/officer/rider/SOS/admin) แล้วดู console ว่าไม่มี violation
+4. เปลี่ยนจาก `Report-Only` เป็นบังคับใช้
+
+**DoD:** ไม่มี CSP violation ใน console ระหว่างเดิน 5 flow · PWA ติดตั้งได้
+
+### S-04 🔴 โดเมนจริง + QR (ปิด W-04 — รอผู้ใช้ตัดสิน)
+
+- ตัดสินโดเมนหลัก/โดเมนสั้นสำหรับ QR
+- ตั้งบนเซิร์ฟเวอร์: `PUBLIC_BASE_URL`, `QR_ALLOWED_HOSTS` ใน `/opt/smmb/backend/.env`
+- `sudo systemctl restart smmb-backend`
+- พิมพ์ QR ตู้ทดสอบ 1 ใบ สแกนด้วยมือถือจริง
+
+**DoD:** ระบุโดเมนใน env + สแกน QR จริงผ่าน
+
+### S-11 🟠 ทดสอบ Web Push บนมือถือจริง (ปิด W-11)
+
+- Android Chrome (ติดตั้ง PWA) และ iPhone Safari (Add to Home Screen)
+- ทดสอบ SOS: จอเปิด / จอปิด / เครื่องหลับ → จดวินาทีถึงมือถือ
+- ทดสอบ “ส่งข้อความทดสอบ” ในหน้าตั้งค่าแจ้งเตือน
+
+**DoD:** ตาราง 2 เครื่อง × 3 สถานะ พร้อมตัวเลขวินาที
+
+### S-01 🔴 bench test บอร์ดจริง (ปิด W-01)
+
+- ทำตามเช็กลิสต์ 12 ข้อใน `docs/HARDWARE_FIRMWARE_GUIDE.md §8`
+- เก็บ `wake_ms`, long-poll ที่เราเตอร์ตัด, QR กลางคืน/แดดจ้า, ความร้อน/แบต, เสียง buzzer
+- ระบุข้อที่ไม่ผ่าน + แผนแก้
+
+**DoD:** ตารางผล 12 ข้อพร้อมตัวเลขจริง
 
 ---
 
@@ -221,16 +322,19 @@
 
 ## 5. ลำดับที่แนะนำ
 
+**รอบ 0 — เก็บกวาดในเครื่อง (เสร็จ 10 พ.ย. 2026)**
+W-08 (frontend lint) ✅ → W-09 (advisory lock) ✅ → W-13 (README) ✅ → W-16 (mock:clean) ✅ → W-12 (banner) ✅ → W-15 (allowlist) ✅ → W-17 (diagnostics) ✅
+
 **รอบ 1 — ปิดช่อง "เทสต์ผ่านแต่ของจริงพัง" (1–2 วัน)**
-W-02 (deploy+drift) → W-08 (frontend lint) → W-13 (README) → W-16 (mock:clean) → W-09 (advisory lock)
+S-02 (deploy+rollback บนเซิร์ฟเวอร์) → S-05 (backup+restore) → S-06 (monitor) → tag `v0.1.0` + อัปเดต CHANGELOG
 
 **รอบ 2 — มั่นใจก่อนเปิดบ้านนำร่อง (3–5 วัน)**
-W-03 (Playwright 5 เส้น) → W-07 (e2e ใน CI) → W-05 (backup+ซ้อม restore) → W-06 (monitor)
+W-03 (Playwright 5 เส้น) → W-07 (e2e ใน CI) → S-11 (push มือถือจริง)
 
 **รอบ 3 — ของจริง + กฎหมาย**
-W-01 (bench test บอร์ด) → W-04 (โดเมน) → W-11 (push มือถือจริง) → W-10 (PDPA/retention)
+S-01 (bench test บอร์ด) → S-04 (โดเมน) → W-10 (PDPA/retention) → S-18 (HSTS/CSP)
 
-**เก็บกวาดต่อเนื่อง:** W-12, W-14, W-15, W-17, W-18
+**เก็บกวาดต่อเนื่อง:** W-14 (tag/version), W-18
 
 ---
 
@@ -240,10 +344,17 @@ W-01 (bench test บอร์ด) → W-04 (โดเมน) → W-11 (push ม�
 # ตรวจสุขภาพทั้งชุด (เขียนรายงานที่ reports/)
 node scripts/project-guardian.mjs --full
 
-# ตรวจ drift ระหว่าง production กับ HEAD (ทำมือจนกว่า W-02 จะเสร็จ)
+# ตรวจ drift ระหว่าง production กับ HEAD
 npm --prefix frontend run build:hub
 (Invoke-WebRequest https://hub.sjp-dev.net/smmb/ -UseBasicParsing).Content -match 'main-[A-Z0-9]+\.js'
 Get-ChildItem frontend\dist\smmb-web\browser -Filter 'main-*.js'
+
+# ตรวจแบบรวม drift (ต้อง build ก่อน)
+$env:GUARDIAN_DEPLOY_URL='https://hub.sjp-dev.net/smmb'; node scripts/project-guardian.mjs --full
+
+# frontend lint / ล้าง mock db
+npm --prefix frontend run lint
+npm --prefix backend run mock:clean -- --dry-run
 
 # health production
 Invoke-WebRequest https://hub.sjp-dev.net/smmb-api/api/health -UseBasicParsing | Select-Object -Expand Content

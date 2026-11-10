@@ -227,7 +227,35 @@ curl -s -o /dev/null -w "box-jobs    %{http_code}
 | แจ้งเตือนไม่เด้ง | เว็บต้อง HTTPS + build production · VAPID ตั้งแล้ว · iPhone ต้องเพิ่มลงหน้าจอหลัก |
 | ล็อกอินผิดแล้วทุกคนโดนล็อก | `TRUST_PROXY` ผิด (ข้อ 9) |
 
-## 14. ข้อจำกัดที่ต้องรู้
+## 14. Deploy 1 คำสั่ง (W-02)
+
+สคริปต์ `scripts/deploy.sh` build frontend/backend, เก็บ release ก่อนหน้า, publish, ตรวจ hash, restart และ rollback ถ้า health ไม่ผ่าน
+
+```bash
+cd /opt/smmb
+sudo -u smmb bash scripts/deploy.sh            # ใช้โค้ดที่ pull แล้ว
+sudo -u smmb bash scripts/deploy.sh --pull     # git pull ก่อน
+sudo -u smmb bash scripts/deploy.sh --migrate  # รวม migration (ระวัง: สำรองก่อน)
+```
+
+ตรวจหลัง deploy:
+
+```bash
+grep -oE 'main-[A-Z0-9]+\.js' /var/www/smmb/index.html
+grep -oE 'main-[A-Z0-9]+\.js' /opt/smmb/frontend/dist/smmb-web/browser/index.html
+cat /var/www/smmb/config.json   # ต้องมี apiBase=/smmb-api และ devTools=false
+curl -fsS https://<โดเมน>/smmb-api/api/health
+```
+
+ทดสอบ rollback (ทำช่วง maintenance):
+
+```bash
+# ทำให้ health ล้มชั่วคราวเพื่อดูว่า rollback ทำงาน
+sudo -u smmb env HEALTH_URL=http://127.0.0.1:9/ HEALTH_TIMEOUT=2 bash scripts/deploy.sh
+# ต้อง exit 1 + กู้ /var/www/smmb จาก dist.prev กลับมา
+```
+
+## 15. ข้อจำกัดที่ต้องรู้
 
 - backend 1 instance · ไม่มี failover — พักได้ไม่กี่วินาทีตอนรีสตาร์ต (ตู้ต่อใหม่เอง)
 - ยังไม่เคยทดสอบด้วยผู้ใช้จำนวนมากพร้อมกัน (ทดสอบเฉพาะการใช้งานระดับสิบ)

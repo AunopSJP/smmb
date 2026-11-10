@@ -47,7 +47,7 @@ import { I18n } from '../core/i18n';
 })
 export class CodeKeypad {
   protected readonly i18n = inject(I18n);
-  protected readonly keys = [...CODE_ALPHABET];
+  protected readonly keys = CODE_ALPHABET.split('');
   readonly key = output<string>();
   readonly back = output<void>();
 }

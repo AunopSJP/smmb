@@ -1,14 +1,17 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, Req, Res } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Inject, Param, Patch, Post, Put, Query, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import pg from 'pg';
 import { Type } from 'class-transformer';
 import { ArrayNotEmpty, ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, MaxLength, Min } from 'class-validator';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
+import { PG_POOL } from '../db/db.module.js';
 import { CONFIG_LIMITS } from './box-config.js';
 import { BoxConfigService } from './box-config.service.js';
 import { AdminBoxService } from './admin-box.service.js';
 import { BoxPreviewService } from './box-preview.service.js';
 import { FirmwareService } from './firmware.service.js';
+import { JobHub } from './job-hub.js';
 import type { BeepPattern } from './box-protocol.service.js';
 
 class BoxIdParam {
@@ -90,6 +93,8 @@ export class AdminBoxController {
     private readonly configs: BoxConfigService,
     private readonly preview: BoxPreviewService,
     private readonly firmware: FirmwareService,
+    private readonly jobs: JobHub,
+    @Inject(PG_POOL) private readonly pool: pg.Pool,
   ) {}
 
   /** ลงทะเบียนตู้ตอนผลิต → รหัสลับประจำตู้ (ได้ครั้งเดียว) + QR ชุดแรก */
@@ -101,6 +106,39 @@ export class AdminBoxController {
   @Get('boxes')
   list(@Query() q: ListBoxesQuery) {
     return this.boxes.list({ q: q.q?.trim() || undefined, page: q.page, perPage: q.per_page });
+  }
+
+  /** W-17: ดู long-poll waiter + งานที่ยังไม่จบ (debug ตู้ตื่นหรือยัง) */
+  @Get('diagnostics/box-jobs')
+  async boxJobs() {
+    const { rows } = await this.pool.query<{
+      box_job_id: string;
+      box_id: string;
+      type: string;
+      created_date: Date;
+      expire_date: Date;
+      delivered_date: Date | null;
+      ready_date: Date | null;
+    }>(
+      `SELECT box_job_id, box_id, type, created_date, expire_date, delivered_date, ready_date
+       FROM app.box_job_tb
+       WHERE result IS NULL AND expire_date > now()
+       ORDER BY created_date DESC
+       LIMIT 100`,
+    );
+    return {
+      waiting: this.jobs.waiting,
+      waiting_by_box: this.jobs.snapshot(),
+      open_jobs: rows.map((r) => ({
+        id: r.box_job_id,
+        box_id: r.box_id,
+        type: r.type,
+        created_at: r.created_date.toISOString(),
+        expires_at: r.expire_date.toISOString(),
+        delivered_at: r.delivered_date?.toISOString() ?? null,
+        ready_at: r.ready_date?.toISOString() ?? null,
+      })),
+    };
   }
 
   @Get('boxes/:box_id')

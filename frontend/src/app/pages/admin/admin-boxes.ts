@@ -1698,9 +1698,12 @@ export class AdminBox implements OnInit {
 
   protected reportLine(body: Record<string, unknown>): string {
     const parts: string[] = [];
-    if (body['battery_pct'] !== undefined) parts.push(`${body['battery_pct']}%`);
-    if (body['rssi'] !== undefined) parts.push(this.i18n.t({ th: `สัญญาณ ${body['rssi']}`, en: `signal ${body['rssi']}` }));
-    if (body['fw']) parts.push(this.i18n.t({ th: `เฟิร์มแวร์ ${body['fw']}`, en: `firmware ${body['fw']}` }));
+    const battery = body['battery_pct'];
+    if (typeof battery === 'number' || typeof battery === 'string') parts.push(`${battery}%`);
+    const rssi = body['rssi'];
+    if (typeof rssi === 'number' || typeof rssi === 'string') parts.push(this.i18n.t({ th: `สัญญาณ ${rssi}`, en: `signal ${rssi}` }));
+    const fw = body['fw'];
+    if (typeof fw === 'string' || typeof fw === 'number') parts.push(this.i18n.t({ th: `เฟิร์มแวร์ ${fw}`, en: `firmware ${fw}` }));
     return parts.join(' · ');
   }
 

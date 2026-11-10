@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, Injectable, input, type OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, Injectable, input, type OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { apiError } from '../../core/api';

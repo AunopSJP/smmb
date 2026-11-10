@@ -23,6 +23,8 @@ export interface Env {
   QR_SIGNING_KEY: string;
   /** โหมด mock เท่านั้น: เจ้าหน้าที่ใช้งานได้โดยยังไม่เปิดแจ้งเตือน (ทดสอบบนมือถือที่ยังลงเว็บแอปไม่ได้) · production ห้ามตั้ง */
   SKIP_PUSH_REQUIRED: boolean;
+  /** อนุญาตให้รัน backend มากกว่า 1 process (ปกติห้าม เพราะ JobHub เก็บ waiter ใน memory) */
+  ALLOW_MULTI_INSTANCE: boolean;
   /**
    * prefix ของ path ที่ reverse proxy ส่งมาแบบ "ไม่ตัด" เช่น /smmb-api (ว่าง = ไม่มี prefix)
    * ตู้เซ็นลายเซ็นจาก path เต็ม (/smmb-api/v1/box/...) — backend ตัด prefix เองตอนจับคู่ route แต่ originalUrl ยังเต็ม
@@ -87,6 +89,7 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     BOX_MASTER_KEY: secret('BOX_MASTER_KEY'),
     QR_SIGNING_KEY: secret('QR_SIGNING_KEY'),
     SKIP_PUSH_REQUIRED: str('SKIP_PUSH_REQUIRED', '') === '1',
+    ALLOW_MULTI_INSTANCE: str('ALLOW_MULTI_INSTANCE', '') === '1',
     API_PATH_PREFIX: str('API_PATH_PREFIX', '').replace(/\/+$/, ''),
   };
   if (env.API_PATH_PREFIX && !/^\/[A-Za-z0-9._~-]+(\/[A-Za-z0-9._~-]+)*$/.test(env.API_PATH_PREFIX)) errors.push('API_PATH_PREFIX must look like /smmb-api');

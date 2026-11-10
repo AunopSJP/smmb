@@ -3,7 +3,6 @@ import { RouterLink } from '@angular/router';
 import { I18n, type Tr } from '../../core/i18n';
 import { PASSWORD_MAX, PASSWORD_MIN } from '../../core/mock/auth-demo';
 import { TERMS_VERSION } from '../../core/terms';
-import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 
 /** ช่องรหัสผ่าน + ปุ่มแสดง/ซ่อน (ผู้ใช้สูงอายุพิมพ์ผิดบ่อย) */

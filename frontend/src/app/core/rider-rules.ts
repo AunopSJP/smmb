@@ -9,7 +9,7 @@ export const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
 /** รหัสใต้ QR ที่กรองตัวที่ไม่มีในชุด · สูงสุด 8 ตัว (ยังไม่ใส่ขีด) */
 export const cleanCode = (raw: string): string =>
-  [...normalizeCode(raw)].filter((c) => CODE_ALPHABET.includes(c)).join('').slice(0, 8);
+  normalizeCode(raw).split('').filter((c) => CODE_ALPHABET.includes(c)).join('').slice(0, 8);
 
 /** แสดงเป็น H4KD-9TRW (ขีดหลังตัวที่ 4 เมื่อพิมพ์เกิน 4 ตัว) */
 export const formatCode = (raw: string): string => {

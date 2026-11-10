@@ -35,4 +35,11 @@ export class JobHub {
   get waiting(): number {
     return this.waiters.size;
   }
+
+  /** รายละเอียด waiter ต่อตู้ — ใช้ในหน้า diagnostics ของแอดมิน */
+  snapshot(): { box_id: string; waiters: number }[] {
+    return [...this.waiters.entries()]
+      .map(([box_id, set]) => ({ box_id, waiters: set.size }))
+      .sort((a, b) => b.waiters - a.waiters || a.box_id.localeCompare(b.box_id));
+  }
 }

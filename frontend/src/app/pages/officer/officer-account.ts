@@ -109,8 +109,14 @@ export class OfficerAccount {
     return zone ? agency + ' · ' + zone : agency;
   });
   /** รายละเอียดที่ผู้ใช้กรอกตอนสมัคร (Me.profile) — มีเฉพาะช่องที่กรอก */
-  protected readonly rank = computed(() => String(this.me()?.profile?.['rank'] ?? '').trim());
-  protected readonly email = computed(() => String(this.me()?.profile?.['email'] ?? '').trim());
+  protected readonly rank = computed(() => {
+    const v = this.me()?.profile?.['rank'];
+    return typeof v === 'string' ? v.trim() : '';
+  });
+  protected readonly email = computed(() => {
+    const v = this.me()?.profile?.['email'];
+    return typeof v === 'string' ? v.trim() : '';
+  });
   protected readonly roleText = computed(() =>
     (this.me()?.roles ?? [])
       .map((r) =>

@@ -12,7 +12,7 @@ import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { PushStatus } from '../../shared/push-status';
 import { AccountActions } from '../auth/auth-account';
-import { emptyExtras, extrasFromProfile, extrasPayload, extrasValid, ProfileExtras } from '../../shared/profile-extras';
+import { extrasFromProfile, extrasPayload, extrasValid, ProfileExtras } from '../../shared/profile-extras';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
@@ -86,14 +86,14 @@ import { firstValueFrom } from 'rxjs';
             </span>
             <app-icon name="chevronRight" [size]="20" />
           </a>
-          <a class="row" href="#owner-details">
+          <button type="button" class="row" (click)="openDetails()">
             <span class="icon-bubble"><app-icon name="pin" [size]="22" /></span>
             <span class="grow">
               <strong>{{ i18n.t({ th: 'ที่อยู่และข้อมูลของฉัน', en: 'My address and details' }) }}</strong>
               <span class="chip" [class.ok]="addressReady()" [class.warn]="!addressReady()">{{ addressReady() ? i18n.t({ th: 'กรอกแล้ว', en: 'Filled in' }) : i18n.t({ th: 'ยังกรอกไม่ครบ', en: 'Not complete' }) }}</span>
             </span>
             <app-icon name="chevronRight" [size]="20" />
-          </a>
+          </button>
         </nav>
         <p class="muted small">{{ i18n.t({ th: 'อยากเห็นข้อมูลของตู้มากขึ้น? เปลี่ยนแบบการใช้งานเป็น "ปกติ" หรือ "ละเอียด" ได้ที่ข้อสอง', en: 'Want more detail about the box? Switch the display mode to “normal” or “detailed” in the second item.' }) }}</p>
       }
@@ -310,6 +310,20 @@ import { firstValueFrom } from 'rxjs';
     .easy-menu .chip {
       margin-block-start: 4px;
     }
+    /* แถวที่เป็นปุ่ม (เดิมใช้ <a href="#...">) — ให้หน้าตาเหมือนลิงก์แถวเดิม */
+    .easy-menu button.row {
+      inline-size: 100%;
+      border: 0;
+      background: none;
+      font: inherit;
+      color: inherit;
+      text-align: start;
+      cursor: pointer;
+    }
+    /* เผื่อหัวข้อถูก header บังตอนเลื่อนด้วย scrollIntoView */
+    #owner-details {
+      scroll-margin-block-start: 16px;
+    }
     .fold + .fold {
       border-block-start: 1px solid var(--line);
     }
@@ -453,6 +467,17 @@ export class OwnerSettings {
   /** เวลาแบบมีวินาที (โหมดละเอียด) */
   protected exact(iso: string): string {
     return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
+  }
+
+  /**
+   * โหมดง่าย: แตะ "ที่อยู่และข้อมูลของฉัน" แล้วเลื่อนไปส่วนข้อมูลในหน้าเดิม
+   * ห้ามใช้ href="#owner-details" — Angular router ตีความเป็น path ว่าง (+fragment)
+   * แล้ว route '' (homeRedirect) จะพาไปหน้าหลัก
+   */
+  protected openDetails(): void {
+    this.showAddr.set(true);
+    // ไม่ใช้ behavior:'smooth' — บาง WebView/เบราว์เซอร์ฝังตัวยกเลิก smooth scroll เงียบ ๆ
+    document.getElementById('owner-details')?.scrollIntoView({ block: 'start' });
   }
 
   protected startRename(): void {
@@ -926,12 +951,12 @@ export class OwnerWifi {
           </label>
         </section>
         @if (error()) { <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดหรือส่งคำขอไม่สำเร็จ อาจมีคำขอที่ยังเปิดอยู่แล้ว โหลดหน้าใหม่', en: 'Could not load or send the request. An open request may already exist; reload the page.' }) }}</p> }
-        <button type="button" class="btn end" [disabled]="sending() || !boxId()" (click)="submit()">
+        <button type="button" class="btn" [disabled]="sending() || !boxId()" (click)="submit()">
           {{ sending() ? i18n.t({ th: 'กำลังส่ง…', en: 'Sending…' }) : i18n.t({ th: 'ส่งคำขอ', en: 'Send request' }) }}
         </button>
       }
       }
-      <a class="btn end" [routerLink]="url('H03')">{{ i18n.t({ th: 'กลับหน้าหลัก', en: 'Back to home' }) }}</a>
+      <a class="back-link" [routerLink]="url('H03')">{{ i18n.t({ th: 'กลับหน้าหลัก', en: 'Back to home' }) }}</a>
     </div>
   `,
   styles: `
@@ -955,8 +980,20 @@ export class OwnerWifi {
     .center {
       text-align: center;
     }
-    .end {
-      margin-block-start: auto;
+    .back-link {
+      display: block;
+      margin-block-start: 2px;
+      padding: 12px;
+      border-radius: 12px;
+      text-align: center;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+    .back-link:hover {
+      background: var(--icon-bg);
+      color: var(--text);
     }
     .field { display: flex; flex-direction: column; gap: 8px; }
     .field select, .field textarea { inline-size: 100%; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text); background: var(--surface); font: inherit; }

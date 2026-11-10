@@ -167,6 +167,7 @@ state machine เต็มอยู่ `smmb-design.md` §6 · SOS อยู่ 
 | สมาชิกในบ้าน (`H15*`) | 🧪 ข้อเสนอให้ลูกค้า | ห้ามเขียน |
 | แพ็กอื่นนอกจาก `free` | ทีหลัง | มีตาราง/route จัดการไว้ แต่ seed แค่ `free` |
 | RFID, ถ่ายรูป (ยกเว้น Snapface หลังตรวจผ่าน), IR/PIR, ไซเรน, MQTT, LINE, OTP, ชำระเงิน | ❌ ตัดแล้ว | ห้ามเสนอกลับมา |
+| **Auto-deploy** (GitHub Actions deploy · self-hosted runner · systemd timer บนเครื่อง prod) | ❌ ผู้ใช้ตัดสิน 2026-11-10 "ยุ่งยากเกินไป" | deploy ด้วยมือเท่านั้น: `git pull` บนเซิร์ฟเวอร์ → สั่ง Codex รัน `scripts/deploy.sh --migrate` · repo เป็น public จึงห้ามใช้ runner บนเครื่อง prod ด้วย · ห้ามเสนอซ้ำ |
 
 ## ต้องถามผู้ใช้ก่อนแตะส่วนที่เกี่ยวข้อง
 

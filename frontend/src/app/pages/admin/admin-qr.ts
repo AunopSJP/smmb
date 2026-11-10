@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { AdminApi, type AdminBoxDetail, type AdminQrHealth, type AdminQrIssue, type ReissuedQr } from '../../core/admin-api';
+import { AdminApi, type AdminBoxDetail, type AdminQrHealth, type AdminQrIssue } from '../../core/admin-api';
 import { AdminQrState } from '../../core/admin-qr-state';
 import { I18n, type Tr } from '../../core/i18n';
 import { Toast } from '../../core/toast';

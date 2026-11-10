@@ -3,9 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import pg from 'pg';
 import { Redis } from 'ioredis';
 import type { Env } from '../config/env.js';
+import { PG_POOL, REDIS } from './tokens.js';
+import { InstanceLock } from './instance-lock.service.js';
 
-export const PG_POOL = Symbol('PG_POOL');
-export const REDIS = Symbol('REDIS');
+export { PG_POOL, REDIS } from './tokens.js';
 
 @Injectable()
 class DbShutdown implements OnApplicationShutdown {
@@ -55,6 +56,7 @@ class DbShutdown implements OnApplicationShutdown {
       },
     },
     DbShutdown,
+    InstanceLock,
   ],
   exports: [PG_POOL, REDIS],
 })

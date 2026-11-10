@@ -150,12 +150,14 @@ try {
 // ── 3. 3-mode coverage ────────────────────────────────────────────────
 try {
   const pages = walk(join(ROOT, 'frontend/src/app/pages')).filter((p) => p.endsWith('.ts') && !p.endsWith('.spec.ts'));
+  /** component ย่อย/หน้าสาธารณะที่ไม่ต้องมี marker โหมด (ตั้งใจ) */
+  const MODE_EXEMPT = new Set(['frontend/src/app/pages/auth/auth-parts.ts', 'frontend/src/app/pages/error-screen.ts']);
   const missing = [];
   for (const file of pages) {
     const src = readFileSync(file, 'utf8');
     const markers = (src.match(/easy-hide|easy-only|adv-only|desk-only/g) ?? []).length;
     const touchesMode = /DisplaySettings|data-mode|easyMode|advancedMode/.test(src);
-    if (markers === 0 && !touchesMode) missing.push(rel(file));
+    if (markers === 0 && !touchesMode && !MODE_EXEMPT.has(rel(file))) missing.push(rel(file));
   }
   if (missing.length) warn('3-mode coverage', `${missing.length} ไฟล์ไม่มี marker โหมดเลย`, missing.map((f) => `- ${f}`).join('\n'));
   else ok('3-mode coverage', `ทุกหน้า (${pages.length} ไฟล์) มี marker หรืออ่าน DisplaySettings`);
@@ -181,6 +183,24 @@ try {
   else ok('i18n ไทย/อังกฤษ', 'ทุก i18n.t({ th, en }) มีครบสองภาษา');
 } catch (e) {
   warn('i18n ไทย/อังกฤษ', 'ตรวจไม่ได้', String(e));
+}
+
+// ── 4.5 ลิงก์ #... ในเทมเพลต (Angular router ตีความเป็น path ว่าง → เด้งหน้าหลัก) ──
+try {
+  const files = walk(join(ROOT, 'frontend/src/app')).filter((p) => p.endsWith('.ts'));
+  const bad = [];
+  for (const file of files) {
+    const src = readFileSync(file, 'utf8');
+    src.split(/\r?\n/).forEach((line, i) => {
+      const t = line.trim();
+      if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*') || t.startsWith('<!--')) return;
+      if (/href\s*=\s*["']#/.test(line)) bad.push(`${rel(file)}:${i + 1}`);
+    });
+  }
+  if (bad.length) fail('Anchor links', `${bad.length} จุดใช้ href="#..." — router จะพาไปหน้าหลัก`, bad.map((x) => `- ${x}`).join('\n'));
+  else ok('Anchor links', 'ไม่มี href="#..." — ใช้ scrollIntoView หรือ fragment ของ router');
+} catch (e) {
+  warn('Anchor links', 'ตรวจไม่ได้', String(e));
 }
 
 // ── 5. ความลับ/ข้อมูลที่อาจหลุด ────────────────────────────────────────
@@ -227,9 +247,27 @@ try {
 // ── 8. Build / lint / unit test ───────────────────────────────────────
 runCheck('Frontend build', NPM, ['--prefix', 'frontend', 'run', 'build'], ROOT);
 runCheck('Frontend unit tests', NPM, ['--prefix', 'frontend', 'test', '--', '--watch=false'], ROOT, 300_000);
+runCheck('Frontend lint', NPM, ['--prefix', 'frontend', 'run', 'lint'], ROOT, 240_000);
 runCheck('Backend build', NPM, ['--prefix', 'backend', 'run', 'build'], ROOT);
 runCheck('Backend lint', NPM, ['--prefix', 'backend', 'run', 'lint'], ROOT);
 runCheck('Backend unit tests', NPM, ['--prefix', 'backend', 'test'], ROOT, 300_000);
+
+// ── 9. Deploy drift (opt-in) ──────────────────────────────────────────
+if (FULL && process.env.GUARDIAN_DEPLOY_URL) {
+  try {
+    const base = process.env.GUARDIAN_DEPLOY_URL.replace(/\/+$/, '');
+    const html = await (await fetch(`${base}/`, { signal: AbortSignal.timeout(20_000) })).text();
+    const prod = html.match(/main-[A-Z0-9]+\.js/)?.[0] ?? null;
+    const local = read('frontend/dist/smmb-web/browser/index.html').match(/main-[A-Z0-9]+\.js/)?.[0] ?? null;
+    if (!prod || !local) warn('Deploy drift', 'หา main-*.js ไม่พบ', `prod=${prod ?? '—'} dist=${local ?? '—'}`);
+    else if (prod === local) ok('Deploy drift', `prod = dist (${prod})`);
+    else fail('Deploy drift', `prod ${prod} ≠ dist ${local}`, `production ยังไม่ตรง build ปัจจุบัน · รัน scripts/deploy.sh บนเซิร์ฟเวอร์`);
+  } catch (e) {
+    warn('Deploy drift', 'ตรวจ production ไม่ได้', String(e));
+  }
+} else {
+  info('Deploy drift', 'ข้าม (ตั้ง GUARDIAN_DEPLOY_URL เพื่อตรวจ)');
+}
 
 // ── Report ────────────────────────────────────────────────────────────
 const icon = { PASS: '✅', WARN: '⚠️', FAIL: '❌', INFO: 'ℹ️' };
