@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal, type OnInit } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { AdminApi, type AdminTechnicianRequest } from '../../core/admin-api';
 import { DisplaySettings } from '../../core/display-settings';
 import { I18n } from '../../core/i18n';
@@ -9,7 +8,7 @@ import { screenUrl } from '../../screens/registry';
 
 @Component({
   selector: 'app-admin-technician-requests',
-  imports: [DatePipe, PageHeader],
+  imports: [PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน Smart Mailbox', en: 'Smart Mailbox admin' })" [title]="i18n.t({ th: 'คำขอช่าง', en: 'Technician requests' })" [back]="url('D16')" />
@@ -31,7 +30,7 @@ import { screenUrl } from '../../screens/registry';
               <span class="muted small block">{{ request.owner_name }} · {{ request.owner_phone }}</span>
               <a class="btn secondary easy-only call" [href]="'tel:' + request.owner_phone">{{ i18n.t({ th: 'โทรหาเจ้าของ', en: 'Call the owner' }) }}</a>
               <span class="small block">{{ reasonLabel(request.reason) }}</span>
-              <span class="muted small block">{{ request.created_at | date:'d MMM yyyy HH:mm' }}</span>
+              <span class="muted small block">{{ dateTime(request.created_at) }}</span>
               @if (request.note) { <p class="request-note">{{ request.note }}</p> }
               @if (request.status === 'open') {
                 <label class="field">
@@ -44,7 +43,7 @@ import { screenUrl } from '../../screens/registry';
                 </label>
                 <button type="button" class="btn" [disabled]="saving() === request.id || !scheduleValue(request.id)" (click)="schedule(request)">{{ i18n.t({ th: 'บันทึกนัดหมายและแจ้งเจ้าของ', en: 'Schedule and notify owner' }) }}</button>
               } @else if (request.status === 'scheduled') {
-                <p class="small">{{ i18n.t({ th: 'นัด ', en: 'Scheduled ' }) }}{{ request.scheduled_at | date:'d MMM yyyy HH:mm' }}</p>
+                <p class="small">{{ i18n.t({ th: 'นัด ', en: 'Scheduled ' }) }}{{ dateTime(request.scheduled_at) }}</p>
                 <button type="button" class="btn secondary" [disabled]="saving() === request.id" (click)="complete(request)">{{ i18n.t({ th: 'ปิดงานช่าง', en: 'Complete request' }) }}</button>
               } @else if (request.admin_note) {
                 <p class="muted small">{{ request.admin_note }}</p>
@@ -77,6 +76,18 @@ export class AdminTechnicianRequests implements OnInit {
   private readonly toast = inject(Toast);
   private readonly display = inject(DisplaySettings);
   protected readonly url = screenUrl;
+  /** เวลานัด/ส่งคำขอ — fix TZ ไทย + ภาษา */
+  protected dateTime(iso: string | null | undefined): string {
+    if (!iso) return '';
+    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Bangkok',
+    });
+  }
   protected readonly rows = signal<AdminTechnicianRequest[]>([]);
   protected readonly filter = signal<'open' | 'scheduled' | 'done'>('open');
   protected readonly schedules = signal<Record<string, string>>({});

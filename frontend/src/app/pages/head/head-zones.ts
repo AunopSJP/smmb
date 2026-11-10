@@ -70,7 +70,11 @@ const ZONE_ERROR: Record<string, Tr> = {
           </span>
         </a>
       } @empty {
-        <p class="muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ยังไม่มีโซน — สร้างโซนแรก', en: 'No zones yet — create the first one' }) }}</p>
+        @if (zonesFailed()) {
+          <p class="muted"><span class="danger-text">{{ i18n.t({ th: 'โหลดรายการโซนไม่สำเร็จ', en: 'Couldn’t load zones' }) }}</span> <button type="button" class="see-all" (click)="ngOnInit()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button></p>
+        } @else {
+          <p class="muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ยังไม่มีโซน — สร้างโซนแรก', en: 'No zones yet — create the first one' }) }}</p>
+        }
       }
     </div>
   `,
@@ -133,6 +137,8 @@ export class HeadZones implements OnInit {
   protected readonly totalOfficers = computed(() => this.shown().reduce((n, z) => n + z.officers_count, 0));
   protected readonly noOfficerZones = computed(() => this.shown().filter((z) => !z.officers_count).length);
   protected readonly loading = signal(true);
+  /** โหลดโซนไม่สำเร็จ (ห้ามขึ้น "ยังไม่มีโซน") */
+  protected readonly zonesFailed = signal(false);
 
   /** หัวหน้าคนอื่นแก้โซน → ขึ้นเองโดยไม่ต้องรีเฟรช */
   private readonly _live = liveRefresh(async () => this.zones.set(await this.api.zones('all').catch(() => this.zones())), 15_000);
@@ -141,6 +147,9 @@ export class HeadZones implements OnInit {
     void this.api.loadAgency().catch(() => undefined);
     try {
       this.zones.set(await this.api.zones('all'));
+      this.zonesFailed.set(false);
+    } catch {
+      if (!this.zones().length) this.zonesFailed.set(true);
     } finally {
       this.loading.set(false);
     }

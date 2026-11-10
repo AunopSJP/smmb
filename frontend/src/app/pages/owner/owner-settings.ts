@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { OwnerApi, type BoxAddress, type BoxDetail, type PlanInfo, type ZoneRequest, type TechnicianRequest } from '../../core/owner-api';
 import { Session } from '../../core/session';
@@ -865,7 +864,7 @@ export class OwnerWifi {
 
 @Component({
   selector: 'app-owner-technician',
-  imports: [RouterLink, Icon, PageHeader, DatePipe],
+  imports: [RouterLink, Icon, PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'ตั้งค่าตู้', en: 'Mailbox settings' })" [title]="i18n.t({ th: 'แจ้งช่าง', en: 'Request a technician' })" [back]="url('H13')" />
@@ -897,15 +896,15 @@ export class OwnerWifi {
         @if (request.scheduled_at) {
           <section class="card appt">
             <span class="chip ok">{{ i18n.t({ th: 'นัดแล้ว', en: 'Scheduled' }) }}</span>
-            <strong class="when">{{ request.scheduled_at | date:'d MMM yyyy HH:mm' }}</strong>
+            <strong class="when">{{ dateTime(request.scheduled_at) }}</strong>
           </section>
         }
         <section class="card">
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'เรื่อง', en: 'Subject' }) }}</dt><dd>{{ reasonLabel(request.reason) }}</dd>
             @if (request.note) { <dt>{{ i18n.t({ th: 'รายละเอียด', en: 'Details' }) }}</dt><dd>{{ request.note }}</dd> }
-            <dt>{{ i18n.t({ th: 'ส่งเมื่อ', en: 'Sent' }) }}</dt><dd>{{ request.created_at | date:'d MMM yyyy HH:mm' }}</dd>
-            @if (request.scheduled_at) { <dt>{{ i18n.t({ th: 'นัดหมาย', en: 'Appointment' }) }}</dt><dd>{{ request.scheduled_at | date:'d MMM yyyy HH:mm' }}</dd> }
+            <dt>{{ i18n.t({ th: 'ส่งเมื่อ', en: 'Sent' }) }}</dt><dd>{{ dateTime(request.created_at) }}</dd>
+            @if (request.scheduled_at) { <dt>{{ i18n.t({ th: 'นัดหมาย', en: 'Appointment' }) }}</dt><dd>{{ dateTime(request.scheduled_at) }}</dd> }
             @if (request.admin_note) { <dt>{{ i18n.t({ th: 'ข้อความจากทีมงาน', en: 'Team note' }) }}</dt><dd>{{ request.admin_note }}</dd> }
             <dt>{{ i18n.t({ th: 'เบอร์ติดต่อกลับ', en: 'Call-back number' }) }}</dt><dd>{{ phone }}</dd>
             <dt class="adv-only">{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd class="adv-only">{{ request.box_id }}</dd>
@@ -915,7 +914,7 @@ export class OwnerWifi {
           <ol class="tl">
             <li class="done"><span class="d">✓</span><span><b>{{ i18n.t({ th: 'ส่งคำขอแล้ว', en: 'Request sent' }) }}</b><small>{{ exact(request.created_at) }}</small></span></li>
             <li [class.done]="request.status !== 'open'"><span class="d">{{ request.status !== 'open' ? '✓' : '2' }}</span><span><b>{{ i18n.t({ th: 'ทีมงานรับเรื่องแล้ว', en: 'The team took it' }) }}</b><small>{{ request.status !== 'open' ? i18n.t({ th: 'รับเรื่องแล้ว', en: 'Accepted' }) : i18n.t({ th: 'รอรับเรื่อง', en: 'Waiting' }) }}</small></span></li>
-            <li [class.done]="request.status === 'scheduled' || request.status === 'done'"><span class="d">{{ request.status === 'scheduled' || request.status === 'done' ? '✓' : '3' }}</span><span><b>{{ i18n.t({ th: 'นัดหมาย', en: 'Appointment' }) }}</b><small>{{ request.scheduled_at ? (request.scheduled_at | date:'d MMM yyyy HH:mm') : i18n.t({ th: 'ยังไม่มีนัด', en: 'No appointment yet' }) }}</small></span></li>
+            <li [class.done]="request.status === 'scheduled' || request.status === 'done'"><span class="d">{{ request.status === 'scheduled' || request.status === 'done' ? '✓' : '3' }}</span><span><b>{{ i18n.t({ th: 'นัดหมาย', en: 'Appointment' }) }}</b><small>{{ request.scheduled_at ? dateTime(request.scheduled_at) : i18n.t({ th: 'ยังไม่มีนัด', en: 'No appointment yet' }) }}</small></span></li>
             <li [class.done]="request.status === 'done'"><span class="d">{{ request.status === 'done' ? '✓' : '4' }}</span><span><b>{{ i18n.t({ th: 'ช่างมาที่บ้าน', en: 'Technician visits' }) }}</b><small>{{ request.status === 'done' ? i18n.t({ th: 'เสร็จแล้ว', en: 'Done' }) : i18n.t({ th: 'จะแจ้งเมื่อช่างออกเดินทาง', en: 'We will tell you when they set off' }) }}</small></span></li>
             <li [class.done]="request.status === 'done'"><span class="d">{{ request.status === 'done' ? '✓' : '5' }}</span><span><b>{{ i18n.t({ th: 'เสร็จงาน', en: 'Work complete' }) }}</b><small>{{ request.status === 'done' ? i18n.t({ th: 'ปิดงานแล้ว', en: 'Closed' }) : i18n.t({ th: 'แล้วให้คุณยืนยันว่าใช้ได้ปกติ', en: 'Then you confirm it works' }) }}</small></span></li>
           </ol>
@@ -943,7 +942,7 @@ export class OwnerWifi {
             <span class="done-ic"><app-icon name="check" [size]="26" /></span>
             <div>
               <strong>{{ i18n.t({ th: 'ช่างทำเสร็จแล้ว', en: 'The technician has finished' }) }}</strong>
-              <span class="muted small block">{{ done.scheduled_at ? (done.scheduled_at | date:'d MMM yyyy HH:mm') : (done.created_at | date:'d MMM yyyy HH:mm') }} · {{ reasonLabel(done.reason) }}</span>
+              <span class="muted small block">{{ dateTime(done.scheduled_at || done.created_at) }} · {{ reasonLabel(done.reason) }}</span>
               @if (done.admin_note) { <span class="small block">{{ done.admin_note }}</span> }
               <span class="muted small block">{{ i18n.t({ th: 'งานนี้ใช้ได้ปกติไหม?', en: 'Did this fix work?' }) }}</span>
               @if (done.owner_result === 'ok') {
@@ -1095,6 +1094,18 @@ export class OwnerWifi {
 export class OwnerTechnician {
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
+  /** เวลานัด/ส่งคำขอ — fix TZ ไทย + ภาษา ไม่พึ่ง locale ของเครื่อง */
+  protected dateTime(iso: string | null | undefined): string {
+    if (!iso) return '';
+    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Bangkok',
+    });
+  }
   private readonly api = inject(OwnerApi);
   private readonly toast = inject(Toast);
   protected readonly phone = inject(Session).me()?.phone ?? '';

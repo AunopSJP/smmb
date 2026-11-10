@@ -188,7 +188,7 @@ export class PushNotifications {
         : st.keys_match === false
           ? { ok: false, label: { th: 'กุญแจแจ้งเตือนของเซิร์ฟเวอร์ไม่เป็นคู่กัน', en: 'The server’s push keys do not match' }, fix: { th: 'แจ้งผู้ดูแลระบบ (ต้องสร้างกุญแจคู่ใหม่ แล้วทุกเครื่องเปิดแจ้งเตือนใหม่)', en: 'Tell the admin (a new key pair is needed; every device must turn it on again)' } }
           : mine?.usable
-            ? { ok: true, label: { th: 'เซิร์ฟเวอร์รู้จักเครื่องนี้', en: 'The server knows this device' }, detail: mine.last_ok_at ? `ส่งสำเร็จล่าสุด ${new Date(mine.last_ok_at).toLocaleString()}` : 'ยังไม่เคยส่งสำเร็จ' }
+            ? { ok: true, label: { th: 'เซิร์ฟเวอร์รู้จักเครื่องนี้', en: 'The server knows this device' }, detail: mine.last_ok_at ? `ส่งสำเร็จล่าสุด ${new Date(mine.last_ok_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Asia/Bangkok' })}` : 'ยังไม่เคยส่งสำเร็จ' }
             : {
                 ok: false,
                 label: mine ? { th: 'การลงทะเบียนของเครื่องนี้หมดอายุ (เซสชันถูกเตะ/หมดอายุ)', en: 'This device’s registration expired (the session ended)' } : { th: 'เซิร์ฟเวอร์ยังไม่รู้จักเครื่องนี้', en: 'The server does not know this device yet' },

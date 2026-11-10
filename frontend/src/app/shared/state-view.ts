@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { I18n } from '../core/i18n';
 import { Icon, type IconName } from './icon';
 
 /**
@@ -159,4 +160,48 @@ export class EmptyState {
   readonly icon = input<IconName>('info');
   readonly title = input.required<string>();
   readonly hint = input<string>('');
+}
+
+/**
+ * สถานะ "โหลดไม่สำเร็จ" กลาง — ใช้แทนการกลืน error แล้วแสดง empty state
+ * (ผู้ใช้ต้องแยกออกว่า "ไม่มีข้อมูลจริง" กับ "โหลดพัง" — กดลองใหม่ได้)
+ */
+@Component({
+  selector: 'app-load-error',
+  imports: [Icon],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <div class="err card" role="alert">
+      <span class="ico" aria-hidden="true"><app-icon name="alert" [size]="26" /></span>
+      <strong>{{ i18n.t({ th: 'โหลดข้อมูลไม่สำเร็จ', en: 'Couldn’t load' }) }}</strong>
+      <span class="muted small">{{ i18n.t({ th: 'ตรวจการเชื่อมต่อแล้วลองอีกครั้ง — ข้อมูลเดิมยังไม่ถูกแทนที่', en: 'Check your connection and try again — nothing was replaced' }) }}</span>
+      <button type="button" class="btn secondary" (click)="retry.emit()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button>
+    </div>
+  `,
+  styles: `
+    .err {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      border: 1px solid var(--line-strong, var(--line));
+    }
+    .ico {
+      display: grid;
+      place-items: center;
+      inline-size: 44px;
+      block-size: 44px;
+      border-radius: 12px;
+      background: var(--danger-bg);
+      color: var(--sos);
+    }
+    .btn {
+      margin-block-start: 4px;
+      inline-size: auto;
+    }
+  `,
+})
+export class LoadError {
+  protected readonly i18n = inject(I18n);
+  readonly retry = output<void>();
 }

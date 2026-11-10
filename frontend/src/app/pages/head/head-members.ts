@@ -7,6 +7,7 @@ import { I18n, type Tr } from '../../core/i18n';
 import { Session } from '../../core/session';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
+import { Confirm } from '../../shared/confirm-dialog';
 import { PageHeader } from '../../shared/page-header';
 import { liveRefresh } from '../../core/live-refresh';
 
@@ -290,6 +291,7 @@ export class HeadMember {
   private readonly toast = inject(Toast);
   private readonly router = inject(Router);
   private readonly session = inject(Session);
+  private readonly confirm = inject(Confirm);
   protected readonly url = screenUrl;
   readonly id = input<string>();
   protected readonly member = signal<Member | null>(null);
@@ -325,6 +327,21 @@ export class HeadMember {
   protected async run(action: 'head' | 'unhead' | 'reset' | 'disable' | 'enable'): Promise<void> {
     const m = this.member();
     if (!m) return;
+    if (action === 'disable' || action === 'unhead') {
+      const ok = await this.confirm.ask({
+        title:
+          action === 'disable'
+            ? { th: `ปิดสิทธิ์ ${m.display_name}?`, en: `Disable ${m.display_name}?` }
+            : { th: `ถอด ${m.display_name} จากหัวหน้า?`, en: `Remove ${m.display_name} as head?` },
+        body:
+          action === 'disable'
+            ? { th: 'เจ้าหน้าที่คนนี้จะถูกถอดออกจากทุกโซนและใช้แอปไม่ได้ (ประวัติยังอยู่)', en: 'This officer is removed from every zone and can no longer use the app (history is kept).' }
+            : { th: 'ยังเป็นเจ้าหน้าที่อยู่ แต่จะอนุมัติ/จัดการทีมไม่ได้อีก', en: 'They stay an officer but can no longer approve or manage the team.' },
+        confirm: action === 'disable' ? { th: 'ปิดสิทธิ์', en: 'Disable' } : { th: 'ถอดจากหัวหน้า', en: 'Remove as head' },
+        danger: true,
+      });
+      if (!ok) return;
+    }
     this.busy.set(true);
     try {
       if (action === 'head') await this.api.makeHead(m.id);

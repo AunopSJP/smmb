@@ -8,6 +8,7 @@ import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { UserPlan } from './admin-plans';
 import { Icon } from '../../shared/icon';
+import { Confirm } from '../../shared/confirm-dialog';
 import { PageHeader } from '../../shared/page-header';
 
 // แอดมิน: D02 หน่วยงานรออนุมัติ · D13 หน่วยงานทั้งหมด · D09 ผู้ใช้ — ใช้ API จริง (api.md §9.2–9.3)
@@ -68,8 +69,13 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
         </section>
       } @empty {
         <section class="card empty">
-          <app-icon name="check" [size]="28" />
-          <p class="muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ไม่มีหน่วยงานรออนุมัติ — จัดการครบแล้ว', en: 'No agencies waiting — all done' }) }}</p>
+          <app-icon [name]="loadFailed() ? 'alert' : 'check'" [size]="28" />
+          @if (loadFailed()) {
+            <p class="muted">{{ i18n.t({ th: 'โหลดคิวอนุมัติไม่สำเร็จ', en: 'Couldn’t load the approval queue' }) }}</p>
+            <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button>
+          } @else {
+            <p class="muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ไม่มีหน่วยงานรออนุมัติ — จัดการครบแล้ว', en: 'No agencies waiting — all done' }) }}</p>
+          }
         </section>
       }
     </div>
@@ -122,6 +128,8 @@ export class AdminAgencyRequests implements OnInit {
   protected readonly type = (t: AdminAgency['type']) => AGENCY_TYPE_LABEL[t];
   protected readonly rows = signal<AdminAgency[]>([]);
   protected readonly loading = signal(true);
+  /** โหลดคิวอนุมัติไม่สำเร็จ (ห้ามขึ้น "จัดการครบแล้ว") */
+  protected readonly loadFailed = signal(false);
   protected readonly busy = signal(false);
   protected readonly rejecting = signal<string | null>(null);
   protected readonly reason = signal('');
@@ -134,6 +142,9 @@ export class AdminAgencyRequests implements OnInit {
   private async load(): Promise<void> {
     try {
       this.rows.set(await this.api.agencies('pending'));
+      this.loadFailed.set(false);
+    } catch {
+      if (!this.rows().length) this.loadFailed.set(true);
     } finally {
       this.loading.set(false);
     }
@@ -374,7 +385,11 @@ const ROLE_LABEL: Record<string, Tr> = {
             <span class="st"><span class="chip" [class.ok]="u.status === 'active'" [class.danger]="u.status === 'disabled'">{{ u.status === 'active' ? i18n.t({ th: 'ใช้งาน', en: 'Active' }) : i18n.t({ th: 'ปิด', en: 'Off' }) }}</span></span>
           </button>
         } @empty {
-          <p class="row muted">{{ i18n.t({ th: 'ไม่พบผู้ใช้', en: 'No users found' }) }}</p>
+          @if (usersFailed()) {
+            <p class="row muted"><span class="grow danger-text">{{ i18n.t({ th: 'โหลดรายชื่อผู้ใช้ไม่สำเร็จ', en: 'Couldn’t load users' }) }}</span><button type="button" class="see-all" (click)="search()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button></p>
+          } @else {
+            <p class="row muted">{{ i18n.t({ th: 'ไม่พบผู้ใช้', en: 'No users found' }) }}</p>
+          }
         }
       </nav>
       </div>
@@ -528,6 +543,7 @@ export class AdminUsers implements OnInit {
   protected readonly i18n = inject(I18n);
   private readonly api = inject(AdminApi);
   private readonly toast = inject(Toast);
+  private readonly confirm = inject(Confirm);
   protected readonly url = screenUrl;
   protected readonly roleLabel = ROLE_LABEL;
   /** ?id= จากหน้าอื่น */
@@ -535,6 +551,8 @@ export class AdminUsers implements OnInit {
   protected readonly selectedId = linkedSignal<string | null>(() => this.id() ?? null);
   protected readonly q = signal('');
   protected readonly users = signal<AdminUser[]>([]);
+  /** ค้นหาไม่สำเร็จ (ห้ามขึ้น "ไม่พบผู้ใช้") */
+  protected readonly usersFailed = signal(false);
   /** ?role= จากเมนูย่อยข้างซ้าย */
   readonly roleParam = input<string | undefined>(undefined, { alias: 'role' });
   protected readonly roleFilter = linkedSignal<'all' | 'owner' | 'officer' | 'head' | 'admin' | 'off'>(() => {
@@ -567,7 +585,13 @@ export class AdminUsers implements OnInit {
 
   protected async search(): Promise<void> {
     const r = await this.api.users(this.q().trim()).catch(() => null);
-    this.users.set(r?.data ?? []);
+    if (r) {
+      this.users.set(r.data);
+      this.usersFailed.set(false);
+    } else {
+      // เก็บผลเดิมไว้ — ไม่ล้างเป็น "ไม่พบผู้ใช้" เพราะอาจแค่โหลดไม่ได้
+      this.usersFailed.set(true);
+    }
   }
 
   protected select(id: string): void {
@@ -605,6 +629,18 @@ export class AdminUsers implements OnInit {
   }
 
   protected async setStatus(u: AdminUser, status: 'active' | 'disabled'): Promise<void> {
+    if (status === 'disabled') {
+      const ok = await this.confirm.ask({
+        title: { th: `ปิดบัญชี ${u.display_name || u.phone}?`, en: `Disable ${u.display_name || u.phone}?` },
+        body: {
+          th: 'ผู้ใช้จะถูกออกจากระบบทุกเครื่องทันที และเข้าสู่ระบบไม่ได้จนกว่าจะเปิดบัญชีใหม่',
+          en: 'They will be signed out on every device and cannot sign in until you enable the account again.',
+        },
+        confirm: { th: 'ปิดบัญชี', en: 'Disable' },
+        danger: true,
+      });
+      if (!ok) return;
+    }
     this.busy.set(true);
     this.error.set(null);
     try {

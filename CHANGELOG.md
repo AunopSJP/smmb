@@ -57,7 +57,11 @@
 - คลิกเหตุการณ์เก่าหรือของตู้ที่ 2 ในหน้าหลัก/ประวัติแล้วดูรายละเอียดได้ (เดิมเด้งกลับเงียบ ๆ) — ส่ง `?box=` และโหลดของตู้นั้นถ้าหาในหน่วยความจำไม่เจอ
 - หน้าวิธีเปิดในเบราว์เซอร์/วิธีติดตั้ง (A01/A02) เปิดได้ทั้งก่อนและหลังล็อกอิน (เดิม `guestOnly` เด้งออก)
 - หน้าหลักเจ้าของบ้าน: ตู้ offline แสดงข้อความชุดเดียว (เดิมการ์ดแดงกับสถานะพูดซ้ำ) · โหมดละเอียดไม่แสดงแบต/ติดต่อล่าสุดซ้ำ · ปุ่ม SOS ลอยเหนือแถบเมนูแบบ fixed พร้อมเว้นที่ท้ายหน้า กันเนื้อหาถูกทับ
-- CSP: อนุญาต inline script ของ Angular (hash) ที่สลับ critical CSS จาก `media=print` เป็น `all` — ถ้าไม่อนุญาต หน้าจะไม่มีสไตล์ global (การ์ด/ปุ่มเสีย)
+- CSP: อนุญาต inline script ของ Angular (hash) ที่สลับ critical CSS จาก `media=print` เป็น `all` — ถ้าไม่อนุญาต หน้าจะไม่มีสไตล์ global (การ์ด/ปุ่มเสีย) · อนุญาต `blob:` ใน `style-src` และ Cloudflare Web Analytics (ถ้าเปิดใช้)
+- Self-host ฟอนต์ Noto Sans Thai + JetBrains Mono (`public/fonts/`) — ไม่พึ่ง Google Fonts, ไม่มี 504 จาก gstatic, CSP ไม่ต้องเปิด origin ภายนอก
+- โหลดพังมี error+retry (`app-load-error`) แทนการขึ้น “ไม่มีข้อมูล” ใน notification, owner-history, admin-boxes, admin-people, head-zones
+- เวลานัด/ส่งคำขอ/เฟิร์มแวร์ใช้ `Asia/Bangkok` + ภาษาที่เลือก (ไม่พึ่ง TZ/locale ของเครื่อง)
+- Confirm ก่อนปิดบัญชีผู้ใช้ (D09) และก่อนถอดหัวหน้า/ปิดสิทธิ์เจ้าหน้าที่ (L05)
 - เพิ่ม `<meta name="mobile-web-app-capable">` (แทน `apple-mobile-web-app-capable` ที่เบราว์เซอร์เตือนว่า deprecated; ยังเก็บตัวเดิมไว้ให้ iOS รุ่นเก่า)
 
 ## [0.1.0] — ยังไม่ติด tag

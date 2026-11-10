@@ -214,7 +214,10 @@
   - ตรวจจากเครื่อง dev: `/smmb/` + `/smmb/index.html` + `/smmb/config.json` มี `Content-Security-Policy` (ไม่มี `-Report-Only`) · index มี `Strict-Transport-Security: max-age=86400` · `box/jobs?wait=1` = 401
   - ⚠️ **จุดเล็กที่ควรเก็บ:** `location /smmb/` ยังไม่มี HSTS (เพราะมี `add_header` เอง) — เพิ่ม `add_header Strict-Transport-Security "max-age=86400" always;` ใน location นั้นด้วย (แก้ใน repo snippet ให้แล้ว)
   - ⚠️ **บทเรียน (10 พ.ย. 2026):** CSP `script-src 'self'` บล็อก inline script ของ Angular ที่สลับ critical CSS (`media="print"` → `all`) → global CSS ไม่โหลด การ์ด/ปุ่มเสียสไตล์ · แก้โดยเพิ่ม `'sha256-LMY6wYoFV9I4wWzxaq1N/dTpl4iurQktw706UCHK3vM='` ใน `script-src` (ทั้ง 2 location) · ถ้าอัปเกรด Angular ต้องคำนวณ hash ใหม่
-  - Cloudflare Web Analytics (`static.cloudflareinsights.com`) ถูก CSP บล็อกเช่นกัน — ไม่กระทบแอป ถ้าต้องการ analytics ให้เพิ่ม origin ใน `script-src`/`connect-src` หรือปิดใน Cloudflare dashboard
+  - ⚠️ **เพิ่ม 10 พ.ย.:** ต้องมี `blob:` ใน `style-src` ด้วย (มี stylesheet ที่โหลดผ่าน `blob:` — ถ้าไม่ให้ จะขึ้น violation และบางสไตล์หาย)
+  - ⚠️ **แผนที่/ฟอนต์:** service worker/Leaflet เรียกด้วย Fetch → ต้องอนุญาตใน `connect-src` ด้วย: `https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://fonts.googleapis.com https://fonts.gstatic.com` (และ `img-src` ต้องมี tile host)
+  - `401 GET /api/v1/me` ใน console = session หมดอายุ/ยังไม่ล็อกอิน — build ใหม่จะพาไปหน้าเข้าสู่ระบบพร้อม `next`; ถ้ายังค้างให้ล้าง service worker แล้วล็อกอินใหม่
+  - Cloudflare Web Analytics (`static.cloudflareinsights.com`) ถูก CSP บล็อก — เลือกอย่างใดอย่างหนึ่ง: ปิดใน Cloudflare dashboard (แนะนำ) หรืออนุญาต origin ใน `script-src` + `connect-src` (ทำใน repo แล้ว)
 - **ข้อควรระวัง:** ไฟล์จริง `deploy/nginx-hub.conf` ไม่มีใน git repo — ควร commit เข้า repo หรือเก็บสำรอง ไม่งั้นเครื่องอื่น/คนใหม่จะไม่เห็นค่าจริง
 - **หลักฐานเดิม:** `deploy/nginx-smmb.conf` บรรทัด 71–72 (HSTS comment) · ไม่มี CSP · `location = /smmb/index.html` ทิ้ง header ของ `server {}`
 - **งานบนเซิร์ฟเวอร์:** deploy config ใหม่ → ตรวจ header ครบ → เดิน 5 flow + PWA offline → ไม่มี violation จึงเปลี่ยนเป็น `Content-Security-Policy` และเพิ่ม HSTS
@@ -232,6 +235,8 @@
 | Session | 401 กลางหน้า → ล้าง `Me` + ไปหน้าเข้าสู่ระบบพร้อม `next` · network/5xx แยกจาก 401 (`offline` signal → `/error/offline`) · demo เปิดเฉพาะ dev/`devTools` | `core/api.ts`, `core/session.ts`, `app.ts`, `app.routes.ts` |
 | เจ้าของบ้าน | หน้าหลักแสดง error+retry ก่อน spinner (เน็ตหลุดครั้งแรกไม่ค้าง) · ปุ่มตั้งค่าการแจ้งเตือนชี้ `/settings/notifications` · ไม่มีตู้ → caption "ยังไม่ได้ผูกตู้" | `pages/owner-home.ts`, `pages/owner/owner-notifications.ts`, `pages/owner/owner-settings.ts` |
 | หน้าหลัก (ซ้ำ/ทับ) | ตู้ offline แสดงการ์ดเดียว (เดิมมีทั้งการ์ดแดง + การ์ดสถานะพูดซ้ำ) · โหมดละเอียดไม่แสดงแบต/ติดต่อล่าสุดซ้ำสองชุด (การ์ดสรุป + ตารางเทคนิค) · ปุ่ม SOS เปลี่ยนเป็น fixed เหนือแถบเมนู + เว้นที่ท้ายหน้า กันเนื้อหาถูกทับ | `pages/owner-home.ts`, `pages/owner-home.scss`, `styles.scss` |
+| โหลดผิดพลาด | `app-load-error` กลาง + retry แทนการกลืน error แล้วขึ้น empty (notification, owner-history, admin-boxes, admin-people, head-zones) · `loadMore` ไม่เลื่อนหน้าเมื่อ fetch ล้ม | `shared/state-view.ts` + หน้าข้างต้น |
+| ฟอนต์/เวลา/ยืนยัน | self-host ฟอนต์ (Noto Sans Thai + JetBrains Mono) ไม่พึ่ง Google · fix TZ `Asia/Bangkok` ในเวลานัด/ส่งคำขอ/เฟิร์มแวร์ · เพิ่ม confirm ปิดบัญชีและถอดหัวหน้า | `index.html`, `public/fonts/`, `owner-settings.ts`, `admin-technician-requests.ts`, `admin-people.ts`, `head-members.ts` |
 | เจ้าหน้าที่ | O08 แยกสถานะ "ยืนยันผลไม่ได้" + ลองใหม่ (ไม่ขึ้น "ตรวจแล้ว" ทั้งที่ไม่มีข้อมูล) · A12 มีปุ่มออกจากระบบ + ไปหน้าบทบาท + วิธีเปิดแจ้งเตือนในโหมดง่าย | `pages/officer/officer-check.ts`, `pages/auth/auth-officer.ts` |
 | แอดมิน | D04 พิมพ์ QR ได้จริง (`.print-sheet` + `app-qr-image` ของ slot ที่ active) · คำค้นเก็บใน `?q=` · `resetConfig` ล้างค่า override เก่า · ช่องค้นหามี `aria-label` · BoxTest ใช้ `max_attempts` จริง | `pages/admin/admin-boxes.ts`, `admin-qr.ts`, `shared/box-test.ts` |
 | มือถือ/a11y | safe-area ล่างให้ `.pad`/`.sos-foot` · keypad 6 คอลัมน์ (เดิม 7 แน่นเกิน) · meta description | `styles.scss`, `shared/code-keypad.ts`, `index.html` |
@@ -249,9 +254,9 @@
 
 | รหัส | ระดับ | เรื่อง | หลักฐาน |
 |---|---|---|---|
-| U-01 | P2 | หลายหน้าใช้ “empty” แทน “error” (โหลดพังแล้วขึ้น “ไม่มีข้อมูล”) — owner history, head zones, owner agencies, admin people/hub, notification list | `pages/owner/owner-history.ts`, `pages/head/head-zones.ts`, `shared/notification-list.ts` ฯลฯ |
-| U-02 | P2 | วันที่/เวลา: `DatePipe`/`toLocaleString` ยังใช้ TZ เครื่อง ไม่ fix `Asia/Bangkok` | `owner-settings.ts`, `admin-qr.ts`, `admin-boxes.ts` ฯลฯ |
-| U-03 | P2 | destructive action ที่ยังไม่มี confirm: ปิดบัญชี/ถอด role (D09), firmware auto-update, QR ออกใหม่/ส่งช่าง/ปิดเคส, ถอดสมาชิก/บ้านออกจากโซน | `admin-people.ts`, `admin-firmware.ts`, `admin-qr.ts`, `head-members.ts`, `head-zones.ts` |
+| U-01 | P2 | หลายหน้าใช้ “empty” แทน “error” (โหลดพังแล้วขึ้น “ไม่มีข้อมูล”) | 🟡 แก้แล้ว: notification-list, owner-history, admin-boxes, admin-people (คิว+ผู้ใช้), head-zones (มี `app-load-error` + retry) · เหลือ owner-agencies, admin-hub |
+| U-02 | P2 | วันที่/เวลา: `DatePipe`/`toLocaleString` ยังใช้ TZ เครื่อง ไม่ fix `Asia/Bangkok` | 🟡 fix จุดหลักแล้ว (owner/admin technician requests, firmware, push diagnostic) · เหลือ sweep ทั้งโปรเจ็ค |
+| U-03 | P2 | destructive action ที่ยังไม่มี confirm | 🟡 ปิดบัญชี (D09) + ปิดสิทธิ์/ถอดหัวหน้า (L05) มี confirm · เหลือ firmware auto-update, QR, ถอดบ้านออกโซน |
 | U-04 | P2 | easy mode ยังเป็น dead end: D16/ระบบ, D05 QR, ปุ่มจัดการผู้ใช้, เปลี่ยนภาษา/ธีม, ปิดชนิดแจ้งเตือน, ทีม >3 คน | `admin-home.ts`, `registry.ts`, `notif-settings.ts`, `owner-settings.ts`, `head-members.ts` |
 | U-05 | P2 | polling ถี่ (1–5 วิ) และไม่หยุดตอนแท็บซ่อน — ควรทำ `liveRefresh` กลาง + `visibilitychange` | หลายหน้า SOS/ตรวจตู้/D04 |
 | U-06 | P2 | Service Worker prefetch JS ทุก chunk (~1.7 MB) — ควร lazy เฉพาะ shell | `ngsw-config.json` |

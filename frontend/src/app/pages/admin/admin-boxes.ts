@@ -104,7 +104,11 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
             <span class="chip" [class.ok]="badge.tone === 'ok'" [class.warn]="badge.tone === 'warn'" [class.danger]="badge.tone === 'danger'">{{ i18n.t(badge.label) }}</span>
           </a>
         } @empty {
-          <p class="row muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ตู้ทุกใบปกติดี', en: 'Every mailbox is fine' }) }}</p>
+          @if (loadFailed()) {
+            <p class="row muted"><span class="grow danger-text">{{ i18n.t({ th: 'โหลดรายการตู้ไม่สำเร็จ', en: 'Couldn’t load mailboxes' }) }}</span><button type="button" class="see-all" (click)="load()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button></p>
+          } @else {
+            <p class="row muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ตู้ทุกใบปกติดี', en: 'Every mailbox is fine' }) }}</p>
+          }
         }
       </div>
       <button type="button" class="btn big easy-only" [disabled]="busy()" (click)="registerOne()">
@@ -166,7 +170,11 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
             <span class="go desktop-only">{{ i18n.t({ th: 'เปิด', en: 'Open' }) }}</span>
           </a>
         } @empty {
-          <p class="row muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ไม่มีตู้ในกลุ่มนี้', en: 'No mailboxes here' }) }}</p>
+          @if (loadFailed()) {
+            <p class="row muted"><span class="grow danger-text">{{ i18n.t({ th: 'โหลดรายการตู้ไม่สำเร็จ', en: 'Couldn’t load mailboxes' }) }}</span><button type="button" class="see-all" (click)="load()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button></p>
+          } @else {
+            <p class="row muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ไม่มีตู้ในกลุ่มนี้', en: 'No mailboxes here' }) }}</p>
+          }
         }
       </div>
       <p class="muted small easy-hide">{{ i18n.t({ th: 'ทั้งหมด ' + total() + ' ตู้', en: total() + ' mailboxes' }) }}</p>
@@ -449,6 +457,8 @@ export class AdminBoxes implements OnInit {
   protected readonly boxes = signal<AdminBoxRow[]>([]);
   protected readonly total = signal(0);
   protected readonly loading = signal(true);
+  /** โหลดรายการตู้ไม่สำเร็จ (ห้ามขึ้น "ตู้ทุกใบปกติดี") */
+  protected readonly loadFailed = signal(false);
   protected readonly q = signal('');
   protected readonly count = signal(1);
   protected readonly busy = signal(false);
@@ -544,6 +554,9 @@ export class AdminBoxes implements OnInit {
       const r = await this.api.boxes();
       this.boxes.set(r.data);
       this.total.set(r.total);
+      this.loadFailed.set(false);
+    } catch {
+      if (!this.boxes().length) this.loadFailed.set(true);
     } finally {
       this.loading.set(false);
     }
@@ -1525,7 +1538,7 @@ export class AdminBox implements OnInit {
   }
 
   protected fwDate(iso: string): string {
-    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
   }
 
   protected async uploadFirmware(): Promise<void> {

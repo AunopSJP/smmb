@@ -7,7 +7,7 @@ import { I18n } from '../core/i18n';
 import { UnreadCount } from '../core/unread';
 import { Icon, type IconName } from './icon';
 import { liveRefresh } from '../core/live-refresh';
-import { EmptyState, LoadingRows } from './state-view';
+import { EmptyState, LoadError, LoadingRows } from './state-view';
 
 /** api.md §3 `GET /me/notifications` — หัวข้อ/เนื้อความแปลที่ server ตาม prefs.lang แล้ว */
 interface Notification {
@@ -54,7 +54,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
 /** รายการแจ้งเตือนจริงของบัญชีนี้ — แตะแล้วไปหน้าที่เกี่ยวข้อง + ทำเครื่องหมายอ่านแล้ว · "อ่านทั้งหมด" ในแถบบน */
 @Component({
   selector: 'app-notification-list',
-  imports: [Icon, LoadingRows, EmptyState],
+  imports: [Icon, LoadingRows, EmptyState, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar">
@@ -101,6 +101,8 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
     } @empty {
       @if (loading()) {
         <app-loading-rows [rows]="4" [label]="i18n.t({ th: 'กำลังโหลดการแจ้งเตือน', en: 'Loading notifications' })" />
+      } @else if (loadFailed()) {
+        <app-load-error (retry)="ngOnInit()" />
       } @else {
         <app-empty-state
           icon="bell"
@@ -286,6 +288,8 @@ export class NotificationList implements OnInit {
   private readonly unread = inject(UnreadCount);
   protected readonly items = signal<Notification[]>([]);
   protected readonly loading = signal(true);
+  /** โหลดครั้งแรกไม่สำเร็จ — ห้ามแสดง "ไม่มีการแจ้งเตือน" (อาจมี SOS) */
+  protected readonly loadFailed = signal(false);
   protected readonly onlyUnread = signal(false);
   protected readonly marking = signal(false);
   protected readonly unreadCount = computed(() => this.items().filter((n) => !n.read_at).length);
@@ -324,8 +328,10 @@ export class NotificationList implements OnInit {
     try {
       const r = await firstValueFrom(this.http.get<{ data: Notification[] }>('/api/v1/me/notifications?per_page=50'));
       this.items.set(r.data);
+      this.loadFailed.set(false);
     } catch {
-      // แสดงว่าง
+      // มีข้อมูลเดิมอยู่แล้ว → คงไว้ (รอบ live refresh ล้มไม่ควรลบรายการ) · ไม่มีเลย → แสดง error+retry
+      if (!this.items().length) this.loadFailed.set(true);
     } finally {
       this.loading.set(false);
     }

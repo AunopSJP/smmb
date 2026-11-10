@@ -9,7 +9,7 @@ import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { PrivatePhoto } from '../../shared/private-photo';
 import { PageHeader } from '../../shared/page-header';
-import { EmptyState, LoadingRows } from '../../shared/state-view';
+import { EmptyState, LoadError, LoadingRows } from '../../shared/state-view';
 
 // เจ้าของบ้าน: H12 ประวัติ (การตรวจ · ของมาส่ง) · H12-b / H12-c รายละเอียด · H12-d ตู้ไม่ออนไลน์ · H12-e ช่วงวันที่
 // ใช้ API จริง GET /boxes/:box_id/events (api.md §4.3)
@@ -43,6 +43,8 @@ export class OwnerHistoryStore {
   readonly events = signal<BoxEvent[]>([]);
   readonly more = signal(false);
   readonly loading = signal(false);
+  /** โหลดครั้งแรกไม่สำเร็จ (แยกจาก "ไม่มีข้อมูลจริง") */
+  readonly loadFailed = signal(false);
   readonly initialized = signal(false);
   readonly selection = signal<Range>('7d');
   readonly customFrom = signal('');
@@ -57,6 +59,7 @@ export class OwnerHistoryStore {
       this.events.set([]);
       this.more.set(false);
       this.loading.set(false);
+      this.loadFailed.set(false);
       this.initialized.set(false);
       this.selection.set('7d');
       this.customFrom.set('');
@@ -72,6 +75,7 @@ export class OwnerHistoryStore {
   async load(boxId?: string, range?: { from?: string; to?: string }): Promise<void> {
     if (range) this.range.set(range);
     this.loading.set(true);
+    this.loadFailed.set(false);
     try {
       if (!this.boxes().length) this.boxes.set(await this.api.boxes());
       const id = boxId ?? this.boxId() ?? this.boxes()[0]?.id ?? null;
@@ -84,6 +88,9 @@ export class OwnerHistoryStore {
       const r = await this.api.events(id, 1, this.range());
       this.events.set(r.data);
       this.more.set(r.data.length === r.per_page);
+    } catch {
+      // ไม่มีข้อมูลเดิม → แสดง error+retry (ห้ามขึ้น "ยังไม่มีเหตุการณ์")
+      if (!this.events().length) this.loadFailed.set(true);
     } finally {
       this.loading.set(false);
       this.initialized.set(true);
@@ -93,10 +100,15 @@ export class OwnerHistoryStore {
   async loadMore(): Promise<void> {
     const id = this.boxId();
     if (!id) return;
-    this.page++;
-    const r = await this.api.events(id, this.page, this.range());
-    this.events.update((e) => [...e, ...r.data]);
-    this.more.set(r.data.length === r.per_page);
+    const next = this.page + 1;
+    try {
+      const r = await this.api.events(id, next, this.range());
+      this.page = next;
+      this.events.update((e) => [...e, ...r.data]);
+      this.more.set(r.data.length === r.per_page);
+    } catch {
+      // เก็บหน้าเดิมไว้ให้กดซ้ำได้
+    }
   }
 
   async find(id: string | undefined): Promise<BoxEvent | null> {
@@ -116,7 +128,7 @@ const clockSec = (iso: string) =>
 
 @Component({
   selector: 'app-owner-history',
-  imports: [RouterLink, PageHeader, Icon, LoadingRows, EmptyState],
+  imports: [RouterLink, PageHeader, Icon, LoadingRows, EmptyState, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="caption()" [title]="i18n.t({ th: 'ประวัติ', en: 'History' })" [bell]="url('H14')" />
@@ -178,6 +190,8 @@ const clockSec = (iso: string) =>
         } @empty {
           @if (store.loading()) {
             <app-loading-rows [rows]="4" [label]="i18n.t({ th: 'กำลังโหลดประวัติ', en: 'Loading history' })" />
+          } @else if (store.loadFailed()) {
+            <app-load-error (retry)="store.load()" />
           } @else {
             <app-empty-state
               icon="list"
@@ -208,6 +222,8 @@ const clockSec = (iso: string) =>
         } @empty {
           @if (store.loading()) {
             <app-loading-rows [rows]="5" [label]="i18n.t({ th: 'กำลังโหลดประวัติ', en: 'Loading history' })" />
+          } @else if (store.loadFailed()) {
+            <app-load-error (retry)="store.load()" />
           } @else {
             <app-empty-state
               icon="list"

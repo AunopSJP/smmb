@@ -69,7 +69,7 @@ const WHO_LABEL: Record<'admin' | 'owner' | 'tech' | 'none', Tr> = {
   none: { th: '—', en: '—' },
 };
 
-const fmtDate = (iso: string, lang: 'th' | 'en') => new Date(iso).toLocaleString(lang === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+const fmtDate = (iso: string, lang: 'th' | 'en') => new Date(iso).toLocaleString(lang === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' });
 
 // ── ใบพิมพ์ QR ใบใหม่ (ซ่อนบนจอ — window.print()) ───────────────────
 
