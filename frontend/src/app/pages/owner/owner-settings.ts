@@ -749,8 +749,8 @@ export class OwnerSettings {
       inline-size: 28px;
       block-size: 28px;
       border-radius: 50%;
-      background: var(--brand);
-      color: #fff;
+      background: var(--action-bg);
+      color: var(--action-fg);
       font-size: 0.8125rem;
       font-weight: 700;
     }
@@ -1017,8 +1017,8 @@ export class OwnerWifi {
         color: var(--text-muted);
       }
       .on {
-        background: var(--brand);
-        color: #fff;
+        background: var(--action-bg);
+        color: var(--action-fg);
         font-weight: 700;
       }
     }
@@ -1315,8 +1315,8 @@ export class OwnerTechnician {
       inline-size: 22px;
       block-size: 22px;
       border-radius: 50%;
-      background: var(--brand);
-      color: #fff;
+      background: var(--action-bg);
+      color: var(--action-fg);
     }
     .thumb {
       display: flex;

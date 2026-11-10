@@ -138,7 +138,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
       padding: 0 6px;
       margin-inline-start: 4px;
       border-radius: 999px;
-      background: var(--brand);
+      background: var(--badge-bg);
       color: #fff;
       font-size: 0.75rem;
       font-weight: 700;

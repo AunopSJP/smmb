@@ -260,9 +260,9 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       font-weight: 700;
     }
     li.now .num {
-      background: var(--sos);
-      border-color: var(--sos);
-      color: #fff;
+      background: var(--sos-bg);
+      border-color: var(--sos-bg);
+      color: var(--sos-fg);
     }
     li.done .num {
       background: var(--ok);

@@ -4,8 +4,8 @@
   gap: 10px;
   margin: -8px -16px 4px;
   padding: 10px 16px;
-  background: var(--sos);
-  color: #fff;
+  background: var(--sos-bg);
+  color: var(--sos-fg);
   text-decoration: none;
 }
 .dot.white {
@@ -26,8 +26,8 @@
   display: block;
 }
 .demo-tools button[aria-pressed='true'] {
-  background: var(--brand);
-  color: #fff;
+  background: var(--action-bg);
+  color: var(--action-fg);
 }
 .sos-card {
   display: flex;
@@ -35,8 +35,8 @@
   gap: 8px;
   padding: 16px;
   border-radius: var(--radius);
-  background: var(--sos);
-  color: #fff;
+  background: var(--sos-bg);
+  color: var(--sos-fg);
   h2 {
     font-size: 1.625rem;
   }

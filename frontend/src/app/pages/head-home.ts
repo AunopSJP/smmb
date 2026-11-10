@@ -331,16 +331,18 @@ interface RecentLog {
       block-size: 40px;
       padding: 0 6px;
       border-radius: 20px;
-      background: var(--brand);
-      color: #fff;
+      background: var(--action-bg);
+      color: var(--action-fg);
       font-size: 1.25rem;
       font-weight: 800;
     }
     .big.warn .big-n {
-      background: var(--ib-warn-fg);
+      background: var(--ib-warn-bg);
+      color: var(--ib-warn-fg);
     }
     .big.sos .big-n {
-      background: var(--sos);
+      background: var(--sos-bg);
+      color: var(--sos-fg);
     }
     .pend {
       display: flex;
@@ -356,8 +358,8 @@ interface RecentLog {
       min-inline-size: 28px;
       block-size: 28px;
       border-radius: 14px;
-      background: var(--sos);
-      color: #fff;
+      background: var(--sos-bg);
+      color: var(--sos-fg);
       font-weight: 700;
       font-size: 0.875rem;
     }

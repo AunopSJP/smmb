@@ -23,9 +23,11 @@ import { I18n } from '../core/i18n';
     img {
       display: block;
       inline-size: 100%;
-      block-size: auto;
-      max-inline-size: 320px;
+      max-inline-size: 520px;
+      max-block-size: 420px;
+      aspect-ratio: 4 / 3;
       object-fit: contain;
+      background: var(--icon-bg);
       border-radius: var(--radius-sm);
       margin-inline: auto;
     }

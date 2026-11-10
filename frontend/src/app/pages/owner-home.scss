@@ -226,12 +226,12 @@
 
 .sos-bar {
   position: sticky;
-  inset-block-end: 76px;
+  inset-block-end: calc(76px + env(safe-area-inset-bottom));
   margin-block-start: 8px;
   z-index: 1;
 }
 .sos {
-  background: var(--sos);
+  background: var(--sos-bg);
   box-shadow: 0 6px 16px rgb(200 30 30 / 30%);
   user-select: none;
   -webkit-user-select: none;
@@ -240,8 +240,8 @@
 
   /* ระหว่างส่ง SOS ปุ่มต้องยังเป็นสีแดง (เดิมเป็นสีเทาของปุ่มที่ถูกปิด) */
   &:disabled {
-    background: var(--sos);
-    color: #fff;
+    background: var(--sos-bg);
+    color: var(--sos-fg);
     opacity: 0.85;
   }
 
@@ -307,6 +307,25 @@
   strong {
     font-size: 3rem;
     line-height: 1;
+  }
+}
+
+/* โหมดง่าย: แตะแล้วยืนยัน SOS — ต้องรับการสัมผัสได้ (ต่างจาก overlay กดค้าง) */
+.hold.confirm {
+  pointer-events: auto;
+  gap: 12px;
+
+  h2 {
+    margin: 0;
+    font-size: 1.5rem;
+  }
+  p {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 400;
+  }
+  .btn {
+    inline-size: min(100%, 360px);
   }
 }
 

@@ -410,7 +410,7 @@ function useEvent(type: BoxEvent['type']) {
             </div>
           </section>
         } @else {
-          <section class="card result">
+          <section class="card result-card">
             <div class="result-head">
               <span class="okc compact"><app-icon name="check" [size]="20" /></span>
               <div class="grow">
@@ -467,7 +467,7 @@ function useEvent(type: BoxEvent['type']) {
       inline-size: 36px;
       block-size: 36px;
     }
-    .result {
+    .result-card {
       padding: 16px;
     }
     .result-head {
@@ -529,7 +529,7 @@ export class OwnerInspection {
             </div>
           </section>
         } @else {
-          <section class="card result">
+          <section class="card result-card">
             <div class="result-head">
               <span class="okc compact"><app-icon name="box" [size]="20" /></span>
               <div class="grow">
@@ -568,14 +568,14 @@ export class OwnerInspection {
       inline-size: 48px;
       block-size: 48px;
       border-radius: 50%;
-      background: var(--brand);
-      color: #fff;
+      background: var(--action-bg);
+      color: var(--action-fg);
     }
     .okc.compact {
       inline-size: 36px;
       block-size: 36px;
     }
-    .result {
+    .result-card {
       padding: 16px;
     }
     .result-head {

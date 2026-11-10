@@ -71,9 +71,9 @@ export interface Step {
       font-weight: 700;
     }
     li.now .num {
-      background: var(--brand);
+      background: var(--action-bg);
       border-color: var(--brand-text);
-      color: #fff;
+      color: var(--action-fg);
     }
     li.done .num {
       background: var(--ok);
