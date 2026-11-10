@@ -3,6 +3,7 @@ import pg from 'pg';
 import { cannotChangeSelf } from '../agency/agency.service.js';
 import { AccountService, type Role } from '../auth/account.service.js';
 import { SessionService } from '../auth/session.service.js';
+import { AuditService } from '../common/audit.service.js';
 import { PG_POOL } from '../db/db.module.js';
 import { withTx } from '../db/tx.js';
 import type { Page } from '../push/notification.service.js';
@@ -62,6 +63,7 @@ export class AdminUsersService {
     @Inject(PG_POOL) private readonly pool: pg.Pool,
     private readonly account: AccountService,
     private readonly sessions: SessionService,
+    private readonly audit: AuditService,
   ) {}
 
   async list(q: { role?: Role | 'head'; status?: string; q?: string; page: number; perPage: number }): Promise<Page<AdminUserRow>> {
@@ -133,6 +135,7 @@ export class AdminUsersService {
       if (status === 'disabled') await this.sessions.revokeAll(db, userId);
       await this.account.bumpPerm(db, userId);
     });
+    await this.audit.log(adminId, 'user.status', 'user', userId, { status });
   }
 
   async putRole(
@@ -146,6 +149,7 @@ export class AdminUsersService {
       await this.lockUser(db, userId);
       await this.account.grantRole(db, userId, role, { grantedBy: adminId, ...opts });
     });
+    await this.audit.log(adminId, 'user.role.grant', 'user', userId, { role, ...opts });
   }
 
   async deleteRole(adminId: string, userId: string, role: Role): Promise<void> {
@@ -164,15 +168,18 @@ export class AdminUsersService {
       }
       await this.account.bumpPerm(db, userId);
     });
+    await this.audit.log(adminId, 'user.role.revoke', 'user', userId, { role });
   }
 
   /** รีเซ็ตรหัสใครก็ได้ ยกเว้นตัวเอง (ใช้เปลี่ยนรหัสแทน) */
   async resetPassword(adminId: string, userId: string): Promise<{ temp_password: string }> {
     if (userId === adminId) throw cannotChangeSelf();
-    return withTx(this.pool, async (db) => {
+    const out = await withTx(this.pool, async (db) => {
       await this.lockUser(db, userId);
       return { temp_password: await this.account.resetPassword(db, userId) };
     });
+    await this.audit.log(adminId, 'user.password_reset', 'user', userId);
+    return out;
   }
 
   private async lockUser(db: pg.PoolClient, userId: string): Promise<void> {

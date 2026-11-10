@@ -74,7 +74,7 @@ const REFRESH_MS = 10_000;
           <p class="muted small center">{{ i18n.t({ th: 'ไม่พบ QR ในตู้? ติดต่อผู้ติดตั้งหรือผู้ดูแลระบบ', en: 'No QR inside? Contact your installer or the admin' }) }}</p>
         </div>
       </div>
-    } @else if (!b()) {
+    } @else if (!b() && !error()) {
       <app-page-header [caption]="greeting()" [title]="i18n.t({ th: 'หน้าหลัก', en: 'Home' })" />
       <div class="stack page">
         <app-loading-rows [rows]="4" [label]="i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' })" />
@@ -271,7 +271,7 @@ const REFRESH_MS = 10_000;
           <ul class="list">
             @for (e of eventsFor(b); track e.id) {
               <li>
-               <a class="row" [routerLink]="url(e.type === 'inspected' ? 'H12-b' : 'H12-c')" [queryParams]="{ id: e.id }">
+               <a class="row" [routerLink]="url(e.type === 'inspected' ? 'H12-b' : 'H12-c')" [queryParams]="{ id: e.id, box: b.id }">
                 @if (e.type === 'inspected') {
                   <span class="icon-bubble"><app-icon name="shield" [size]="20" /></span>
                   <span class="grow">

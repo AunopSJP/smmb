@@ -32,6 +32,7 @@ export class SosController {
 
   /** 201 Sos · บ้านยังไม่อยู่ในโซน → 200 { code: SOS_NO_COVERAGE, call } (ไม่สร้าง SOS) · มีอยู่แล้ว → 409 SOS_ALREADY_OPEN + sos */
   @RequireRole('owner')
+  @RateLimit({ limit: 5, windowSec: 300 })
   @Post()
   async create(@Auth() auth: AuthContext, @Body() body: CreateDto, @Res({ passthrough: true }) res: Response) {
     const r = await this.sos.create(auth.userId, body.box_id);
@@ -63,6 +64,7 @@ export class SosController {
 
   @RequireRole('owner')
   @HttpCode(HttpStatus.OK)
+  @RateLimit({ limit: 5, windowSec: 300 })
   @Post(':id/cancel')
   cancel(@Auth() auth: AuthContext, @Param() p: IdParam, @Body() body: CancelDto) {
     return this.sos.cancel(auth.userId, p.id, body.reason);

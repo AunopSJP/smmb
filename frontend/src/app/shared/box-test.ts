@@ -144,7 +144,7 @@ export class BoxTest {
   protected readonly frame = signal<string | null>(null);
   protected readonly state = computed(() => STATE[this.job()?.status ?? 'starting']);
   protected readonly done = computed(() => ['passed', 'failed', 'expired'].includes(this.job()?.status ?? ''));
-  protected readonly attemptsLeft = computed(() => 3 - (this.job()?.attempts.length ?? 0));
+  protected readonly attemptsLeft = computed(() => Math.max(0, (this.job()?.max_attempts ?? 3) - (this.job()?.attempts.length ?? 0)));
   private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {

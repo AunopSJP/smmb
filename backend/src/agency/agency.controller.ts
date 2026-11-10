@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post
 import type { Response } from 'express';
 import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import { IsCalendarDate } from '../common/validators.js';
 import { AccessService } from '../auth/access.service.js';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
@@ -42,15 +43,15 @@ class LogFilterQuery {
   @IsOptional() @Matches(/^U-\d{1,12}$/) officer?: string;
   /** บ้านเลขที่ / รหัสตู้ */
   @IsOptional() @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value)) @IsString() @Length(1, 50) q?: string;
-  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) from?: string;
-  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) to?: string;
+  @IsOptional() @IsCalendarDate() from?: string;
+  @IsOptional() @IsCalendarDate() to?: string;
   @IsOptional() @Transform(({ value }: { value: unknown }) => value === true || value === 'true' || value === '1') @IsBoolean() problems?: boolean;
 }
 
 const toFilter = (q: LogFilterQuery) => ({ zoneId: q.zone, officerId: q.officer, q: q.q, from: q.from, to: q.to, problems: q.problems });
 
 class LogsQuery extends LogFilterQuery {
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page: number = 1;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(1000) page: number = 1;
 }
 
 class ExportLogsQuery extends LogFilterQuery {

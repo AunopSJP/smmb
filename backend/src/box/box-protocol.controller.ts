@@ -94,7 +94,10 @@ export class BoxProtocolController {
     if (configVersion !== null) {
       const current = await this.box.pollConfig(id, configVersion);
       const command = await this.box.pendingCommand(id);
-      if (current.config || command) return { ...current, ...(command ? { command } : {}) };
+      if (current.config || command) {
+        await this.box.touch(id); // ต้องไม่ถูกมองว่า offline ระหว่างตอบค่า/config
+        return { ...current, ...(command ? { command } : {}) };
+      }
     }
     const closed = new Promise<void>((resolve) => res.on('close', () => resolve()));
     const { job, command } = await this.box.poll(id, waitS, closed, configVersion);

@@ -3,6 +3,7 @@ import pg from 'pg';
 import { assignGroupCode } from '../agency/agency.service.js';
 import { AccountService, adminExclusive } from '../auth/account.service.js';
 import { PasswordService } from '../auth/password.service.js';
+import { AuditService } from '../common/audit.service.js';
 import { newTempPassword } from '../common/codes.js';
 import { AppError } from '../common/http-exception.filter.js';
 import { PG_POOL } from '../db/db.module.js';
@@ -41,6 +42,7 @@ export class AdminAgencyService {
     private readonly account: AccountService,
     private readonly passwords: PasswordService,
     private readonly notifications: NotificationService,
+    private readonly audit: AuditService,
   ) {}
 
   async list(q: { status?: AgencyStatus; q?: string }): Promise<AdminAgencyRow[]> {
@@ -156,6 +158,7 @@ export class AdminAgencyService {
       return { code, name: a.name, heads: heads.map((h) => h.user_id) };
     });
     await this.notifications.notify(heads, { type: 'agency_approved', data: { agency_name: name }, link: '/agency' });
+    await this.audit.log(adminId, 'agency.approve', 'agency', agencyId, { group_code: code });
     return { group_code: code };
   }
 
@@ -180,6 +183,7 @@ export class AdminAgencyService {
       data: { agency_name: name, reason: reason ?? null },
       link: '/agency',
     });
+    await this.audit.log(adminId, 'agency.reject', 'agency', agencyId, { reason: reason ?? null });
   }
 
   /**

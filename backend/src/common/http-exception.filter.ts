@@ -24,6 +24,14 @@ function isClientBodyError(e: unknown): e is { status: number; type?: string } {
   return typeof x.status === 'number' && x.status >= 400 && x.status < 500 && x.expose === true && typeof x.type === 'string';
 }
 
+/** error ของ Postgres ที่เกิดจาก input ผิดรูป (ไม่ใช่ bug ของเซิร์ฟเวอร์) */
+const PG_INPUT_CODES = new Set(['22P02', '22007', '22008']);
+function isPgInputError(e: unknown): boolean {
+  if (!e || typeof e !== 'object') return false;
+  const x = e as { code?: unknown; severity?: unknown };
+  return typeof x.code === 'string' && typeof x.severity === 'string' && PG_INPUT_CODES.has(x.code);
+}
+
 /** แปลงทุก error ให้เป็นรูปแบบเดียวกันตาม docs/api.md §0 */
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -52,6 +60,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // error จากตัวอ่าน body (express/body-parser) เช่น body ใหญ่เกิน (413) · JSON พัง (400) — ความผิดของ client ไม่ใช่ 500
       status = exception.status;
       message = exception.type === 'entity.too.large' ? 'request body too large' : 'request body could not be read';
+    } else if (isPgInputError(exception)) {
+      // ค่าที่ client ส่งมา parse ไม่ได้ (uuid/วันที่) — ไม่ใช่ 500 และไม่ต้อง log stack
+      status = HttpStatus.BAD_REQUEST;
+      code = 'INVALID_INPUT';
+      message = 'invalid input';
     } else {
       // ไม่ส่งรายละเอียดภายในออกไปให้ client
       this.logger.error(exception instanceof Error ? exception.stack : String(exception));

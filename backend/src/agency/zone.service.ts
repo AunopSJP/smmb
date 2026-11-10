@@ -357,7 +357,10 @@ export class ZoneService {
     try {
       return await fn();
     } catch (err) {
-      if (isPgError(err, PG_UNIQUE_VIOLATION, 'zone_name_per_agency')) {
+      if (
+        isPgError(err, PG_UNIQUE_VIOLATION, 'zone_name_per_agency') ||
+        isPgError(err, PG_UNIQUE_VIOLATION, 'uq_zone_name')
+      ) {
         throw new AppError(HttpStatus.CONFLICT, 'ZONE_NAME_TAKEN', 'another zone of this agency already has this name');
       }
       throw err;

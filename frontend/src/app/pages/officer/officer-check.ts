@@ -1076,6 +1076,18 @@ const HOLD_MS = 8000;
           <div class="bar easy-hide" aria-hidden="true"><span [style.width.%]="progress()"></span></div>
         </div>
       </div>
+    } @else if (failed()) {
+      <div class="pad done" role="alert">
+        <div class="result">
+          <span class="big-icon white danger"><app-icon name="alert" [size]="32" /></span>
+          <h1>{{ i18n.t({ th: 'ยืนยันผลการตรวจไม่ได้', en: 'Could not confirm the inspection' }) }}</h1>
+          <p class="small">{{ i18n.t({ th: 'เน็ตอาจหลุดหรือเซิร์ฟเวอร์ไม่ตอบ — อย่าเพิ่งออกจากหน้าจอ ลองโหลดใหม่', en: 'The network or server did not respond — try again before leaving' }) }}</p>
+        </div>
+        <div class="stack push-end">
+          <button type="button" class="btn" (click)="retry()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Try again' }) }}</button>
+          <a class="btn secondary" [routerLink]="url('O01')">{{ i18n.t({ th: 'กลับหน้าสรุป', en: 'Back to summary' }) }}</a>
+        </div>
+      </div>
     } @else {
     <div class="pad done" role="status">
       <div class="result">
@@ -1173,16 +1185,27 @@ export class OfficerDone implements OnInit {
   readonly id = input<string>('');
   protected readonly ins = signal<Inspection | null>(null);
   protected readonly summary = signal<OfficerSummary | null>(null);
+  /** true = โหลดผลการตรวจไม่ได้ (ห้ามแสดง "ตรวจแล้ว" ทั้งที่ไม่มีข้อมูล) */
+  protected readonly failed = signal(false);
   /** นับจากที่ตู้ตอบ "ผ่าน" · ตู้ยังมีงานต่ออีกไม่กี่วินาที (ดู HOLD_MS) */
   protected readonly holding = signal(false);
   protected readonly progress = signal(0);
   private readonly destroyRef = inject(DestroyRef);
 
   async ngOnInit(): Promise<void> {
+    this.failed.set(false);
     const [ins, summary] = await Promise.all([this.api.get(this.id()).catch(() => null), this.api.summary().catch(() => null)]);
     this.ins.set(ins);
     this.summary.set(summary);
-    this.hold(ins?.checked_at ? Date.parse(ins.checked_at) : NaN);
+    if (!ins) {
+      this.failed.set(true);
+      return;
+    }
+    this.hold(ins.checked_at ? Date.parse(ins.checked_at) : NaN);
+  }
+
+  protected retry(): void {
+    void this.ngOnInit();
   }
 
   /** ค้างหน้า "กำลังบันทึก" จนครบ HOLD_MS นับจากเวลาที่ผ่าน (เปิดหน้านี้ทีหลัง/รีเฟรช = ไม่ค้างซ้ำ) */

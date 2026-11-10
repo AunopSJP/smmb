@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { SwPush } from '@angular/service-worker';
 import { of } from 'rxjs';
+import { AppReset } from './app-reset';
 import { Session, type Me } from './session';
 
 const me = (id: string): Me =>
@@ -61,5 +62,16 @@ describe('Session', () => {
     http.expectOne('/api/v1/auth/signout').flush({ ok: true });
     await out;
     expect(await session.ensure()).toBeNull();
+  });
+
+  it('signing out clears in-memory state of shared services (shared device)', async () => {
+    const reset = TestBed.inject(AppReset);
+    let cleared = false;
+    reset.register(() => (cleared = true));
+
+    const out = session.signout();
+    http.expectOne('/api/v1/auth/signout').flush({ ok: true });
+    await out;
+    expect(cleared).toBe(true);
   });
 });

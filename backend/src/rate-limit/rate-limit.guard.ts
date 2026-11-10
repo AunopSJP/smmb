@@ -9,8 +9,9 @@ export interface RateLimitOptions {
   windowSec: number;
 }
 
-/** ค่าเริ่มต้น api.md §0: 100 ครั้ง/นาที ต่อ route ต่อ IP (💡 ยังไม่ได้ตกลงตัวเลข) */
-export const DEFAULT_RATE_LIMIT: RateLimitOptions = { limit: 100, windowSec: 60 };
+/** ค่าเริ่มต้น api.md §0: 300 ครั้ง/นาที ต่อ route ต่อ IP
+ * (หน้าจอ SOS/ตรวจตู้ poll 1 วิ → 3 เครื่องในวง NAT เดียวกันใช้ ~180/min; 100 เดิมชน 429) */
+export const DEFAULT_RATE_LIMIT: RateLimitOptions = { limit: 300, windowSec: 60 };
 
 const RATE_LIMIT_KEY = 'rateLimit';
 export const RateLimit = (opts: RateLimitOptions | false) => SetMetadata(RATE_LIMIT_KEY, opts);

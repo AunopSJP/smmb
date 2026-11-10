@@ -23,7 +23,7 @@ import { PushStatus } from '../../shared/push-status';
       <app-notification-list />
       @if (advanced()) {
         <p class="muted small adv-only">{{ i18n.t({ th: 'เก็บในหน้านี้แม้ push ไม่ถึง · ชนิดที่ปิดรับไว้จะไม่เก็บและไม่ส่ง · SOS/ตู้มีปัญหา/QR ปลอม ปิดไม่ได้', en: 'Items stay here even if the push did not arrive. Muted types are not stored or sent. SOS, mailbox problems and fake QR alerts cannot be muted.' }) }}</p>
-        <a class="btn secondary adv-only" [routerLink]="url('H13-d')">{{ i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' }) }}</a>
+        <a class="btn secondary adv-only" routerLink="/settings/notifications">{{ i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' }) }}</a>
       }
     </div>
   `,

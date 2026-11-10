@@ -343,7 +343,8 @@ export class AuthWaitingHead {
       }
       <div class="stack push-end">
         <button type="button" class="btn" (click)="enable()">{{ i18n.t({ th: 'เปิดแจ้งเตือน', en: 'Turn on notifications' }) }}</button>
-        <button type="button" class="btn secondary easy-hide" [attr.aria-expanded]="help()" (click)="help.set(!help())">{{ i18n.t({ th: 'ดูวิธีเปิดในตั้งค่า', en: 'How to allow it in settings' }) }}</button>
+        <button type="button" class="btn secondary" [attr.aria-expanded]="help()" (click)="help.set(!help())">{{ i18n.t({ th: 'ดูวิธีเปิดในตั้งค่า', en: 'How to allow it in settings' }) }}</button>
+        <button type="button" class="btn secondary" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
       </div>
       
     </div>
@@ -374,13 +375,18 @@ export class AuthPushRequired {
   private readonly push = inject(PushNotifications);
   private readonly realSession = inject(Session);
 
+  protected signout(): void {
+    void this.realSession.signout().then(() => this.router.navigateByUrl('/auth/signin', { replaceUrl: true }));
+  }
+
   /** PushNotifications.enable() — สำเร็จแล้ว route ของเจ้าหน้าที่หยุดตอบ 403 PUSH_REQUIRED */
   protected async enable(): Promise<void> {
     try {
       await this.push.enable();
       await this.realSession.refresh();
       this.toast.show({ th: 'เปิดแจ้งเตือนแล้ว', en: 'Notifications on' });
-      void this.router.navigateByUrl('/officer', { replaceUrl: true });
+      const home = this.realSession.me()?.roles.includes('head') ? '/agency' : '/officer';
+      void this.router.navigateByUrl(home, { replaceUrl: true });
     } catch (err) {
       this.help.set(true);
       this.toast.show(

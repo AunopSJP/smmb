@@ -16,7 +16,14 @@ const QR_EXPIRING_AFTER = '11 months';
 const QR_UNSCANNED_AFTER = '2 days';
 /** ตรวจสุขภาพ QR หลังจบเวลาตรวจ — 23:00 เวลาไทย */
 const HEALTH_HOUR = 23;
+/** เก็บ session ที่หมดอายุไว้กี่วันก่อนลบ */
 const SESSION_KEEP = '30 days';
+/** นโยบาย retention (ตรงกับข้อตกลง: log/แจ้งเตือน 1 ปี · ความปลอดภัย/รายงานตู้ 90 วัน) */
+const LOG_KEEP = '365 days';
+const SECURITY_LOG_KEEP = '90 days';
+const REPORT_KEEP = '90 days';
+const NOTIFICATION_KEEP = '365 days';
+const DEVICE_KEEP = '365 days';
 
 const bangkokDay = (d: Date): string => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(d);
 const bangkokHour = (d: Date): number => Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', hour12: false }).format(d));
@@ -193,13 +200,33 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
 
   /** session ที่หมดอายุ/ถูกเพิกถอนเกิน 30 วัน (nonce ของตู้ล้างเองใน BoxAuthGuard · ใบส่งของไรเดอร์เป็นลายเซ็น ไม่มีแถว) */
   async cleanup(): Promise<number> {
-    const { rowCount } = await this.pool.query(
-      `DELETE FROM app.session_tb WHERE expire_date < now() - $1::interval OR revoked_date < now() - $1::interval`,
-      [SESSION_KEEP],
-    );
-    // รูปยืนยันตัวเจ้าหน้าที่เก็บ 30 วัน
-    const photos = await this.pool.query(`DELETE FROM app.inspection_photo_tb WHERE created_date < now() - make_interval(days => $1)`, [PHOTO_KEEP_DAYS]);
-    return (rowCount ?? 0) + (photos.rowCount ?? 0);
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      // เปิดทางลบเฉพาะรอบ retention นี้ (trigger ยังกันการลบปกติจากแอป)
+      await client.query(`SET LOCAL app.allow_log_purge = 'on'`);
+      const run = async (sql: string, args: unknown[] = []): Promise<number> => {
+        const r = await client.query(sql, args);
+        return r.rowCount ?? 0;
+      };
+      let total = 0;
+      total += await run(`DELETE FROM app.session_tb WHERE expire_date < now() - $1::interval OR revoked_date < now() - $1::interval`, [SESSION_KEEP]);
+      // รูปยืนยันตัวเจ้าหน้าที่เก็บ 30 วัน
+      total += await run(`DELETE FROM app.inspection_photo_tb WHERE created_date < now() - make_interval(days => $1)`, [PHOTO_KEEP_DAYS]);
+      total += await run(`DELETE FROM app.scan_log_tb WHERE created_date < now() - $1::interval`, [LOG_KEEP]);
+      total += await run(`DELETE FROM app.data_access_log_tb WHERE created_date < now() - $1::interval`, [LOG_KEEP]);
+      total += await run(`DELETE FROM app.notification_tb WHERE created_date < now() - $1::interval`, [NOTIFICATION_KEEP]);
+      total += await run(`DELETE FROM app.box_auth_log_tb WHERE created_date < now() - $1::interval`, [SECURITY_LOG_KEEP]);
+      total += await run(`DELETE FROM app.box_report_tb WHERE created_date < now() - $1::interval`, [REPORT_KEEP]);
+      total += await run(`DELETE FROM app.user_device_tb WHERE last_seen_date < now() - $1::interval`, [DEVICE_KEEP]);
+      await client.query('COMMIT');
+      return total;
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   private async adminIds(): Promise<string[]> {

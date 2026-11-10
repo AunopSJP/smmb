@@ -1,4 +1,7 @@
 import type { CanActivateFn, Route, Routes } from '@angular/router';
+import { inject, isDevMode } from '@angular/core';
+import { Router } from '@angular/router';
+import { ApiConfig } from './core/api';
 import { guestOnly, homeRedirect, requireRole, requireSignedIn, roleEntry } from './core/session';
 import { AreaShell } from './layout/area-shell';
 import { AREA_PREFIX, SCREENS, type Area } from './screens/registry';
@@ -154,10 +157,10 @@ const GUARD: Partial<Record<Area, CanActivateFn>> = {
   head: requireRole('head'),
   admin: requireRole('admin'),
 };
-/** หน้าที่ต้องล็อกอินแต่ยังไม่มีบทบาทก็เข้าได้ */
-const SIGNED_IN_ONLY = new Set(['L02']);
-/** หน้าก่อนล็อกอิน — ล็อกอินอยู่แล้วเข้าไม่ได้ (เด้งไปหน้าของบทบาท) */
-const GUEST_ONLY = new Set(['A01', 'A02', 'A03', 'A04', 'A05']);
+/** หน้าที่ต้องล็อกอินแต่ยังไม่มีบทบาทก็เข้าได้ (รออนุมัติ) */
+const SIGNED_IN_ONLY = new Set(['A11', 'L02']);
+/** หน้าก่อนล็อกอิน — ล็อกอินอยู่แล้วเข้าไม่ได้ (เด้งไปหน้าของบทบาท) · A01/A02 เป็นหน้าช่วยเหลือ ต้องเปิดได้ทั้งก่อนและหลังล็อกอิน */
+const GUEST_ONLY = new Set(['A03', 'A04', 'A05']);
 
 function areaRoute(area: Area): Route {
   return {
@@ -186,6 +189,14 @@ export const routes: Routes = [
   // หน้าเลือกบัญชี seed จาก backend สำหรับเดโม พร้อมตั้งค่าการแสดงผล
   {
     path: 'demo',
+    // หน้าเดโมใช้บัญชี seed (demo1234) — เปิดเฉพาะ dev หรือเครื่องที่ config.json ตั้ง devTools=true
+    canActivate: [
+      () => {
+        const api = inject(ApiConfig);
+        const router = inject(Router);
+        return api.devTools() || isDevMode() ? true : router.createUrlTree(['/auth/signin']);
+      },
+    ],
     loadComponent: () => import('./pages/demo-start').then((m) => m.DemoStart),
     title: 'Smart Mailbox · demo',
   },

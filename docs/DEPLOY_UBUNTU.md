@@ -97,7 +97,7 @@ sudo -u smmb npm run migrate        # สร้างตารางทั้ง
 sudo cp /opt/smmb/deploy/smmb-backend.service /etc/systemd/system/
 sudo systemctl daemon-reload && sudo systemctl enable --now smmb-backend
 sudo journalctl -u smmb-backend -n 40 --no-pager
-curl -s http://127.0.0.1:3000/api/health      # ต้อง 200 (ตรวจ Postgres + Redis)
+curl -s http://127.0.0.1:3000/api/health      # postgres/redis up = 200 · push down = 200 degraded · postgres/redis down = 503
 ```
 
 ## 6. สร้างแอดมินคนแรก (ไม่มีหน้าเว็บให้สมัครแอดมิน)
@@ -130,6 +130,24 @@ sudo nginx -t && sudo systemctl reload nginx
 
 จุดที่ห้ามพลาด: `proxy_pass http://127.0.0.1:3000;` **ไม่มี `/` ท้ายและไม่มี path** (ถ้าใส่ nginx จะตัด prefix → ลายเซ็นของตู้ไม่ผ่านทุกตัว) · `proxy_read_timeout 75s` (long-poll ตู้ถือ 50 วิ)
 
+### Header ความปลอดภัย (CSP/HSTS) — อ่านก่อนแก้
+
+`add_header` ของ nginx **ไม่สะสมข้ามชั้น**: `location` ที่ประกาศ `add_header` เองจะทิ้ง header จาก `server {}` ทั้งหมด
+เช่นเดิม `location = /smmb/index.html` ใส่แค่ `Cache-Control` → `X-Content-Type-Options` / `X-Frame-Options` หายไปจาก HTML ตัวหลัก
+เวอร์ชันล่าสุดของ `deploy/nginx-smmb.conf` คัดลอกชุด header ลงทุก location ที่ประกาศ `add_header` เองแล้ว — ถ้าเพิ่ม location ใหม่ต้องคัดลอกตาม
+
+ตรวจว่า header มาครบ:
+
+```bash
+for p in /smmb/ /smmb/index.html /smmb/config.json; do
+  echo "== $p"; curl -sI "https://<โดเมน>$p" | grep -Ei 'content-security|permissions-policy|x-content-type|x-frame'
+done
+```
+
+CSP เริ่มที่ `Content-Security-Policy-Report-Only` (ยังไม่บล็อก) — เดิน 5 flow หลัก + PWA offline แล้วดู console/access log
+ถ้าไม่มี violation จึงเปลี่ยนชื่อ header เป็น `Content-Security-Policy` (ห้ามมี `'unsafe-eval'`)
+HSTS: เริ่ม `max-age=86400` ก่อน แล้วค่อยเพิ่มเป็น 1 ปี — และต้องใส่ซ้ำใน `location = /smmb/index.html` เพราะเหตุผล add_header ข้างบน
+
 ## 9. ตั้ง TRUST_PROXY ให้ถูก (สำคัญ — พลาดแล้วรหัสผิดของคนหนึ่งล็อกทุกคน)
 
 ถ้าไม่ตั้ง backend จะเห็น IP ทุกคำขอเป็น IP ของ proxy → rate limit / ล็อกรหัสผิดนับรวมกันทั้งระบบ
@@ -147,7 +165,7 @@ sudo nginx -t && sudo systemctl reload nginx
 
 | # | ตรวจ | ผ่านเมื่อ |
 |---|---|---|
-| 1 | `curl -s https://<โดเมน>/smmb-api/api/health` | 200 ทั้ง Postgres และ Redis |
+| 1 | `curl -s https://<โดเมน>/smmb-api/api/health` | 200 · `postgres`/`redis` = `up` · `push` อาจ `down` → ได้ `status: degraded` (แจ้งเตือนไม่ทำงาน แต่ระบบหลักใช้ได้) · ถ้า Postgres/Redis down = **503 `status: error`** |
 | 2 | เปิด `https://<โดเมน>/smmb/` | ขึ้นหน้าเข้าสู่ระบบ ไม่มีแถบ "ต้นแบบ" ในหน้าหลัก |
 | 3 | ล็อกอินแอดมิน (รหัสชั่วคราวจากข้อ 6) | บังคับเปลี่ยนรหัส แล้วเข้าหน้าภาพรวม |
 | 4 | หลังบ้าน → ตู้ → ลงทะเบียนตู้ 1 ตู้ | ได้รหัสลับ + QR 3 ใบ พิมพ์ได้ |
@@ -220,7 +238,7 @@ curl -s -o /dev/null -w "box-jobs    %{http_code}
 | อาการ | ดู |
 |---|---|
 | backend ไม่ขึ้น | `journalctl -u smmb-backend -n 80` — ข้อความ `Invalid environment` บอกค่าที่ผิด |
-| `/api/health` ตอบ 503 | ตรวจ `docker compose ps` (Postgres/Redis healthy?) และรหัสใน `.env` |
+| `/api/health` ตอบ 503 | `status: error` = Postgres หรือ Redis ไม่ up → ตรวจ `docker compose ps` และรหัสใน `.env` · ถ้าแค่ `push: down` ต้องได้ 200 `degraded` (ไม่ใช่ 503) — ถ้าได้ 503 ให้ตรวจเวอร์ชัน backend ที่รันอยู่ |
 | ตู้ได้ 401 `bad_signature` ทุกตัว | nginx ตัด prefix? (`proxy_pass` ต้องไม่มี path) · `API_PATH_PREFIX` ตรงกับ URL ในบอร์ด? |
 | ตู้ได้ 401 `clock_skew` | นาฬิกา server ผิด — `timedatectl` ต้อง synchronized (NTP) |
 | ตู้ได้ 308 | URL ในบอร์ดเป็น `http://` — ต้อง `https://` |

@@ -33,10 +33,12 @@ export class HealthController {
         ? 'up'
         : 'down';
     const services = { postgres, redis, push };
-    const ok = Object.values(services).every((s) => s === 'up');
-    res.status(ok ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE);
+    // push เป็นส่วนเสริม: ถ้าไม่ตั้ง VAPID ยังถือว่าใช้งานหลักได้ (degraded) แต่ postgres/redis ต้อง up
+    const requiredUp = postgres === 'up' && redis === 'up';
+    const status: 'ok' | 'degraded' | 'error' = !requiredUp ? 'error' : push === 'up' ? 'ok' : 'degraded';
+    res.status(requiredUp ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE);
     return {
-      status: ok ? 'ok' : 'error',
+      status,
       uptime: Math.round(process.uptime()),
       timestamp: new Date().toISOString(),
       services,

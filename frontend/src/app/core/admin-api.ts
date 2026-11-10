@@ -140,6 +140,7 @@ export interface Job {
   ready_at: string | null;
   wake_ms: number | null;
   attempts: { attempt: number; read_ok: boolean; verdict: string; reason: string | null; at: string }[];
+  max_attempts?: number;
 }
 
 export interface AdminAgency {

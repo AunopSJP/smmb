@@ -156,7 +156,7 @@ export class QrPrintSheet {
     <div class="stack">
       <div class="toolbar easy-hide">
         <label class="search-box">
-          <input type="search" [placeholder]="i18n.t({ th: 'ค้นบ้านเลขที่ / รหัสตู้', en: 'Search house no. / box id' })" [value]="q()" (input)="q.set($any($event.target).value)" />
+          <input type="search" [attr.aria-label]="i18n.t({ th: 'ค้นบ้านเลขที่ / รหัสตู้', en: 'Search house no. / box id' })" [placeholder]="i18n.t({ th: 'ค้นบ้านเลขที่ / รหัสตู้', en: 'Search house no. / box id' })" [value]="q()" (input)="q.set($any($event.target).value)" />
         </label>
         <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'กรองตามปัญหา', en: 'Filter by problem' })">
           @for (h of healths; track h) {

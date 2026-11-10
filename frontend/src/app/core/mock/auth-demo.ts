@@ -1,4 +1,5 @@
-import { Injectable, signal, type WritableSignal } from '@angular/core';
+import { Injectable, Optional, signal, type WritableSignal } from '@angular/core';
+import { AppReset } from '../app-reset';
 import type { Tr } from '../i18n';
 
 // ล็อกอิน / สมัคร / เปลี่ยนรหัส / เพิ่มบทบาท — **จำลองในหน่วยความจำของหน้าเว็บเท่านั้น ไม่สร้างบัญชีจริง ไม่เรียก backend**
@@ -112,6 +113,18 @@ export class AuthDemo {
     addOwner: signal(emptyForm()),
     join: signal(emptyForm()),
   };
+
+  constructor(@Optional() private readonly appReset?: AppReset) {
+    // ออกจากระบบ/สลับบัญชี → ล้างฟอร์มที่มีชื่อ/เบอร์/ที่อยู่ (เครื่องใช้ร่วม) และตัวนับรหัสผิด
+    this.appReset?.register(() => {
+      for (const f of Object.values(this.forms)) f.set(emptyForm());
+      this.officerRequest.set(null);
+      this.agencyRequest.set(null);
+      this.ownerHouse.set(null);
+      this.boxName.set('ตู้หน้าบ้าน');
+      this.fails.clear();
+    });
+  }
 
   /** ผลการสมัครล่าสุด (หน้ารอ / หน้าเสร็จใช้) */
   readonly officerRequest = signal<{ agency: Tr; contact: string; at: string } | null>(null);

@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, Injectable, input, signal, untracked } from '@angular/core';
+﻿import { ChangeDetectionStrategy, Component, computed, effect, inject, Injectable, input, signal, untracked } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { AppReset } from '../../core/app-reset';
 import { DisplaySettings } from '../../core/display-settings';
 import { I18n, type Tr } from '../../core/i18n';
 import { hhmm } from '../../core/inspection-api';
@@ -47,6 +48,23 @@ export class OwnerHistoryStore {
   readonly customFrom = signal('');
   readonly customTo = signal('');
   private page = 1;
+
+  constructor() {
+    // ออกจากระบบ/สลับบัญชี → ล้างประวัติของเจ้าของเดิม (เครื่องใช้ร่วม)
+    inject(AppReset).register(() => {
+      this.boxes.set([]);
+      this.boxId.set(null);
+      this.events.set([]);
+      this.more.set(false);
+      this.loading.set(false);
+      this.initialized.set(false);
+      this.selection.set('7d');
+      this.customFrom.set('');
+      this.customTo.set('');
+      this.range.set({});
+      this.page = 1;
+    });
+  }
 
   /** ช่วงวันที่ที่กรองอยู่ (ว่าง = ทั้งหมด) */
   readonly range = signal<{ from?: string; to?: string }>({});
@@ -149,7 +167,7 @@ const clockSec = (iso: string) =>
         <!-- OwnHistory_E: การ์ดใหญ่ อ่านง่าย ไม่มีตัวกรอง -->
         @for (h of items(); track h.id) {
           @let k = kind[h.type];
-          <a class="row easy-ev" [routerLink]="url(k.detail)" [queryParams]="{ id: h.id }">
+          <a class="row easy-ev" [routerLink]="url(k.detail)" [queryParams]="{ id: h.id, box: store.boxId() }">
             <span class="icon-bubble" [class.warn]="k.tone === 'warn'"><app-icon [name]="k.icon" [size]="26" /></span>
             <span class="grow">
               <strong>{{ i18n.t(k.title) }}</strong>
@@ -174,7 +192,7 @@ const clockSec = (iso: string) =>
           <nav class="list">
             @for (h of g.items; track h.id) {
               @let k = kind[h.type];
-              <a class="row" [routerLink]="url(k.detail)" [queryParams]="{ id: h.id }">
+              <a class="row" [routerLink]="url(k.detail)" [queryParams]="{ id: h.id, box: store.boxId() }">
                 <span class="icon-bubble" [class.warn]="k.tone === 'warn'">
                   <app-icon [name]="k.icon" [size]="20" />
                 </span>
@@ -376,18 +394,27 @@ export class OwnerHistory {
   }
 }
 
-/** หยิบเหตุการณ์ตาม ?id= — ไม่เจอ → กลับหน้าประวัติ */
+/** หยิบเหตุการณ์ตาม ?id= — ไม่เจอ → ลองโหลดของตู้ที่ระบุ (?box=) ก่อน แล้วค่อยกลับหน้าประวัติ */
 function useEvent(type: BoxEvent['type']) {
   const store = inject(OwnerHistoryStore);
   const router = inject(Router);
   const event = signal<BoxEvent | null>(null);
   return {
     event,
-    load: (id: string | undefined) =>
-      void store.find(id).then((e) => {
-        if (e && e.type === type) event.set(e);
-        else void router.navigateByUrl(screenUrl('H12'));
-      }),
+    load: async (id: string | undefined, boxId?: string) => {
+      if (!id) {
+        void router.navigateByUrl(screenUrl('H12'));
+        return;
+      }
+      let e = await store.find(id);
+      // เหตุการณ์เก่ากว่าช่วงที่โหลดไว้ หรืออยู่ตู้ที่ 2 → โหลดของตู้นั้นแบบไม่กรองช่วงแล้วหาใหม่
+      if (!e && boxId) {
+        await store.load(boxId, {});
+        e = store.events().find((x) => x.id === id) ?? null;
+      }
+      if (e && e.type === type) event.set(e);
+      else void router.navigateByUrl(screenUrl('H12'));
+    },
   };
 }
 
@@ -492,12 +519,13 @@ export class OwnerInspection {
   protected readonly url = screenUrl;
   protected readonly display = inject(DisplaySettings);
   readonly id = input<string>();
+  readonly box = input<string>();
   protected readonly ev = useEvent('inspected');
 
   constructor() {
     effect(() => {
       const id = this.id();
-      untracked(() => this.ev.load(id));
+      untracked(() => void this.ev.load(id, this.box()));
     });
   }
 
@@ -600,12 +628,13 @@ export class OwnerDelivery {
   protected readonly url = screenUrl;
   protected readonly display = inject(DisplaySettings);
   readonly id = input<string>();
+  readonly box = input<string>();
   protected readonly ev = useEvent('delivered');
 
   constructor() {
     effect(() => {
       const id = this.id();
-      untracked(() => this.ev.load(id));
+      untracked(() => void this.ev.load(id, this.box()));
     });
   }
 
@@ -830,3 +859,5 @@ export class OwnerRange {
     void inject(Router).navigateByUrl(screenUrl('H12'), { replaceUrl: true });
   }
 }
+
+

@@ -59,6 +59,13 @@ export const apiInterceptor: HttpInterceptorFn = (req, next) => {
   return next(req.clone({ url: inject(ApiConfig).apiBase() + req.url, withCredentials: true, setHeaders: { 'X-Device-Id': deviceId() } })).pipe(
     tap({
       error: (err: unknown) => {
+        if (err instanceof HttpErrorResponse && err.status === 401 && !req.url.startsWith('/api/v1/auth/')) {
+          // session หมดอายุ/ถูกเพิกถอนกลางหน้า — ให้ App ล้าง Me แล้วพาไปล็อกอินพร้อม next
+          const path = router.url;
+          if (!path.startsWith('/auth/signin')) {
+            window.dispatchEvent(new CustomEvent('smmb:session-expired', { detail: { next: path } }));
+          }
+        }
         if (err instanceof HttpErrorResponse && err.status === 403 && (err.error as { code?: string } | null)?.code === 'PUSH_REQUIRED') {
           void router.navigateByUrl(screenUrl('A12'));
         }

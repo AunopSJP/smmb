@@ -1,8 +1,9 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Ip, Param, Patch, Post, Query } from '@nestjs/common';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
+import { IsCalendarDate } from '../common/validators.js';
 import { RateLimit } from '../rate-limit/rate-limit.guard.js';
 import { OwnerBoxService } from './owner-box.service.js';
 import { QrIssueService } from './qr-issue.service.js';
@@ -24,9 +25,13 @@ class EventsQuery {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page = 1;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) per_page = 20;
   /** ช่วงวันที่ตามเวลาไทย YYYY-MM-DD (รวมวันนั้น) */
-  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) from?: string;
-  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) to?: string;
+  @IsOptional() @IsCalendarDate() from?: string;
+  @IsOptional() @IsCalendarDate() to?: string;
   @IsOptional() @IsIn(['inspected', 'delivered']) type?: 'inspected' | 'delivered';
+}
+
+class TechnicianRequestIdParam extends BoxIdParam {
+  @IsUUID() id!: string;
 }
 
 class UpdateBoxDto {
@@ -120,8 +125,8 @@ export class OwnerBoxController {
   }
 
   @Post(':box_id/technician-requests/:id/confirm')
-  confirmTechnician(@Auth() auth: AuthContext, @Param('box_id') boxId: string, @Param('id') id: string, @Body() body: ConfirmTechnicianDto) {
-    return this.technicianRequests.confirm(auth.userId, boxId, id, body.result);
+  confirmTechnician(@Auth() auth: AuthContext, @Param() p: TechnicianRequestIdParam, @Body() body: ConfirmTechnicianDto) {
+    return this.technicianRequests.confirm(auth.userId, p.box_id, p.id, body.result);
   }
 
   @Post(':box_id/qr-backup-placed')

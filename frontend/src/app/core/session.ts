@@ -3,6 +3,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { type CanActivateFn, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { apiError } from './api';
+import { AppReset } from './app-reset';
 import { PushNotifications } from './push-notifications';
 import { DemoSession, type DemoRole } from './mock/demo-session';
 import { screenUrl } from '../screens/registry';
@@ -40,6 +41,14 @@ export interface ServerPrefs {
 /** หน้าแรกของแต่ละบทบาท */
 export const ROLE_HOME: Record<DemoRole, string> = { owner: '/home', officer: '/officer', head: '/agency', admin: '/admin' };
 
+/** บัญชีที่ล็อกอินแล้วแต่ยังไม่มีบทบาทใช้งาน — ไปหน้ารอที่ตรงสถานะ (ห้าม fallback เป็น owner) */
+function pendingPath(me: Me): string {
+  const rejected = me.agency_status === 'rejected';
+  if (me.agency?.is_head) return `${screenUrl('L02')}${rejected ? '?state=rejected' : ''}`;
+  if (me.agency_status === 'pending' || rejected) return `${screenUrl('A11')}${rejected ? '?state=rejected' : ''}`;
+  return screenUrl('A04');
+}
+
 /**
  * บัญชีที่ล็อกอินอยู่จริง (cookie `sid` · api.md §2–3)
  * ซิงก์ไปที่ DemoSession ด้วย เพื่อให้แท็บล่าง/หน้าที่ยังใช้ข้อมูลจำลองรู้บทบาทเดียวกัน
@@ -49,7 +58,10 @@ export class Session {
   private readonly http = inject(HttpClient);
   private readonly demo = inject(DemoSession);
   private readonly push = inject(PushNotifications);
+  private readonly reset = inject(AppReset);
   readonly me = signal<Me | null>(null);
+  /** true = ติดต่อเซิร์ฟเวอร์ไม่ได้ (network/5xx) — ห้ามตีความว่า "ยังไม่ล็อกอิน" */
+  readonly offline = signal(false);
   private loaded: Promise<Me | null> | null = null;
   private syncing = false;
 
@@ -68,7 +80,16 @@ export class Session {
     let me: Me | null = null;
     try {
       me = await firstValueFrom(this.http.get<Me>('/api/v1/me'));
-    } catch {
+      this.offline.set(false);
+    } catch (err) {
+      const e = apiError(err);
+      if (e.status === 0 || e.status >= 500) {
+        // เซิร์ฟเวอร์ล่ม/เน็ตหลุด — ไม่ใช่ "ไม่มี session": คงผู้ใช้เดิมไว้ (ถ้ามี) แล้วให้ guard พาไปหน้า offline
+        this.offline.set(true);
+        if (this.me()) return this.me();
+      } else {
+        this.offline.set(false);
+      }
       me = null;
     }
     this.set(me);
@@ -80,6 +101,7 @@ export class Session {
   async signin(phone: string, password: string): Promise<{ ok: true; me: Me } | { ok: false; code: string | null; status: number }> {
     try {
       const res = await firstValueFrom(this.http.post<{ ok: true; data: Me }>('/api/v1/auth/signin', { phone, password }));
+      this.offline.set(false);
       this.set(res.data);
       this.loaded = Promise.resolve(res.data);
       // ผูกแจ้งเตือนเดิมกับ session นี้ — ไม่รอ: ห้ามให้การล็อกอินค้างเพราะ service worker
@@ -93,6 +115,7 @@ export class Session {
 
   async signout(): Promise<void> {
     await firstValueFrom(this.http.post('/api/v1/auth/signout', {})).catch(() => undefined);
+    this.reset.resetAll();
     this.set(null);
     this.loaded = Promise.resolve(null);
   }
@@ -101,6 +124,14 @@ export class Session {
   use(role: DemoRole): void {
     const me = this.me();
     if (me) this.demo.signIn(role, me.roles, me.phone);
+  }
+
+  /** session หมดอายุ/ถูกเพิกถอนจากเซิร์ฟเวอร์ — ล้างสถานะแล้วให้ App พาไปหน้าเข้าสู่ระบบ */
+  invalidate(): void {
+    this.reset.resetAll();
+    this.set(null);
+    this.loaded = Promise.resolve(null);
+    this.offline.set(false);
   }
 
   private set(me: Me | null): void {
@@ -130,11 +161,17 @@ export function requireRole(role: DemoRole): CanActivateFn {
     const session = inject(Session);
     const router = inject(Router);
     const me = await session.ensure();
+    if (session.offline() && !me) return router.createUrlTree(['/error/offline']);
     if (!me) return router.createUrlTree([screenUrl('A04')], { queryParams: { next: state.url } });
     if (me.must_change_password) return router.createUrlTree([screenUrl('A14')], { queryParams: { forced: 1 } });
     if (me.terms_update_required) return router.createUrlTree([screenUrl('A13')], { queryParams: { update: 1 } });
     const ok = me.roles.includes(role) || (role === 'officer' && me.roles.includes('head'));
-    if (!ok) return router.createUrlTree([ROLE_HOME[me.roles[0] ?? 'owner'] ?? screenUrl('A04')]);
+    if (!ok) {
+      // ยังไม่มีบทบาทที่ใช้ได้ (รออนุมัติ) → หน้ารอของสถานะนั้น · มีบทบาทอื่น → หน้าแรกของบทบาทนั้น
+      if (!me.roles.length) return router.parseUrl(pendingPath(me));
+      const first = me.roles[0];
+      return router.createUrlTree([(first && ROLE_HOME[first]) || screenUrl('A04')]);
+    }
     session.use(role === 'officer' && !me.roles.includes('officer') ? 'head' : role);
     return true;
   };
@@ -145,6 +182,7 @@ export const requireSignedIn: CanActivateFn = async (_route, state) => {
   const session = inject(Session);
   const router = inject(Router);
   const me = await session.ensure();
+  if (session.offline() && !me) return router.createUrlTree(['/error/offline']);
   return me ? true : router.createUrlTree([screenUrl('A04')], { queryParams: { next: state.url } });
 };
 
@@ -156,7 +194,15 @@ export const guestOnly: CanActivateFn = async (route) => {
   const session = inject(Session);
   const router = inject(Router);
   const me = await session.ensure();
-  if (!me || !me.roles.length || me.must_change_password || me.terms_update_required) return true;
+  if (session.offline() && !me) return router.createUrlTree(['/error/offline']);
+  if (!me) return true; // ยังไม่ล็อกอิน — หน้าก่อนล็อกอินคือที่ที่ควรอยู่
+  if (me.must_change_password) return router.createUrlTree([screenUrl('A14')], { queryParams: { forced: 1 } });
+  if (me.terms_update_required) return router.createUrlTree([screenUrl('A13')], { queryParams: { update: 1 } });
+  if (!me.roles.length) {
+    // รออนุมัติ → หน้ารอ · ไม่มีที่ไปที่ปลอดภัย → ปล่อยให้หน้าเข้าสู่ระบบแสดง (ห้าม redirect วน)
+    const pending = pendingPath(me);
+    return pending === screenUrl('A04') ? true : router.parseUrl(pending);
+  }
   const next = route.queryParamMap.get('next');
   if (next && next.startsWith('/') && !next.startsWith('//')) return router.parseUrl(next);
   const role = me.roles.includes('head') ? 'head' : me.roles[0];
@@ -172,8 +218,10 @@ export const roleEntry: CanActivateFn = async (route) => {
   const session = inject(Session);
   const router = inject(Router);
   const role = route.paramMap.get('role') as DemoRole | null;
-  if (!role || !(role in ROLE_HOME)) return router.createUrlTree(['/']);
+  if (!role || !Object.hasOwn(ROLE_HOME, role)) return router.createUrlTree(['/']);
   const me = await session.ensure();
+  if (session.offline() && !me) return router.createUrlTree(['/error/offline']);
+  if (me && !me.roles.length) return router.parseUrl(pendingPath(me));
   const home = ROLE_HOME[role];
   if (!me) return router.createUrlTree([screenUrl('A04')], { queryParams: { next: home, as: role } });
   return router.createUrlTree([home]);
@@ -185,7 +233,9 @@ export const homeRedirect: CanActivateFn = async () => {
   const session = inject(Session);
   const router = inject(Router);
   const me = await session.ensure();
+  if (session.offline() && !me) return router.createUrlTree(['/error/offline']);
   if (!me) return router.createUrlTree([screenUrl('A04')]);
+  if (!me.roles.length) return router.parseUrl(pendingPath(me));
   const role = me.roles.includes('head') ? 'head' : (me.roles[0] ?? 'owner');
   return router.createUrlTree([ROLE_HOME[role]]);
 };

@@ -114,7 +114,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       <div class="toolbar easy-hide">
         <label class="search-box">
           <app-icon name="search" [size]="18" />
-          <input type="search" [placeholder]="i18n.t({ th: 'ค้นรหัสตู้ / บ้านเลขที่', en: 'Search box id / house no.' })" [value]="q()" (input)="q.set($any($event.target).value)" />
+          <input type="search" [attr.aria-label]="i18n.t({ th: 'ค้นรหัสตู้ / บ้านเลขที่', en: 'Search box id / house no.' })" [placeholder]="i18n.t({ th: 'ค้นรหัสตู้ / บ้านเลขที่', en: 'Search box id / house no.' })" [value]="q()" (input)="q.set($any($event.target).value)" (change)="syncQuery()" />
         </label>
         <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'กรอง', en: 'Filter' })">
           @for (f of filters; track f.v) {
@@ -429,6 +429,7 @@ export class AdminBoxes implements OnInit {
   protected readonly i18n = inject(I18n);
   private readonly api = inject(AdminApi);
   private readonly toast = inject(Toast);
+  private readonly router = inject(Router);
   protected readonly url = screenUrl;
   protected readonly boxBadge = boxBadge;
   protected readonly seen = seenText;
@@ -436,6 +437,8 @@ export class AdminBoxes implements OnInit {
 
   /** ?filter=low|offline จากหน้าแจ้งเตือน */
   readonly filterParam = input<string | undefined>(undefined, { alias: 'filter' });
+  /** ?q=… — ให้ refresh/back แล้วยังเห็นผลค้นเดิม */
+  readonly qParam = input<string | undefined>(undefined, { alias: 'q' });
   protected readonly filter = signal<BoxFilter>('all');
   protected readonly filters: { v: BoxFilter; label: Tr }[] = [
     { v: 'all', label: { th: 'ทั้งหมด', en: 'All' } },
@@ -521,7 +524,19 @@ export class AdminBoxes implements OnInit {
   });
 
   ngOnInit(): void {
+    const q = this.qParam();
+    if (q) this.q.set(q);
     void this.load();
+  }
+
+  /** เก็บคำค้นใน URL (?q=) — แชร์ลิงก์/refresh ไม่หาย */
+  protected syncQuery(): void {
+    const q = this.q().trim();
+    void this.router.navigate([], {
+      queryParams: { q: q || null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   private async load(): Promise<void> {
@@ -1055,6 +1070,24 @@ export class AdminBoxes implements OnInit {
             <button type="button" class="btn danger" (click)="deleteUnusedBox()">{{ i18n.t({ th: 'ลบตู้นี้', en: 'Delete this box' }) }}</button>
           </section>
         }
+        }
+      </div>
+
+      <!-- ใบพิมพ์ QR (ซ่อนบนจอ) — ให้ปุ่ม "พิมพ์ QR" ใน D04 พิมพ์ได้จริง ไม่ใช่กระดาษเปล่า -->
+      <div class="print-sheet" aria-hidden="true">
+        <h1 style="grid-column: 1 / -1; margin: 0 0 6mm; font-size: 18pt">
+          {{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ b.house_no }} · {{ b.id }}
+        </h1>
+        @for (q of b.qr; track q.id) {
+          @if (q.status === 'active' && q.slot !== 'activate') {
+            <figure style="margin: 0; text-align: center">
+              <app-qr-image [text]="q.url" level="H" [label]="i18n.t(slot(q.slot))" />
+              <figcaption style="margin-block-start: 3mm; font-size: 11pt">
+                <strong>{{ i18n.t(slot(q.slot)) }}</strong><br />
+                {{ q.print_code }}
+              </figcaption>
+            </figure>
+          }
         }
       </div>
     } @else {
@@ -1814,6 +1847,7 @@ export class AdminBox implements OnInit {
     this.resettingConfig.set(true);
     try {
       const result = await this.api.resetBoxConfig(id);
+      this.ovLoadedFor = null; // ให้ reload เติมช่อง override ใหม่ (ไม่ค้างค่าเก่า)
       await this.reload();
       const synced = this.box()?.config.config_ver === result.config_ver && this.box()?.config.in_sync;
       this.toast.show(synced

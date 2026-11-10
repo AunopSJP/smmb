@@ -2,6 +2,7 @@ import { HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/commo
 import pg from 'pg';
 import { AccountService } from '../auth/account.service.js';
 import { newGroupCode } from '../common/codes.js';
+import { AuditService } from '../common/audit.service.js';
 import { AppError } from '../common/http-exception.filter.js';
 import { PG_POOL } from '../db/db.module.js';
 import { isPgError, PG_UNIQUE_VIOLATION, withTx, type Db } from '../db/tx.js';
@@ -106,6 +107,7 @@ export class AgencyService {
     @Inject(PG_POOL) private readonly pool: pg.Pool,
     private readonly account: AccountService,
     private readonly notifications: NotificationService,
+    private readonly audit: AuditService,
   ) {}
 
   /** หัวหน้าเห็นได้แม้หน่วยงานยังรออนุมัติ/ถูกปฏิเสธ (L02 / L02-b) · ไม่ใช่หัวหน้า → 404 */
@@ -287,6 +289,7 @@ export class AgencyService {
       return this.agencyName(db, agencyId);
     });
     await this.notifications.notify([memberId], { type: 'member_approved', data: { agency_name: agencyName }, link: '/' });
+    await this.audit.log(headId, 'agency.member.approve', 'user', memberId, { agency_id: agencyId });
   }
 
   async reject(agencyId: string, headId: string, memberId: string): Promise<void> {
@@ -302,6 +305,7 @@ export class AgencyService {
       return this.agencyName(db, agencyId);
     });
     await this.notifications.notify([memberId], { type: 'member_rejected', data: { agency_name: agencyName }, link: '/' });
+    await this.audit.log(headId, 'agency.member.reject', 'user', memberId, { agency_id: agencyId });
   }
 
   /**
@@ -337,6 +341,7 @@ export class AgencyService {
         await this.account.bumpPerm(db, memberId);
       }
     });
+    await this.audit.log(headId, 'agency.member.status', 'user', memberId, { agency_id: agencyId, active });
   }
 
   async makeHead(agencyId: string, memberId: string): Promise<void> {
@@ -369,6 +374,7 @@ export class AgencyService {
       ]);
       await this.account.bumpPerm(db, memberId);
     });
+    await this.audit.log(headId, 'agency.head.remove', 'user', memberId, { agency_id: agencyId });
   }
 
   /**
@@ -377,7 +383,7 @@ export class AgencyService {
    */
   async resetPassword(agencyId: string, headId: string, memberId: string): Promise<{ temp_password: string }> {
     if (memberId === headId) throw cannotChangeSelf();
-    return withTx(this.pool, async (db) => {
+    const out = await withTx(this.pool, async (db) => {
       const t = await this.target(db, agencyId, memberId);
       if (t.status === 'pending' || t.status === 'rejected') throw new NotFoundException();
       const { rows } = await db.query(
@@ -389,6 +395,8 @@ export class AgencyService {
       }
       return { temp_password: await this.account.resetPassword(db, memberId) };
     });
+    await this.audit.log(headId, 'agency.member.reset_password', 'user', memberId, { agency_id: agencyId });
+    return out;
   }
 
   /** สมาชิกในหน่วยงานนี้ (ล็อกแถวไว้) — ไม่ใช่ → 404 */

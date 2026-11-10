@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
+import { AppReset } from '../app-reset';
 
 export type DemoRole = 'owner' | 'officer' | 'head' | 'admin';
 
@@ -38,5 +39,14 @@ export class DemoSession {
 
   addRole(role: DemoRole): void {
     this.roles.update((r) => (r.includes(role) ? r : [...r, role]));
+  }
+
+  constructor() {
+    inject(AppReset).register(() => {
+      this.role.set('owner');
+      this.roles.set([]);
+      this.phone.set('');
+      this.agencyPending.set(false);
+    });
   }
 }

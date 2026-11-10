@@ -10,6 +10,15 @@ import { newGroupCode, newTempPassword } from '../common/codes.js';
 
 type Role = 'owner' | 'officer' | 'head';
 const url = process.env.DATABASE_URL;
+if (!url) {
+  console.error('DATABASE_URL is required');
+  process.exit(1);
+}
+// CLI นี้สร้าง "หน่วยงานทดสอบ + โซน 00:00–23:59" — ห้ามรันบน production เด็ดขาด
+if (process.env.NODE_ENV === 'production') {
+  console.error('refusing to create tester accounts with NODE_ENV=production');
+  process.exit(1);
+}
 const people: { role: Role; phone: string; name: string }[] = [];
 const args = process.argv.slice(2);
 for (let i = 0; i < args.length; i += 3) {

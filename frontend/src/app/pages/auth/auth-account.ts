@@ -178,7 +178,7 @@ export class AccountActions {
       }
       <p class="muted small easy-hide">{{ i18n.t({ th: 'เปลี่ยนแล้ว ทุกเครื่องจะออกจากระบบ ต้องเข้าสู่ระบบใหม่ด้วยรหัสใหม่', en: 'After changing, every device is signed out — sign in again with the new password' }) }}</p>
       <div class="stack push-end">
-        <button type="submit" class="btn" [disabled]="!current() || !next() || !confirm()">{{ i18n.t({ th: 'บันทึกรหัสใหม่', en: 'Save new password' }) }}</button>
+        <button type="submit" class="btn" [disabled]="busy() || !current() || !next() || !confirm()">{{ i18n.t({ th: 'บันทึกรหัสใหม่', en: 'Save new password' }) }}</button>
         @if (forced()) {
           <button type="button" class="btn secondary" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
         }
@@ -211,6 +211,7 @@ export class AuthChangePassword {
   protected readonly next = signal('');
   protected readonly confirm = signal('');
   protected readonly tried = signal(false);
+  protected readonly busy = signal(false);
   protected readonly error = signal<Tr | null>(null);
   protected readonly errorCode = signal<string | null>(null);
   protected readonly min = PASSWORD_MIN;
@@ -223,10 +224,12 @@ export class AuthChangePassword {
     this.tried.set(true);
     this.error.set(null);
     this.errorCode.set(null);
-    if (!this.nextOk() || !this.match() || this.same()) return;
+    if (!this.nextOk() || !this.match() || this.same() || this.busy()) return;
+    this.busy.set(true);
     try {
       await firstValueFrom(this.http.post('/api/v1/auth/change-password', { current_password: this.current(), new_password: this.next() }));
     } catch (err) {
+      this.busy.set(false);
       const e = apiError(err);
       this.current.set('');
       this.errorCode.set(e.code ? `${e.code} · HTTP ${e.status}` : `HTTP ${e.status}`);

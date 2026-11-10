@@ -12,6 +12,7 @@ import { SosModule } from './sos/sos.module.js';
 import { AllExceptionsFilter } from './common/http-exception.filter.js';
 import { validateEnv } from './config/env.js';
 import { DbModule } from './db/db.module.js';
+import { AuditModule } from './common/audit.service.js';
 import { HealthController } from './health/health.controller.js';
 import { PushModule } from './push/push.module.js';
 import { SupportModule } from './support/support.module.js';
@@ -22,6 +23,7 @@ import { SupportModule } from './support/support.module.js';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, cache: true, validate: validateEnv }),
     DbModule,
+    AuditModule,
     AuthModule,
     PushModule,
     AgencyModule,

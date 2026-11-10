@@ -35,10 +35,15 @@ export function configureApp(app: NestExpressApplication): void {
   // ภาพสดจากกล้อง (งานทดสอบ) เป็น JSON ที่มี JPEG แบบ base64 → ใหญ่กว่าคำขออื่น
   // อัปโหลดเฟิร์มแวร์ (ไบต์ดิบ ≤ 1.9 MB) โดยแอดมิน — อ่านเป็น Buffer เอง ไม่ผ่านตัวอ่าน JSON
   const rawFirmware = express.raw({ type: () => true, limit: '2mb' });
+  const rawPhoto = express.raw({ type: () => true, limit: '120kb' });
   // เฉพาะการอัปโหลด (POST) — PUT /admin/firmware/auto เป็น JSON ปกติ
   app.use('/api/v1/admin/firmware', (req: express.Request, res: express.Response, next: express.NextFunction) => (req.method === 'POST' ? rawFirmware(req, res, next) : next()));
-  app.use('/v1/box/preview', express.raw({ type: () => true, limit: '120kb' }));
-  app.use(/^\/v1\/box\/jobs\/[^/]+\/photo$/, express.raw({ type: () => true, limit: '120kb' }));
+  app.use('/v1/box/preview', rawPhoto);
+  // ใช้ req.path (ไม่มี query string) — เดิมใช้ regex กับ req.url ทำให้ URL ที่มี ?query ไม่ match แล้วตกไปใช้เพดาน 16kb
+  app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (/^\/v1\/box\/jobs\/[^/]+\/photo$/.test(req.path)) return rawPhoto(req, res, next);
+    next();
+  });
   app.use('/v1/box', express.raw({ type: () => true, limit: '16kb' }));
   // ดูคำขอจากตู้แบบสด ๆ ตอนทดสอบบอร์ด (npm run dev:mock เปิดให้เอง) — เหตุผลที่ลายเซ็นไม่ผ่านพิมพ์จาก BoxAuthGuard
   if (process.env.BOX_REQUEST_LOG === '1') {

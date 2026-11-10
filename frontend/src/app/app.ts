@@ -5,6 +5,7 @@ import { DisplaySettings } from './core/display-settings';
 import { AppUpdate } from './core/app-update';
 import { PrefsSync } from './core/prefs-sync';
 import { PageTitle } from './core/page-title';
+import { Session } from './core/session';
 
 @Component({
   imports: [RouterOutlet],
@@ -26,10 +27,20 @@ export class App {
     // แคนวาส ErrOffline: เน็ตหลุด → พาไปหน้าแจ้งไม่มีอินเทอร์เน็ต (ไม่เด้งกลับอัตโนมัติ ให้ผู้ใช้กดลองอีกครั้ง)
     const win = inject(DOCUMENT).defaultView;
     const router = inject(Router);
+    const session = inject(Session);
     const onOffline = () => {
       if (!win?.location.pathname.startsWith('/error/')) void router.navigateByUrl('/error/offline');
     };
+    const onExpired = (e: Event) => {
+      session.invalidate();
+      const next = (e as CustomEvent<{ next?: string }>).detail?.next;
+      void router.navigateByUrl(next ? `/auth/signin?next=${encodeURIComponent(next)}` : '/auth/signin', { replaceUrl: true });
+    };
     win?.addEventListener('offline', onOffline);
-    inject(DestroyRef).onDestroy(() => win?.removeEventListener('offline', onOffline));
+    win?.addEventListener('smmb:session-expired', onExpired);
+    inject(DestroyRef).onDestroy(() => {
+      win?.removeEventListener('offline', onOffline);
+      win?.removeEventListener('smmb:session-expired', onExpired);
+    });
   }
 }

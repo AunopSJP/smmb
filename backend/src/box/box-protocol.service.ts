@@ -194,6 +194,11 @@ export class BoxProtocolService {
     return { server_time: nowS(), config_ver: ver, config };
   }
 
+  /** อัปเดตเวลาติดต่อล่าสุด — ทางลัดที่ตอบ config/command ก่อนเข้า long-poll ต้องเรียกด้วย */
+  async touch(boxId: string): Promise<void> {
+    await this.pool.query(`UPDATE app.box_tb SET last_poll_date = now(), last_seen_date = now() WHERE box_id = $1`, [boxId]);
+  }
+
   /**
    * long-poll (โปรโตคอล §2.3): มีงานอยู่แล้ว → ตอบทันที · ไม่มี → รอสูงสุด waitS วิ ระหว่างนั้นมีงาน → ตอบทันที
    * คืน null = ครบเวลาไม่มีงาน (204) หรือตู้ตัดการเชื่อมต่อไปก่อน
@@ -218,7 +223,14 @@ export class BoxProtocolService {
 
     for (;;) {
       const waiter = this.hub.listen(boxId); // ลงชื่อก่อนค้น — งาน/คำสั่งที่เกิดระหว่างค้นจะปลุกได้
-      const found = await look();
+      let found: Awaited<ReturnType<typeof look>>;
+      try {
+        found = await look();
+      } catch (err) {
+        // query ล้ม: ต้องถอน waiter ไม่งั้น isWaiting() ค้าง true ตลอด (ตู้ถูกมองออนไลน์ทั้งที่ไม่ได้รอ)
+        waiter.cancel();
+        throw err;
+      }
       const left = deadline - Date.now();
       if (found.job || found.command || gone || left <= 0) {
         waiter.cancel();

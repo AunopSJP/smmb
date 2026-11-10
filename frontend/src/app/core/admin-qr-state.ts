@@ -1,10 +1,16 @@
 import { Injectable, inject, signal } from '@angular/core';
+import { AppReset } from './app-reset';
 import { AdminApi, type AdminQrFix, type AdminQrHealth, type AdminQrIssue } from './admin-api';
 
 @Injectable({ providedIn: 'root' })
 export class AdminQrState {
   private readonly api = inject(AdminApi);
   readonly issues = signal<AdminQrIssue[]>([]);
+
+  constructor() {
+    // ออกจากระบบ/สลับบัญชี → ไม่ค้างรายการเคส QR ของแอดมินคนก่อน
+    inject(AppReset).register(() => this.issues.set([]));
+  }
 
   async refresh(health?: AdminQrHealth[]): Promise<void> {
     this.issues.set(await this.api.qrIssues(health));

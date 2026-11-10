@@ -24,7 +24,7 @@ import { firstValueFrom } from 'rxjs';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
-      [caption]="i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + (box()?.house_no ?? '') + (display.advancedMode() && box() ? ' · ' + box()!.id : '')"
+      [caption]="box() ? i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + (box()!.house_no ?? '') + (display.advancedMode() ? ' · ' + box()!.id : '') : i18n.t({ th: 'ยังไม่ได้ผูกตู้', en: 'No mailbox yet' })"
       [title]="i18n.t({ th: 'ตั้งค่า', en: 'Settings' })"
       [bell]="url('H14')"
     />

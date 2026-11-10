@@ -304,6 +304,15 @@ export class AdminBoxService {
         `UPDATE app.zone_box_request_tb SET status = 'cancelled', decided_by = $2, decided_date = now() WHERE box_id = $1 AND status = 'pending'`,
         [boxId, adminId],
       );
+      // งานช่างที่ยังเปิดอยู่เป็นของเจ้าของเดิม — ปิดอัตโนมัติ ไม่งั้นเจ้าของใหม่จะติด unique open request
+      await db.query(
+        `UPDATE app.technician_request_tb
+         SET status = 'done',
+             admin_note = CASE WHEN admin_note IS NULL OR admin_note = '' THEN 'ปิดอัตโนมัติเมื่อคืนตู้'
+                               ELSE admin_note || ' · ปิดอัตโนมัติเมื่อคืนตู้' END
+         WHERE box_id = $1 AND status IN ('open','scheduled')`,
+        [boxId],
+      );
       // QR เปิดใช้ตู้ใบเก่าถูกใช้ไปแล้ว — ใบที่ยังไม่ใช้ (ถ้ามี) ยกเลิกก่อนออกใบใหม่
       await db.query(`UPDATE app.box_qr_code_tb SET status = 'revoked', revoked_date = now() WHERE box_id = $1 AND slot = 'activate' AND status = 'active'`, [boxId]);
       const qr = await this.issueQr(db, boxId, 'activate');
