@@ -212,6 +212,67 @@
   padding-inline: 8px;
   margin-inline: -8px;
 }
+
+/* ── เจ้าหน้าที่ในโซน ── */
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.member {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  cursor: pointer;
+
+  &.on {
+    border-color: var(--brand);
+    background: color-mix(in srgb, var(--surface) 94%, var(--brand) 6%);
+  }
+  .avatar {
+    display: grid;
+    place-items: center;
+    flex: none;
+    inline-size: 42px;
+    block-size: 42px;
+    border-radius: 50%;
+    background: var(--brand-lighter);
+    color: var(--brand-text);
+    font-weight: 700;
+    font-size: 0.875rem;
+  }
+  .name-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .check {
+    flex: none;
+    inline-size: 22px;
+    block-size: 22px;
+    accent-color: var(--brand);
+  }
+}
+:host-context([data-mode='easy']) .member {
+  min-block-size: 72px;
+  padding: 14px;
+}
+:host-context([data-mode='easy']) .member .avatar {
+  inline-size: 48px;
+  block-size: 48px;
+  font-size: 1rem;
+}
 :host-context([data-mode='easy']) .hit,
 :host-context([data-mode='easy']) .house-row {
   min-block-size: 64px;

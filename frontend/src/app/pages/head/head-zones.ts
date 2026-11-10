@@ -361,27 +361,45 @@ export class HeadZones implements OnInit {
 
         @if (tab() === 'officers') {
         <section class="card stack">
-          <div class="head">
-            <strong>{{ i18n.t({ th: 'เจ้าหน้าที่ในโซน', en: 'Officers' }) }} ({{ z.officers.length }})</strong>
+          <div class="section-head">
+            <div>
+              <strong>{{ i18n.t({ th: 'เจ้าหน้าที่ในโซน', en: 'Officers in this zone' }) }}</strong>
+              <span class="muted small block">{{ i18n.t({ th: 'เลือกคนที่จะมาตรวจโซนนี้', en: 'Choose who patrols this zone' }) }}</span>
+            </div>
+            <span class="chip brand">{{ z.officers.length }} {{ i18n.t({ th: 'คน', en: 'people' }) }}</span>
           </div>
-          @for (m of members(); track m.id) {
-            <label class="officer">
-              <input type="checkbox" [checked]="inOfficers(m.id)" (change)="toggleOfficer(m.id, $any($event.target).checked)" />
-              <span class="grow">
-                <strong>{{ m.display_name }}</strong>
-                @if (m.is_head) {
-                  <span class="chip">{{ i18n.t({ th: 'หัวหน้า', en: 'Head' }) }}</span>
-                }
-                <span class="muted small block adv-only">@if (m.staff_no) { {{ i18n.t({ th: 'เลขประจำตัว ', en: 'Staff no. ' }) }}{{ m.staff_no }} · }{{ m.position || '—' }}</span>
-              </span>
-            </label>
-          } @empty {
-            <p class="muted small">
-              {{ i18n.t({ th: 'ยังไม่มีสมาชิกที่ใช้งานได้ — ให้เจ้าหน้าที่สมัครด้วยรหัสกลุ่ม แล้วอนุมัติที่หน้า', en: 'No active members yet — officers sign up with the group code, then you approve them on' }) }}
-              <a [routerLink]="url('L05')">{{ i18n.t({ th: 'สมาชิก', en: 'Members' }) }}</a>
-            </p>
+          <div class="search-row">
+            <input type="search" [attr.aria-label]="i18n.t({ th: 'ค้นเจ้าหน้าที่', en: 'Search officers' })" [placeholder]="i18n.t({ th: 'ค้นชื่อ / ตำแหน่ง / เลขประจำตัว', en: 'Name / position / staff no.' })" [value]="memberQ()" (input)="memberQ.set($any($event.target).value)" />
+          </div>
+          @if (savingOfficers()) {
+            <p class="muted small" role="status">{{ i18n.t({ th: 'กำลังบันทึก…', en: 'Saving…' }) }}</p>
           }
-          <p class="muted small easy-hide">{{ i18n.t({ th: 'ติ๊กคนที่จะตรวจโซนนี้ · คนที่ยังไม่ได้อนุมัติจะไม่อยู่ในรายการ · หัวหน้าตรวจตู้ได้เฉพาะโซนที่ใส่ตัวเองไว้', en: 'Tick who patrols this zone · members not yet approved are not listed · heads can only inspect zones they are in' }) }}</p>
+          <div class="member-list">
+            @for (m of filteredMembers(); track m.id) {
+              <label class="member" [class.on]="inOfficers(m.id)">
+                <span class="avatar" aria-hidden="true">{{ memberInitials(m.display_name) }}</span>
+                <span class="grow">
+                  <span class="name-row">
+                    <strong>{{ m.display_name }}</strong>
+                    @if (m.is_head) { <span class="chip brand">{{ i18n.t({ th: 'หัวหน้า', en: 'Head' }) }}</span> }
+                  </span>
+                  <span class="muted small block">{{ m.position || i18n.t({ th: 'เจ้าหน้าที่', en: 'Officer' }) }}@if (m.staff_no) { · {{ m.staff_no }} }</span>
+                  <span class="muted small block">{{ m.zones.length }} {{ i18n.t({ th: 'โซน', en: 'zones' }) }} · {{ i18n.t({ th: 'ตรวจล่าสุด ', en: 'last check ' }) }}{{ m.last_inspection_at ? updated(m.last_inspection_at) : i18n.t({ th: 'ยังไม่มี', en: 'none yet' }) }}</span>
+                </span>
+                <input class="check" type="checkbox" [checked]="inOfficers(m.id)" (change)="toggleOfficer(m.id, $any($event.target).checked)" [attr.aria-label]="m.display_name" />
+              </label>
+            } @empty {
+              <p class="muted small">
+                @if (memberQ().trim()) {
+                  {{ i18n.t({ th: 'ไม่พบชื่อที่ค้น — ลองพิมพ์ชื่อหรือเลขประจำตัวบางส่วน', en: 'No match — try part of the name or staff no.' }) }}
+                } @else {
+                  {{ i18n.t({ th: 'ยังไม่มีสมาชิกที่ใช้งานได้ — ให้เจ้าหน้าที่สมัครด้วยรหัสกลุ่ม แล้วอนุมัติที่หน้า', en: 'No active members yet — officers sign up with the group code, then you approve them on' }) }}
+                  <a [routerLink]="url('L05')">{{ i18n.t({ th: 'สมาชิก', en: 'Members' }) }}</a>
+                }
+              </p>
+            }
+          </div>
+          <p class="muted small easy-hide">{{ i18n.t({ th: 'คนที่ยังไม่ได้อนุมัติจะไม่อยู่ในรายการ · หัวหน้าตรวจตู้ได้เฉพาะโซนที่ใส่ตัวเองไว้ · การเปลี่ยนแปลงบันทึกทันที', en: 'Members not yet approved are not listed · heads can only inspect zones they are in · changes save immediately' }) }}</p>
         </section>
         }
       }
@@ -430,7 +448,15 @@ export class HeadZoneEdit {
   protected readonly maxWindows = MAX_WINDOWS;
   protected readonly tab = signal<'settings' | 'houses' | 'officers'>('settings');
   protected readonly mapSelected = signal<string | null>(null);
+  protected readonly memberQ = signal('');
+  protected readonly savingOfficers = signal(false);
   private initialTabSet = false;
+
+  protected readonly filteredMembers = computed(() => {
+    const q = this.memberQ().trim().toLowerCase();
+    if (!q) return this.members();
+    return this.members().filter((m) => `${m.display_name} ${m.position} ${m.staff_no}`.toLowerCase().includes(q));
+  });
   /** ?zone=<uuid>|new */
   readonly zoneParam = input<string | undefined>(undefined, { alias: 'zone' });
   protected readonly isNew = computed(() => !this.zoneParam() || this.zoneParam() === 'new');
@@ -755,10 +781,15 @@ export class HeadZoneEdit {
   private officerIds: string[] | null = null;
   private officerSave: Promise<void> = Promise.resolve();
 
+  protected memberInitials(name: string): string {
+    return name.replace(/[.\s]/g, '').slice(0, 2).toUpperCase();
+  }
+
   /** PUT /agency/zones/:id/officers — แทนที่ทั้งชุด */
   protected toggleOfficer(id: string, on: boolean): Promise<void> {
     const z = this.zone();
     if (!z) return Promise.resolve();
+    this.savingOfficers.set(true);
     const ids = (this.officerIds ?? z.officers.map((o) => o.id)).filter((x) => x !== id);
     if (on) ids.push(id);
     this.officerIds = ids;
@@ -774,6 +805,8 @@ export class HeadZoneEdit {
         this.officerIds = null;
         await this.load(z.id).catch(() => undefined);
         this.toast.show({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save — try again' });
+      } finally {
+        if (this.officerIds === null) this.savingOfficers.set(false);
       }
     });
     return this.officerSave;
