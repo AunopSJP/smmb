@@ -121,6 +121,9 @@ const REFRESH_MS = 10_000;
           <section class="card offline stack" role="status">
             <strong>{{ i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' }) }}</strong>
             <span class="small">{{ i18n.t({ th: 'เจ้าหน้าที่จะตรวจตู้ไม่ได้จนกว่าตู้จะกลับมาออนไลน์', en: 'Officers cannot check the mailbox until it is back online' }) }}</span>
+            @if (lastInspection(b); as li) {
+              <span class="small">{{ i18n.t({ th: 'เจ้าหน้าที่ตรวจล่าสุด ', en: 'Last officer check ' }) }}{{ li }}</span>
+            }
             <ol class="checks small easy-hide">
               <li>{{ i18n.t({ th: 'แบตตู้อาจหมด — แผงโซลาร์โดนแดดไหม', en: 'The battery may be empty — is the solar panel in sun?' }) }}</li>
               <li>{{ i18n.t({ th: 'Wi-Fi บ้านใช้งานได้ไหม', en: 'Is your home Wi-Fi working?' }) }}</li>
@@ -134,14 +137,17 @@ const REFRESH_MS = 10_000;
         }
 
         @if (easy()) {
-          <!-- H03-L โหมดง่าย: สถานะใหญ่ + เวลาตรวจล่าสุด + ปุ่มใหญ่ 2 ปุ่ม (ตาม HomeEasy) -->
-          <section class="card easy-hero" [class.warn]="b.status === 'offline' || b.status === 'service_closed'" role="status">
-            <span class="big-ok" [class.warn]="b.status === 'offline' || b.status === 'service_closed'">
-              <app-icon [name]="b.status === 'offline' || b.status === 'service_closed' ? 'alert' : 'check'" [size]="42" />
-            </span>
-            <strong>{{ easyHeadline(b) }}</strong>
-            <span class="easy-sub">{{ easySubtitle(b) }}</span>
-          </section>
+          <!-- H03-L โหมดง่าย: สถานะใหญ่ + เวลาตรวจล่าสุด + ปุ่มใหญ่ 2 ปุ่ม (ตาม HomeEasy)
+               ตู้ offline มีการ์ดแดงด้านบนแล้ว — ไม่ต้องพูดซ้ำอีกใบ -->
+          @if (b.status !== 'offline') {
+            <section class="card easy-hero" [class.warn]="b.status === 'service_closed'" role="status">
+              <span class="big-ok" [class.warn]="b.status === 'service_closed'">
+                <app-icon [name]="b.status === 'service_closed' ? 'alert' : 'check'" [size]="42" />
+              </span>
+              <strong>{{ easyHeadline(b) }}</strong>
+              <span class="easy-sub">{{ easySubtitle(b) }}</span>
+            </section>
+          }
           <section class="card easy-last">
             <span class="label">{{ i18n.t({ th: 'เจ้าหน้าที่มาตรวจล่าสุด', en: 'Last officer check' }) }}</span>
             <strong>{{ lastCheck(b) }}</strong>
@@ -159,19 +165,21 @@ const REFRESH_MS = 10_000;
           </div>
         } @else {
         <section class="card stack">
-          <div class="hero-row">
-            <span class="okc" [class.warn]="b.status === 'offline' || b.status === 'service_closed'">
-              <app-icon [name]="b.status === 'offline' || b.status === 'service_closed' ? 'alert' : 'check'" [size]="28" />
-            </span>
-            <div>
-              <b>{{ statusTitle(b) }}</b>
-              @if (lastInspection(b); as li) {
-                <span>{{ i18n.t({ th: 'เจ้าหน้าที่ตรวจล่าสุด ', en: 'Last officer check ' }) }}{{ li }}</span>
-              }
+          @if (b.status !== 'offline') {
+            <div class="hero-row">
+              <span class="okc" [class.warn]="b.status === 'service_closed'">
+                <app-icon [name]="b.status === 'service_closed' ? 'alert' : 'check'" [size]="28" />
+              </span>
+              <div>
+                <b>{{ statusTitle(b) }}</b>
+                @if (lastInspection(b); as li) {
+                  <span>{{ i18n.t({ th: 'เจ้าหน้าที่ตรวจล่าสุด ', en: 'Last officer check ' }) }}{{ li }}</span>
+                }
+              </div>
             </div>
-          </div>
+          }
           <div class="stats easy-hide">
-            <div class="mini">
+            <div class="mini adv-hide">
               <span class="label">{{ i18n.t({ th: 'แบตเตอรี่', en: 'Battery' }) }}</span>
               @if (b.battery) {
                 <strong class="value">{{ b.battery.pct }}%</strong>
@@ -182,7 +190,7 @@ const REFRESH_MS = 10_000;
                 <span class="label">{{ i18n.t({ th: 'ตู้ยังไม่ส่งระดับแบต', en: 'The mailbox has not reported yet' }) }}</span>
               }
             </div>
-            <div class="mini">
+            <div class="mini adv-hide">
               <span class="label">{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</span>
               @if (ago(b.last_seen_at); as m) {
                 <strong class="value">{{ m }} {{ i18n.t({ th: 'นาที', en: 'min' }) }}</strong>

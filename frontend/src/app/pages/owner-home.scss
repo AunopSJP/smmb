@@ -1,5 +1,6 @@
 .page {
-  padding-block-end: 8px;
+  /* กันปุ่ม SOS (fixed) ทับการ์ดท้ายหน้า */
+  padding-block-end: calc(100px + env(safe-area-inset-bottom));
 }
 .status {
   display: flex;
@@ -225,10 +226,14 @@
 }
 
 .sos-bar {
-  position: sticky;
-  inset-block-end: calc(76px + env(safe-area-inset-bottom));
-  margin-block-start: 8px;
+  /* ลอยเหนือแถบเมนูล่างเสมอ — ใช้ fixed + เว้นที่ให้เนื้อหาด้านล่าง (.page padding) กันเนื้อหาถูกทับ */
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: calc(68px + env(safe-area-inset-bottom));
   z-index: 1;
+  inline-size: min(100%, var(--content-w, 640px));
+  margin-inline: auto;
+  padding-inline: 20px;
 }
 .sos {
   background: var(--sos-bg);

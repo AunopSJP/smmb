@@ -302,6 +302,10 @@ main:has(input:focus, select:focus, textarea:focus) {
 :root:not([data-mode='advanced']) .adv-only {
   display: none !important;
 }
+/* โหมดละเอียดมีตารางตัวเลขเทคนิคแล้ว — ซ่อนการ์ดสรุปที่ซ้ำ (แบต/ติดต่อล่าสุด) */
+:root[data-mode='advanced'] .adv-hide {
+  display: none !important;
+}
 
 *,
 *::before,
