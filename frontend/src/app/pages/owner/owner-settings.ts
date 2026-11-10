@@ -960,7 +960,9 @@ export class OwnerWifi {
     }
     .field { display: flex; flex-direction: column; gap: 8px; }
     .field select, .field textarea { inline-size: 100%; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text); background: var(--surface); font: inherit; }
-    .choice { display: flex; align-items: center; gap: 10px; }
+    .choice { display: flex; align-items: center; gap: 12px; min-block-size: 48px; padding: 10px 12px; border-radius: 12px; font-weight: 600; cursor: pointer; }
+    .choice:hover { background: var(--icon-bg); }
+    .choice:has(input:checked) { background: var(--brand-lighter); color: var(--brand-dark); font-weight: 700; }
     button:disabled { opacity: 0.6; }
     .st {
       display: flex;

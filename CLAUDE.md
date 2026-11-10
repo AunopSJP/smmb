@@ -4,6 +4,7 @@
 > อ่านคู่กับ `docs/` ในลำดับนี้: `HANDOFF.md` → `smmb-design.md` → `api.md` → `SMMB_โปรโตคอลตู้-เซิร์ฟเวอร์.md` → `SMMB_ขั้นตอนการใช้งานแต่ละคน.md`
 > ติดตั้ง server จริง (Ubuntu ไม่มีจอ · Postgres+Redis เป็น container · systemd + nginx): `docs/DEPLOY_UBUNTU.md` + ชุดไฟล์ `deploy/` · env `API_PATH_PREFIX=/smmb-api` ตัด prefix เองแต่ originalUrl ยังเต็ม (ตู้เซ็นจาก path เต็ม · nginx ห้ามตัด path)
 > คู่มือให้ทีมเฟิร์มแวร์ ESP32-CAM: `docs/HARDWARE_FIRMWARE_GUIDE.md` (แก้โปรโตคอลตู้ → แก้ไฟล์นี้ด้วย)
+> **งานค้าง/ช่องโหว่ที่ยืนยันด้วยหลักฐาน + เกณฑ์เสร็จ (W-01…W-18): `docs/FLOW_AND_GAPS.md`** (ตรวจ 2026-11-10 · ก่อนเริ่มงานใหม่ให้ดูว่าตรงกับข้อไหน · แก้เสร็จให้เปลี่ยนสถานะพร้อมหลักฐาน)
 > เฟิร์มแวร์ (✅ 2026-11-04): ส่วนคุยกับเซิร์ฟเวอร์ + OTA = ไลบรารี `firmware/lib/smmb_link/` (ทีม Software ดูแล) · ฮาร์ดแวร์ = `firmware/src/` (ทีม Hardware) ต่อกันผ่าน `LinkHooks` ใน `SmmbLink.h`
 > ถ้าไฟล์เหล่านั้นขัดกับไฟล์นี้ ให้ถามผู้ใช้ — อย่าเดา
 

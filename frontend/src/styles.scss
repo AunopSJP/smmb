@@ -911,10 +911,71 @@ app-area-shell main > :not(router-outlet) {
     background: var(--brand-lighter);
   }
   input {
-    accent-color: var(--brand);
-    inline-size: 18px;
-    block-size: 18px;
+    inline-size: 20px;
+    block-size: 20px;
     margin: 0;
+  }
+  label:hover {
+    background: var(--icon-bg);
+  }
+  label:has(input:checked):hover {
+    background: var(--brand-lighter);
+  }
+}
+
+/* ── Radio กลางทั้งโปรเจ็ค ────────────────────────────────────────────────
+   ใช้ appearance:none เพื่อวาดวงแหวน/จุดเองให้เข้าธีม (สว่าง/มืด/โหมดง่าย)
+   ยังคง semantics + คีย์บอร์ด + focus ring เดิมของ input[type=radio] ไว้ครบ */
+input[type='radio'] {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-grid;
+  place-content: center;
+  flex: none;
+  inline-size: 20px;
+  block-size: 20px;
+  margin: 0;
+  border: 1.75px solid color-mix(in srgb, var(--text-muted) 65%, transparent);
+  border-radius: 50%;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+input[type='radio']::before {
+  content: '';
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: 50%;
+  background: var(--brand);
+  transform: scale(0);
+  transition: transform 0.15s ease;
+}
+input[type='radio']:hover {
+  border-color: var(--brand);
+}
+input[type='radio']:checked {
+  border-color: var(--brand);
+  background: var(--surface);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--brand) 22%, transparent);
+}
+input[type='radio']:checked::before {
+  transform: scale(1);
+}
+input[type='radio']:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--brand) 32%, transparent);
+  outline-offset: 2px;
+}
+input[type='radio']:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+input[type='radio']:disabled + * {
+  cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+  input[type='radio'],
+  input[type='radio']::before {
+    transition: none;
   }
 }
 
