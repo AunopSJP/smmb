@@ -131,6 +131,15 @@ cat /var/www/smmb/config.json         # ต้องเป็น apiBase = /smmb
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
+**สภาพจริงของ host `hub.sjp-dev.net` (10 พ.ย. 2026):** nginx รันเป็น container ชื่อ `smmb-edge-proxy-1` และ config จริงคือ `deploy/nginx-hub.conf` (bind-mount ไม่ใช่ `/etc/nginx`) — ใช้:
+
+```bash
+docker exec smmb-edge-proxy-1 nginx -t
+docker restart smmb-edge-proxy-1
+```
+
+แก้ `deploy/nginx-hub.conf` (สำรองก่อนทุกครั้ง) โดยใช้บล็อกจาก `deploy/nginx-smmb.conf` · ไฟล์จริงควรถูก commit เข้า repo ด้วย
+
 จุดที่ห้ามพลาด: `proxy_pass http://127.0.0.1:3000;` **ไม่มี `/` ท้ายและไม่มี path** (ถ้าใส่ nginx จะตัด prefix → ลายเซ็นของตู้ไม่ผ่านทุกตัว) · `proxy_read_timeout 75s` (long-poll ตู้ถือ 50 วิ)
 
 ### Header ความปลอดภัย (CSP/HSTS) — อ่านก่อนแก้
@@ -149,7 +158,9 @@ done
 
 CSP เริ่มที่ `Content-Security-Policy-Report-Only` (ยังไม่บล็อก) — เดิน 5 flow หลัก + PWA offline แล้วดู console/access log
 ถ้าไม่มี violation จึงเปลี่ยนชื่อ header เป็น `Content-Security-Policy` (ห้ามมี `'unsafe-eval'`)
-HSTS: เริ่ม `max-age=86400` ก่อน แล้วค่อยเพิ่มเป็น 1 ปี — และต้องใส่ซ้ำใน `location = /smmb/index.html` เพราะเหตุผล add_header ข้างบน
+HSTS: เริ่ม `max-age=86400` ก่อน แล้วค่อยเพิ่มเป็น 1 ปี — และต้องใส่ซ้ำใน `location /smmb/` + `location = /smmb/index.html` เพราะเหตุผล add_header ข้างบน
+production 10 พ.ย. 2026 เปิด CSP บังคับใช้ + HSTS 1 วันแล้ว (เหลือใส่ HSTS ซ้ำใน `/smmb/`)
+หลังแก้ทุกครั้ง: `docker exec smmb-edge-proxy-1 nginx -t` แล้ว `docker restart smmb-edge-proxy-1` (host นี้ใช้ container)
 
 ## 9. ตั้ง TRUST_PROXY ให้ถูก (สำคัญ — พลาดแล้วรหัสผิดของคนหนึ่งล็อกทุกคน)
 

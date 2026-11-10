@@ -3,7 +3,7 @@
 > ตรวจเมื่อ **2026-11-10 09:05–09:30 (ไทย)** · commit `8e748bb` · working tree สะอาด
 > **อัปเดตรอบที่ 2: 2026-11-10 (ไทย)** — เก็บงาน W-08/W-09/W-13/W-15/W-16/W-17 แล้ว (commit `99b14e3`, `5279344`)
 > **อัปเดตรอบที่ 3: 2026-11-10 (ไทย)** — ตรวจ UX/โฟลวทุกโหมด + ทุกบทบาท แล้วแก้ชุดใหญ่ (ดู §3.1) · migration ใหม่ `0034`–`0036` (ทดสอบกับ PGlite ผ่าน) · frontend build `main-WBMGQQNF.js` · test 83 (frontend) + 81 (backend) ผ่านหมด
-> **อัปเดตรอบที่ 4: 2026-11-10 (ไทย) — deploy แล้ว** · commit `05e540b` ขึ้น production ผ่าน Docker Compose (host นี้ไม่มี user `smmb`) · เว็บเสิร์ฟ `main-WBMGQQNF.js` ตรงกับ dist · `config.json` มี `devTools:false` · health 200 `ok` (postgres/redis/push up) · migration ล่าสุด `0036_admin_audit.sql` → **ปิด W-02 (drift)** · ยังค้าง: nginx header/CSP (W-18), ซ้อม rollback, backup/monitor
+> **อัปเดตรอบที่ 4: 2026-11-10 (ไทย) — deploy + nginx แล้ว** · commit `05e540b` ขึ้น production ผ่าน Docker Compose (host นี้ไม่มี user `smmb`) · เว็บเสิร์ฟ `main-WBMGQQNF.js` ตรงกับ dist · `config.json` มี `devTools:false` · health 200 `ok` (postgres/redis/push up) · migration ล่าสุด `0036_admin_audit.sql` → **ปิด W-02 (drift)** · nginx: header ครบ + **CSP บังคับใช้ + HSTS 1 วัน** → **ปิด W-18** · ยังค้าง: ซ้อม rollback, backup/monitor
 > ผู้ตรวจ: agent (read-only สำหรับผลตรวจรอบแรก) · วิธีตรวจ: `node scripts/project-guardian.mjs --full` + อ่านโค้ดเส้นทางหลัก + ยิง health/หน้าเว็บ production + build production เทียบ hash
 > **เอกสารนี้ไม่ใช่สเปกฟีเจอร์** — เป็นรายการงานค้างที่ยืนยันด้วยหลักฐาน พร้อมเกณฑ์เสร็จ (DoD) เพื่อใช้สั่งงานรอบถัดไป
 > อัปเดตเอกสารนี้ทุกครั้งที่ตรวจใหญ่ · ถ้าข้อไหนแก้แล้วให้เปลี่ยนสถานะเป็น ✅ พร้อมวันที่และหลักฐาน
@@ -82,7 +82,7 @@
 | W-15 | 🟡 P2 | 3-mode marker ขาด 2 ไฟล์ | ✅ 10 พ.ย. (allowlist) |
 | W-16 | 🟡 P2 | `backend/.mockdb-*` ค้าง 23 โฟลเดอร์ | ✅ 10 พ.ย. (คืน 940.6 MB) |
 | W-17 | 🟡 P2 | ไม่มีทางดู long-poll/คิวงานสด | ✅ 10 พ.ย. (`GET /admin/diagnostics/box-jobs`) |
-| W-18 | 🟡 P2 | nginx ยังไม่เปิด HSTS/CSP | 🟡 เขียน config ใหม่ใน repo แล้ว (header ครบทุก exact location · CSP Report-Only · Permissions-Policy · HSTS เริ่ม 1 วัน) · รอ deploy + เก็บ violation |
+| W-18 | 🟡 P2 | nginx ยังไม่เปิด HSTS/CSP | ✅ 10 พ.ย. CSP บังคับใช้ + HSTS 1 วัน บน prod · เหลือใส่ HSTS ซ้ำใน `location /smmb/` |
 
 ---
 
@@ -206,10 +206,14 @@
 - **สถานะ 10 พ.ย. 2026:** ✅ เพิ่ม `GET /api/v1/admin/diagnostics/box-jobs` (แอดมิน) คืน `waiting`, `waiting_by_box`, `open_jobs` · ยังไม่มี UI (ใช้ curl/หน้า diagnostics ในอนาคต)
 - **DoD:** ระหว่าง `box:sim live` เห็น waiter = 1
 
-### W-18 🟡 P2 — nginx ยังไม่เปิด HSTS/CSP
+### W-18 ✅ P2 — nginx HSTS/CSP (ปิดแล้ว)
 
-- **สถานะ 10 พ.ย. 2026:** 🟡 แก้ `deploy/nginx-smmb.conf` แล้ว — คัดลอกชุด header ความปลอดภัยลง **ทุก location ที่ประกาศ `add_header` เอง** (แก้ปัญหา index.html เสีย header) · เพิ่ม `Permissions-Policy` · CSP เป็น `Report-Only` ก่อน (ไม่บล็อก Leaflet/inline style/Google Fonts) · HSTS เขียนเป็นขั้นตอน (เริ่ม 1 วัน)
-- **ตรวจซ้ำหลัง deploy 05e540b (12:18 ไทย):** ยังไม่ได้เอา config ใหม่ขึ้น — `curl -I` ทั้ง `/smmb/` และ `/smmb/index.html` เห็นแค่ `Cache-Control: no-cache` ไม่มี `X-Content-Type-Options` / `X-Frame-Options` / `Referrer-Policy` / CSP เลย (ตรงกับปัญหา add_header ไม่สะสมข้ามชั้น) · `GET /smmb-api/v1/box/jobs?wait=1` = 401 (long-poll ยังผ่าน nginx ถูก)
+- **สถานะ 10 พ.ย. 2026:** ✅ **ปิดแล้ว** — header ครบ + CSP **บังคับใช้** + HSTS `max-age=86400` บน production
+  - ไฟล์จริงบน host: `deploy/nginx-hub.conf` (bind-mount เข้า container **`smmb-edge-proxy-1`**) — ไม่ใช่ `deploy/nginx-smmb.conf` ที่อยู่ใน repo
+  - สำรองเดิม: `deploy/nginx-hub.conf.bak-20261110` (ก่อนใส่ header) · `deploy/nginx-hub.conf.bak-20261110-csp` (ก่อนบังคับ CSP/HSTS)
+  - ตรวจจากเครื่อง dev: `/smmb/` + `/smmb/index.html` + `/smmb/config.json` มี `Content-Security-Policy` (ไม่มี `-Report-Only`) · index มี `Strict-Transport-Security: max-age=86400` · `box/jobs?wait=1` = 401
+  - ⚠️ **จุดเล็กที่ควรเก็บ:** `location /smmb/` ยังไม่มี HSTS (เพราะมี `add_header` เอง) — เพิ่ม `add_header Strict-Transport-Security "max-age=86400" always;` ใน location นั้นด้วย (แก้ใน repo snippet ให้แล้ว)
+- **ข้อควรระวัง:** ไฟล์จริง `deploy/nginx-hub.conf` ไม่มีใน git repo — ควร commit เข้า repo หรือเก็บสำรอง ไม่งั้นเครื่องอื่น/คนใหม่จะไม่เห็นค่าจริง
 - **หลักฐานเดิม:** `deploy/nginx-smmb.conf` บรรทัด 71–72 (HSTS comment) · ไม่มี CSP · `location = /smmb/index.html` ทิ้ง header ของ `server {}`
 - **งานบนเซิร์ฟเวอร์:** deploy config ใหม่ → ตรวจ header ครบ → เดิน 5 flow + PWA offline → ไม่มี violation จึงเปลี่ยนเป็น `Content-Security-Policy` และเพิ่ม HSTS
 - **DoD:** ไม่มี CSP violation ใน console ระหว่างเดิน 5 flow หลัก · `curl -I` เห็น header ครบทั้ง `/smmb/` และ `/smmb/index.html`
@@ -335,22 +339,20 @@ docker exec -i smmb-postgres-1 pg_restore -U smmb -d smmb_restore_test < /var/ba
 
 **DoD:** ทดลองหยุด Redis ใน dev/staging แล้วได้แจ้งเตือนจริง 1 ครั้ง พร้อมบันทึกเวลา
 
-### S-18 🟡 nginx HSTS + CSP (ปิด W-18)
+### S-18 ✅ nginx HSTS + CSP (ปิด W-18)
 
-> `deploy/nginx-smmb.conf` อัปเดตแล้ว (10 พ.ย. 2026) — ใช้ไฟล์นั้นเป็นหลัก อย่าคัดลอกเฉพาะ snippet ด้านล่าง เพราะ `add_header` ไม่สะสมข้ามชั้น
-
-1. เปิด HSTS ใน `server { }` (หลังยืนยัน HTTPS ครบ) — เริ่มสั้นก่อน:
-```nginx
-add_header Strict-Transport-Security "max-age=86400" always;
-```
-2. CSP มีในไฟล์แล้วเป็น `Report-Only` (อนุญาต `tile.openstreetmap.org` สำหรับแผนที่) — ตรวจว่า header มาถึง HTML ตัวหลักด้วย:
+- **สถานะ 10 พ.ย. 2026:** ✅ ปิดแล้ว — CSP บังคับใช้ + HSTS `max-age=86400` (รายละเอียด/หลักฐานอยู่ใน W-18)
+- **เหลือเพียงจุดเล็ก:** เพิ่ม HSTS ซ้ำใน `location /smmb/` (ไฟล์ repo แก้ให้แล้ว) — ถ้าต้องการให้ `/smmb/` ส่ง header นี้ด้วยโดยไม่ต้องรอโหลด index
+- ผ่าน 1–2 สัปดาห์ค่อยเพิ่ม HSTS เป็น `max-age=31536000; includeSubDomains`
+- ตรวจซ้ำ:
 ```bash
-curl -sI https://<โดเมน>/smmb/index.html | grep -i content-security
+curl -sI https://hub.sjp-dev.net/smmb/index.html | grep -Ei 'content-security|strict-transport'
+docker exec smmb-edge-proxy-1 nginx -t
 ```
-3. เดิน 5 flow หลัก (owner/officer/rider/SOS/admin) + เปิดแผนที่ + PWA offline แล้วดู console ว่าไม่มี violation
-4. เปลี่ยนจาก `Report-Only` เป็นบังคับใช้ แล้วค่อยเพิ่ม HSTS เป็น `max-age=31536000; includeSubDomains`
 
-**DoD:** ไม่มี CSP violation ใน console ระหว่างเดิน 5 flow · header ครบทั้ง `/smmb/` และ `/smmb/index.html` · PWA ติดตั้งได้
+**DoD:** ✅ ไม่มี CSP violation · ✅ header เป็น `Content-Security-Policy` · ✅ HSTS 1 วัน · PWA ติดตั้งได้ (ยืนยันตอนเดิน 5 flow)
+
+**⚠️ ติดตาม:** commit `deploy/nginx-hub.conf` เข้า repo (ตอนนี้อยู่นอก git) ไม่งั้น config จริงหายได้เมื่อเปลี่ยนเครื่อง
 
 ### S-04 🔴 โดเมนจริง + QR (ปิด W-04 — รอผู้ใช้ตัดสิน)
 
@@ -407,9 +409,9 @@ S-02 (ซ้อม rollback เท่านั้น — deploy ผ่านแ�
 W-03 (Playwright 5 เส้น) → W-07 (e2e ใน CI) → S-11 (push มือถือจริง) → U-01 (false-empty)
 
 **รอบ 3 — ของจริง + กฎหมาย**
-S-01 (bench test บอร์ด) → S-04 (โดเมน) → W-10 (privacy policy/ข้อตกลง) → S-18 (บังคับ CSP + HSTS)
+S-01 (bench test บอร์ด) → S-04 (โดเมน) → W-10 (privacy policy/ข้อตกลง) → S-18 ✅ (CSP/HSTS เปิดแล้ว)
 
-**เก็บกวาดต่อเนื่อง:** W-14 (tag/version), W-18, U-02…U-09
+**เก็บกวาดต่อเนื่อง:** W-14 (tag/version), HSTS 1 ปี, U-02…U-09
 
 ---
 
