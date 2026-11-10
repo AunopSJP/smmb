@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, ElementRef, inject, input, model, viewChild } from '@angular/core';
 import type * as Leaflet from 'leaflet';
 import { I18n } from '../core/i18n';
+import { ApiConfig } from '../core/api';
 import { addBaseTiles } from './map-tiles';
 import type { LatLng } from './map-pin';
 
@@ -61,6 +62,7 @@ const DEFAULT_CENTER: LatLng = { lat: 13.7563, lng: 100.5018 };
 })
 export class AgencyMap {
   protected readonly i18n = inject(I18n);
+  private readonly api = inject(ApiConfig);
   readonly agencies = input<AgencyMapItem[]>([]);
   /** บ้านของเจ้าของ (ถ้ามีหมุด) */
   readonly home = input<LatLng | null>(null);
@@ -88,7 +90,7 @@ export class AgencyMap {
     this.L = L;
     const c = this.home() ?? DEFAULT_CENTER;
     const map = L.map(this.host().nativeElement, { zoomControl: true, attributionControl: true }).setView([c.lat, c.lng], 12);
-    addBaseTiles(L, map);
+    addBaseTiles(L, map, `${this.api.apiBase()}/api/v1/map-tiles`);
     this.map = map;
     this.sync(this.agencies(), this.home(), this.selected());
     this.resize = new ResizeObserver(() => {

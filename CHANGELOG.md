@@ -62,7 +62,7 @@
 - โหลดพังมี error+retry (`app-load-error`) แทนการขึ้น “ไม่มีข้อมูล” ใน notification, owner-history, admin-boxes, admin-people, head-zones
 - เวลานัด/ส่งคำขอ/เฟิร์มแวร์ใช้ `Asia/Bangkok` + ภาษาที่เลือก (ไม่พึ่ง TZ/locale ของเครื่อง)
 - Confirm ก่อนปิดบัญชีผู้ใช้ (D09) และก่อนถอดหัวหน้า/ปิดสิทธิ์เจ้าหน้าที่ (L05)
-- แผนที่: วัดขนาดใหม่เมื่อ container ถูกเปิด (details/แท็บที่ซ่อน) และสลับไป CARTO อัตโนมัติเมื่อ tile OSM โหลดไม่ได้ (504/ถูกบล็อก) — ตำแหน่งหมุดตรงและไม่เป็นช่องว่าง
+- แผนที่: วัดขนาดใหม่เมื่อ container ถูกเปิด (details/แท็บที่ซ่อน) · tile โหลดผ่าน backend ของเรา (`/api/v1/map-tiles`) แทนโดเมนภายนอก — กันเครือข่ายที่บล็อก OSM/CARTO (504) และ cache ในหน่วยความจำ (OSM → CARTO fallback ฝั่ง server)
 - เพิ่ม `<meta name="mobile-web-app-capable">` (แทน `apple-mobile-web-app-capable` ที่เบราว์เซอร์เตือนว่า deprecated; ยังเก็บตัวเดิมไว้ให้ iOS รุ่นเก่า)
 
 ## [0.1.0] — ยังไม่ติด tag

@@ -215,7 +215,8 @@
   - ⚠️ **จุดเล็กที่ควรเก็บ:** `location /smmb/` ยังไม่มี HSTS (เพราะมี `add_header` เอง) — เพิ่ม `add_header Strict-Transport-Security "max-age=86400" always;` ใน location นั้นด้วย (แก้ใน repo snippet ให้แล้ว)
   - ⚠️ **บทเรียน (10 พ.ย. 2026):** CSP `script-src 'self'` บล็อก inline script ของ Angular ที่สลับ critical CSS (`media="print"` → `all`) → global CSS ไม่โหลด การ์ด/ปุ่มเสียสไตล์ · แก้โดยเพิ่ม `'sha256-LMY6wYoFV9I4wWzxaq1N/dTpl4iurQktw706UCHK3vM='` ใน `script-src` (ทั้ง 2 location) · ถ้าอัปเกรด Angular ต้องคำนวณ hash ใหม่
   - ⚠️ **เพิ่ม 10 พ.ย.:** ต้องมี `blob:` ใน `style-src` ด้วย (มี stylesheet ที่โหลดผ่าน `blob:` — ถ้าไม่ให้ จะขึ้น violation และบางสไตล์หาย)
-  - ⚠️ **แผนที่/ฟอนต์:** service worker/Leaflet เรียกด้วย Fetch → ต้องอนุญาตใน `connect-src` ด้วย: `https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://fonts.googleapis.com https://fonts.gstatic.com` (และ `img-src` ต้องมี tile host)
+  - ✅ **แผนที่ (10 พ.ย. 2026):** เปลี่ยนมาโหลด tile ผ่าน backend `GET /api/v1/map-tiles/:z/:x/:y` (same-origin · cache ในหน่วยความจำ · OSM→CARTO ฝั่ง server) — CSP ไม่ต้องเปิดโดเมนแผนที่ภายนอกแล้ว · เซิร์ฟเวอร์ต้องออกเน็ตไป OSM/CARTO ได้ (ตรวจแล้ว 200)
+  - ฟอนต์ self-host แล้ว (`public/fonts/`) — CSP ตัด `fonts.googleapis.com`/`gstatic.com` ออกได้
   - `401 GET /api/v1/me` ใน console = session หมดอายุ/ยังไม่ล็อกอิน — build ใหม่จะพาไปหน้าเข้าสู่ระบบพร้อม `next`; ถ้ายังค้างให้ล้าง service worker แล้วล็อกอินใหม่
   - Cloudflare Web Analytics (`static.cloudflareinsights.com`) ถูก CSP บล็อก — เลือกอย่างใดอย่างหนึ่ง: ปิดใน Cloudflare dashboard (แนะนำ) หรืออนุญาต origin ใน `script-src` + `connect-src` (ทำใน repo แล้ว)
 - **ข้อควรระวัง:** ไฟล์จริง `deploy/nginx-hub.conf` ไม่มีใน git repo — ควร commit เข้า repo หรือเก็บสำรอง ไม่งั้นเครื่องอื่น/คนใหม่จะไม่เห็นค่าจริง

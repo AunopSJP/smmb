@@ -127,6 +127,10 @@ cat /var/www/smmb/config.json         # ต้องเป็น apiBase = /smmb
 
 คัดลอกบล็อกจาก `deploy/nginx-smmb.conf` ไปใส่ใน `server { }` ของโดเมน (ที่มี HTTPS อยู่แล้ว) แล้ว
 
+> **แผนที่:** เบราว์เซอร์โหลด tile ผ่าน backend (`/smmb-api/api/v1/map-tiles/...`) ไม่ได้เรียก OSM/CARTO ตรง ๆ แล้ว
+> — nginx ไม่ต้องเพิ่ม location สำหรับ tile · แต่ **เซิร์ฟเวอร์ต้องออกเน็ต HTTPS ไป `tile.openstreetmap.org` / `*.basemaps.cartocdn.com` ได้**
+> (backend cache 7 วัน + fallback ให้เอง) · CSP ไม่ต้องเปิดโดเมนแผนที่ภายนอก
+
 ```bash
 sudo nginx -t && sudo systemctl reload nginx
 ```

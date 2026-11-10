@@ -14,6 +14,7 @@ import { validateEnv } from './config/env.js';
 import { DbModule } from './db/db.module.js';
 import { AuditModule } from './common/audit.service.js';
 import { HealthController } from './health/health.controller.js';
+import { MapModule } from './map/map.module.js';
 import { PushModule } from './push/push.module.js';
 import { SupportModule } from './support/support.module.js';
 
@@ -34,6 +35,7 @@ import { SupportModule } from './support/support.module.js';
     SchedulerModule,
     RiderModule,
     SosModule,
+    MapModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: AllExceptionsFilter }],

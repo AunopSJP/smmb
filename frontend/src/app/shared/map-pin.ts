@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, ElementRef, inject, input, model, signal, viewChild } from '@angular/core';
 import type * as Leaflet from 'leaflet';
 import { I18n } from '../core/i18n';
+import { ApiConfig } from '../core/api';
 import { Icon } from './icon';
 import { addBaseTiles } from './map-tiles';
 
@@ -88,6 +89,7 @@ export const directionsUrl = (p: LatLng) => `https://www.google.com/maps/dir/?ap
 })
 export class MapPin {
   protected readonly i18n = inject(I18n);
+  private readonly api = inject(ApiConfig);
   readonly value = model<LatLng | null>(null);
   readonly editable = input(false);
   readonly height = input(220);
@@ -114,7 +116,7 @@ export class MapPin {
     this.L = L;
     const start = this.value() ?? DEFAULT_CENTER;
     const map = L.map(this.host().nativeElement, { zoomControl: true, attributionControl: true }).setView([start.lat, start.lng], this.value() ? 17 : 11);
-    addBaseTiles(L, map);
+    addBaseTiles(L, map, `${this.api.apiBase()}/api/v1/map-tiles`);
     if (this.editable()) map.on('click', (e: Leaflet.LeafletMouseEvent) => this.value.set({ lat: round6(e.latlng.lat), lng: round6(e.latlng.lng) }));
     this.map = map;
     this.sync(this.value());
