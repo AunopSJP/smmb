@@ -303,7 +303,7 @@
 - signup มีสรุป error + ร่างบ้าน/step ไม่หายเมื่ออ่านข้อตกลง
 - error→empty หลายหน้าถูกแก้ (เหลือ admin-hub), scroll restoration, `/error/offline` กู้ได้, easy tabs นิ่ง, focus trap/skip link
 
-**ยังเหลือจากรอบนี้:** ยกเลิกนัดช่าง (เลื่อนนัดได้แล้ว) · composite widget arrow keys (radio/tab) · easy mode แอดมินบนมือถือยังไม่ถึง D16/ตั้งค่าโดยตรง (มีลิงก์ใน D01) · dead code บางส่วน/P2-26
+**ยังเหลือจากรอบนี้:** composite widget arrow keys (radio/tab) · easy mode แอดมินบนมือถือยังไม่ถึง D16/ตั้งค่าโดยตรง (มีลิงก์ใน D01) · dead code บางส่วน/P2-26
 
 ## 3.3 งานฝั่งเซิร์ฟเวอร์ — พร้อมสั่ง Codex (ทำจาก SSH เท่านั้น)
 

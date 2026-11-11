@@ -345,7 +345,7 @@ export class AdminApi {
   technicianRequests(status?: AdminTechnicianRequest['status']): Promise<AdminTechnicianRequest[]> {
     return this.get(`/api/v1/admin/technician-requests${status ? `?status=${status}` : ''}`);
   }
-  updateTechnicianRequest(id: string, input: { status: 'scheduled' | 'done'; scheduled_at?: string; note?: string }): Promise<AdminTechnicianRequest> {
+  updateTechnicianRequest(id: string, input: { status: 'open' | 'scheduled' | 'done'; scheduled_at?: string; note?: string }): Promise<AdminTechnicianRequest> {
     return firstValueFrom(this.http.patch<AdminTechnicianRequest>(`/api/v1/admin/technician-requests/${encodeURIComponent(id)}`, input));
   }
   qrIssues(health?: AdminQrHealth[]): Promise<AdminQrIssue[]> {

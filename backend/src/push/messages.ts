@@ -27,6 +27,7 @@ export const NOTIFICATION_TYPES = [
   'technician_request',
   'technician_scheduled',
   'technician_done',
+  'technician_cancelled',
   'qr_technician_dispatch',
   'plan_expiring',
   'box_wifi_reset',
@@ -209,6 +210,10 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
   technician_done: {
     th: (d) => ({ title: 'ช่างแก้ไขแล้ว', body: `ตู้ ${s(d.box_id)}${s(d.note) ? ` · ${s(d.note)}` : ''}` }),
     en: (d) => ({ title: 'Technician visit completed', body: `Mailbox ${s(d.box_id)}${s(d.note) ? ` · ${s(d.note)}` : ''}` }),
+  },
+  technician_cancelled: {
+    th: (d) => ({ title: 'ยกเลิกนัดช่างแล้ว', body: `ตู้ ${s(d.box_id)}${s(d.note) ? ` · ${s(d.note)}` : ''}` }),
+    en: (d) => ({ title: 'Technician appointment cancelled', body: `Mailbox ${s(d.box_id)}${s(d.note) ? ` · ${s(d.note)}` : ''}` }),
   },
   qr_technician_dispatch: {
     th: (d) => ({ title: '🔧 งาน QR รอช่างแก้ไข', body: `ตู้ ${s(d.box_id)} · ตรวจ/ติด QR ใหม่` }),

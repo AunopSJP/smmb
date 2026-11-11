@@ -95,7 +95,7 @@ class TechnicianRequestsQuery {
 }
 
 class UpdateTechnicianRequestDto {
-  @IsIn(['scheduled', 'done']) status!: 'scheduled' | 'done';
+  @IsIn(['open', 'scheduled', 'done']) status!: 'open' | 'scheduled' | 'done';
   @ValidateIf((dto: UpdateTechnicianRequestDto) => dto.status === 'scheduled') @IsDateString() scheduled_at?: string;
   @IsOptional() @Transform(trim) @IsString() @MaxLength(500) note?: string;
 }

@@ -3,6 +3,7 @@ import { AdminApi, type AdminTechnicianRequest } from '../../core/admin-api';
 import { DisplaySettings } from '../../core/display-settings';
 import { I18n } from '../../core/i18n';
 import { Toast } from '../../core/toast';
+import { Confirm } from '../../shared/confirm-dialog';
 import { PageHeader } from '../../shared/page-header';
 import { screenUrl } from '../../screens/registry';
 
@@ -51,6 +52,7 @@ import { screenUrl } from '../../screens/registry';
                 @if (scheduleValue(request.id)) {
                   <button type="button" class="btn secondary" [disabled]="saving() === request.id" (click)="schedule(request)">{{ i18n.t({ th: 'เลื่อนนัดและแจ้งเจ้าของ', en: 'Reschedule and notify owner' }) }}</button>
                 }
+                <button type="button" class="btn secondary" [disabled]="saving() === request.id" (click)="cancel(request)">{{ i18n.t({ th: 'ยกเลิกนัด', en: 'Cancel appointment' }) }}</button>
                 <button type="button" class="btn secondary" [disabled]="saving() === request.id" (click)="complete(request)">{{ i18n.t({ th: 'ปิดงานช่าง', en: 'Complete request' }) }}</button>
               } @else if (request.admin_note) {
                 <p class="muted small">{{ request.admin_note }}</p>
@@ -82,6 +84,7 @@ export class AdminTechnicianRequests implements OnInit {
   private readonly api = inject(AdminApi);
   private readonly toast = inject(Toast);
   private readonly display = inject(DisplaySettings);
+  private readonly confirm = inject(Confirm);
   protected readonly url = screenUrl;
   /** เวลานัด/ส่งคำขอ — fix TZ ไทย + ภาษา */
   protected dateTime(iso: string | null | undefined): string {
@@ -149,7 +152,18 @@ export class AdminTechnicianRequests implements OnInit {
     await this.update(request, { status: 'done', ...(this.noteValue(request.id).trim() ? { note: this.noteValue(request.id).trim() } : {}) });
   }
 
-  private async update(request: AdminTechnicianRequest, input: { status: 'scheduled' | 'done'; scheduled_at?: string; note?: string }): Promise<void> {
+  protected async cancel(request: AdminTechnicianRequest): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: { th: 'ยกเลิกนัดช่าง?', en: 'Cancel the technician appointment?' },
+      body: { th: 'เจ้าของบ้านจะได้รับแจ้งว่านัดถูกยกเลิก และคำขอจะกลับไปสถานะรอจัดการ', en: 'The owner will be told the appointment is cancelled and the request goes back to open.' },
+      confirm: { th: 'ยกเลิกนัด', en: 'Cancel appointment' },
+      danger: true,
+    });
+    if (!ok) return;
+    await this.update(request, { status: 'open', note: this.noteValue(request.id).trim() || undefined });
+  }
+
+  private async update(request: AdminTechnicianRequest, input: { status: 'open' | 'scheduled' | 'done'; scheduled_at?: string; note?: string }): Promise<void> {
     this.saving.set(request.id);
     try {
       await this.api.updateTechnicianRequest(request.id, input);

@@ -99,10 +99,10 @@ export class TechnicianRequestService {
     return rows.map((row) => this.toDto(row));
   }
 
-  async update(id: string, input: { status: 'scheduled' | 'done'; scheduled_at?: string; note?: string }): Promise<TechnicianRequestDto> {
+  async update(id: string, input: { status: 'open' | 'scheduled' | 'done'; scheduled_at?: string; note?: string }): Promise<TechnicianRequestDto> {
     const { rows } = await this.pool.query<RequestRow>(
       `UPDATE app.technician_request_tb tr SET status = $2,
-         scheduled_date = CASE WHEN $2 = 'scheduled' THEN $3::timestamptz ELSE tr.scheduled_date END,
+         scheduled_date = CASE WHEN $2 = 'scheduled' THEN $3::timestamptz WHEN $2 = 'open' THEN NULL ELSE tr.scheduled_date END,
          admin_note = $4
        WHERE tr.technician_request_id = $1 AND tr.status <> 'done'
        RETURNING tr.technician_request_id::text AS id`,
@@ -112,7 +112,7 @@ export class TechnicianRequestService {
     const { rows: detail } = await this.pool.query<RequestRow>(`${this.selectSql()} WHERE tr.technician_request_id = $1`, [id]);
     const result = this.toDto(detail[0]);
     await this.notifications.notify([await this.ownerId(id)], {
-      type: result.status === 'scheduled' ? 'technician_scheduled' : 'technician_done',
+      type: result.status === 'scheduled' ? 'technician_scheduled' : result.status === 'done' ? 'technician_done' : 'technician_cancelled',
       data: { box_id: result.box_id, scheduled_at: result.scheduled_at ?? '', note: result.admin_note ?? '' },
       link: '/home/settings/technician',
     }).catch(() => undefined);
