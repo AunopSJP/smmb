@@ -9,6 +9,7 @@ import { liveRefresh } from '../core/live-refresh';
 import { screenUrl } from '../screens/registry';
 import { Icon } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
+import { LoadError } from '../shared/state-view';
 
 /** api.md §8.1 GET /agency/today */
 interface Today {
@@ -41,12 +42,15 @@ interface RecentLog {
 /** L04 หน้าหลักหัวหน้า — ภาพรวมทีมวันนี้ (ตัวกรองโซนของฉัน/ทุกโซน) · ใช้ API จริง · 3 โหมดตามแคนวาส */
 @Component({
   selector: 'app-head-home',
-  imports: [RouterLink, PageHeader, Icon],
+  imports: [RouterLink, PageHeader, Icon, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'หัวหน้าหน่วยงาน', en: 'Agency head' })" [title]="api.agency()?.name ?? ''" [bell]="url('L09')" />
 
     <div class="stack">
+      @if (failed()) {
+        <app-load-error (retry)="retry()" />
+      }
       <p class="adv-only code-row">
         <span>{{ i18n.t({ th: 'รหัสกลุ่ม ', en: 'Group code ' }) }}<b>{{ code() || '—' }}</b></span>
       </p>
@@ -72,9 +76,9 @@ interface RecentLog {
           <span class="big-ic"><app-icon name="shield" [size]="26" /></span>
           <span class="grow">
             <b>SOS</b>
-            <span>{{ (today()?.sos_open ?? 0) > 0 ? i18n.t({ th: 'มีเคสเปิดอยู่ตอนนี้', en: 'A case is open now' }) : i18n.t({ th: 'ตอนนี้ไม่มีเคสเปิดอยู่', en: 'No case open right now' }) }}</span>
+            <span>{{ failed() ? i18n.t({ th: 'โหลดสถานะ SOS ไม่ได้', en: 'Could not load SOS status' }) : (today()?.sos_open ?? 0) > 0 ? i18n.t({ th: 'มีเคสเปิดอยู่ตอนนี้', en: 'A case is open now' }) : i18n.t({ th: 'ตอนนี้ไม่มีเคสเปิดอยู่', en: 'No case open right now' }) }}</span>
           </span>
-          <span class="big-n">{{ today()?.sos_open ?? 0 }}</span>
+          <span class="big-n">{{ today() ? (today()!.sos_open) : '—' }}</span>
         </a>
 
         @if ((today()?.members_pending ?? 0) > 0) {
@@ -121,7 +125,7 @@ interface RecentLog {
             <p class="label">{{ i18n.t({ th: 'ออนไลน์', en: 'Online' }) }}</p>
           </div>
           <a class="stat link" [routerLink]="url('O12')">
-            <p class="value">{{ today()?.sos_open ?? 0 }}</p>
+            <p class="value">{{ today() ? (today()!.sos_open) : '—' }}</p>
             <p class="label">SOS</p>
           </a>
         </div>
@@ -136,7 +140,7 @@ interface RecentLog {
             <p class="label">{{ i18n.t({ th: 'ตู้ออฟไลน์', en: 'Offline boxes' }) }}</p>
           </div>
           <a class="stat link" [routerLink]="url('O12')">
-            <p class="value">{{ today()?.sos_open ?? 0 }}</p>
+            <p class="value">{{ today() ? (today()!.sos_open) : '—' }}</p>
             <p class="label">{{ i18n.t({ th: 'SOS เปิดอยู่', en: 'Open SOS' }) }}</p>
           </a>
         </div>
@@ -429,6 +433,7 @@ export class HeadHome {
   /** รายชื่อโซนทั้งหมดไว้ให้เลือก (ไม่เปลี่ยนตามตัวกรอง) */
   protected readonly zoneOptions = signal<{ id: string; name: string }[]>([]);
   protected readonly today = signal<Today | null>(null);
+  protected readonly failed = signal(false);
   protected readonly recent = signal<RecentLog[]>([]);
   protected readonly checked = computed(() => (this.today()?.zones ?? []).reduce((n, z) => n + z.houses_checked, 0));
   protected readonly total = computed(() => (this.today()?.zones ?? []).reduce((n, z) => n + z.houses_total, 0));
@@ -487,7 +492,17 @@ export class HeadHome {
   }
 
   private async load(f: string): Promise<void> {
-    this.today.set(await firstValueFrom(this.http.get<Today>(`/api/v1/agency/today?zone=${f}`)).catch(() => null));
+    try {
+      this.today.set(await firstValueFrom(this.http.get<Today>(`/api/v1/agency/today?zone=${f}`)));
+      this.failed.set(false);
+    } catch {
+      // คงข้อมูลเดิมไว้ — ห้ามแทนด้วย 0/“ไม่มี SOS” เพราะหัวหน้าอาจตัดสินใจผิด
+      this.failed.set(true);
+    }
+  }
+
+  protected retry(): void {
+    void this.refreshAll();
   }
 
   private async loadRecent(): Promise<void> {

@@ -3,6 +3,7 @@ import { AdminApi, type AdminBoxRow, type FirmwareInfo } from '../../core/admin-
 import { apiError } from '../../core/api';
 import { I18n } from '../../core/i18n';
 import { Toast } from '../../core/toast';
+import { Confirm } from '../../shared/confirm-dialog';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
 
@@ -135,6 +136,7 @@ export class AdminFirmware {
   protected readonly i18n = inject(I18n);
   private readonly api = inject(AdminApi);
   private readonly toast = inject(Toast);
+  private readonly confirm = inject(Confirm);
   protected readonly url = screenUrl;
   protected readonly list = signal<FirmwareInfo[]>([]);
   protected readonly boxes = signal<AdminBoxRow[]>([]);
@@ -191,6 +193,18 @@ export class AdminFirmware {
   }
 
   protected async setAuto(version: string | null): Promise<void> {
+    if (version) {
+      const ok = await this.confirm.ask({
+        title: { th: 'ให้ตู้ทุกใบอัปเดตเป็นรุ่นนี้?', en: 'Update every box to this version?' },
+        body: {
+          th: `ตู้ทุกใบในระบบจะอัปเดตเป็น ${version} เมื่อกลับมาออนไลน์ — ถ้าไฟล์มีปัญหา ตู้จะได้รับผลทั้งหมด`,
+          en: `Every box in the system will update to ${version} when it comes online — a bad file affects all of them.`,
+        },
+        confirm: { th: 'ใช้รุ่นนี้กับทุกตู้', en: 'Use for all boxes' },
+        danger: true,
+      });
+      if (!ok) return;
+    }
     this.busy.set(true);
     try {
       this.auto.set((await this.api.setFirmwareAuto(version)).version);

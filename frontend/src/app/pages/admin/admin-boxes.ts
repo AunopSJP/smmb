@@ -178,6 +178,11 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
         }
       </div>
       <p class="muted small easy-hide">{{ i18n.t({ th: 'ทั้งหมด ' + total() + ' ตู้', en: total() + ' mailboxes' }) }}</p>
+      @if (boxes().length < total()) {
+        <button type="button" class="btn secondary" [disabled]="loadingMore()" (click)="loadMore()">
+          {{ loadingMore() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'โหลดเพิ่ม ', en: 'Load more ' }) + boxes().length + '/' + total() }}
+        </button>
+      }
       <p class="muted small adv-only">{{ i18n.t({ th: 'ออฟไลน์ = ไม่ poll เกิน 3 นาทีในเวลาตรวจ · เงียบ = ไม่เห็นเกิน 26 ชม.', en: 'Offline = no poll for over 3 min in patrol hours · silent = unseen over 26 h' }) }}</p>
     </div>
   `,
@@ -551,14 +556,33 @@ export class AdminBoxes implements OnInit {
 
   private async load(): Promise<void> {
     try {
-      const r = await this.api.boxes();
+      const r = await this.api.boxes('', 1);
       this.boxes.set(r.data);
       this.total.set(r.total);
+      this.page = 1;
       this.loadFailed.set(false);
     } catch {
       if (!this.boxes().length) this.loadFailed.set(true);
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  private page = 1;
+  protected readonly loadingMore = signal(false);
+
+  protected async loadMore(): Promise<void> {
+    if (this.loadingMore() || this.boxes().length >= this.total()) return;
+    this.loadingMore.set(true);
+    try {
+      const r = await this.api.boxes('', this.page + 1);
+      this.boxes.update((list) => [...list, ...r.data]);
+      this.total.set(r.total);
+      this.page += 1;
+    } catch {
+      this.loadFailed.set(true);
+    } finally {
+      this.loadingMore.set(false);
     }
   }
 

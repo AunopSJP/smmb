@@ -60,6 +60,10 @@ export interface BoxDetailDto extends BoxSummary {
   coverage: { has_officer: boolean; agency_names: string[] };
   patrol: { in_window: boolean; windows: [string, string][]; tz: string };
   latest_events: BoxEventDto[];
+  /** เวลาตรวจผ่านล่าสุด (ไม่จำกัด 5 เหตุการณ์) — ใช้บนหน้าหลัก */
+  last_inspected_at: string | null;
+  /** จำนวนของมาส่งวันนี้ตามเวลาไทย (นับจากตาราง delivery ไม่ใช่ 5 เหตุการณ์ล่าสุด) */
+  deliveries_today: number;
   open_sos: { id: string; stage: SosStage; status: SosStatus } | null;
   qr_task: { case_id: string; health: string; requested_at: string } | null;
   wifi_reset: WifiResetDto;
@@ -104,7 +108,7 @@ export class OwnerBoxService {
   async detail(userId: string, boxId: string): Promise<BoxDetailDto> {
     const [box] = await this.summaries(userId, boxId);
     if (!box) throw new NotFoundException();
-    const [row, cfg, coverage, events, openSos, qrTask] = await Promise.all([
+    const [row, cfg, coverage, events, summary, openSos, qrTask] = await Promise.all([
       this.pool.query<{
         battery_pct: number | null;
         charging: boolean | null;
@@ -129,6 +133,16 @@ export class OwnerBoxService {
         [boxId, userId],
       ),
       this.eventsOf(boxId, 5, 0),
+      this.pool.query<{ last_inspected: Date | null; deliveries_today: number }>(
+        `SELECT
+           (SELECT max(i.checked_date) FROM app.inspection_tb i
+             WHERE i.box_id = $1 AND i.status = 'passed'
+               AND i.checked_date >= coalesce((SELECT bound_date FROM app.box_tb WHERE box_id = $1), '-infinity')) AS last_inspected,
+           (SELECT count(*)::int FROM app.delivery_tb d
+             WHERE d.box_id = $1
+               AND (d.created_date AT TIME ZONE 'Asia/Bangkok')::date = (now() AT TIME ZONE 'Asia/Bangkok')::date) AS deliveries_today`,
+        [boxId],
+      ),
       this.sos.openForBox(boxId),
       this.pool.query<{ case_id: string; health: string; created_date: Date }>(
         `SELECT c.qr_issue_case_id::text AS case_id, q.health, c.created_date
@@ -150,6 +164,8 @@ export class OwnerBoxService {
       },
       patrol: { in_window: minutesIntoWindow(cfg.config.windows, new Date()) !== null, windows: cfg.config.windows, tz: BOX_TZ },
       latest_events: events,
+      last_inspected_at: summary.rows[0]?.last_inspected?.toISOString() ?? null,
+      deliveries_today: summary.rows[0]?.deliveries_today ?? 0,
       open_sos: openSos,
       qr_task: qrTask.rows[0]
         ? { case_id: qrTask.rows[0].case_id, health: qrTask.rows[0].health, requested_at: qrTask.rows[0].created_date.toISOString() }

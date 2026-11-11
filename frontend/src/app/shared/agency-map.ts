@@ -28,7 +28,7 @@ const DEFAULT_CENTER: LatLng = { lat: 13.7563, lng: 100.5018 };
 @Component({
   selector: 'app-agency-map',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<div class="map" #host [style.block-size.px]="height()" role="application" [attr.aria-label]="i18n.t({ th: 'แผนที่หน่วยงาน', en: 'Map of agencies' })"></div>`,
+  template: `<div class="map" #host [style.block-size.px]="height()" role="group" [attr.aria-label]="i18n.t({ th: 'แผนที่หน่วยงาน', en: 'Map of agencies' })"></div>`,
   styles: `
     .map {
       inline-size: 100%;

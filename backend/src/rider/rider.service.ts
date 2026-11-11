@@ -109,7 +109,7 @@ export class RiderService {
       await this.notifications.notify([box.owner_user_id], {
         type: 'delivered',
         data: { box_id: box.box_id, box_name: box.name, method: t.m, at: new Date().toISOString() },
-        link: `/home/history/delivery?id=${deliveryId}`,
+        link: `/home/history/delivery?id=${deliveryId}&box=${encodeURIComponent(box.box_id)}`,
       });
     } catch (err) {
       this.logger.error(`delivered notification failed: ${(err as Error).message}`);

@@ -326,6 +326,12 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
             }
           </p>
         }
+        @if (session.me(); as me) {
+          @if (!me.roles.length) {
+            <p class="info-box small">{{ i18n.t({ th: 'เข้าสู่ระบบอยู่แล้วในชื่อ ', en: 'Signed in as ' }) }}{{ me.display_name }} — {{ i18n.t({ th: 'บัญชีนี้ยังไม่มีบทบาทที่ใช้งานได้', en: 'this account has no usable role yet' }) }}</p>
+            <button type="button" class="link center" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบเพื่อใช้บัญชีอื่น', en: 'Sign out to use another account' }) }}</button>
+          }
+        }
         <label class="field">
           <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
           <input type="tel" inputmode="tel" autocomplete="tel" [value]="phone()" (input)="phone.set($any($event.target).value)" />
@@ -397,8 +403,7 @@ export class AuthSignin implements OnInit {
   protected readonly busy = signal(false);
   protected readonly error = signal<{ title: Tr; sub: Tr } | null>(null);
   /** รหัส/สถานะจริงของ error — แสดงเฉพาะโหมดละเอียด (กฎข้อ 10: ผู้ใช้ทั่วไปเห็นข้อความ ไม่ใช่ code) */
-  protected readonly errorInfo = signal<string | null>(null);
-  protected readonly choose = signal<DemoAccountRole[] | null>(null);
+  protected readonly errorInfo = signal<string | null>(null);  protected readonly choose = signal<DemoAccountRole[] | null>(null);
 
   protected ready(): boolean {
     return !!normalizePhone(this.phone()) && this.password().length > 0;
@@ -472,6 +477,11 @@ export class AuthSignin implements OnInit {
   protected enter(role: DemoAccountRole): void {
     this.session.use(role);
     void this.router.navigateByUrl(ROLE_HOME[role], { replaceUrl: true });
+  }
+
+  /** บัญชีที่ล็อกอินค้างแต่ไม่มีบทบาท — ต้องออกได้ ไม่ให้ติดหน้าเข้าสู่ระบบ */
+  protected signout(): void {
+    void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true }));
   }
 }
 

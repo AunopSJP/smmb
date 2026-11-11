@@ -197,7 +197,7 @@ export class AuthSignupOfficer {
       void this.router.navigateByUrl(screenUrl('A11'), { replaceUrl: true });
     } catch (err) {
       const e = apiError(err);
-      this.errorCode.set(e.code === 'PHONE_TAKEN' || e.code === 'GROUP_CODE_INVALID' ? e.code : 'INVALID');
+      this.errorCode.set(e.code === 'PHONE_TAKEN' || e.code === 'GROUP_CODE_INVALID' ? e.code : e.status === 0 ? 'NETWORK' : (e.status ?? 0) >= 500 ? 'SERVER' : 'INVALID');
       if (e.code === 'GROUP_CODE_INVALID') this.step.set(1);
     } finally {
       this.busy.set(false);
@@ -420,8 +420,14 @@ export class AuthPushRequired {
       }
       <p class="muted small">{{ i18n.t({ th: 'ฉบับ ', en: 'Version ' }) }}<span class="mono">{{ version }}</span></p>
       
+      @if (failed()) {
+        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ยอมรับไม่สำเร็จ — ลองอีกครั้ง หรือออกจากระบบ', en: 'Could not accept — try again, or sign out' }) }}</p>
+      }
       <p class="muted small easy-only">{{ i18n.t({ th: 'โหมดง่ายแสดงเฉพาะสาระสำคัญ — อ่านฉบับเต็มได้ในโหมดปกติ', en: 'Easy mode shows the key points only — read the full text in normal mode' }) }}</p>
-      <button type="button" class="btn push-end" (click)="accept()">{{ i18n.t({ th: 'ยอมรับ', en: 'Accept' }) }}</button>
+      <button type="button" class="btn push-end" [disabled]="busy()" (click)="accept()">{{ busy() ? i18n.t({ th: 'กำลังบันทึก…', en: 'Saving…' }) : i18n.t({ th: 'ยอมรับ', en: 'Accept' }) }}</button>
+      @if (update()) {
+        <button type="button" class="btn secondary" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
+      }
     </div>
   `,
   styles: `
@@ -452,6 +458,8 @@ export class AuthTerms {
   protected readonly i18n = inject(I18n);
   private readonly demo = inject(AuthDemo);
   private readonly router = inject(Router);
+  protected readonly busy = signal(false);
+  protected readonly failed = signal(false);
   /** ?from=A06|A10|L01|A15|A16 — กลับไปฟอร์มเดิมพร้อมติ๊กยอมรับให้ */
   readonly from = input<string>();
   readonly returnTo = input<string>();
@@ -485,15 +493,28 @@ export class AuthTerms {
 
   /** ยอมรับตอนสมัคร = ส่ง terms_version ไปกับ signup · ข้อตกลงเปลี่ยน = POST /me/terms */
   protected async accept(): Promise<void> {
+    if (this.busy()) return;
     if (this.update()) {
-      const terms = await firstValueFrom(this.http.get<{ version: string }>('/api/v1/terms/current'));
-      await firstValueFrom(this.http.post('/api/v1/me/terms', { terms_version: terms.version }));
-      await this.session.refresh();
-      void this.router.navigateByUrl('/', { replaceUrl: true });
+      this.busy.set(true);
+      this.failed.set(false);
+      try {
+        const terms = await firstValueFrom(this.http.get<{ version: string }>('/api/v1/terms/current'));
+        await firstValueFrom(this.http.post('/api/v1/me/terms', { terms_version: terms.version }));
+        await this.session.refresh();
+        void this.router.navigateByUrl('/', { replaceUrl: true });
+      } catch {
+        this.failed.set(true);
+      } finally {
+        this.busy.set(false);
+      }
       return;
     }
     const form = this.formOf(this.from());
     if (form) this.demo.forms[form].update((f) => ({ ...f, terms: true }));
     void this.router.navigateByUrl(this.backUrl(), { replaceUrl: true });
+  }
+
+  protected signout(): void {
+    void this.session.signout().then(() => this.router.navigateByUrl('/auth/signin', { replaceUrl: true }));
   }
 }

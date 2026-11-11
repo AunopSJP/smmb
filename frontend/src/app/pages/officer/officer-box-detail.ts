@@ -5,7 +5,7 @@ import { InspectionApi, type OfficerBoxDetail } from '../../core/inspection-api'
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
-import { LoadingRows } from '../../shared/state-view';
+import { LoadingRows, LoadError } from '../../shared/state-view';
 
 const STATUS: Record<OfficerBoxDetail['box']['status'], { label: Tr; icon: IconName; tone: '' | 'warn' | 'danger' }> = {
   online: { label: { th: 'ตู้ออนไลน์ พร้อมตรวจ', en: 'Online — ready to inspect' }, icon: 'check', tone: '' },
@@ -18,7 +18,7 @@ const STATUS: Record<OfficerBoxDetail['box']['status'], { label: Tr; icon: IconN
 /** OffBoxDetail — รายละเอียดตู้ก่อนเริ่มตรวจ (เฉพาะตู้ในโซนของเจ้าหน้าที่) */
 @Component({
   selector: 'app-officer-box-detail',
-  imports: [RouterLink, PageHeader, Icon, LoadingRows],
+  imports: [RouterLink, PageHeader, Icon, LoadingRows, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="caption()" [title]="detail()?.box?.name || (detail()?.box?.house_no ?? i18n.t({ th: 'รายละเอียดตู้', en: 'Mailbox details' }))" [back]="url('O01')" />
@@ -26,11 +26,7 @@ const STATUS: Record<OfficerBoxDetail['box']['status'], { label: Tr; icon: IconN
       @if (loading()) {
         <app-loading-rows [rows]="3" [label]="i18n.t({ th: 'กำลังโหลดรายละเอียดตู้', en: 'Loading mailbox details' })" />
       } @else if (error()) {
-        <section class="card stack">
-          <strong>{{ i18n.t({ th: 'เปิดรายละเอียดตู้ไม่ได้', en: 'Could not open this mailbox' }) }}</strong>
-          <span class="muted small">{{ i18n.t({ th: 'ตู้อาจไม่อยู่ในโซนของคุณ หรือถูกลบไปแล้ว', en: 'It may not be in your zones, or it was removed.' }) }}</span>
-          <a class="btn secondary" [routerLink]="url('O01')">{{ i18n.t({ th: 'กลับหน้าสรุป', en: 'Back to summary' }) }}</a>
-        </section>
+        <app-load-error (retry)="load()" />
       } @else if (detail(); as d) {
         <section class="card status-card" [class.warn]="s().tone === 'warn'" [class.danger]="s().tone === 'danger'">
           <span class="status-icon"><app-icon [name]="s().icon" [size]="24" /></span>
@@ -120,7 +116,7 @@ export class OfficerBoxDetailPage implements OnInit {
     void this.load();
   }
 
-  private async load(): Promise<void> {
+  protected async load(): Promise<void> {
     const id = this.id();
     if (!id) {
       this.loading.set(false);

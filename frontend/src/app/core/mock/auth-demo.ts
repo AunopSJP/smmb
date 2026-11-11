@@ -1,6 +1,7 @@
 import { Injectable, Optional, signal, type WritableSignal } from '@angular/core';
 import { AppReset } from '../app-reset';
 import type { Tr } from '../i18n';
+import type { HouseProfileForm } from '../../shared/house-fields';
 
 // ล็อกอิน / สมัคร / เปลี่ยนรหัส / เพิ่มบทบาท — **จำลองในหน่วยความจำของหน้าเว็บเท่านั้น ไม่สร้างบัญชีจริง ไม่เรียก backend**
 // (เรื่องบัญชี/ฐานข้อมูลยังไม่ได้ตัดสินใจ — CLAUDE.md "ตอนนี้: ทำหน้าเว็บก่อน")
@@ -121,6 +122,8 @@ export class AuthDemo {
       this.officerRequest.set(null);
       this.agencyRequest.set(null);
       this.ownerHouse.set(null);
+      this.ownerHouseForm.set(null);
+      this.ownerStep.set(1);
       this.boxName.set('ตู้หน้าบ้าน');
       this.fails.clear();
     });
@@ -130,6 +133,10 @@ export class AuthDemo {
   readonly officerRequest = signal<{ agency: Tr; contact: string; at: string } | null>(null);
   readonly agencyRequest = signal<{ name: string; type: SignupForm['agency_type']; contact: string; at: string } | null>(null);
   readonly ownerHouse = signal<string | null>(null);
+  /** ร่างข้อมูลบ้านของฟอร์มสมัครเจ้าของบ้าน — กลับจากหน้าข้อตกลงแล้วต้องไม่หาย */
+  readonly ownerHouseForm = signal<HouseProfileForm | null>(null);
+  /** ขั้นตอนสมัครเจ้าของบ้านที่ค้างไว้ (1–3) */
+  readonly ownerStep = signal(1);
   readonly boxName = signal('ตู้หน้าบ้าน');
 
   account(phone: string): DemoAccount | undefined {

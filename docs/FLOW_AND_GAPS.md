@@ -283,6 +283,28 @@
 | U-08 | P2 | ไม่มี CSRF token (พึ่ง SameSite/cookie) — ควรเพิ่ม double-submit หรือตรวจ Origin ฝั่ง server | `core/api.ts`, backend guard |
 | U-09 | P3 | ลบ dead code/ตัวซ้ำ (owner-home-alerts, mock state, component ยักษ์ 1,400–1,700 บรรทัด) + เพิ่ม test guard/401/QR print | ตามรายงาน audit |
 
+## 3.2-b ผลตรวจ UX/UI รอบ 2 (11 พ.ย. 2026)
+
+> รายงานเต็ม: **`docs/UX_UI_AUDIT_2026-11-11.md`** · ตรวจ commit `38ac237` + งาน multi-box ที่ยังไม่ commit · read-only
+> **อัปเดต 11 พ.ย. 2026: แก้ P0 ครบ + P1 ส่วนใหญ่แล้ว** — SOS easy contrast, การ์ด SOS error+ปุ่มโทร, `?box=` ทุกเมนู/H13-b, `last_inspected_at`/`deliveries_today`, push link+H12 `?box=`, easy headline ตาม coverage, H11 link-lost, error+retry หลายหน้า, scroll restoration, offline recovery, officer badge/O05/O06, head overview/officer toggle, admin confirm 3 จุด + load more ตู้/ผู้ใช้ + เมนู D16/ตั้งค่า/A14, signup validation/ร่างฟอร์ม, A13/A04 signout, focus trap/skip link. **ยังเหลือ:** P2 ตามรายงาน (toast, easy settings, tile error, theme flash, rider, TZ, activation QR, title) + P1-11 total จาก server + D11 logs 100 แถว
+
+**P0 (เส้น SOS) — แก้แล้ว:**
+- `UX-A01` H09 โหมดง่าย ตัวอักษร/ปุ่มยกเลิก SOS สีขาวบนพื้นสว่าง (อ่าน/กดไม่เห็น) — `owner/owner-sos.ts:157-201`, `styles.scss:745-756` → เพิ่มพื้น `--sos-bg` ให้ `.easy-sos`
+- `UX-A02` H03 การ์ด “ส่ง SOS ไม่สำเร็จ” อยู่นอก `.page` หลัง `.sos-bar` fixed และไม่มีปุ่มโทร — `owner-home.ts:312-343` → ย้ายเข้า `.page` + `app-call-buttons` + scrollIntoView
+
+**P1 ที่แก้แล้ว (รายละเอียด/ไฟล์ในรายงาน):**
+- เจ้าของหลายตู้: `?box=` ทุกเมนู + H13-b แสดงบ้านเลขที่
+- หน้าแรกใช้ `last_inspected_at`/`deliveries_today` จาก DB
+- push `inspected`/`delivered` มี `&box=` + H12/H12-d อ่าน `?box=`
+- easy headline ไม่ยืนยัน “ปลอดภัย” เมื่อไม่มีเจ้าหน้าที่
+- head overview / officer SOS list มี error+retry ไม่ยืนยัน 0/ไม่มี SOS
+- officer badge หมดอายุหยุดวน + ปุ่มสร้างใหม่; `?problem=1` โหลดบ้านเลขที่; O05/O06 มีปุ่มยกเลิก
+- admin firmware/reset password/QR reissue มี confirm; D03/D09 load more; คอนโซลเข้าถึง D16/ตั้งค่า/A14
+- signup มีสรุป error + ร่างบ้าน/step ไม่หายเมื่ออ่านข้อตกลง
+- error→empty หลายหน้าถูกแก้ (เหลือ admin-hub), scroll restoration, `/error/offline` กู้ได้, easy tabs นิ่ง, focus trap/skip link
+
+**ยังเหลือจากรอบนี้:** P2 ทุกข้อในรายงาน + P1-11 (total จาก server) + P1-15 (D11 log 100 แถว)
+
 ## 3.3 งานฝั่งเซิร์ฟเวอร์ — พร้อมสั่ง Codex (ทำจาก SSH เท่านั้น)
 
 > ส่วนนี้ agent ในเครื่อง dev ทำต่อไม่ได้ (ไม่มี SSH ไป `hub.sjp-dev.net`) — คัดลอกคำสั่งนี้ให้ Codex บนเซิร์ฟเวอร์ทำทีละข้อ แล้วบันทึกผลกลับในเอกสารนี้

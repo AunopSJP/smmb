@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal, type OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, type OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { apiError } from '../../core/api';
@@ -30,6 +30,8 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
   PHONE_TAKEN: { th: 'เบอร์นี้มีบัญชีแล้ว — เข้าสู่ระบบแล้วเพิ่มบทบาทแทน', en: 'This number already has an account — sign in and add the role instead' },
   GROUP_CODE_INVALID: { th: 'รหัสกลุ่มไม่ถูกต้อง — ตรวจสอบกับหัวหน้าอีกครั้ง', en: 'Group code not found — check it with your head' },
   INVALID: { th: 'กรอกข้อมูลให้ครบและถูกต้อง', en: 'Please complete the form correctly' },
+  NETWORK: { th: 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Could not reach the server — check your internet and try again' },
+  SERVER: { th: 'เซิร์ฟเวอร์ขัดข้อง — ลองอีกครั้งภายหลัง', en: 'The server is having trouble — try again later' },
 };
 
 // ── A06 · สมัครเจ้าของบ้าน (+ A06-b ไม่ยอมรับข้อตกลง) ──────────────
@@ -42,6 +44,9 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
     <app-page-header [caption]="i18n.t({ th: 'ขั้น ' + step() + ' จาก 3', en: 'Step ' + step() + ' of 3' })" [title]="i18n.t({ th: 'สมัครเจ้าของบ้าน', en: 'Homeowner sign-up' })" [back]="step() === 1 ? url('A05') : undefined" />
     <span class="progress" role="progressbar" aria-valuemin="1" aria-valuemax="3" [attr.aria-valuenow]="step()"><span [style.width.%]="(step() / 3) * 100"></span></span>
     <form class="stack grow" (submit)="$event.preventDefault(); step() < 3 ? next() : submit()">
+      @if (stepError(); as e) {
+        <p class="card err" role="alert" id="signup-error">{{ i18n.t(e) }}</p>
+      }
       @if (step() === 1) {
       <section class="form-section">
         <h2 class="form-title">{{ i18n.t({ th: 'ข้อมูลบัญชี', en: 'Your account' }) }}</h2>
@@ -140,10 +145,25 @@ export class AuthSignupOwner implements OnInit {
   readonly state = input<string>();
   protected readonly f = this.demo.forms.owner;
   protected readonly tried = signal(false);
-  /** ขั้นของฟอร์ม 1 บัญชี · 2 บ้าน · 3 ข้อตกลง (ตามแคนวาสดีไซน์) */
-  protected readonly step = signal(1);
-  /** ที่อยู่ + หมุด + ผู้ติดต่อฉุกเฉิน (✅ 2026-11-04) */
-  protected readonly house = signal(emptyHouseProfile());
+  /** ขั้นของฟอร์ม 1 บัญชี · 2 บ้าน · 3 ข้อตกลง (ตามแคนวาสดีไซน์) — จำไว้ใน AuthDemo เพื่อกลับจากข้อตกลงแล้วไม่เริ่มใหม่ */
+  protected readonly step = this.demo.ownerStep;
+  /** ที่อยู่ + หมุด + ผู้ติดต่อฉุกเฉิน (✅ 2026-11-04) — เก็บร่างใน AuthDemo */
+  protected readonly house = signal(this.demo.ownerHouseForm() ?? emptyHouseProfile());
+  /** สรุปว่าขั้นนี้ยังขาดอะไร — แสดงเป็นข้อความ ไม่ใช่แค่ขอบแดง */
+  protected readonly stepError = computed<Tr | null>(() => {
+    if (!this.tried()) return null;
+    const f = this.f();
+    if (this.step() === 1) {
+      if (!f.name.trim()) return { th: 'กรอกชื่อ - นามสกุล', en: 'Enter your full name' };
+      if (!normalizePhone(f.phone)) return { th: 'กรอกเบอร์โทร 10 หลักให้ถูกต้อง', en: 'Enter a valid 10-digit phone number' };
+      if (f.password.length < this.min) return { th: `รหัสผ่านต้องมีอย่างน้อย ${this.min} ตัว`, en: `Password must be at least ${this.min} characters` };
+    }
+    if (this.step() === 2) {
+      if (!f.house_no.trim()) return { th: 'กรอกบ้านเลขที่', en: 'Enter the house number' };
+      if (!houseProfileValid(this.house())) return { th: 'กรอกที่อยู่บ้าน ประเภทบ้าน รหัสไปรษณีย์ และจำนวนผู้อยู่อาศัยให้ครบ (ช่องที่มีขอบแดง)', en: 'Fill in the home address, house type, postal code and number of residents (red fields)' };
+    }
+    return null;
+  });
   protected readonly errorCode = signal<string | null>(null);
   protected readonly error = computed(() => (this.errorCode() ? SIGNUP_ERROR[this.errorCode()!] : null));
   protected readonly phoneOk = computed(() => !!normalizePhone(this.f().phone));
@@ -151,6 +171,11 @@ export class AuthSignupOwner implements OnInit {
     const f = this.f();
     return !!(f.name.trim() && f.phone && f.password && f.house_no.trim());
   });
+
+  constructor() {
+    // เก็บร่างข้อมูลบ้านไว้ให้กลับจากหน้าข้อตกลงได้
+    effect(() => this.demo.ownerHouseForm.set(this.house()));
+  }
 
   ngOnInit(): void {
     if (this.state() === 'no-terms') {
@@ -166,9 +191,10 @@ export class AuthSignupOwner implements OnInit {
 
   protected next(): void {
     this.tried.set(true);
-    const f = this.f();
-    if (this.step() === 1 && (!f.name.trim() || !normalizePhone(f.phone) || f.password.length < this.min)) return;
-    if (this.step() === 2 && (!f.house_no.trim() || !houseProfileValid(this.house()))) return;
+    if (this.stepError()) {
+      setTimeout(() => document.getElementById('signup-error')?.scrollIntoView({ block: 'center' }), 0);
+      return;
+    }
     this.tried.set(false);
     this.step.update((n) => n + 1);
   }
@@ -191,10 +217,13 @@ export class AuthSignupOwner implements OnInit {
       await this.session.refresh();
       this.session.use('owner');
       this.f.set({ ...f, password: '' });
+      this.house.set(emptyHouseProfile());
+      this.demo.ownerHouseForm.set(null);
+      this.demo.ownerStep.set(1);
       void this.router.navigate([screenUrl('A07')], { queryParams: { from: 'A06' }, replaceUrl: true });
     } catch (err) {
       const e = apiError(err);
-      this.errorCode.set(e.code === 'PHONE_TAKEN' ? 'PHONE_TAKEN' : 'INVALID');
+      this.errorCode.set(e.code === 'PHONE_TAKEN' ? 'PHONE_TAKEN' : e.status === 0 ? 'NETWORK' : (e.status ?? 0) >= 500 ? 'SERVER' : 'INVALID');
     } finally {
       this.busy.set(false);
     }

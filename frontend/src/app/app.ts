@@ -28,8 +28,26 @@ export class App {
     const win = inject(DOCUMENT).defaultView;
     const router = inject(Router);
     const session = inject(Session);
+    const AFTER_OFFLINE = 'smmb.after-offline';
     const onOffline = () => {
-      if (!win?.location.pathname.startsWith('/error/')) void router.navigateByUrl('/error/offline');
+      if (!win || win.location.pathname.startsWith('/error/')) return;
+      try {
+        sessionStorage.setItem(AFTER_OFFLINE, win.location.pathname + win.location.search);
+      } catch {
+        /* storage ปิด — ยังพาไปหน้า error ได้ */
+      }
+      void router.navigateByUrl('/error/offline');
+    };
+    const onOnline = () => {
+      if (!win?.location.pathname.startsWith('/error/offline')) return;
+      let back = '/';
+      try {
+        back = sessionStorage.getItem(AFTER_OFFLINE) || '/';
+        sessionStorage.removeItem(AFTER_OFFLINE);
+      } catch {
+        /* ใช้ '/' */
+      }
+      win.location.assign(back);
     };
     const onExpired = (e: Event) => {
       session.invalidate();
@@ -37,9 +55,11 @@ export class App {
       void router.navigateByUrl(next ? `/auth/signin?next=${encodeURIComponent(next)}` : '/auth/signin', { replaceUrl: true });
     };
     win?.addEventListener('offline', onOffline);
+    win?.addEventListener('online', onOnline);
     win?.addEventListener('smmb:session-expired', onExpired);
     inject(DestroyRef).onDestroy(() => {
       win?.removeEventListener('offline', onOffline);
+      win?.removeEventListener('online', onOnline);
       win?.removeEventListener('smmb:session-expired', onExpired);
     });
   }

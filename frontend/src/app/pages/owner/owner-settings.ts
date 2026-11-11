@@ -10,6 +10,7 @@ import { BoxPicker } from '../../shared/box-picker';
 import { MapPin, type LatLng } from '../../shared/map-pin';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
+import { LoadError } from '../../shared/state-view';
 import { PushStatus } from '../../shared/push-status';
 import { AccountActions } from '../auth/auth-account';
 import { extrasFromProfile, extrasPayload, extrasValid, ProfileExtras } from '../../shared/profile-extras';
@@ -20,7 +21,7 @@ import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-owner-settings',
-  imports: [RouterLink, PageHeader, Icon, AccountActions, PushStatus, MapPin, ProfileExtras, BoxPicker],
+  imports: [RouterLink, PageHeader, Icon, AccountActions, PushStatus, MapPin, ProfileExtras, BoxPicker, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
@@ -29,6 +30,9 @@ import { firstValueFrom } from 'rxjs';
       [bell]="url('H14')"
     />
     <div class="stack grow">
+      @if (failed()) {
+        <app-load-error (retry)="retry()" />
+      }
       <!-- 1) เรื่องที่ต้องทำก่อน -->
       <app-push-status class="easy-hide" [compact]="true" />
       @for (r of zoneRequests(); track r.id) {
@@ -43,7 +47,7 @@ import { firstValueFrom } from 'rxjs';
           </div>
         </section>
       }
-      @if (loaded() && !boxes().length) {
+      @if (loaded() && !failed() && !boxes().length) {
         <section class="card nobox" role="status">
           <strong>{{ i18n.t({ th: 'ยังไม่ได้ผูกตู้', en: 'No mailbox linked yet' }) }}</strong>
           <span class="muted small">{{ i18n.t({ th: 'โปรดผูกตู้ก่อน จึงจะตั้งค่าตู้ได้ — สแกน QR เปิดใช้ตู้ที่อยู่ด้านในตู้', en: 'Link your mailbox first to change its settings — scan the activation QR inside the box' }) }}</span>
@@ -74,7 +78,7 @@ import { firstValueFrom } from 'rxjs';
             </span>
             <app-icon name="chevronRight" [size]="20" />
           </a>
-          <a class="row" [routerLink]="url('H13-c')">
+          <a class="row" [routerLink]="url('H13-c')" [queryParams]="boxQuery()">
             <span class="icon-bubble"><app-icon name="user" [size]="22" /></span>
             <span class="grow">
               <strong>{{ i18n.t({ th: 'ขอให้ช่างมาดู', en: 'Ask a technician' }) }}</strong>
@@ -219,6 +223,11 @@ import { firstValueFrom } from 'rxjs';
                 } @else {
                   <p class="muted small">{{ i18n.t({ th: 'ยังไม่ได้ปักหมุด — ปักไว้ช่วยให้เจ้าหน้าที่มาถึงเร็วขึ้นตอน SOS', en: 'No pin yet — a pin helps officers reach you faster during an SOS' }) }}</p>
                 }
+                @if (suggestSource(); as s) {
+                  <p class="muted small">
+                    {{ i18n.t({ th: 'มีที่อยู่ของบ้านเลขที่ ', en: 'House ' }) }}{{ s.house_no || s.name }}{{ i18n.t({ th: ' อยู่แล้ว — กดแก้ไข ระบบจะเติมที่อยู่และหมุดเดียวกันให้', en: ' already has an address — tap edit to fill in the same address and pin' }) }}
+                  </p>
+                }
                 <button type="button" class="btn secondary" (click)="startAddr()">{{ i18n.t({ th: 'แก้ไขที่อยู่และหมุด', en: 'Edit address and pin' }) }}</button>
               }
             </div>
@@ -254,7 +263,7 @@ import { firstValueFrom } from 'rxjs';
               </span>
             </div>
           } @else {
-          <a class="row" [routerLink]="url(m.code)">
+          <a class="row" [routerLink]="url(m.code)" [queryParams]="m.needsBox ? boxQuery() : null">
             <span class="icon-bubble"><app-icon [name]="m.icon" [size]="20" /></span>
             <span class="grow">
               <strong>{{ i18n.t(m.title) }}</strong>
@@ -433,11 +442,17 @@ export class OwnerSettings {
   private readonly api = inject(OwnerApi);
   private readonly session = inject(Session);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(Toast);
   protected readonly boxes = signal<BoxSummary[]>([]);
   protected readonly box = signal<BoxDetail | null>(null);
   protected readonly renaming = signal(false);
   protected readonly draft = signal('');
+  /** ส่ง ?box= ต่อให้หน้าลูก (Wi-Fi/ช่าง) — null = ไม่มีตู้ */
+  protected boxQuery(): { box: string } | null {
+    const id = this.box()?.id;
+    return id ? { box: id } : null;
+  }
   protected readonly plan = signal<PlanInfo | null>(null);
   protected readonly editingArea = signal(false);
   protected readonly areaDraft = signal('');
@@ -458,6 +473,15 @@ export class OwnerSettings {
   protected readonly copySources = computed(() =>
     this.boxes().filter((x) => x.id !== this.box()?.id && (!!x.address?.line || !!x.address?.subdistrict || !!x.address?.district || !!x.address?.province || !!x.location)),
   );
+  /** ตู้ที่ควรใช้เป็นต้นแบบอัตโนมัติ เมื่อตู้ปัจจุบันยังไม่มีที่อยู่/หมุด (เลือกบ้านเลขที่เดียวกันก่อน) */
+  protected readonly suggestSource = computed(() => {
+    const b = this.box();
+    if (!b) return null;
+    const a = b.address;
+    if (a?.line || a?.subdistrict || a?.district || a?.province || b.location) return null;
+    const list = this.copySources();
+    return list.find((x) => x.house_no && x.house_no === b.house_no) ?? list[0] ?? null;
+  });
   /** ลำดับคำขอโหลดตู้ — สลับตู้เร็ว ๆ แล้วคำตอบเก่าห้ามทับ */
   private openSeq = 0;
   /** บรรทัดสรุปตอนพับอยู่ — บอกว่ากรอกครบหรือยัง */
@@ -469,6 +493,7 @@ export class OwnerSettings {
   protected readonly triedExtras = signal(false);
   /** โหลดรายการตู้เสร็จแล้ว — ยังไม่มีตู้ = ตั้งค่าตู้ไม่ได้ ให้ผูกตู้ก่อน */
   protected readonly loaded = signal(false);
+  protected readonly failed = signal(false);
   /** เครื่องนี้เปิดแจ้งเตือนแล้ว (ใช้ในเมนูโหมดง่าย) */
   protected readonly pushOn = computed(() => this.session.me()?.push.subscribed === true);
   /** ที่อยู่กรอกครบหรือยัง (ใช้ป้ายในเมนูโหมดง่าย) */
@@ -480,21 +505,38 @@ export class OwnerSettings {
   constructor() {
     void this.api.plan().then((p) => this.plan.set(p)).catch(() => undefined);
     void this.loadRequests();
-    void this.api
-      .boxes()
-      .then((b) => {
-        this.boxes.set(b);
-        this.loaded.set(true);
-        if (b[0]) void this.open(b[0].id);
-      })
-      .catch(() => this.loaded.set(true));
+    void this.loadBoxes();
+  }
+
+  protected retry(): void {
+    void this.loadBoxes();
+  }
+
+  private async loadBoxes(): Promise<void> {
+    try {
+      const b = await this.api.boxes();
+      this.boxes.set(b);
+      this.loaded.set(true);
+      this.failed.set(false);
+      const wanted = this.route.snapshot.queryParamMap.get('box');
+      const initial = b.find((x) => x.id === wanted) ?? b[0];
+      if (initial) await this.open(initial.id);
+    } catch {
+      this.loaded.set(true);
+      this.failed.set(true);
+    }
   }
 
   protected async open(id: string): Promise<void> {
     const seq = ++this.openSeq;
-    const detail = await this.api.box(id).catch(() => null);
-    if (seq !== this.openSeq) return;
-    this.box.set(detail);
+    try {
+      const detail = await this.api.box(id);
+      if (seq !== this.openSeq) return;
+      this.box.set(detail);
+      this.failed.set(false);
+    } catch {
+      if (seq === this.openSeq) this.failed.set(true);
+    }
   }
 
   /** เปลี่ยนตู้จากตัวเลือก — ปิดฟอร์มที่แก้ค้างของตู้เดิม กันกดบันทึกข้ามตู้ */
@@ -600,9 +642,17 @@ export class OwnerSettings {
   protected startAddr(): void {
     const b = this.box();
     if (!b) return;
-    this.addr.set({ ...b.address });
-    this.pin.set(b.location);
-    this.copiedFrom.set(null);
+    // ตู้ใหม่ที่ยังไม่มีที่อยู่: เติมจากบ้านเลขที่เดียวกันให้ก่อน (กดครั้งเดียวจบ)
+    const src = this.suggestSource();
+    if (src) {
+      this.addr.set({ ...src.address });
+      this.pin.set(src.location);
+      this.copiedFrom.set(src.house_no || src.name || src.id);
+    } else {
+      this.addr.set({ ...b.address });
+      this.pin.set(b.location);
+      this.copiedFrom.set(null);
+    }
     this.editingAddr.set(true);
   }
 
@@ -694,7 +744,7 @@ export class OwnerSettings {
   imports: [RouterLink, PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'ตั้งค่า', en: 'Settings' })" [title]="i18n.t({ th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' })" [back]="url('H13')" />
+    <app-page-header [caption]="box() ? i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + (box()!.house_no ?? '') + (display.advancedMode() ? ' · ' + box()!.id + ' · ' + box()!.name : '') : i18n.t({ th: 'ตั้งค่า', en: 'Settings' })" [title]="i18n.t({ th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' })" [back]="url('H13')" />
     <div class="stack grow">
       @if (!loaded()) {
         <p class="muted">{{ i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
@@ -764,7 +814,7 @@ export class OwnerSettings {
           } @else {
             <button type="button" class="btn" (click)="confirming.set(true)">{{ i18n.t({ th: 'เปลี่ยน Wi-Fi ตอนนี้', en: 'Change Wi-Fi now' }) }}</button>
           }
-          <a class="btn secondary" [routerLink]="url('H13-c')">{{ i18n.t({ th: 'แจ้งช่างแทน', en: 'Ask a technician instead' }) }}</a>
+          <a class="btn secondary" [routerLink]="url('H13-c')" [queryParams]="box() ? { box: box()!.id } : null">{{ i18n.t({ th: 'แจ้งช่างแทน', en: 'Ask a technician instead' }) }}</a>
         </div>
       }
     </div>
@@ -945,7 +995,7 @@ export class OwnerWifi {
           </select>
         </label>
       }
-      @if (loaded() && !boxes().length) {
+      @if (loaded() && !failed() && !boxes().length) {
         <section class="card nobox" role="status">
           <strong>{{ i18n.t({ th: 'ยังไม่ได้ผูกตู้', en: 'No mailbox linked yet' }) }}</strong>
           <span class="muted small">{{ i18n.t({ th: 'โปรดผูกตู้ก่อน จึงจะตั้งค่าตู้ได้ — สแกน QR เปิดใช้ตู้ที่อยู่ด้านในตู้', en: 'Link your mailbox first to change its settings — scan the activation QR inside the box' }) }}</span>
@@ -1175,6 +1225,7 @@ export class OwnerTechnician {
     });
   }
   private readonly api = inject(OwnerApi);
+  private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(Toast);
   protected readonly phone = inject(Session).me()?.phone ?? '';
   protected readonly boxes = signal<{ id: string; name: string; house_no: string }[]>([]);
@@ -1196,14 +1247,16 @@ export class OwnerTechnician {
 
   /** โหลดรายการตู้เสร็จแล้ว — ยังไม่มีตู้ = แจ้งช่างไม่ได้ ให้ผูกตู้ก่อน */
   protected readonly loaded = signal(false);
+  protected readonly failed = signal(false);
 
   constructor() {
     void this.api.boxes().then((boxes) => {
       this.boxes.set(boxes);
       this.loaded.set(true);
-      const first = boxes[0];
+      const wanted = this.route.snapshot.queryParamMap.get('box');
+      const first = boxes.find((b) => b.id === wanted) ?? boxes[0];
       if (first) { this.boxId.set(first.id); void this.loadRequests(first.id); }
-    }).catch(() => this.error.set(true));
+    }).catch(() => { this.error.set(true); this.failed.set(true); });
   }
 
   protected reasonLabel(reason: TechnicianRequest['reason']): string {

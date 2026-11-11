@@ -9,6 +9,7 @@ import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { Confirm } from '../../shared/confirm-dialog';
 import { PageHeader } from '../../shared/page-header';
+import { LoadError } from '../../shared/state-view';
 import { liveRefresh } from '../../core/live-refresh';
 
 // หัวหน้า: L05 สมาชิก (คำขอรอยืนยันอยู่บนสุด) · L05-b รายละเอียดสมาชิก — ใช้ API จริง (api.md §8.2)
@@ -30,11 +31,14 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
 
 @Component({
   selector: 'app-head-members',
-  imports: [RouterLink, PageHeader],
+  imports: [RouterLink, PageHeader, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [title]="i18n.t({ th: 'สมาชิก', en: 'Members' })" [bell]="url('L09')" />
     <div class="stack">
+      @if (failed()) {
+        <app-load-error (retry)="reload()" />
+      }
       <div class="segmented easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'มุมมอง', en: 'View' })">
         <button type="button" [attr.aria-pressed]="view() === 'pending'" (click)="view.set('pending')">{{ i18n.t({ th: 'รออนุมัติ', en: 'Waiting' }) }} {{ pending().length }}</button>
         <button type="button" [attr.aria-pressed]="view() === 'all'" (click)="view.set('all')">{{ i18n.t({ th: 'ทั้งหมด', en: 'All' }) }} {{ team().length + pending().length }}</button>
@@ -154,6 +158,7 @@ export class HeadMembers implements OnInit {
   private readonly session = inject(Session);
   protected readonly meId = computed(() => this.session.me()?.id ?? null);
   protected readonly all = signal<Member[]>([]);
+  protected readonly failed = signal(false);
   protected readonly pending = computed(() => this.all().filter((m) => m.status === 'pending'));
   /** รออนุมัติ / ทั้งหมด (ตามแคนวาสดีไซน์) */
   protected readonly view = signal<'pending' | 'all'>('pending');
@@ -173,8 +178,17 @@ export class HeadMembers implements OnInit {
     await this.load();
   }
 
+  protected reload(): void {
+    void this.load();
+  }
+
   private async load(): Promise<void> {
-    this.all.set(await this.api.members().catch(() => []));
+    try {
+      this.all.set(await this.api.members());
+      this.failed.set(false);
+    } catch {
+      this.failed.set(true);
+    }
     if (!this.initialViewSet) {
       this.initialViewSet = true;
       this.view.set(this.pending().length ? 'pending' : 'all');

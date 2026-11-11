@@ -14,6 +14,7 @@ import { LoadingRows } from '../shared/state-view';
 import { Toast } from '../core/toast';
 import { Session } from '../core/session';
 import { liveRefresh } from '../core/live-refresh';
+import { CallButtons } from './owner/call-buttons';
 
 /** ต้องกดค้างกี่วินาทีถึงส่ง SOS (กันกดโดนโดยไม่ตั้งใจ ✅) */
 const HOLD_SEC = 3;
@@ -23,7 +24,7 @@ const REFRESH_MS = 10_000;
 /** H03 หน้าหลักเจ้าของบ้าน (api.md §4.2) · H03-L แบบเรียบง่าย · H03-e กดค้าง SOS — ข้อมูลจริง */
 @Component({
   selector: 'app-owner-home',
-  imports: [RouterLink, PageHeader, Icon, LoadingRows, BoxPicker],
+  imports: [RouterLink, PageHeader, Icon, LoadingRows, BoxPicker, CallButtons],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (noBox()) {
@@ -128,8 +129,8 @@ const REFRESH_MS = 10_000;
               <li>{{ i18n.t({ th: 'เพิ่งเปลี่ยนรหัส Wi-Fi ใช่ไหม', en: 'Did you just change the Wi-Fi password?' }) }}</li>
             </ol>
             <div class="two">
-              <a class="btn secondary" [routerLink]="url('H13-b')">{{ i18n.t({ th: 'ตั้ง Wi-Fi ใหม่', en: 'Set up Wi-Fi' }) }}</a>
-              <a class="btn" [routerLink]="url('H13-c')">{{ i18n.t({ th: 'แจ้งช่าง', en: 'Get a technician' }) }}</a>
+              <a class="btn secondary" [routerLink]="url('H13-b')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'ตั้ง Wi-Fi ใหม่', en: 'Set up Wi-Fi' }) }}</a>
+              <a class="btn" [routerLink]="url('H13-c')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'แจ้งช่าง', en: 'Get a technician' }) }}</a>
             </div>
           </section>
         }
@@ -309,6 +310,13 @@ const REFRESH_MS = 10_000;
         @if (error()) {
           <p class="muted small center">{{ i18n.t({ th: 'อัปเดตไม่สำเร็จ · กำลังลองอีกครั้ง', en: 'Couldn’t refresh · retrying' }) }}</p>
         }
+        @if (sosError()) {
+          <section id="sos-error" class="card err stack" role="alert">
+            <strong>{{ i18n.t({ th: 'ส่ง SOS ไม่สำเร็จ', en: 'Couldn’t send the SOS' }) }}</strong>
+            <span class="small">{{ i18n.t({ th: 'โทรแจ้งเหตุเองทันที — เจ้าหน้าที่ยังไม่ได้รับแจ้ง', en: 'Call for help yourself now — officers have not been alerted' }) }}</span>
+            <app-call-buttons [big]="true" />
+          </section>
+        }
       </div>
 
       <div class="sos-bar">
@@ -338,10 +346,6 @@ const REFRESH_MS = 10_000;
           </span>
         </button>
       </div>
-      @if (sosError()) {
-        <p class="card err" role="alert">{{ i18n.t({ th: 'ส่ง SOS ไม่สำเร็จ — โปรดโทร 191 / 1669 ทันที', en: 'Couldn’t send the SOS — call 191 / 1669 now' }) }}</p>
-      }
-
       @if (holding()) {
         <!-- H03-e: นับถอยหลังระหว่างกดค้าง · ปล่อยก่อน = ยกเลิก -->
         <div class="hold" role="alert" aria-live="assertive">
@@ -568,6 +572,7 @@ export class OwnerHome implements OnDestroy {
   protected easyHeadline(b: BoxDetail): string {
     if (b.status === 'offline') return this.i18n.t({ th: 'ตู้ติดต่อไม่ได้', en: 'The mailbox is offline' });
     if (b.status === 'service_closed') return this.i18n.t({ th: 'ตู้ปิดบริการอยู่', en: 'The mailbox is not in service' });
+    if (!b.coverage.has_officer) return this.i18n.t({ th: 'ยังไม่มีเจ้าหน้าที่ดูแลบ้านนี้', en: 'No officer covers this home yet' });
     if (b.status === 'sleeping') return this.i18n.t({ th: 'ตู้พักอยู่ ปกติดี', en: 'Asleep · all good' });
     return this.i18n.t({ th: 'บ้านคุณปลอดภัยดี', en: 'Your home is safe' });
   }
@@ -578,6 +583,9 @@ export class OwnerHome implements OnDestroy {
     }
     if (b.status === 'service_closed') {
       return this.i18n.t({ th: 'ติดต่อผู้ดูแลระบบหากต้องการเปิดใช้ตู้อีกครั้ง', en: 'Contact the admin if you want the mailbox back in service' });
+    }
+    if (!b.coverage.has_officer) {
+      return this.i18n.t({ th: 'กด SOS แล้วระบบจะบอกให้โทร 191 / 1669 ทันที', en: 'If you press SOS, the app will tell you to call 191 / 1669 right away' });
     }
     if (b.status === 'sleeping') {
       return this.i18n.t({ th: 'นอกเวลาตรวจ ตู้จะตื่นเองเมื่อถึงเวลาตรวจ', en: 'Outside patrol hours — it wakes by itself for the next patrol' });
@@ -613,17 +621,18 @@ export class OwnerHome implements OnDestroy {
 
   /** ข้อความเวลาตรวจล่าสุด หรือ '' ถ้ายังไม่เคยมี */
   protected lastInspection(b: BoxDetail): string {
-    const e = b.latest_events.find((x) => x.type === 'inspected');
-    return e ? this.day(e.at) + ' ' + hhmm(e.at) : '';
+    const at = b.last_inspected_at ?? b.latest_events.find((x) => x.type === 'inspected')?.at;
+    return at ? this.day(at) + ' ' + hhmm(at) : '';
   }
 
   /** เวลาตรวจล่าสุดแบบอ่านง่าย (โหมดง่าย) */
   protected lastCheck(b: BoxDetail): string {
-    const e = b.latest_events.find((x) => x.type === 'inspected');
-    return e ? `${this.day(e.at)} ${this.i18n.t({ th: 'เวลา', en: 'at' })} ${hhmm(e.at)}` : this.i18n.t({ th: 'ยังไม่มี', en: 'None yet' });
+    const at = b.last_inspected_at ?? b.latest_events.find((x) => x.type === 'inspected')?.at;
+    return at ? `${this.day(at)} ${this.i18n.t({ th: 'เวลา', en: 'at' })} ${hhmm(at)}` : this.i18n.t({ th: 'ยังไม่มี', en: 'None yet' });
   }
 
   protected deliveriesToday(b: BoxDetail): number {
+    if (typeof b.deliveries_today === 'number') return b.deliveries_today;
     const ymd = (iso: string) => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
     const t = ymd(new Date().toISOString());
     return b.latest_events.filter((x) => x.type !== 'inspected' && ymd(x.at) === t).length;
@@ -714,6 +723,8 @@ export class OwnerHome implements OnDestroy {
         void this.router.navigate([screenUrl(existing.status === 'accepted' ? 'H11' : 'H09')], { queryParams: { id: existing.id } });
       } else {
         this.sosError.set(true);
+        // การ์ด error อยู่ท้ายเนื้อหา — เลื่อนให้เห็นและมีปุ่มโทรทันที
+        setTimeout(() => document.getElementById('sos-error')?.scrollIntoView({ block: 'center' }), 0);
       }
     } finally {
       this.sending.set(false);

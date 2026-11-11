@@ -608,7 +608,7 @@ export class InspectionService implements OnModuleInit {
       this.notifications.notify([owner], {
         type: 'inspected',
         data: { box_id: boxId, box_name: rows[0].name, agency_name: agencyName, officer_name: officerName, at: new Date().toISOString() },
-        link: `/home/history/inspection?id=${inspectionId}`,
+        link: `/home/history/inspection?id=${inspectionId}&box=${encodeURIComponent(boxId)}`,
         tag: `inspected-${boxId}`,
       }),
     );

@@ -592,8 +592,11 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
       } @else if (noResponse()) {
         <div class="result">
           <span class="big-icon warn" aria-hidden="true">!</span>
-          <h1>{{ i18n.t({ th: 'ตู้ไม่ตอบ', en: 'The mailbox isn’t responding' }) }}</h1>
-          <p class="muted small">{{ i18n.t({ th: 'รอมา 30 วินาทีแล้ว ได้ยินเสียงจากตู้ไหม?', en: 'Waited 30 seconds. Did you hear the box beep?' }) }}</p>
+          <h1>{{ expiredJob() ? i18n.t({ th: 'งานตรวจหมดเวลา', en: 'The inspection timed out' }) : i18n.t({ th: 'ตู้ไม่ตอบ', en: 'The mailbox isn’t responding' }) }}</h1>
+          <p class="muted small">{{ expiredJob() ? i18n.t({ th: 'ครบ 60 วินาทีแล้ว — กลับไปสแกน QR หน้าตู้ใหม่', en: '60 seconds passed — scan the front QR again' }) : i18n.t({ th: 'รอมา 30 วินาทีแล้ว ได้ยินเสียงจากตู้ไหม?', en: 'Waited 30 seconds. Did you hear the box beep?' }) }}</p>
+          @if (ins()?.box; as b) {
+            <p class="ok-text small strong">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ b.house_no }} · {{ b.name }}</p>
+          }
         </div>
         <fieldset class="options">
           <legend class="small">{{ i18n.t({ th: 'ฟังที่ตู้แล้วเลือก', en: 'Listen at the box and choose' }) }}</legend>
@@ -608,6 +611,7 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
         <div class="stack push-end">
           <button type="button" class="btn orange" [disabled]="busy()" (click)="report()">{{ i18n.t({ th: 'แจ้งปัญหาตู้', en: 'Report a box problem' }) }}</button>
           <a class="btn secondary" [routerLink]="url('O02')">{{ i18n.t({ th: 'สแกนปลุกตู้ใหม่', en: 'Scan to wake it again' }) }}</a>
+          <a class="btn secondary" [routerLink]="url('O01')">{{ i18n.t({ th: 'ยกเลิก · กลับหน้าสรุป', en: 'Cancel · back to summary' }) }}</a>
         </div>
       } @else {
         <div class="result waking" aria-live="polite">
@@ -619,6 +623,7 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
             {{ i18n.t({ th: 'ตู้จะส่งเสียงปี๊บ แล้วกล้องเปิดเอง', en: 'It beeps and its camera starts by itself' }) }}
           </p>
           <p class="muted small">{{ i18n.t({ th: 'ปกติใช้ 1–3 วินาที', en: 'Usually 1–3 seconds' }) }}</p>
+          <a class="btn secondary" [routerLink]="url('O01')">{{ i18n.t({ th: 'ยกเลิก · กลับหน้าสรุป', en: 'Cancel · back to summary' }) }}</a>
         </div>
       }
     </div>
@@ -686,6 +691,7 @@ export class OfficerWake implements OnInit {
   readonly reasonParam = input<string>(undefined, { alias: 'reason' });
   protected readonly ins = signal<Inspection | null>(null);
   protected readonly noResponse = signal(false);
+  protected readonly expiredJob = signal(false);
   protected readonly problem = signal<ProblemReason>('no_response');
   protected readonly reported = signal(false);
   protected readonly busy = signal(false);
@@ -707,6 +713,8 @@ export class OfficerWake implements OnInit {
       const r = this.reasonParam();
       if (PROBLEMS.some((p) => p.v === r)) this.problem.set(r as ProblemReason);
       else this.problem.set('no_scan');
+      // ยังโหลดงานเพื่อแสดงบ้านเลขที่ — ไม่ให้แจ้งปัญหาผิดบ้าน
+      void this.api.get(this.id()).then((ins) => this.ins.set(ins)).catch(() => undefined);
       return;
     }
     const started = Date.now();
@@ -721,7 +729,11 @@ export class OfficerWake implements OnInit {
       if (ins.status === 'box_problem') {
         this.stop();
         this.reported.set(true);
-      } else if (ins.status === 'expired' || this.waited() >= WAKE_TIMEOUT_S) {
+      } else if (ins.status === 'expired') {
+        this.stop();
+        this.expiredJob.set(true);
+        this.noResponse.set(true);
+      } else if (this.waited() >= WAKE_TIMEOUT_S) {
         this.stop();
         this.noResponse.set(true);
       }
@@ -797,10 +809,17 @@ interface WakeLockSentinelLike {
       <div class="countdown" aria-live="off">
         <span class="sec">{{ left() }}</span>
         <span>
-          <strong>{{ i18n.t({ th: 'QR เปลี่ยนใหม่ใน ', en: 'New QR in ' }) }}{{ left() }} {{ i18n.t({ th: 'วินาที', en: 's' }) }}</strong>
+          <strong>{{ badgeExpired() ? i18n.t({ th: 'QR หมดอายุแล้ว', en: 'QR expired' }) : i18n.t({ th: 'QR เปลี่ยนใหม่ใน ', en: 'New QR in ' }) + left() + i18n.t({ th: ' วินาที', en: 's' }) }}</strong>
           <span class="muted small block easy-hide">{{ i18n.t({ th: 'ถ่ายรูปไปใช้แทนไม่ได้', en: 'A photo of it won’t work' }) }}</span>
         </span>
       </div>
+      @if (badgeExpired() || badgeError()) {
+        <div class="card stack" role="alert">
+          <strong>{{ badgeExpired() ? i18n.t({ th: 'QR หมดอายุ — อย่ายื่นให้ตู้', en: 'QR expired — don’t show it to the box' }) : i18n.t({ th: 'โหลด QR ใหม่ไม่ได้', en: 'Could not load a new QR' }) }}</strong>
+          <span class="muted small">{{ i18n.t({ th: 'กดสร้าง QR ใหม่ก่อนยื่นให้กล้องตู้', en: 'Create a new QR before showing it to the box camera' }) }}</span>
+          <button type="button" class="btn secondary" (click)="retryBadge()">{{ i18n.t({ th: 'สร้าง QR ใหม่', en: 'Create a new QR' }) }}</button>
+        </div>
+      }
       @if (ins(); as i) {
         <div class="attempts" [attr.aria-label]="i18n.t({ th: 'ครั้งที่ ', en: 'Try ' }) + i.attempt + ' / ' + i.attempts_max">
           @for (n of range(i.attempts_max); track n) {
@@ -813,6 +832,7 @@ interface WakeLockSentinelLike {
       <a class="btn secondary" [routerLink]="url('O05')" [queryParams]="{ id: id(), problem: 1 }">
         {{ i18n.t({ th: 'ตู้ไม่สแกน · แจ้งปัญหาตู้', en: 'Box won’t scan · report a problem' }) }}
       </a>
+      <a class="btn secondary" [routerLink]="url('O01')">{{ i18n.t({ th: 'ยกเลิก · กลับหน้าสรุป', en: 'Cancel · back to summary' }) }}</a>
     </div>
   `,
   styles: `
@@ -937,6 +957,8 @@ export class OfficerBadge implements OnInit {
   private expiresAt = 0;
   private poll: ReturnType<typeof setInterval> | null = null;
   private clock: ReturnType<typeof setInterval> | null = null;
+  protected readonly badgeError = signal(false);
+  protected readonly badgeExpired = signal(false);
   private wakeLock: WakeLockSentinelLike | null = null;
   private fetching = false;
   protected readonly range = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
@@ -952,12 +974,7 @@ export class OfficerBadge implements OnInit {
   async ngOnInit(): Promise<void> {
     await this.keepScreenOn();
     await this.refreshBadge();
-    // นับถอยหลัง · QR อายุ 15 วิ · เหลือ ≤ 6 วิ ขอใหม่ล่วงหน้า (เปลี่ยนทุก ~9 วิ ตู้ยังมี QR ที่ใช้ได้อ่านตลอด)
-    this.clock = setInterval(() => {
-      const s = Math.max(0, Math.ceil((this.expiresAt - Date.now()) / 1000));
-      this.left.set(s);
-      if (s <= 6) void this.refreshBadge();
-    }, 500);
+    this.startClock();
     const tick = async () => {
       const ins = await this.api.get(this.id()).catch(() => null);
       if (!ins) return;
@@ -970,6 +987,33 @@ export class OfficerBadge implements OnInit {
     this.poll = setInterval(() => void tick(), POLL_MS);
   }
 
+  /** นับถอยหลัง · เหลือ ≤ 6 วิ ขอใหม่ล่วงหน้า · หมดอายุแล้วหยุด ไม่ยิงซ้ำทุก 500 ms */
+  private startClock(): void {
+    if (this.clock) return;
+    this.clock = setInterval(() => {
+      const s = Math.max(0, Math.ceil((this.expiresAt - Date.now()) / 1000));
+      this.left.set(s);
+      if (s <= 0) {
+        this.badgeExpired.set(true);
+        this.stopClock();
+        return;
+      }
+      if (s <= 6 && !this.badgeError() && !this.badgeExpired()) void this.refreshBadge();
+    }, 500);
+  }
+
+  private stopClock(): void {
+    if (this.clock) clearInterval(this.clock);
+    this.clock = null;
+  }
+
+  protected retryBadge(): void {
+    this.badgeError.set(false);
+    this.badgeExpired.set(false);
+    void this.refreshBadge();
+    this.startClock();
+  }
+
   private async refreshBadge(): Promise<void> {
     if (this.fetching) return;
     this.fetching = true;
@@ -979,9 +1023,12 @@ export class OfficerBadge implements OnInit {
       this.expiresIso.set(b.expires_at);
       this.expiresAt = new Date(b.expires_at).getTime();
       this.left.set(Math.ceil((this.expiresAt - Date.now()) / 1000));
+      this.badgeError.set(false);
+      this.badgeExpired.set(false);
     } catch (err) {
       // 410 = การตรวจจบแล้ว → ตัวถามสถานะจะพาไปหน้าผลเอง
       if (apiError(err).code === 'NOT_READY') go(this.router, 'O05', { id: this.id() });
+      else this.badgeError.set(true);
     } finally {
       this.fetching = false;
     }
@@ -1003,8 +1050,8 @@ export class OfficerBadge implements OnInit {
 
   private stop(): void {
     if (this.poll) clearInterval(this.poll);
-    if (this.clock) clearInterval(this.clock);
-    this.poll = this.clock = null;
+    this.stopClock();
+    this.poll = null;
     void this.wakeLock?.release().catch(() => undefined);
     this.wakeLock = null;
   }

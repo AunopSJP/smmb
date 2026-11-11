@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { firstValueFrom } from 'rxjs';
 import { DisplaySettings } from '../../core/display-settings';
 import { I18n } from '../../core/i18n';
+import { LoadError } from '../../shared/state-view';
 import { OwnerApi } from '../../core/owner-api';
 import { screenUrl } from '../../screens/registry';
 import { AgencyMap, type AgencyMapItem } from '../../shared/agency-map';
@@ -29,7 +30,7 @@ const km = (a: LatLng, b: LatLng): number => {
  */
 @Component({
   selector: 'app-owner-agencies',
-  imports: [PageHeader, AgencyMap],
+  imports: [PageHeader, AgencyMap, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [title]="i18n.t({ th: 'หน่วยงานใกล้บ้าน', en: 'Agencies near you' })" [back]="url('H13')" />
@@ -42,7 +43,9 @@ const km = (a: LatLng, b: LatLng): number => {
       @if (advanced()) {
         <p class="muted small adv-only">{{ i18n.t({ th: 'หน่วยงาน ', en: 'Agencies: ' }) }}{{ agencies().length }}{{ i18n.t({ th: ' แห่ง · เรียงตามระยะจากบ้าน', en: ' · sorted by distance from home' }) }}</p>
       }
-      @if (loaded() && !agencies().length) {
+      @if (failed()) {
+        <app-load-error (retry)="load()" />
+      } @else if (loaded() && !agencies().length) {
         <p class="card muted" role="status">{{ i18n.t({ th: 'ยังไม่มีหน่วยงานที่ปักหมุดไว้', en: 'No agency has put a pin on the map yet' }) }}</p>
       }
       <div class="ag-list">
@@ -166,6 +169,7 @@ export class OwnerAgencies {
   protected readonly home = signal<LatLng | null>(null);
   protected readonly selected = signal<string | null>(null);
   protected readonly loaded = signal(false);
+  protected readonly failed = signal(false);
   protected readonly dir = (a: AgencyMapItem) => directionsUrl({ lat: a.lat, lng: a.lng });
 
   protected readonly sorted = computed(() => {
@@ -178,15 +182,23 @@ export class OwnerAgencies {
   protected readonly items = computed(() => this.sorted().map((a) => a.item));
 
   constructor() {
-    void firstValueFrom(this.http.get<AgencyMapItem[]>('/api/v1/agencies/map'))
-      .then((l) => this.agencies.set(l))
-      .catch(() => undefined)
-      .finally(() => this.loaded.set(true));
+    void this.load();
     void this.owner
       .boxes()
       .then(async (b) => (b[0] ? this.owner.box(b[0].id) : null))
       .then((d) => this.home.set(d?.location ?? null))
       .catch(() => undefined);
+  }
+
+  protected async load(): Promise<void> {
+    this.failed.set(false);
+    try {
+      this.agencies.set(await firstValueFrom(this.http.get<AgencyMapItem[]>('/api/v1/agencies/map')));
+    } catch {
+      this.failed.set(true);
+    } finally {
+      this.loaded.set(true);
+    }
   }
 
   protected typeLabel(t: string): string {

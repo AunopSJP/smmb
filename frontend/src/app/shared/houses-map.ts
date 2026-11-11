@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, ElementRef, inject, input, model, output, viewChild } from '@angular/core';
 import type * as Leaflet from 'leaflet';
 import { ApiConfig } from '../core/api';
+import { I18n } from '../core/i18n';
 import { addBaseTiles } from './map-tiles';
 
 export interface HouseMapPoint {
@@ -22,7 +23,7 @@ export interface HouseMapPoint {
 @Component({
   selector: 'app-houses-map',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<div class="map" #host [style.block-size.px]="height()" role="application" [attr.aria-label]="'แผนที่บ้านในโซน'"></div>`,
+  template: `<div class="map" #host [style.block-size.px]="height()" role="group" [attr.aria-label]="i18n.t({ th: 'แผนที่บ้านในโซน', en: 'Map of houses in the zone' })"></div>`,
   styles: `
     .map {
       inline-size: 100%;
@@ -67,6 +68,7 @@ export interface HouseMapPoint {
 })
 export class HousesMap {
   private readonly api = inject(ApiConfig);
+  protected readonly i18n = inject(I18n);
   readonly points = input<HouseMapPoint[]>([]);
   readonly selected = model<string | null>(null);
   readonly height = input(260);

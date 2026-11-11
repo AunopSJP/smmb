@@ -29,7 +29,7 @@ export const directionsUrl = (p: LatLng) => `https://www.google.com/maps/dir/?ap
   imports: [Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="map" #host [style.block-size.px]="height()" role="application" [attr.aria-label]="i18n.t({ th: 'แผนที่ตำแหน่งบ้าน', en: 'Map of the house location' })"></div>
+    <div class="map" #host [style.block-size.px]="height()" role="group" [attr.aria-label]="i18n.t({ th: 'แผนที่ตำแหน่งบ้าน', en: 'Map of the house location' })"></div>
     <div class="bar">
       @if (editable()) {
         <button type="button" class="btn secondary small" (click)="locate()" [disabled]="locating()">

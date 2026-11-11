@@ -162,6 +162,9 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       padding: 40px 24px 24px;
       text-align: center;
       flex: 1;
+      /* พื้นแดงเต็มพื้นที่ — เดิมข้อความ/ปุ่มขาวไปอยู่บนพื้นสว่างจนมองไม่เห็น */
+      background: var(--sos-bg);
+      color: var(--sos-fg);
       h1 {
         font-size: 2rem;
         line-height: 1.35;
@@ -456,6 +459,9 @@ export class SosCancel {
         <h1>{{ i18n.t({ th: 'มีเจ้าหน้าที่รับแล้ว', en: 'An officer accepted' }) }}</h1>
         <p>{{ i18n.t({ th: 'กำลังเดินทางไปที่บ้านคุณ', en: 'They are on the way to your house' }) }}</p>
       </header>
+      @if (!linkOk()) {
+        <p class="link-lost" role="alert">{{ i18n.t({ th: 'ติดต่อเซิร์ฟเวอร์ไม่ได้ — โทรแจ้งเหตุเองทันที: 191 / 1669', en: 'Cannot reach the server — call for help yourself now: 191 / 1669' }) }}</p>
+      }
       <div class="sos-body">
         <section class="card officer">
           <span class="icon-bubble danger"><app-icon name="user" [size]="20" /></span>
@@ -488,6 +494,14 @@ export class SosCancel {
     </div>
   `,
   styles: `
+    .link-lost {
+      margin: 0;
+      padding: 12px 16px;
+      background: #fff;
+      color: var(--sos);
+      font-weight: 800;
+      text-align: center;
+    }
     .check {
       display: grid;
       place-items: center;
@@ -537,6 +551,7 @@ export class SosAccepted {
   protected readonly url = screenUrl;
   readonly id = input<string>('');
   protected readonly sos = signal<Sos | null>(null);
+  protected readonly linkOk = signal(true);
 
   protected exact(iso: string): string {
     return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
@@ -553,7 +568,7 @@ export class SosAccepted {
       this.sos.set(s);
       if (s.status === 'closed') void this.router.navigate([screenUrl('H11-b')], { queryParams: { id: s.id }, replaceUrl: true });
       else if (s.status === 'cancelled') void this.router.navigateByUrl(screenUrl('H03'), { replaceUrl: true });
-    });
+    }, (ok) => this.linkOk.set(ok));
   }
 }
 
@@ -568,6 +583,13 @@ export class SosAccepted {
       <div class="sos-body">
         <span class="check"><app-icon name="check" [size]="30" /></span>
         <h1 class="center">{{ i18n.t({ th: 'ปิดเรื่องแล้ว', en: 'SOS closed' }) }}</h1>
+        @if (failed()) {
+          <section class="card stack" role="alert">
+            <strong>{{ i18n.t({ th: 'โหลดสรุปเหตุการณ์ไม่ได้', en: 'Could not load the SOS summary' }) }}</strong>
+            <span class="muted small">{{ i18n.t({ th: 'เชื่อมต่อไม่ได้ — ลองอีกครั้ง', en: 'No connection — try again' }) }}</span>
+            <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Try again' }) }}</button>
+          </section>
+        } @else {
         @if (toAccept(); as m) {
           <p class="muted small center">{{ i18n.t({ th: 'ใช้เวลาจนมีคนรับ ', en: 'Time until accepted: ' }) }}{{ m }}</p>
         }
@@ -589,6 +611,7 @@ export class SosAccepted {
               <dt>{{ i18n.t({ th: 'รับเรื่อง', en: 'Accepted' }) }}</dt><dd>{{ sos()?.accepted_by?.at ? exact(sos()!.accepted_by!.at) : '—' }}</dd>
             </dl>
           </section>
+        }
         }
       </div>
       <footer class="sos-foot">
@@ -630,10 +653,12 @@ export class SosClosed implements OnInit {
   private readonly router = inject(Router);
   readonly id = input<string>('');
   protected readonly sos = signal<Sos | null>(null);
+  protected readonly failed = signal(false);
 
   protected exact(iso: string): string {
     return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
   }
+
   protected readonly toAccept = computed(() => {
     const s = this.sos();
     if (!s?.accepted_by) return null;
@@ -641,7 +666,16 @@ export class SosClosed implements OnInit {
   });
 
   async ngOnInit(): Promise<void> {
-    this.sos.set(await this.api.sos(this.id()).catch(() => null));
+    await this.load();
+  }
+
+  protected async load(): Promise<void> {
+    this.failed.set(false);
+    try {
+      this.sos.set(await this.api.sos(this.id()));
+    } catch {
+      this.failed.set(true);
+    }
   }
 
   protected home(): void {

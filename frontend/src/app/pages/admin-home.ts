@@ -321,7 +321,7 @@ interface Segment {
           </a>
         }
       </nav>
-      <button type="button" class="btn secondary signout mobile-only easy-hide" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
+      <button type="button" class="btn secondary signout mobile-only" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
     </div>
   `,
   styles: `

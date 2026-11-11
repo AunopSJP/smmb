@@ -368,10 +368,13 @@ export class OwnerHistory {
     const range = this.store.initialized()
       ? this.store.range()
       : rangeOf(RANGES.find((r) => r.v === this.range())!.days);
+    const route = inject(ActivatedRoute);
     // ?type=delivered จากปุ่ม "ของมาส่ง" บนหน้าหลัก (โหมดง่าย)
-    const wanted = inject(ActivatedRoute).snapshot.queryParamMap.get('type');
+    const wanted = route.snapshot.queryParamMap.get('type');
     if (wanted === 'inspected' || wanted === 'delivered') this.typeFilter.set(wanted);
-    void this.store.load(undefined, range);
+    // ?box= จาก push/ลิงก์ของตู้ที่ 2 — ต้องเปิดตู้นั้น ไม่ใช่ตู้แรก
+    const wantedBox = route.snapshot.queryParamMap.get('box') ?? undefined;
+    void this.store.load(wantedBox, range);
   }
 
   protected sub(h: BoxEvent): string {
@@ -664,11 +667,14 @@ export class OwnerDelivery {
 
 @Component({
   selector: 'app-owner-offline',
-  imports: [PageHeader, RouterLink, Icon],
+  imports: [PageHeader, RouterLink, Icon, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="display.advancedMode() ? (box()?.id ?? '') : ''" [title]="i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' })" [back]="url('H12')" />
     <div class="stack grow">
+      @if (failed()) {
+        <app-load-error (retry)="load()" />
+      } @else {
       @if (display.easyMode()) {
         <!-- OwnOffline_E: ข้อความใหญ่ + เช็กสั้น ๆ -->
         <section class="easy-warn">
@@ -720,9 +726,10 @@ export class OwnerDelivery {
         <strong>{{ lastText() }}</strong>
       </section>
       <div class="stack push-end">
-        <a class="btn" [routerLink]="url('H13-c')">{{ i18n.t({ th: 'แจ้งช่างมาดู', en: 'Ask a technician' }) }}</a>
-        <a class="btn secondary" [routerLink]="url('H13-b')">{{ i18n.t({ th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' }) }}</a>
+        <a class="btn" [routerLink]="url('H13-c')" [queryParams]="box() ? { box: box()!.id } : null">{{ i18n.t({ th: 'แจ้งช่างมาดู', en: 'Ask a technician' }) }}</a>
+        <a class="btn secondary" [routerLink]="url('H13-b')" [queryParams]="box() ? { box: box()!.id } : null">{{ i18n.t({ th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' }) }}</a>
       </div>
+      }
     </div>
   `,
   styles: `
@@ -829,8 +836,10 @@ export class OwnerOffline {
   protected readonly i18n = inject(I18n);
   protected readonly display = inject(DisplaySettings);
   private readonly api = inject(OwnerApi);
+  private readonly route = inject(ActivatedRoute);
   protected readonly url = screenUrl;
   protected readonly box = signal<BoxDetail | null>(null);
+  protected readonly failed = signal(false);
 
   protected readonly headline = computed(() => {
     const b = this.box();
@@ -853,11 +862,19 @@ export class OwnerOffline {
   }
 
   constructor() {
-    void this.api
-      .boxes()
-      .then((list) => (list[0] ? this.api.box(list[0].id) : null))
-      .then((b) => this.box.set(b))
-      .catch(() => undefined);
+    void this.load();
+  }
+
+  protected async load(): Promise<void> {
+    this.failed.set(false);
+    try {
+      const list = await this.api.boxes();
+      const wanted = this.route.snapshot.queryParamMap.get('box');
+      const id = list.find((x) => x.id === wanted)?.id ?? list[0]?.id;
+      this.box.set(id ? await this.api.box(id) : null);
+    } catch {
+      this.failed.set(true);
+    }
   }
 }
 

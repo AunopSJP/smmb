@@ -11,6 +11,7 @@ import { Session } from '../../core/session';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
+import { LoadError } from '../../shared/state-view';
 import { liveRefresh } from '../../core/live-refresh';
 
 /** หน้ารับเรื่อง / รายการ SOS ถามสถานะทุกกี่วินาที */
@@ -23,7 +24,7 @@ const go = (router: Router, code: string, id?: string) =>
 
 @Component({
   selector: 'app-officer-sos-list',
-  imports: [RouterLink, PageHeader, Icon],
+  imports: [RouterLink, PageHeader, Icon, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [title]="'SOS'" [bell]="url('O14')" />
@@ -40,7 +41,9 @@ const go = (router: Router, code: string, id?: string) =>
           <dd class="mono">{{ closed().length }}</dd>
         </dl>
       </div>
-      @if (view() === 'open' && !open().length) {
+      @if (failed()) {
+        <app-load-error (retry)="reload()" />
+      } @else if (view() === 'open' && !open().length) {
         <p class="card muted">{{ i18n.t({ th: 'ไม่มี SOS ที่เปิดอยู่ตอนนี้', en: 'No open SOS right now' }) }}</p>
       }
       @for (c of open(); track c.id) {
@@ -135,15 +138,18 @@ export class OfficerSosList {
   protected readonly open = signal<SosCard[]>([]);
   protected readonly view = signal<'open' | 'closed'>('open');
   protected readonly closed = signal<SosCard[]>([]);
+  protected readonly failed = signal(false);
 
   constructor() {
-    const load = async () => {
-      const [open, closed] = await Promise.all([this.api.list('open').catch(() => null), this.api.list('closed').catch(() => null)]);
-      if (open) this.open.set(open);
-      if (closed) this.closed.set(closed);
-    };
-    void load();
-    liveRefresh(load, POLL_MS * 2);
+    void this.reload();
+    liveRefresh(() => this.reload(), POLL_MS * 2);
+  }
+
+  protected async reload(): Promise<void> {
+    const [open, closed] = await Promise.all([this.api.list('open').catch(() => null), this.api.list('closed').catch(() => null)]);
+    if (open) this.open.set(open);
+    if (closed) this.closed.set(closed);
+    this.failed.set(!open || !closed);
   }
 
   protected day(iso: string): string {

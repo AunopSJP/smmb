@@ -4,6 +4,7 @@ import { AdminApi, type AdminBoxDetail, type AdminQrHealth, type AdminQrIssue } 
 import { AdminQrState } from '../../core/admin-qr-state';
 import { I18n, type Tr } from '../../core/i18n';
 import { Toast } from '../../core/toast';
+import { Confirm } from '../../shared/confirm-dialog';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
 import { QrImage } from '../../shared/qr-image';
@@ -177,7 +178,7 @@ export class QrPrintSheet {
             <span class="chip" [class.danger]="h.tone === 'danger'" [class.warn]="h.tone === 'warn'">{{ i18n.t(h.label) }}</span>
           </a>
         } @empty {
-          <p class="row muted">{{ loaded() ? i18n.t({ th: 'QR ทุกใบปกติ', en: 'Every QR is fine' }) : i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
+          <p class="row muted">{{ loadFailed() ? i18n.t({ th: 'โหลดรายการ QR ไม่สำเร็จ — ลองอีกครั้ง', en: 'Could not load QR cases — try again' }) : loaded() ? i18n.t({ th: 'QR ทุกใบปกติ', en: 'Every QR is fine' }) : i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
         }
       </div>
 
@@ -738,6 +739,7 @@ export class AdminQrCase {
   private readonly state = inject(AdminQrState);
   private readonly api = inject(AdminApi);
   private readonly toast = inject(Toast);
+  private readonly confirm = inject(Confirm);
   protected readonly url = screenUrl;
   protected readonly health = HEALTH;
   protected readonly slot = SLOT;
@@ -868,6 +870,16 @@ export class AdminQrCase {
 
   /** ออก QR ใหม่ 2 ใบ (+ ส่งช่างต่อทันทีถ้าเป็นเคสปลอม) */
   protected async issueAll(c: AdminQrIssue, thenDispatch: boolean): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: { th: 'ออก QR ใหม่ 2 ใบ?', en: 'Issue 2 new QRs?' },
+      body: {
+        th: 'ใบเก่าทั้งสองใบจะใช้ไม่ได้ทันที — เจ้าหน้าที่ตรวจตู้และไรเดอร์ส่งของไม่ได้จนกว่าจะติดใบใหม่',
+        en: 'Both old QRs stop working immediately — officers cannot inspect and riders cannot deliver until the new ones are in place.',
+      },
+      confirm: { th: 'ออก QR ใหม่', en: 'Issue new QRs' },
+      danger: true,
+    });
+    if (!ok) return;
     await this.run(async () => {
       let cur = c;
       if (!cur.fix) cur = await this.state.chooseFix(c.id, thenDispatch && c.health === 'maybe_fake' ? 'fake' : 'reissue');
@@ -889,6 +901,16 @@ export class AdminQrCase {
 
   /** swap: ออกใบสำรองใหม่ + ปิดเคส */
   protected async issueBackup(c: AdminQrIssue): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: { th: 'ออก QR สำรองใหม่?', en: 'Issue a new backup QR?' },
+      body: {
+        th: 'QR สำรองใบเดิมจะใช้ไม่ได้ทันที และเคสจะถูกปิด',
+        en: 'The old backup QR stops working immediately and the case will be closed.',
+      },
+      confirm: { th: 'ออกใบสำรองใหม่', en: 'Issue a new backup' },
+      danger: true,
+    });
+    if (!ok) return;
     await this.run(async () => {
       await this.api.reissueQr(c.box_id, [2], this.requestKey(c.id, '2'));
       await this.state.recordReissue(c.id, [2], this.delivery());

@@ -309,8 +309,11 @@ export class HeadZones implements OnInit {
           } @else if (searched()) {
             <div class="result-head">
               <span class="muted small">{{ i18n.t({ th: 'พบ ', en: 'Found ' }) }}{{ hits().length }}{{ i18n.t({ th: ' หลัง', en: ' houses' }) }}{{ picked().size ? i18n.t({ th: ' · เลือก ', en: ' · selected ' }) + picked().size : '' }}</span>
+              @if (hits().length >= 20) {
+                <span class="muted small">{{ i18n.t({ th: 'แสดง 20 หลังแรก — พิมพ์คำค้นให้แคบลงเพื่อดูที่เหลือ', en: 'Showing the first 20 — narrow the search to see more' }) }}</span>
+              }
               @if (addable().length > 1) {
-                <button type="button" class="see-all" (click)="selectAllPicks()">{{ i18n.t({ th: 'เลือกทั้งหมด', en: 'Select all' }) }}</button>
+                <button type="button" class="see-all" (click)="selectAllPicks()">{{ i18n.t({ th: 'เลือกที่แสดงทั้งหมด', en: 'Select all shown' }) }}</button>
               }
             </div>
             @if (picked().size) {
@@ -386,7 +389,7 @@ export class HeadZones implements OnInit {
                   <span class="muted small block">{{ m.position || i18n.t({ th: 'เจ้าหน้าที่', en: 'Officer' }) }}@if (m.staff_no) { · {{ m.staff_no }} }</span>
                   <span class="muted small block">{{ m.zones.length }} {{ i18n.t({ th: 'โซน', en: 'zones' }) }} · {{ i18n.t({ th: 'ตรวจล่าสุด ', en: 'last check ' }) }}{{ m.last_inspection_at ? updated(m.last_inspection_at) : i18n.t({ th: 'ยังไม่มี', en: 'none yet' }) }}</span>
                 </span>
-                <input class="check" type="checkbox" [checked]="inOfficers(m.id)" (change)="toggleOfficer(m.id, $any($event.target).checked)" [attr.aria-label]="m.display_name" />
+                <input class="check" type="checkbox" [checked]="inOfficers(m.id)" (change)="toggleOfficer(m.id, $any($event.target).checked, $event)" [attr.aria-label]="m.display_name" />
               </label>
             } @empty {
               <p class="muted small">
@@ -786,11 +789,29 @@ export class HeadZoneEdit {
   }
 
   /** PUT /agency/zones/:id/officers — แทนที่ทั้งชุด */
-  protected toggleOfficer(id: string, on: boolean): Promise<void> {
+  protected async toggleOfficer(id: string, on: boolean, event?: Event): Promise<void> {
     const z = this.zone();
-    if (!z) return Promise.resolve();
+    if (!z) return;
+    const current = this.officerIds ?? z.officers.map((o) => o.id);
+    const next = current.filter((x) => x !== id);
+    if (on) next.push(id);
+    if (!on) {
+      const leavingNone = next.length === 0;
+      const ok = await this.confirm.ask({
+        title: { th: 'นำเจ้าหน้าที่ออกจากโซน?', en: 'Remove this officer from the zone?' },
+        body: leavingNone
+          ? { th: 'โซนนี้จะไม่มีเจ้าหน้าที่ตรวจเลย — บ้านในโซนจะไม่ถูกตรวจและไม่ได้รับ SOS', en: 'This zone will have no officers — houses will not be inspected and SOS will not reach anyone.' }
+          : { th: 'เจ้าหน้าที่คนนี้จะไม่เห็นบ้านในโซนและไม่ได้รับ SOS ของโซนนี้อีก', en: 'They will no longer see houses in this zone or receive its SOS.' },
+        confirm: { th: 'นำออก', en: 'Remove' },
+        danger: true,
+      });
+      if (!ok) {
+        if (event?.target instanceof HTMLInputElement) event.target.checked = true;
+        return;
+      }
+    }
     this.savingOfficers.set(true);
-    const ids = (this.officerIds ?? z.officers.map((o) => o.id)).filter((x) => x !== id);
+    const ids = current.filter((x) => x !== id);
     if (on) ids.push(id);
     this.officerIds = ids;
     this.officerSave = this.officerSave.then(async () => {

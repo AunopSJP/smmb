@@ -402,8 +402,8 @@ export class AdminApi {
   }
 
   // ผู้ใช้ §9.3
-  users(q = '', role?: string): Promise<Paged<AdminUser>> {
-    const p = new URLSearchParams({ per_page: '100' });
+  users(q = '', role?: string, page = 1): Promise<Paged<AdminUser>> {
+    const p = new URLSearchParams({ per_page: '100', page: String(page) });
     if (q) p.set('q', q);
     if (role) p.set('role', role);
     return this.get(`/api/v1/admin/users?${p}`);

@@ -392,6 +392,11 @@ const ROLE_LABEL: Record<string, Tr> = {
           }
         }
       </nav>
+      @if (users().length < total()) {
+        <button type="button" class="btn secondary" [disabled]="loadingMore()" (click)="loadMore()">
+          {{ loadingMore() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'โหลดเพิ่ม ', en: 'Load more ' }) + users().length + '/' + total() }}
+        </button>
+      }
       </div>
     </div>
   `,
@@ -553,6 +558,9 @@ export class AdminUsers implements OnInit {
   protected readonly users = signal<AdminUser[]>([]);
   /** ค้นหาไม่สำเร็จ (ห้ามขึ้น "ไม่พบผู้ใช้") */
   protected readonly usersFailed = signal(false);
+  protected readonly total = signal(0);
+  protected readonly loadingMore = signal(false);
+  private page = 1;
   /** ?role= จากเมนูย่อยข้างซ้าย */
   readonly roleParam = input<string | undefined>(undefined, { alias: 'role' });
   protected readonly roleFilter = linkedSignal<'all' | 'owner' | 'officer' | 'head' | 'admin' | 'off'>(() => {
@@ -584,13 +592,30 @@ export class AdminUsers implements OnInit {
   }
 
   protected async search(): Promise<void> {
-    const r = await this.api.users(this.q().trim()).catch(() => null);
+    const r = await this.api.users(this.q().trim(), undefined, 1).catch(() => null);
     if (r) {
       this.users.set(r.data);
+      this.total.set(r.total);
+      this.page = 1;
       this.usersFailed.set(false);
     } else {
       // เก็บผลเดิมไว้ — ไม่ล้างเป็น "ไม่พบผู้ใช้" เพราะอาจแค่โหลดไม่ได้
       this.usersFailed.set(true);
+    }
+  }
+
+  protected async loadMore(): Promise<void> {
+    if (this.loadingMore() || this.users().length >= this.total()) return;
+    this.loadingMore.set(true);
+    try {
+      const r = await this.api.users(this.q().trim(), undefined, this.page + 1);
+      this.users.update((list) => [...list, ...r.data]);
+      this.total.set(r.total);
+      this.page += 1;
+    } catch {
+      this.usersFailed.set(true);
+    } finally {
+      this.loadingMore.set(false);
     }
   }
 
@@ -616,6 +641,16 @@ export class AdminUsers implements OnInit {
 
   /** POST /admin/users/:id/reset-password → รหัสชั่วคราว ครั้งเดียว + เตะทุก session */
   protected async reset(u: AdminUser): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: { th: `รีเซ็ตรหัสของ ${u.display_name || u.phone}?`, en: `Reset the password for ${u.display_name || u.phone}?` },
+      body: {
+        th: 'รหัสเดิมใช้ไม่ได้ทันที และผู้ใช้จะถูกออกจากระบบทุกเครื่อง — ต้องนำรหัสชั่วคราวไปให้ผู้ใช้',
+        en: 'The old password stops working immediately and they are signed out on every device — you must give them the temporary password.',
+      },
+      confirm: { th: 'รีเซ็ตรหัส', en: 'Reset password' },
+      danger: true,
+    });
+    if (!ok) return;
     this.busy.set(true);
     this.error.set(null);
     try {

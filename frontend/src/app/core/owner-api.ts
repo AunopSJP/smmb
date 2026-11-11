@@ -89,6 +89,10 @@ export interface BoxDetail extends BoxSummary {
   coverage: { has_officer: boolean; agency_names: string[] };
   patrol: { in_window: boolean; windows: [string, string][]; tz: string };
   latest_events: BoxEvent[];
+  /** เวลาตรวจผ่านล่าสุด (ไม่จำกัด 5 เหตุการณ์) — backend รุ่นใหม่ส่งมา */
+  last_inspected_at?: string | null;
+  /** จำนวนของมาส่งวันนี้ (เวลาไทย) — backend รุ่นใหม่ส่งมา */
+  deliveries_today?: number;
   open_sos: { id: string; stage: SosStage; status: SosStatus } | null;
   qr_task: { case_id: string; health: string; requested_at: string } | null;
 }

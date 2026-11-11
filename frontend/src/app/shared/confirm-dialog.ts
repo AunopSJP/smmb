@@ -40,7 +40,7 @@ export class Confirm {
   template: `
     @if (confirm.state(); as o) {
       <div class="backdrop" aria-hidden="true" (click)="confirm.answer(false)"></div>
-      <div class="sheet" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" (keydown.escape)="confirm.answer(false)">
+      <div class="sheet" #sheet role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" (keydown.escape)="confirm.answer(false)" (keydown.tab)="trap($event)">
         <h2 id="confirm-title">{{ i18n.t(o.title) }}</h2>
         @if (o.body) {
           <p class="muted">{{ i18n.t(o.body) }}</p>
@@ -103,12 +103,39 @@ export class ConfirmDialog {
   protected readonly confirm = inject(Confirm);
   protected readonly i18n = inject(I18n);
   private readonly first = viewChild<ElementRef<HTMLButtonElement>>('first');
+  private readonly sheet = viewChild<ElementRef<HTMLElement>>('sheet');
+  private previous: HTMLElement | null = null;
 
   constructor() {
     effect(() => {
-      if (!this.confirm.state()) return;
-      // ให้ template วาดปุ่มก่อนแล้วค่อยย้ายโฟกัส (คีย์บอร์ด/โปรแกรมอ่านหน้าจอ)
-      setTimeout(() => this.first()?.nativeElement.focus(), 0);
+      const open = this.confirm.state();
+      if (open) {
+        this.previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        // ให้ template วาดปุ่มก่อนแล้วค่อยย้ายโฟกัส (คีย์บอร์ด/โปรแกรมอ่านหน้าจอ)
+        setTimeout(() => this.first()?.nativeElement.focus(), 0);
+      } else if (this.previous) {
+        const back = this.previous;
+        this.previous = null;
+        setTimeout(() => back.focus(), 0);
+      }
     });
+  }
+
+  /** กักโฟกัสในไดอะล็อก (Tab/Shift+Tab) แล้วคืนโฟกัสเมื่อปิด */
+  protected trap(event: Event): void {
+    const e = event as KeyboardEvent;
+    const root = this.sheet()?.nativeElement;
+    if (!root) return;
+    const items = Array.from(root.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter((el) => !el.hasAttribute('disabled'));
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   }
 }

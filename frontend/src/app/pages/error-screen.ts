@@ -105,6 +105,19 @@ export class ErrorScreen {
   });
 
   protected retry(): void {
-    this.doc.defaultView?.location.reload();
+    const win = this.doc.defaultView;
+    if (!win) return;
+    if (win.navigator.onLine) {
+      let back = this.home;
+      try {
+        back = sessionStorage.getItem('smmb.after-offline') || this.home;
+        sessionStorage.removeItem('smmb.after-offline');
+      } catch {
+        /* ใช้หน้าแรก */
+      }
+      win.location.assign(back);
+    } else {
+      win.location.reload();
+    }
   }
 }

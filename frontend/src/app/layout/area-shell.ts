@@ -20,6 +20,8 @@ interface NavItem {
   icon: IconName;
   label: Tr;
   query?: Record<string, string>;
+  /** หน้าอยู่นอก registry (เช่น /settings/display) */
+  path?: string;
   children?: NavItem[];
 }
 const ADMIN_NAV: { id: string; title: Tr; items: NavItem[] }[] = [
@@ -91,7 +93,13 @@ const ADMIN_NAV: { id: string; title: Tr; items: NavItem[] }[] = [
   {
     id: 'system',
     title: { th: 'ระบบ', en: 'System' },
-    items: [{ code: 'D11', icon: 'list', label: { th: 'ประวัติระบบ', en: 'System log' } }],
+    items: [
+      { code: 'D16', icon: 'settings', label: { th: 'ระบบและเครื่องมือ', en: 'System and tools' } },
+      { code: 'D11', icon: 'list', label: { th: 'ประวัติระบบ', en: 'System log' } },
+      { code: 'display', path: '/settings/display', icon: 'settings', label: { th: 'การแสดงผล', en: 'Display' } },
+      { code: 'notifications', path: '/settings/notifications', icon: 'bell', label: { th: 'การแจ้งเตือน', en: 'Notifications' } },
+      { code: 'A14', icon: 'user', label: { th: 'เปลี่ยนรหัสผ่านของฉัน', en: 'Change my password' } },
+    ],
   },
 ];
 /** จำการพับเมนูไว้ในเครื่อง (ไม่ใช่ข้อมูลสำคัญ — เปิดไม่ได้ก็ใช้ค่าเริ่มต้น) */
@@ -118,6 +126,7 @@ const MOCK_SCREENS = new Set<string>();
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="frame" [class.admin-layout]="isAdmin" [class.auth-layout]="area === 'auth'" [class.nav-mini]="mini()" [attr.data-area]="area">
+      <button type="button" class="skip-link" (click)="skipToMain()">{{ i18n.t({ th: 'ข้ามไปเนื้อหา', en: 'Skip to content' }) }}</button>
       @if (isAdmin) {
         <aside class="side" [class.mini]="mini()" [attr.aria-label]="i18n.t({ th: 'เมนูแอดมิน', en: 'Admin menu' })">
           <div class="brand">
@@ -142,7 +151,7 @@ const MOCK_SCREENS = new Set<string>();
               @if (mini() || !groupClosed(g.id)) {
                 @for (it of g.items; track it.code + it.label.en) {
                   <div class="item" [class.within]="within(it)" [class.easy-hide]="g.id === 'system'">
-                    <a [routerLink]="url(it.code)" routerLinkActive="active"
+                    <a [routerLink]="it.path ?? url(it.code)" routerLinkActive="active"
                       [routerLinkActiveOptions]="{ paths: it.code === 'D01' ? 'exact' : 'subset', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }"
                       [attr.title]="mini() ? i18n.t(it.label) : null" (click)="it.children && openItem(it)">
                       <app-icon [name]="it.icon" [size]="18" />
@@ -192,7 +201,7 @@ const MOCK_SCREENS = new Set<string>();
           <span aria-hidden="true">⇄</span>
         </a>
       }
-      <main [class.full]="fullscreen()">
+      <main id="main-content" tabindex="-1" [class.full]="fullscreen()">
         <router-outlet />
       </main>
       <app-toast />
@@ -207,6 +216,25 @@ const MOCK_SCREENS = new Set<string>();
   styles: `
     :host {
       display: block;
+    }
+    .skip-link {
+      position: fixed;
+      inset-block-start: 8px;
+      inset-inline-start: 8px;
+      z-index: 200;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: var(--shadow);
+      font: inherit;
+      font-weight: 700;
+      transform: translateY(-200%);
+    }
+    .skip-link:focus-visible {
+      transform: none;
+      outline: 2px solid var(--brand);
+      outline-offset: 2px;
     }
     .frame {
       display: flex;
@@ -671,6 +699,11 @@ export class AreaShell {
   protected readonly initial = computed(() => (this.session.me()?.display_name ?? 'A').trim().charAt(0).toUpperCase() || 'A');
   protected readonly url = screenUrl;
   private readonly router = inject(Router);
+  protected skipToMain(): void {
+    const main = document.getElementById('main-content');
+    main?.focus();
+    main?.scrollIntoView({ block: 'start' });
+  }
   protected signout(): void {
     void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true }));
   }
@@ -678,8 +711,7 @@ export class AreaShell {
   private readonly display = inject(DisplaySettings);
   /** โหมดง่ายลดเมนูเหลือ 3 รายการ "เฉพาะหน้าหลักของบทบาท" ตามแคนวาส (หน้าอื่นยังใช้แท็บเต็ม) */
   protected readonly tabs = computed(() => {
-    const home: Partial<Record<Area, string>> = { officer: 'O01', head: 'L04', admin: 'D01' };
-    return this.display.easyMode() && home[this.area] === this.code() ? TABS_EASY[this.area] ?? TABS[this.area] : TABS[this.area];
+    return this.display.easyMode() ? TABS_EASY[this.area] ?? TABS[this.area] : TABS[this.area];
   });
   /** แถบ "ต้นแบบ" เฉพาะหน้าที่ยังเป็นข้อมูลจำลอง — ที่เหลือใช้ API จริงทั้งหมด */
   protected readonly mock = computed(() => MOCK_SCREENS.has(this.code() ?? ''));
