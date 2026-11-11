@@ -22,6 +22,8 @@
 
 **อัปเดตรอบ P2 (11 พ.ย. 2026 — ต่อจาก commit `5d7776c`):** toast แยกสี/ไอคอน error + ไม่ทับ SOS · rider R03-b มีทางออก/R01 แจ้ง error · TZ `datetime-local` เป็นเวลาไทย + เลื่อน/ยกเลิกนัดได้ · theme boot ก่อน Angular (ไม่มีจอวาบ) · notification mute แจ้งเมื่อบันทึกไม่ได้ + retry online · admin-hub/head agency profile error+retry · head log/D11 load more ไม่ข้ามหน้า · head SOS มีปุ่มกลับ L04 · H12-d เข้าถึงได้ + push offline มี `?box=` · ใบพิมพ์ QR มี activation · notif settings มีปุ่มย้อนกลับ + easy mode ปรับชนิดแจ้งเตือนได้ · relative time เป็นชั่วโมง/วัน · title หน้า error/settings แปลตามภาษา · aria-label กลุ่มตัวกรอง · แผนที่แจ้ง tile error + ปุ่มลองใหม่ · legend หมุดในโซน · ค้นบ้านมี `X-Total-Count` แสดง 20/N · D17 นับตู้ทุกหน้า · CSV ใช้ชื่อไฟล์เวลาไทย · admin easy มีลิงก์ D16/ตั้งค่า/A14
 
+**อัปเดตรอบ D01 performance (11 พ.ย. 2026):** หน้าแอดมินค้าง skeleton/ช้า → โหลด `overview` ก่อนแล้วแสดงผลทันที (รายละเอียดรองโหลดเบื้องหลัง), cache overview 15 วิ รวมคำขอ sidebar+หน้า, single-pass activity query, index `created_date` migration `0037`; มี error+retry เมื่อ overview ล้ม
+
 **ยังไม่ทำ (ตั้งใจเลื่อน):** composite widget arrow keys (radio/tab) · easy mode แอดมินบนมือถือยังไม่ถึง D16/ตั้งค่าโดยตรง (มีลิงก์ใน D01 แล้ว) · dead code บางส่วน · P2-26
 
 ---

@@ -303,6 +303,8 @@
 - signup มีสรุป error + ร่างบ้าน/step ไม่หายเมื่ออ่านข้อตกลง
 - error→empty หลายหน้าถูกแก้ (เหลือ admin-hub), scroll restoration, `/error/offline` กู้ได้, easy tabs นิ่ง, focus trap/skip link
 
+**D01 ภาพรวมแอดมิน (แก้ 11 พ.ย.):** โหลด skeleton ค้าง/ขึ้นช้า → แยก `overview` (แสดงหน้าได้ทันที) จากรายละเอียดรอง, cache overview 15 วิ + รวมคำขอจาก sidebar/หน้า D01, เปลี่ยน query กิจกรรม 7 วันเป็น single-pass และเพิ่ม index `created_date` (migration `0037`)
+
 **ยังเหลือจากรอบนี้:** composite widget arrow keys (radio/tab) · easy mode แอดมินบนมือถือยังไม่ถึง D16/ตั้งค่าโดยตรง (มีลิงก์ใน D01) · dead code บางส่วน/P2-26
 
 ## 3.3 งานฝั่งเซิร์ฟเวอร์ — พร้อมสั่ง Codex (ทำจาก SSH เท่านั้น)

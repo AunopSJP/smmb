@@ -241,8 +241,21 @@ export interface AdminUserPlan {
 export class AdminApi {
   private readonly http = inject(HttpClient);
 
-  overview(): Promise<AdminOverview> {
-    return this.get('/api/v1/admin/overview');
+  private overviewCache: { at: number; promise: Promise<AdminOverview> } | null = null;
+
+  /**
+   * ภาพรวมระบบ — cache 15 วิ + รวมคำขอที่เกิดพร้อมกัน
+   * (sidebar กับหน้า D01 เรียกพร้อมกันตอนเปิดหน้า; endpoint นี้คำนวณหนัก)
+   */
+  overview(force = false): Promise<AdminOverview> {
+    const now = Date.now();
+    if (!force && this.overviewCache && now - this.overviewCache.at < 15_000) return this.overviewCache.promise;
+    const promise = this.get<AdminOverview>('/api/v1/admin/overview');
+    this.overviewCache = { at: now, promise };
+    void promise.catch(() => {
+      if (this.overviewCache?.promise === promise) this.overviewCache = null;
+    });
+    return promise;
   }
 
   private get<T>(url: string): Promise<T> {

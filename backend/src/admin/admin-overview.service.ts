@@ -43,13 +43,37 @@ export class AdminOverviewService {
     const { rows } = await this.pool.query<{ date: string; inspections: number; problems: number; deliveries: number; sos: number }>(
       `WITH days AS (
          SELECT d::date AS d FROM generate_series((now() AT TIME ZONE 'Asia/Bangkok')::date - 6, (now() AT TIME ZONE 'Asia/Bangkok')::date, interval '1 day') AS d
+       ),
+       insp AS (
+         SELECT (i.created_date AT TIME ZONE 'Asia/Bangkok')::date AS d,
+                count(*) FILTER (WHERE i.status = 'passed')::int AS inspections,
+                count(*) FILTER (WHERE i.status IN ('failed', 'box_problem'))::int AS problems
+         FROM app.inspection_tb i
+         WHERE i.created_date >= (((now() AT TIME ZONE 'Asia/Bangkok')::date - 6) AT TIME ZONE 'Asia/Bangkok')
+         GROUP BY 1
+       ),
+       del AS (
+         SELECT (l.created_date AT TIME ZONE 'Asia/Bangkok')::date AS d, count(*)::int AS deliveries
+         FROM app.delivery_tb l
+         WHERE l.created_date >= (((now() AT TIME ZONE 'Asia/Bangkok')::date - 6) AT TIME ZONE 'Asia/Bangkok')
+         GROUP BY 1
+       ),
+       sos AS (
+         SELECT (s.created_date AT TIME ZONE 'Asia/Bangkok')::date AS d, count(*)::int AS sos
+         FROM app.sos_case_tb s
+         WHERE s.created_date >= (((now() AT TIME ZONE 'Asia/Bangkok')::date - 6) AT TIME ZONE 'Asia/Bangkok')
+         GROUP BY 1
        )
        SELECT to_char(days.d, 'YYYY-MM-DD') AS date,
-         (SELECT count(*) FROM app.inspection_tb i WHERE i.status = 'passed' AND (i.created_date AT TIME ZONE 'Asia/Bangkok')::date = days.d)::int AS inspections,
-         (SELECT count(*) FROM app.inspection_tb i WHERE i.status IN ('failed', 'box_problem') AND (i.created_date AT TIME ZONE 'Asia/Bangkok')::date = days.d)::int AS problems,
-         (SELECT count(*) FROM app.delivery_tb l WHERE (l.created_date AT TIME ZONE 'Asia/Bangkok')::date = days.d)::int AS deliveries,
-         (SELECT count(*) FROM app.sos_case_tb s WHERE (s.created_date AT TIME ZONE 'Asia/Bangkok')::date = days.d)::int AS sos
-       FROM days ORDER BY days.d`,
+              coalesce(insp.inspections, 0) AS inspections,
+              coalesce(insp.problems, 0) AS problems,
+              coalesce(del.deliveries, 0) AS deliveries,
+              coalesce(sos.sos, 0) AS sos
+       FROM days
+       LEFT JOIN insp ON insp.d = days.d
+       LEFT JOIN del ON del.d = days.d
+       LEFT JOIN sos ON sos.d = days.d
+       ORDER BY days.d`,
     );
     return rows;
   }

@@ -34,11 +34,17 @@ interface Segment {
       [bell]="url('D12')"
     />
 
-    <div class="stack page">
+    <div class="stack page" [class.is-loading]="!loaded()">
       @if (!loaded()) {
         <div class="page-loading" role="status">
           <app-loading-rows [rows]="5" [label]="i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' })" />
         </div>
+      }
+      @if (loaded() && failed()) {
+        <p class="card err" role="alert">
+          {{ i18n.t({ th: 'โหลดภาพรวมไม่สำเร็จ', en: 'Could not load the overview' }) }}
+          <button type="button" class="see-all" (click)="refresh()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button>
+        </p>
       }
       <div class="asof easy-hide desk-only">
         <span class="muted small">{{ i18n.t({ th: 'ข้อมูล ณ ', en: 'As of ' }) }}{{ asOf() }}</span>
@@ -348,6 +354,10 @@ interface Segment {
     </div>
   `,
   styles: `
+    /* ระหว่างโหลด overview: แสดง skeleton เดียว ไม่โชว์การ์ดเปล่า/เลข 0 ปนกัน */
+    .is-loading > :not(.page-loading) {
+      display: none;
+    }
     .page {
       position: relative;
     }
@@ -918,19 +928,32 @@ export class AdminHome implements OnInit {
   protected readonly refreshing = signal(false);
   /** false = ยังโหลดรอบแรกไม่เสร็จ → แสดง skeleton แทนตัวเลข 0 */
   protected readonly loaded = signal(false);
+  protected readonly failed = signal(false);
 
   protected async refresh(): Promise<void> {
     this.refreshing.set(true);
     try {
-      await this.ngOnInit();
+      await this.ngOnInit(true);
     } finally {
       this.refreshing.set(false);
     }
   }
 
-  async ngOnInit(): Promise<void> {
-    const [overview, boxes, pending, support, technicianRequests, firmware, fwAuto, config] = await Promise.all([
-      this.api.overview().catch(() => null),
+  async ngOnInit(force = false): Promise<void> {
+    // ตัวเลขสรุปหลัก = endpoint เดียว → แสดงหน้าได้ทันที ไม่รอ 8 คำขอ
+    const overview = await this.api.overview(force).catch(() => null);
+    this.overview.set(overview);
+    this.failed.set(!overview);
+    const now = new Date();
+    this.asOf.set(now.toLocaleTimeString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { hour: '2-digit', minute: '2-digit' }));
+    this.asOfIso.set(now.toISOString());
+    this.loaded.set(true);
+    // รายละเอียดรองโหลดต่อเบื้องหลัง — ไม่บล็อกหน้าจอ
+    void this.loadDetails();
+  }
+
+  private async loadDetails(): Promise<void> {
+    const [boxes, pending, support, technicianRequests, firmware, fwAuto, config] = await Promise.all([
       this.api.boxes().catch(() => null),
       this.api.agencies('pending').catch(() => []),
       firstValueFrom(this.http.get<{ contact: string | null }>('/api/v1/support')).catch(() => null),
@@ -939,7 +962,6 @@ export class AdminHome implements OnInit {
       this.api.firmwareAuto().catch(() => null),
       this.api.config().catch(() => null),
     ]);
-    this.overview.set(overview);
     this.boxes.set(boxes?.data ?? []);
     this.pending.set(pending);
     this.support.set(support?.contact ?? null);
@@ -947,10 +969,6 @@ export class AdminHome implements OnInit {
     this.firmwareList.set(firmware);
     this.fwAuto.set(fwAuto?.version ?? null);
     this.configVer.set(config?.config_ver ?? null);
-    const now = new Date();
-    this.asOf.set(now.toLocaleTimeString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { hour: '2-digit', minute: '2-digit' }));
-    this.asOfIso.set(now.toISOString());
-    this.loaded.set(true);
   }
 
   protected editSupport(): void {
