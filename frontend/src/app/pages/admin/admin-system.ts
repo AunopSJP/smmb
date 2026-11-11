@@ -218,6 +218,11 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
         <button type="button" class="btn secondary csv" [disabled]="!rows().length" (click)="exportCsv()">{{ i18n.t({ th: 'ส่งออก CSV (ตามตัวกรอง)', en: 'Export CSV (filtered)' }) }}</button>
       </div>
       <ul class="list">
+        <li class="list-head lcols desktop-only" aria-hidden="true">
+          <span>{{ i18n.t({ th: 'ประเภท', en: 'Type' }) }}</span>
+          <span>{{ i18n.t({ th: 'รายละเอียด', en: 'Details' }) }}</span>
+          <span>{{ i18n.t({ th: 'ผล', en: 'Result' }) }}</span>
+        </li>
         @for (l of rows(); track l.id) {
           @let m = meta[l.type];
           <li class="row lcols">
@@ -264,13 +269,6 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
     .segmented {
       flex-wrap: wrap;
     }
-    .toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px 16px;
-    }
     .csv {
       inline-size: 100%;
     }
@@ -294,7 +292,11 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
         gap: 24px;
       }
       .lcols .grow strong {
-        flex: 0 0 min(300px, 38%);
+        flex: 0 1 auto;
+        min-inline-size: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .lcols .grow .block {
         display: inline;
@@ -312,6 +314,9 @@ export class AdminLogs {
   /** เลือกได้หลายประเภท · ไม่เลือกเลย = ทั้งหมด */
   protected readonly picked = signal(new Set<AdminLogType>());
   protected readonly allRows = signal<AdminLog[]>([]);
+  /** cache ข้อความแถว (วันที่/ผู้กระทำ) — template เรียก title()/sub() ทุก change detection */
+  private readonly titleCache = new Map<string, Tr>();
+  private readonly subCache = new Map<string, Tr>();
   protected readonly loading = signal(true);
   protected readonly error = signal(false);
   protected readonly rows = computed(() => {
@@ -338,6 +343,8 @@ export class AdminLogs {
       this.allRows.set(r.data);
       this.page = 1;
       this.more.set(r.data.length === r.per_page);
+      this.titleCache.clear();
+      this.subCache.clear();
     } catch {
       this.error.set(true);
     } finally {
@@ -365,19 +372,29 @@ export class AdminLogs {
   }
 
   protected title(log: AdminLog): Tr {
+    const cacheKey = log.id + '|' + this.i18n.lang();
+    const cached = this.titleCache.get(cacheKey);
+    if (cached) return cached;
     const place = log.house_no ?? log.box_id ?? log.result ?? log.type;
     const lang = this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB';
     const at = new Date(log.created_at);
     const date = `${at.toLocaleDateString(lang, { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' })} ${at.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' })}`;
-    return { th: `${LOG_TYPE[log.type].label.th} · ${place} · ${date}`, en: `${LOG_TYPE[log.type].label.en} · ${place} · ${date}` };
+    const out = { th: `${LOG_TYPE[log.type].label.th} · ${place} · ${date}`, en: `${LOG_TYPE[log.type].label.en} · ${place} · ${date}` };
+    this.titleCache.set(cacheKey, out);
+    return out;
   }
 
   protected sub(log: AdminLog): Tr {
+    const cacheKey = log.id + '|' + this.i18n.lang();
+    const cached = this.subCache.get(cacheKey);
+    if (cached) return cached;
     const actor = log.actor_name ?? '—';
     const qr = log.qr_slot ? `QR ${log.qr_slot}` : '';
     const mk = (lang: 'th' | 'en') =>
       [actor, qr, friendly(log.method, lang), friendly(log.result, lang), friendly(log.details, lang)].filter(Boolean).join(' · ');
-    return { th: mk('th'), en: mk('en') };
+    const out = { th: mk('th'), en: mk('en') };
+    this.subCache.set(cacheKey, out);
+    return out;
   }
 
   /** ส่งออกแถวที่โหลดจาก GET /admin/logs และผ่านตัวกรองบนหน้าจอ */

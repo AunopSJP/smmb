@@ -8,6 +8,7 @@ import { Confirm } from '../../shared/confirm-dialog';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
 import { QrImage } from '../../shared/qr-image';
+import { Icon } from '../../shared/icon';
 
 // จัดการ QR ของแอดมิน — ภาพรวมเป็นตารางเคส · แต่ละเคสทำจบในหน้าเดียว (ทุกขั้นอยู่ในหน้าเคส)
 // SMMB_ขั้นตอนการใช้งานแต่ละคน.md · api.md §9.4
@@ -146,7 +147,7 @@ export class QrPrintSheet {
 
 @Component({
   selector: 'app-admin-qr',
-  imports: [RouterLink, PageHeader],
+  imports: [RouterLink, PageHeader, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
@@ -158,6 +159,7 @@ export class QrPrintSheet {
     <div class="stack">
       <div class="toolbar easy-hide">
         <label class="search-box">
+          <app-icon name="search" [size]="18" />
           <input type="search" [attr.aria-label]="i18n.t({ th: 'ค้นบ้านเลขที่ / รหัสตู้', en: 'Search house no. / box id' })" [placeholder]="i18n.t({ th: 'ค้นบ้านเลขที่ / รหัสตู้', en: 'Search house no. / box id' })" [value]="q()" (input)="q.set($any($event.target).value)" />
         </label>
         <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'กรองตามปัญหา', en: 'Filter by problem' })">
@@ -235,26 +237,6 @@ export class QrPrintSheet {
     </div>
   `,
   styles: `
-    .toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 12px 16px;
-    }
-    .search-box {
-      flex: 1 1 240px;
-      display: flex;
-    }
-    .search-box input {
-      inline-size: 100%;
-      min-block-size: 44px;
-      padding: 0 12px;
-      border-radius: var(--radius-sm);
-      border: 1.5px solid var(--line);
-      background: var(--surface);
-      color: var(--text);
-      font: inherit;
-    }
     .block {
       display: block;
     }
@@ -356,8 +338,18 @@ export class AdminQr {
         })
         .catch(() => this.loadFailed.set(true));
     void load();
-    const timer = setInterval(() => void load(), 10_000);
-    inject(DestroyRef).onDestroy(() => clearInterval(timer));
+    // ไม่ยิง endpoint หนักตอนแท็บถูกซ่อน (มือถือสลับแอป/ปิดจอ) — กลับมาแสดงผลค่อยดึงใหม่
+    const timer = setInterval(() => {
+      if (!document.hidden) void load();
+    }, 10_000);
+    const onVisible = () => {
+      if (!document.hidden) void load();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    inject(DestroyRef).onDestroy(() => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    });
   }
 
   protected toggle(h: AdminQrHealth): void {

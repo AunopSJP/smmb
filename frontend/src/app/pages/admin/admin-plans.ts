@@ -249,34 +249,24 @@ export class UserPlan {
         </section>
       }
       <p class="muted small easy-only">{{ i18n.t({ th: 'ช่วงทดลองมีแค่แพ็กเกจฟรี · SOS และการตรวจตู้ใช้ได้ทุกแพ็ก · ไม่มีการชำระเงิน', en: 'The trial has only the free plan · SOS and inspections work on every plan · no payments' }) }}</p>
-      <div class="list easy-hide">
-        <div class="list-head pcols desktop-only" aria-hidden="true">
-          <span>{{ i18n.t({ th: 'แพ็กเกจ', en: 'Plan' }) }}</span>
-          <span>{{ i18n.t({ th: 'เจ้าของบ้าน', en: 'Owners' }) }}</span>
-          <span>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</span>
-          <span></span>
-        </div>
+      <div class="plans easy-hide">
         @for (p of plans(); track p.code) {
-          <div class="row plan pcols">
-            <span class="grow">
+          <article class="plan-card" [class.default]="p.is_default">
+            <header>
               <strong>{{ i18n.t(name(p)) }}</strong>
-              @if (p.price_note) {
-                <span class="muted small block">{{ p.price_note }}</span>
-              }
-              <span class="muted small block adv-only">{{ i18n.t({ th: 'เจ้าของบ้าน ', en: 'Owners ' }) }}{{ p.owners_count }} · {{ i18n.t({ th: 'ค่าเริ่มต้น', en: 'default' }) }} {{ p.is_default ? i18n.t({ th: 'ใช่', en: 'yes' }) : i18n.t({ th: 'ไม่ใช่', en: 'no' }) }}</span>
-            </span>
-            <span class="num">{{ p.owners_count }} <span class="muted small">{{ i18n.t({ th: 'คน', en: 'owners' }) }}</span></span>
-            <span class="chips">
               @if (p.is_default) {
                 <span class="chip ok">{{ i18n.t({ th: 'เริ่มต้น', en: 'Default' }) }}</span>
-              }
-              @if (!p.is_active) {
+              } @else if (!p.is_active) {
                 <span class="chip">{{ i18n.t({ th: 'ปิดให้เลือก', en: 'Not offered' }) }}</span>
-              } @else if (!p.is_default) {
+              } @else {
                 <span class="chip">{{ i18n.t({ th: 'เปิดให้เลือก', en: 'Offered' }) }}</span>
               }
-            </span>
-            <span class="actions">
+            </header>
+            @if (p.price_note) {
+              <p class="price">{{ p.price_note }}</p>
+            }
+            <p class="owners"><b>{{ p.owners_count }}</b> {{ i18n.t({ th: 'เจ้าของบ้าน', en: 'owners' }) }}</p>
+            <div class="actions">
               @if (!p.is_default && p.is_active) {
                 <button type="button" class="mini" [disabled]="busy() !== null" (click)="setDefault(p.code)">{{ i18n.t({ th: 'ตั้งเป็นเริ่มต้น', en: 'Make default' }) }}</button>
               }
@@ -285,8 +275,8 @@ export class UserPlan {
                   {{ p.is_active ? i18n.t({ th: 'ปิดให้เลือก', en: 'Stop offering' }) : i18n.t({ th: 'เปิดให้เลือก', en: 'Offer again' }) }}
                 </button>
               }
-            </span>
-          </div>
+            </div>
+          </article>
         }
       </div>
       <p class="muted small easy-hide">
@@ -353,20 +343,59 @@ export class UserPlan {
       font-size: 1rem;
       color: var(--text-muted);
     }
-    .chips {
+    .plans {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 320px));
+      justify-content: start;
+      gap: 14px;
+    }
+    .plan-card {
       display: flex;
-      gap: 4px;
-      margin-block-start: 4px;
+      flex-direction: column;
+      gap: 8px;
+      padding: 18px 20px;
+      border: 1px solid var(--line-strong, var(--line));
+      border-radius: var(--radius);
+      background: var(--surface);
+      min-inline-size: 0;
+    }
+    .plan-card.default {
+      border-color: var(--ok);
+      box-shadow: inset 0 0 0 1px var(--ok);
+    }
+    .plan-card header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .plan-card header strong {
+      font-size: 1.0625rem;
+    }
+    .plan-card .price {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+    .plan-card .owners {
+      margin: 4px 0 2px;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+    .plan-card .owners b {
+      font-size: 1.5rem;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
     }
     .actions {
       display: flex;
-      flex-direction: column;
+      flex-wrap: wrap;
       gap: 6px;
-      align-items: flex-end;
+      align-items: center;
     }
     .mini {
       min-block-size: 36px;
-      padding: 4px 10px;
+      padding: 4px 12px;
       border-radius: 999px;
       border: 1.5px solid var(--line);
       background: var(--surface);
@@ -382,36 +411,11 @@ export class UserPlan {
       grid-template-columns: 1fr 1fr;
       gap: 10px;
     }
-    .pcols {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 6px 12px;
-      align-items: center;
-    }
-    .pcols .actions {
-      grid-column: 1 / -1;
-      flex-direction: row;
-      justify-content: flex-start;
-    }
-    .num {
-      font-variant-numeric: tabular-nums;
-      font-weight: 700;
+    .plan-card .actions {
+      margin-block-start: auto;
+      padding-block-start: 6px;
     }
     @media (min-width: 1024px) {
-      .pcols {
-        grid-template-columns: minmax(0, 2fr) 110px 190px minmax(0, 1.4fr);
-        gap: 16px;
-      }
-      .pcols .actions {
-        grid-column: auto;
-        justify-content: flex-end;
-      }
-      .plan {
-        align-items: center;
-      }
-      .actions {
-        flex-direction: row;
-      }
       .mini {
         border-width: 1px;
       }

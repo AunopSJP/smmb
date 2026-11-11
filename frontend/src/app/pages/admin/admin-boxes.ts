@@ -8,7 +8,7 @@ import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { BoxTest } from '../../shared/box-test';
 import { Confirm } from '../../shared/confirm-dialog';
-import { Icon } from '../../shared/icon';
+import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { QrImage } from '../../shared/qr-image';
 
@@ -214,36 +214,6 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
     }
     .block {
       display: block;
-    }
-    .toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 12px 16px;
-    }
-    .search-box {
-      flex: 1 1 260px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      min-block-size: 44px;
-      padding: 0 12px;
-      border-radius: var(--radius-sm);
-      border: 1.5px solid var(--line);
-      background: var(--surface);
-      color: var(--text-muted);
-    }
-    .search-box:focus-within {
-      border-color: var(--brand-text);
-    }
-    .search-box input {
-      flex: 1;
-      min-inline-size: 0;
-      border: 0;
-      outline: 0;
-      background: transparent;
-      color: var(--text);
-      font: inherit;
     }
     .add {
       display: flex;
@@ -610,7 +580,7 @@ export class AdminBoxes implements OnInit {
 
 @Component({
   selector: 'app-admin-box',
-  imports: [RouterLink, PageHeader, QrImage, BoxTest],
+  imports: [RouterLink, PageHeader, QrImage, BoxTest, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="id() ?? ''" [title]="i18n.t({ th: 'ตู้ ', en: 'Mailbox ' }) + (box()?.house_no ?? id() ?? '')" [back]="url('D03')" />
@@ -646,7 +616,9 @@ export class AdminBoxes implements OnInit {
 
       <div class="tabs" role="tablist" [attr.aria-label]="i18n.t({ th: 'หมวดของตู้', en: 'Box sections' })">
         @for (t of tabs; track t.v) {
-          <button type="button" role="tab" [attr.aria-selected]="tab() === t.v" [class.on]="tab() === t.v" [class.easy-hide]="t.v === 'test' || t.v === 'firmware' || t.v === 'danger'" (click)="tab.set(t.v)">{{ i18n.t(t.label) }}</button>
+          <button type="button" role="tab" [attr.aria-selected]="tab() === t.v" [class.on]="tab() === t.v" [class.easy-hide]="t.v === 'test' || t.v === 'firmware' || t.v === 'danger'" (click)="tab.set(t.v)">
+            <app-icon [name]="t.icon" [size]="16" />{{ i18n.t(t.label) }}
+          </button>
         }
       </div>
 
@@ -1279,34 +1251,8 @@ export class AdminBoxes implements OnInit {
     .tabs + .info-box {
       margin-block-end: 14px;
     }
-    /* แท็บหมวด */
-    .tabs {
-      display: flex;
-      gap: 4px;
-      overflow-x: auto;
-      margin: 14px 0 12px;
-      border-block-end: 1px solid var(--line-strong, var(--line));
-    }
-    .tabs button {
-      flex: none;
-      padding: 10px 16px;
-      border: 0;
-      border-block-end: 3px solid transparent;
-      background: none;
-      color: var(--text-muted);
-      font: inherit;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .tabs button:hover {
-      color: var(--text);
-    }
-    .tabs button.on {
-      color: var(--brand-text);
-      border-block-end-color: var(--brand-text);
-    }
     .stack.grow {
-      max-inline-size: 860px;
+      max-inline-size: 980px;
     }
     /* ตั้งค่าเฉพาะตู้ (details) — ให้ช่องแต่ละช่องมีระยะห่างเหมือนการ์ดอื่น */
     .override {
@@ -1428,13 +1374,13 @@ export class AdminBoxes implements OnInit {
 export class AdminBox implements OnInit {
   protected readonly lowPct = LOW_BATTERY_PCT;
   protected readonly tab = signal<'overview' | 'test' | 'settings' | 'firmware' | 'qr' | 'danger'>('overview');
-  protected readonly tabs: { v: 'overview' | 'test' | 'settings' | 'firmware' | 'qr' | 'danger'; label: Tr }[] = [
-    { v: 'overview', label: { th: 'ภาพรวม', en: 'Overview' } },
-    { v: 'test', label: { th: 'ทดสอบ', en: 'Test' } },
-    { v: 'settings', label: { th: 'ตั้งค่า', en: 'Settings' } },
-    { v: 'firmware', label: { th: 'เฟิร์มแวร์', en: 'Firmware' } },
-    { v: 'qr', label: { th: 'QR และบอร์ด', en: 'QR & board' } },
-    { v: 'danger', label: { th: 'ขั้นสูง', en: 'Advanced' } },
+  protected readonly tabs: { v: 'overview' | 'test' | 'settings' | 'firmware' | 'qr' | 'danger'; icon: IconName; label: Tr }[] = [
+    { v: 'overview', icon: 'home', label: { th: 'ภาพรวม', en: 'Overview' } },
+    { v: 'test', icon: 'target', label: { th: 'ทดสอบ', en: 'Test' } },
+    { v: 'settings', icon: 'settings', label: { th: 'ตั้งค่า', en: 'Settings' } },
+    { v: 'firmware', icon: 'layers', label: { th: 'เฟิร์มแวร์', en: 'Firmware' } },
+    { v: 'qr', icon: 'scan', label: { th: 'QR และบอร์ด', en: 'QR & board' } },
+    { v: 'danger', icon: 'alert', label: { th: 'ขั้นสูง', en: 'Advanced' } },
   ];
   protected readonly i18n = inject(I18n);
   private readonly router = inject(Router);

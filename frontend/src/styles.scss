@@ -1895,25 +1895,229 @@ fieldset {
     color: var(--ib-fg);
   }
 
-  // ── ตาราง/รายการ ──
+  // ── ตารางข้อมูล (D03/D05/D09/D11/D14) ──
   .list {
     border-color: var(--line-strong);
     box-shadow: var(--shadow);
     border-radius: var(--radius);
   }
-  .list > * + * {
-    border-block-start: 1px solid var(--line);
-  }
   .list-head {
-    background: color-mix(in srgb, var(--icon-bg) 70%, var(--surface));
+    background: color-mix(in srgb, var(--icon-bg) 55%, var(--surface));
     border-block-end: 1px solid var(--line-strong);
     color: var(--text-muted);
-    font-size: 0.8125rem;
-    font-weight: 600;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+  .list-head .th {
+    font-size: inherit;
+    letter-spacing: inherit;
+  }
+  .row {
+    padding-block: 14px;
   }
   a.row:hover,
   button.row:hover {
+    background: color-mix(in srgb, var(--brand-lighter) 55%, var(--surface));
+  }
+  a.row:focus-visible,
+  button.row:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: -2px;
+  }
+  .row .go {
+    padding: 6px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  a.row:hover .go {
+    border-color: var(--brand);
     background: var(--brand-lighter);
+    color: var(--brand-dark);
+  }
+
+  // ── แถบเครื่องมือ: ค้นหา + ตัวกรอง + ปุ่มหลัก อยู่ในแถบเดียว ──
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+  }
+  .toolbar .search-box {
+    flex: 1 1 280px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-block-size: 40px;
+    padding-inline: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--icon-bg);
+    color: var(--text-muted);
+  }
+  .toolbar .search-box:focus-within {
+    border-color: var(--brand);
+    background: var(--surface);
+    box-shadow: var(--focus);
+  }
+  .toolbar .search-box input {
+    flex: 1;
+    min-inline-size: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+  }
+  .toolbar .segmented {
+    padding: 0;
+    background: transparent;
+  }
+  .toolbar .segmented.chips button {
+    min-block-size: 40px;
+  }
+
+  // ── แท็บในหน้า (เช่น หมวดของตู้ D04) ──
+  .tabs {
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    border-block-end: 1px solid var(--line-strong);
+    scrollbar-width: thin;
+  }
+  .tabs button {
+    position: relative;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-block-end: -1px;
+    padding: 12px 16px;
+    border: 0;
+    border-block-end: 2px solid transparent;
+    background: none;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .tabs button:hover {
+    color: var(--text);
+    background: var(--icon-bg);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  }
+  .tabs button.on {
+    border-block-end-color: var(--brand);
+    color: var(--brand-dark);
+  }
+  .tabs button.on app-icon {
+    color: var(--brand);
+  }
+
+  // ── การ์ดทางเข้าแบบตาราง (ศูนย์รวมเมนู D16) ──
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 12px;
+  }
+  .tiles.two {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  }
+  .tile {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-inline-size: 0;
+    padding: 16px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: inherit;
+    text-decoration: none;
+    transition:
+      border-color 0.12s,
+      box-shadow 0.12s,
+      transform 0.12s;
+  }
+  .tile:hover {
+    border-color: var(--brand);
+    box-shadow: 0 6px 16px rgb(16 24 40 / 8%);
+    transform: translateY(-1px);
+  }
+  .tile:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+  .tile .icon-bubble {
+    flex: none;
+    inline-size: 40px;
+    block-size: 40px;
+    border-radius: 10px;
+    background: var(--icon-bg);
+    color: var(--brand-text);
+    transition:
+      background 0.12s,
+      color 0.12s;
+  }
+  .tile:hover .icon-bubble {
+    background: var(--brand);
+    color: #fff;
+  }
+  .tile .grow {
+    min-inline-size: 0;
+  }
+  .tile strong {
+    display: block;
+    font-size: 0.9375rem;
+    line-height: 1.35;
+  }
+  .tile .hint {
+    display: block;
+    margin-block-start: 2px;
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+    line-height: 1.45;
+  }
+  .tile .count {
+    flex: none;
+    margin-inline-start: auto;
+  }
+
+  // ── หัวข้อกลุ่ม + สถานะว่าง ──
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-block-start: 4px;
+  }
+  .section-head h2 {
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  .section-head .count {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+  }
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-muted);
   }
 
   // ── การ์ด/แผง ──

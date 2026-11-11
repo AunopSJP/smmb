@@ -305,20 +305,24 @@ const ROLE_LABEL: Record<string, Tr> = {
 
 @Component({
   selector: 'app-admin-users',
-  imports: [PageHeader, UserPlan],
+  imports: [PageHeader, UserPlan, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'ผู้ใช้', en: 'Users' })" [bell]="url('D12')" />
     <div class="stack">
-      <form class="search" (submit)="$event.preventDefault(); search()">
-        <input type="search" [placeholder]="i18n.t({ th: 'ค้นเบอร์โทรหรือชื่อ', en: 'Search phone or name' })" [value]="q()" (input)="q.set($any($event.target).value)" />
-        <button type="submit" class="btn secondary">{{ i18n.t({ th: 'ค้น', en: 'Search' }) }}</button>
-      </form>
-
-      <div class="segmented chips easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'กรองตามบทบาท', en: 'Filter by role' })">
-        @for (f of roleFilters; track f.v) {
-          <button type="button" [attr.aria-pressed]="roleFilter() === f.v" (click)="roleFilter.set(f.v)">{{ i18n.t(f.label) }} <span class="n">{{ roleCounts()[f.v] }}</span></button>
-        }
+      <div class="toolbar">
+        <form class="lookup" (submit)="$event.preventDefault(); search()">
+          <label class="search-box">
+            <app-icon name="search" [size]="18" />
+            <input type="search" [attr.aria-label]="i18n.t({ th: 'ค้นเบอร์โทรหรือชื่อ', en: 'Search phone or name' })" [placeholder]="i18n.t({ th: 'ค้นเบอร์โทรหรือชื่อ', en: 'Search phone or name' })" [value]="q()" (input)="q.set($any($event.target).value)" />
+          </label>
+          <button type="submit" class="btn secondary">{{ i18n.t({ th: 'ค้น', en: 'Search' }) }}</button>
+        </form>
+        <div class="segmented chips easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'กรองตามบทบาท', en: 'Filter by role' })">
+          @for (f of roleFilters; track f.v) {
+            <button type="button" [attr.aria-pressed]="roleFilter() === f.v" (click)="roleFilter.set(f.v)">{{ i18n.t(f.label) }} <span class="n">{{ roleCounts()[f.v] }}</span></button>
+          }
+        </div>
       </div>
 
       <div class="split">
@@ -409,19 +413,19 @@ const ROLE_LABEL: Record<string, Tr> = {
     .block {
       display: block;
     }
-    .search {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 10px;
-      input {
-        min-block-size: 44px;
-        padding: 8px 12px;
-        border-radius: var(--radius-sm);
-        border: 1.5px solid var(--line);
-        background: var(--surface);
-        color: var(--text);
-        font: inherit;
-      }
+    .lookup {
+      flex: 1 1 320px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-inline-size: 0;
+    }
+    .lookup .search-box {
+      flex: 1;
+      min-inline-size: 0;
+    }
+    .lookup .btn {
+      flex: none;
     }
     .two {
       display: grid;

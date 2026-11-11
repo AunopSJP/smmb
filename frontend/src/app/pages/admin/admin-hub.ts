@@ -30,7 +30,7 @@ const SETTINGS: HubItem[] = [
   { code: 'D14', icon: 'target', title: { th: 'แพ็กเกจ', en: 'Plans' }, hint: { th: 'ช่วงทดลองมีแค่แพ็กเกจฟรี', en: 'Trial has only the free plan' } },
   { code: 'D11', icon: 'list', title: { th: 'บันทึกทั้งหมด', en: 'All logs' }, hint: { th: 'ประวัติการสแกน/ส่งของ/SOS', en: 'Scans, deliveries, SOS' } },
   { code: 'D11', icon: 'shield', title: { th: 'บันทึกการเข้าถึงข้อมูล', en: 'Data access log' }, hint: { th: 'ใครเปิดดูเบอร์/รหัสลับ แก้ลบไม่ได้', en: 'Who opened phones/secrets, cannot be edited' }, query: { type: 'data_access' } },
-  { code: 'D12', icon: 'bell', title: { th: 'แจ้งเตือน', en: 'Notifications' }, hint: { th: 'แจ้งเตือนของผู้ดูแล', en: 'Admin notifications' } },
+  { code: 'D12', icon: 'bell', title: { th: 'รายการแจ้งเตือน', en: 'Notifications inbox' }, hint: { th: 'ประวัติการแจ้งเตือนของผู้ดูแล', en: 'Admin notification history' } },
 ];
 
 @Component({
@@ -80,51 +80,54 @@ const SETTINGS: HubItem[] = [
         </a>
       </nav>
 
-      <h2 class="section-title easy-hide">{{ i18n.t({ th: 'เฝ้าระวัง', en: 'Watch' }) }}</h2>
-      <nav class="list easy-hide">
+      <div class="section-head easy-hide">
+        <h2>{{ i18n.t({ th: 'เฝ้าระวัง', en: 'Watch' }) }}</h2>
+        @if (alertCount()) {
+          <span class="count">{{ alertCount() }} {{ i18n.t({ th: 'รายการต้องดู', en: 'to check' }) }}</span>
+        }
+      </div>
+      <nav class="tiles easy-hide">
         @for (it of watch; track it.code) {
-          <a class="row" [routerLink]="url(it.code)">
+          <a class="tile" [routerLink]="url(it.code)">
             <span class="icon-bubble"><app-icon [name]="it.icon" [size]="20" /></span>
             <span class="grow">
               <strong>{{ i18n.t(it.title) }}</strong>
-              <span class="muted small block">{{ i18n.t(it.hint) }}</span>
+              <span class="hint">{{ i18n.t(it.hint) }}</span>
             </span>
             @if (it.count && o(); as ov) {
               @if (it.count(ov); as n) {
-                <span class="chip warn">{{ n }}</span>
+                <span class="chip warn count">{{ n }}</span>
               }
             }
-            <app-icon name="chevronRight" [size]="18" />
           </a>
         }
       </nav>
-      <h2 class="section-title easy-hide">{{ i18n.t({ th: 'ตั้งค่า', en: 'Settings' }) }}</h2>
-      <nav class="list easy-hide">
+      <div class="section-head easy-hide">
+        <h2>{{ i18n.t({ th: 'ตั้งค่าและเครื่องมือ', en: 'Settings and tools' }) }}</h2>
+      </div>
+      <nav class="tiles easy-hide">
         @for (it of settings; track it.title.th) {
-          <a class="row" [routerLink]="url(it.code)" [queryParams]="it.query ?? null">
+          <a class="tile" [routerLink]="url(it.code)" [queryParams]="it.query ?? null">
             <span class="icon-bubble"><app-icon [name]="it.icon" [size]="20" /></span>
             <span class="grow">
               <strong>{{ i18n.t(it.title) }}</strong>
-              <span class="muted small block easy-hide">{{ i18n.t(it.hint) }}</span>
+              <span class="hint">{{ i18n.t(it.hint) }}</span>
             </span>
-            <app-icon name="chevronRight" [size]="18" />
           </a>
         }
-        <a class="row" routerLink="/settings/notifications">
+        <a class="tile" routerLink="/settings/notifications">
           <span class="icon-bubble"><app-icon name="bell" [size]="20" /></span>
           <span class="grow">
             <strong>{{ i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' }) }}</strong>
-            <span class="muted small block easy-hide">{{ i18n.t({ th: 'ชนิดที่รับ · ส่งทดสอบ · วิธีแก้ถ้าไม่เด้ง', en: 'What to receive · send a test · fixes if nothing arrives' }) }}</span>
+            <span class="hint">{{ i18n.t({ th: 'ชนิดที่รับ · ส่งทดสอบ · วิธีแก้ถ้าไม่เด้ง', en: 'What to receive · send a test · fixes if nothing arrives' }) }}</span>
           </span>
-          <app-icon name="chevronRight" [size]="18" />
         </a>
-        <a class="row" routerLink="/settings/display">
+        <a class="tile" routerLink="/settings/display">
           <span class="icon-bubble"><app-icon name="settings" [size]="20" /></span>
           <span class="grow">
-            <strong>{{ i18n.t({ th: 'โหมดการแสดงผล', en: 'Display mode' }) }}</strong>
-            <span class="muted small block easy-hide">{{ i18n.t({ th: 'ง่าย · ปกติ · ละเอียด · ธีม · ภาษา · ขนาดตัวอักษร', en: 'Easy · normal · detailed · theme · language · text size' }) }}</span>
+            <strong>{{ i18n.t({ th: 'การแสดงผล', en: 'Display' }) }}</strong>
+            <span class="hint">{{ i18n.t({ th: 'ธีม · ภาษา · ขนาดตัวอักษร · โหมดง่าย', en: 'Theme · language · text size · easy mode' }) }}</span>
           </span>
-          <app-icon name="chevronRight" [size]="18" />
         </a>
       </nav>
       @if (o(); as ov) {
@@ -168,6 +171,11 @@ export class AdminHub {
   protected readonly fwAuto = signal<string | null>(null);
   protected readonly configVer = signal<number | null>(null);
   protected readonly latestFw = computed(() => this.firmware()[0]?.version ?? '');
+  protected readonly alertCount = computed(() => {
+    const o = this.o();
+    if (!o) return 0;
+    return this.watch.reduce((sum, it) => sum + (it.count?.(o) ?? 0), 0);
+  });
   protected readonly failed = signal(false);
 
   constructor() {

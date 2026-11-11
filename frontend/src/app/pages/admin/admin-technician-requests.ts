@@ -14,10 +14,12 @@ import { screenUrl } from '../../screens/registry';
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'คำขอช่าง', en: 'Technician requests' })" [back]="url('D16')" />
     <div class="stack">
-      <div class="segmented chips easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'สถานะคำขอ', en: 'Request status' })">
-        @for (option of filters; track option.value) {
-          <button type="button" [attr.aria-pressed]="filter() === option.value" (click)="filter.set(option.value); load()">{{ i18n.t(option.label) }}</button>
-        }
+      <div class="toolbar easy-hide">
+        <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'สถานะคำขอ', en: 'Request status' })">
+          @for (option of filters; track option.value) {
+            <button type="button" [attr.aria-pressed]="filter() === option.value" (click)="filter.set(option.value); load()">{{ i18n.t(option.label) }}</button>
+          }
+        </div>
       </div>
       @if (error()) { <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดหรือบันทึกคำขอไม่สำเร็จ ลองอีกครั้ง', en: 'Could not load or save requests. Try again.' }) }}</p> }
       <div class="reqs">
