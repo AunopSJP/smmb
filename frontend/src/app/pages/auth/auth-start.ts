@@ -322,7 +322,7 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
             <strong>{{ i18n.t(e.title) }}</strong><br />
             <span class="small">{{ i18n.t(e.sub) }}</span>
             @if (errorInfo()) {
-              <br />
+              <br /><span class="mono adv-only">{{ errorInfo() }}</span>
             }
           </p>
         }

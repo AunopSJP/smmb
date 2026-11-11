@@ -42,7 +42,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let st = sos()?.stage ?? 'zone';
-    <div class="sos-page" role="main" aria-live="polite">
+    <div class="sos-page">
       @if (!linkOk()) {
         <p class="link-lost" role="alert">
           {{ i18n.t({ th: 'ติดต่อเซิร์ฟเวอร์ไม่ได้ — โทรแจ้งเหตุเองทันที: 191 / 1669', en: 'Cannot reach the server — call for help yourself now: 191 / 1669' }) }}
@@ -52,7 +52,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
         <!-- OwnSosWait_E: หน้าจอเดียว ตัวใหญ่ + ปุ่มโทร -->
         <div class="easy-sos">
           <div class="pulse" aria-hidden="true"><i></i></div>
-          <h1>{{ st === 'call_yourself' ? i18n.t({ th: 'โปรดโทรแจ้งเหตุทันที', en: 'Please call for help now' }) : i18n.t({ th: 'กำลังขอความช่วยเหลือ', en: 'Getting help' }) }}</h1>
+          <h1 aria-live="polite">{{ st === 'call_yourself' ? i18n.t({ th: 'โปรดโทรแจ้งเหตุทันที', en: 'Please call for help now' }) : i18n.t({ th: 'กำลังขอความช่วยเหลือ', en: 'Getting help' }) }}</h1>
           <p>{{ st === 'call_yourself' ? i18n.t({ th: 'SOS ยังเปิดอยู่ ถ้ามีเจ้าหน้าที่รับจะแจ้งให้ทราบทันที', en: 'Your SOS is still open — we will tell you as soon as an officer accepts' }) : i18n.t({ th: 'ส่งถึงเจ้าหน้าที่แล้ว รอคนรับเรื่อง', en: 'Sent to officers — waiting for someone to accept' }) }}</p>
           <app-call-buttons [big]="true" />
           <a class="btn secondary easy-cancel" [routerLink]="url('H10')" [queryParams]="{ id: id() }">{{ i18n.t({ th: 'ยกเลิก SOS', en: 'Cancel SOS' }) }}</a>
@@ -61,7 +61,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       @if (st === 'call_yourself') {
         <header class="sos-head">
           <span class="pill">{{ i18n.t({ th: 'ยังไม่มีคนรับ', en: 'No one has accepted yet' }) }} · {{ time() }}</span>
-          <h1>{{ i18n.t({ th: 'โปรดโทรแจ้งเหตุทันที', en: 'Please call for help now' }) }}</h1>
+          <h1 aria-live="polite">{{ i18n.t({ th: 'โปรดโทรแจ้งเหตุทันที', en: 'Please call for help now' }) }}</h1>
           <p>{{ i18n.t({ th: 'SOS ยังเปิดอยู่ ถ้ามีเจ้าหน้าที่รับจะแจ้งให้ทราบทันที', en: 'Your SOS is still open — we will tell you as soon as an officer accepts' }) }}</p>
         </header>
         <div class="sos-body">
@@ -78,7 +78,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       } @else {
         <header class="sos-head">
           <span class="pill">{{ i18n.t({ th: 'SOS ส่งแล้ว · บ้านเลขที่ ', en: 'SOS sent · house ' }) }}{{ sos()?.box?.house_no }}</span>
-          <h1>
+          <h1 aria-live="polite">
             {{ st === 'zone' ? i18n.t({ th: 'กำลังหาเจ้าหน้าที่…', en: 'Finding an officer…' }) : i18n.t({ th: 'กำลังแจ้งทั้งหน่วยงาน…', en: 'Alerting the whole agency…' }) }}
           </h1>
           <p class="timer">{{ time() }}</p>
@@ -336,7 +336,7 @@ export class SosWaiting {
   imports: [RouterLink, CallButtons],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="sos-page" role="main">
+    <div class="sos-page">
       <header class="sos-head">
         <h1>{{ i18n.t({ th: 'โทรแจ้งเหตุทันที', en: 'Call for help now' }) }}</h1>
         <p>{{ i18n.t({ th: 'บ้านนี้ยังไม่มีเจ้าหน้าที่ดูแล ระบบส่งต่อให้ใครไม่ได้', en: 'No officer covers this house yet, so the SOS cannot be passed on' }) }}</p>
@@ -453,7 +453,7 @@ export class SosCancel {
   imports: [RouterLink, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="sos-page" role="main" aria-live="polite">
+    <div class="sos-page">
       <header class="sos-head ok">
         <span class="check"><app-icon name="check" [size]="30" /></span>
         <h1>{{ i18n.t({ th: 'มีเจ้าหน้าที่รับแล้ว', en: 'An officer accepted' }) }}</h1>
@@ -579,7 +579,7 @@ export class SosAccepted {
   imports: [Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="sos-page closed" role="main">
+    <div class="sos-page closed">
       <div class="sos-body">
         <span class="check"><app-icon name="check" [size]="30" /></span>
         <h1 class="center">{{ i18n.t({ th: 'ปิดเรื่องแล้ว', en: 'SOS closed' }) }}</h1>

@@ -1143,8 +1143,6 @@ const HOLD_MS = 8000;
         <p class="house">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ ins()?.box?.house_no }} · {{ time(ins()?.checked_at) }}</p>
         <p class="small">{{ i18n.t({ th: 'เจ้าของบ้านได้รับแจ้งเตือนแล้ว', en: 'The owner has been notified' }) }}</p>
       </div>
-      @if (id()) {
-      }
       @if (summary(); as s) {
         <p class="summary">
           <strong>{{ i18n.t({ th: 'ตรวจแล้ว ', en: 'Checked ' }) }}{{ s.houses_checked }} / {{ s.houses_total }} {{ i18n.t({ th: 'หลัง', en: 'houses' }) }}</strong><br />

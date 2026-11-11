@@ -186,13 +186,17 @@ export class HeadApi {
   }
   /** ไม่ใส่คำค้น = บ้านที่ยังไม่มีหน่วยงานไหนดูแล */
   /** unzoned: เฉพาะบ้านที่ยังไม่มีใครดูแล · online: เฉพาะตู้ออนไลน์ (api.md §8.3) */
-  searchHouses(q = '', opt: { unzoned?: boolean; online?: boolean; zone?: string } = {}): Promise<HouseHit[]> {
+  searchHouses(q = '', opt: { unzoned?: boolean; online?: boolean; zone?: string } = {}): Promise<{ data: HouseHit[]; total: number }> {
     const p = new URLSearchParams();
     if (opt.zone) p.set('zone', opt.zone);
     if (q) p.set('q', q);
     if (opt.unzoned !== undefined) p.set('unzoned', opt.unzoned ? '1' : '0');
     if (opt.online) p.set('online', '1');
     const qs = p.toString();
-    return this.get<HouseHit[]>(`/api/v1/agency/houses/search${qs ? `?${qs}` : ''}`);
+    return firstValueFrom(this.http.get<HouseHit[]>(`/api/v1/agency/houses/search${qs ? `?${qs}` : ''}`, { observe: 'response' })).then((r) => ({
+      data: r.body ?? [],
+      // จำนวนทั้งหมดก่อนตัด 20 — ถ้า header หาย ใช้จำนวนที่โหลดมา
+      total: Number(r.headers.get('X-Total-Count')) || (r.body?.length ?? 0),
+    }));
   }
 }

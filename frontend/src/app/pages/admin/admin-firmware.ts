@@ -180,7 +180,7 @@ export class AdminFirmware {
       const [list, auto, boxes] = await Promise.all([
         this.api.firmwareList(),
         this.api.firmwareAuto(),
-        this.api.boxes().then((r) => r.data).catch(() => [] as AdminBoxRow[]),
+        this.allBoxes().catch(() => [] as AdminBoxRow[]),
       ]);
       this.list.set(list);
       this.auto.set(auto.version);
@@ -190,6 +190,17 @@ export class AdminFirmware {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /** โหลดตู้ทั้งหมด (API แบ่งหน้า 100) — ตัวเลข “ใช้รุ่นล่าสุด” ต้องไม่นับแค่ 100 ใบแรก */
+  private async allBoxes(): Promise<AdminBoxRow[]> {
+    const out: AdminBoxRow[] = [];
+    for (let page = 1; page <= 50; page += 1) {
+      const r = await this.api.boxes('', page);
+      out.push(...r.data);
+      if (r.data.length < r.per_page || out.length >= r.total) break;
+    }
+    return out;
   }
 
   protected async setAuto(version: string | null): Promise<void> {

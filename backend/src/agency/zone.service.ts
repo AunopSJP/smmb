@@ -200,7 +200,7 @@ export class ZoneService {
    * บอกว่าบ้านนี้อยู่โซนไหนแล้วบ้าง (รวมหน่วยงานอื่น) ให้หัวหน้าเห็นว่ามีใครดูแลอยู่
    * ไม่ใส่คำค้น = บ้านที่ยังไม่มีหน่วยงานไหนดูแล (ไล่ดูแล้วเพิ่มได้เลย โดยไม่ต้องรู้บ้านเลขที่) · ตรงต้นคำขึ้นก่อน
    */
-  async searchHouses(agencyId: string, q?: string, opt: { unzoned?: boolean; online?: boolean; zoneId?: string } = {}): Promise<HouseSearchDto[]> {
+  async searchHouses(agencyId: string, q?: string, opt: { unzoned?: boolean; online?: boolean; zoneId?: string } = {}): Promise<{ data: HouseSearchDto[]; total: number }> {
     const term = q?.trim() ?? '';
     // ระบุโซน = เห็นเฉพาะบ้านที่อยู่ในพื้นที่ของโซนนั้น (โซนของหน่วยงานอื่น/ไม่มี → 404 · ยังไม่ตั้งพื้นที่ → ไม่มีผล)
     let area: ZoneArea | null = null;
@@ -210,7 +210,7 @@ export class ZoneService {
         [opt.zoneId, agencyId],
       );
       if (!z.rows[0]) throw new NotFoundException();
-      if (!z.rows[0].province || !z.rows[0].district) return [];
+      if (!z.rows[0].province || !z.rows[0].district) return { data: [], total: 0 };
       area = { province: z.rows[0].province, district: z.rows[0].district, subdistrict: z.rows[0].subdistrict };
     }
     // ไม่ใส่คำค้นและไม่ระบุตัวกรอง = บ้านที่ยังไม่มีใครดูแล (พฤติกรรมเดิม)
@@ -230,8 +230,10 @@ export class ZoneService {
       pending_mine: boolean;
       lat: string | null;
       lng: string | null;
+      total: number;
     }>(
       `SELECT b.box_id, b.house_no, b.name, b.area, b.owner_user_id, b.service_active, b.last_poll_date, b.last_seen_date, b.config_override, b.lat, b.lng,
+              count(*) OVER() AS total,
               coalesce((SELECT json_agg(json_build_object('agency_name', a.name, 'zone_name', z.name, 'mine', a.agency_id = $3) ORDER BY a.name, z.name)
                 FROM app.zone_box_tb zb
                 JOIN app.zone_tb z ON z.zone_id = zb.zone_id AND z.deleted_date IS NULL
@@ -260,7 +262,7 @@ export class ZoneService {
       [likeContains(term), HOUSE_SEARCH_LIMIT, agencyId, term === '', likeContains(term).slice(1), unzoned, area?.province ?? null, area?.district ?? null, area?.subdistrict ?? null],
     );
     const status = await this.boxConfigs.statusOf(rows);
-    return rows
+    const data = rows
       .map((r) => ({
         box_id: r.box_id,
         house_no: r.house_no,
@@ -274,6 +276,7 @@ export class ZoneService {
         lng: r.lng === null ? null : Number(r.lng),
       }))
       .filter((r) => !opt.online || r.box_status === 'online');
+    return { data, total: opt.online ? data.length : rows[0]?.total ?? 0 };
   }
 
   async create(agencyId: string, userId: string, name: string, windows: unknown, area?: ZoneAreaInput): Promise<ZoneDto> {

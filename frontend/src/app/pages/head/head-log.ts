@@ -332,7 +332,8 @@ export class HeadLog implements OnInit {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `smmb-scan-log-${new Date().toISOString().slice(0, 10)}.csv`;
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+      a.download = `smmb-scan-log-${today}.csv`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {

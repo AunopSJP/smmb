@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { Transform } from 'class-transformer';
 import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString, IsUUID, Length, Matches, MaxLength } from 'class-validator';
 import { AccessService } from '../auth/access.service.js';
@@ -65,12 +66,15 @@ export class HouseController {
 
   @RequireRole('head')
   @Get('search')
-  async search(@Auth() auth: AuthContext, @Query() q: HouseSearchQuery) {
-    return this.zones.searchHouses(await this.access.load(auth.userId).then((a) => a.agency!.id), q.q, {
+  async search(@Auth() auth: AuthContext, @Query() q: HouseSearchQuery, @Res({ passthrough: true }) res: Response) {
+    const result = await this.zones.searchHouses(await this.access.load(auth.userId).then((a) => a.agency!.id), q.q, {
       unzoned: q.unzoned === undefined ? undefined : q.unzoned === '1',
       online: q.online === '1',
       zoneId: q.zone,
     });
+    // body ยังเป็น array ตามสัญญาเดิม — จำนวนทั้งหมดส่งใน header (ไม่ตัด 20 แล้วหลอกว่า "พบ 20")
+    res.setHeader('X-Total-Count', String(result.total));
+    return result.data;
   }
 }
 

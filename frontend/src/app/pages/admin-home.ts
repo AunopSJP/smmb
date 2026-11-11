@@ -75,6 +75,29 @@ interface Segment {
           </span>
           <app-icon name="chevronRight" [size]="18" />
         </a>
+        <a class="row" [routerLink]="url('D16')">
+          <span class="icon-bubble"><app-icon name="settings" [size]="22" /></span>
+          <span class="grow">
+            <strong>{{ i18n.t({ th: 'ระบบและตั้งค่า', en: 'System and settings' }) }}</strong>
+            <span class="muted small block">{{ i18n.t({ th: 'เฟิร์มแวร์ · ค่าตู้ · แพ็กเกจ · ประวัติ', en: 'Firmware · config · plans · logs' }) }}</span>
+          </span>
+          <app-icon name="chevronRight" [size]="18" />
+        </a>
+        <a class="row" routerLink="/settings/display">
+          <span class="icon-bubble"><app-icon name="settings" [size]="22" /></span>
+          <span class="grow">
+            <strong>{{ i18n.t({ th: 'การแสดงผล', en: 'Display' }) }}</strong>
+            <span class="muted small block">{{ i18n.t({ th: 'ธีม · ภาษา · ขนาดตัวอักษร', en: 'Theme · language · text size' }) }}</span>
+          </span>
+          <app-icon name="chevronRight" [size]="18" />
+        </a>
+        <a class="row" [routerLink]="url('A14')" [queryParams]="{ from: 'D01' }">
+          <span class="icon-bubble"><app-icon name="user" [size]="22" /></span>
+          <span class="grow">
+            <strong>{{ i18n.t({ th: 'เปลี่ยนรหัสผ่านของฉัน', en: 'Change my password' }) }}</strong>
+          </span>
+          <app-icon name="chevronRight" [size]="18" />
+        </a>
       </nav>
 
       <!-- 1) ตัวเลขสรุป -->

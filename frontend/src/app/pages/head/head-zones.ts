@@ -263,6 +263,11 @@ export class HeadZones implements OnInit {
           @if (areaReady()) {
             @if (mapPoints().length) {
               <app-houses-map [points]="mapPoints()" [(selected)]="mapSelected" (toggle)="togglePick($event)" [height]="display.easyMode() ? 200 : 260" />
+              <div class="map-legend muted small" [attr.aria-label]="i18n.t({ th: 'คำอธิบายหมุด', en: 'Pin legend' })">
+                <span><i class="lg ok"></i>{{ i18n.t({ th: 'อยู่ในโซนนี้', en: 'In this zone' }) }}</span>
+                <span><i class="lg warn"></i>{{ i18n.t({ th: 'รอเจ้าของยืนยัน', en: 'Waiting for owner' }) }}</span>
+                <span><i class="lg picked"></i>{{ i18n.t({ th: 'เลือกอยู่', en: 'Selected' }) }}</span>
+              </div>
             } @else {
               <p class="muted small">{{ i18n.t({ th: 'ยังไม่มีบ้านที่ปักหมุดพิกัด — เจ้าของบ้านต้องปักหมุดในหน้าตั้งค่าตู้ก่อน จึงจะเห็นบนแผนที่', en: 'No house has a pin yet — owners must pin their house in the mailbox settings before it appears on the map.' }) }}</p>
             }
@@ -308,8 +313,8 @@ export class HeadZones implements OnInit {
             <app-load-error (retry)="mode() === 'browse' ? browse() : search()" />
           } @else if (searched()) {
             <div class="result-head">
-              <span class="muted small">{{ i18n.t({ th: 'พบ ', en: 'Found ' }) }}{{ hits().length }}{{ i18n.t({ th: ' หลัง', en: ' houses' }) }}{{ picked().size ? i18n.t({ th: ' · เลือก ', en: ' · selected ' }) + picked().size : '' }}</span>
-              @if (hits().length >= 20) {
+              <span class="muted small">{{ i18n.t({ th: 'พบ ', en: 'Found ' }) }}{{ hits().length }}{{ hitTotal() > hits().length ? ' / ' + hitTotal() : '' }}{{ i18n.t({ th: ' หลัง', en: ' houses' }) }}{{ picked().size ? i18n.t({ th: ' · เลือก ', en: ' · selected ' }) + picked().size : '' }}</span>
+              @if (hitTotal() > hits().length) {
                 <span class="muted small">{{ i18n.t({ th: 'แสดง 20 หลังแรก — พิมพ์คำค้นให้แคบลงเพื่อดูที่เหลือ', en: 'Showing the first 20 — narrow the search to see more' }) }}</span>
               }
               @if (addable().length > 1) {
@@ -412,6 +417,28 @@ export class HeadZones implements OnInit {
     .browse {
       align-self: flex-start;
     }
+    .map-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 14px;
+      padding-block-start: 6px;
+    }
+    .map-legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .lg {
+      display: inline-block;
+      inline-size: 10px;
+      block-size: 10px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px var(--line);
+    }
+    .lg.ok { background: var(--ok); }
+    .lg.warn { background: var(--warn); }
+    .lg.picked { background: #e8590c; }
     .warn-text {
       color: var(--orange);
       font-weight: 700;
@@ -477,6 +504,7 @@ export class HeadZoneEdit {
   protected readonly busy = signal(false);
   protected readonly q = signal('');
   protected readonly hits = signal<HouseHit[]>([]);
+  protected readonly hitTotal = signal(0);
   protected readonly searched = signal(false);
   protected readonly onlyUnzoned = signal(false);
   protected readonly onlyOnline = signal(false);
@@ -623,9 +651,12 @@ export class HeadZoneEdit {
     this.searching.set(true);
     this.searchFailed.set(false);
     try {
-      this.hits.set(await this.api.searchHouses(q, { unzoned: this.onlyUnzoned(), online: this.onlyOnline(), zone: this.zone()?.id }));
+      const r = await this.api.searchHouses(q, { unzoned: this.onlyUnzoned(), online: this.onlyOnline(), zone: this.zone()?.id });
+      this.hits.set(r.data);
+      this.hitTotal.set(r.total);
     } catch {
       this.hits.set([]);
+      this.hitTotal.set(0);
       this.searchFailed.set(true);
     } finally {
       this.searched.set(true);
@@ -640,9 +671,12 @@ export class HeadZoneEdit {
     this.searching.set(true);
     this.searchFailed.set(false);
     try {
-      this.hits.set(await this.api.searchHouses('', { unzoned: true, online: this.onlyOnline(), zone: this.zone()?.id }));
+      const r = await this.api.searchHouses('', { unzoned: true, online: this.onlyOnline(), zone: this.zone()?.id });
+      this.hits.set(r.data);
+      this.hitTotal.set(r.total);
     } catch {
       this.hits.set([]);
+      this.hitTotal.set(0);
       this.searchFailed.set(true);
     } finally {
       this.searched.set(true);
