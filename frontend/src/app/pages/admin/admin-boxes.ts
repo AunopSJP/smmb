@@ -1116,7 +1116,7 @@ export class AdminBoxes implements OnInit {
           {{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ b.house_no }} · {{ b.id }}
         </h1>
         @for (q of b.qr; track q.id) {
-          @if (q.status === 'active' && q.slot !== 'activate') {
+          @if (q.status === 'active') {
             <figure style="margin: 0; text-align: center">
               <app-qr-image [text]="q.url" level="H" [label]="i18n.t(slot(q.slot))" />
               <figcaption style="margin-block-start: 3mm; font-size: 11pt">

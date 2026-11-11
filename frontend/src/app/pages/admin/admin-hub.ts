@@ -5,6 +5,7 @@ import { I18n, type Tr } from '../../core/i18n';
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
+import { LoadError } from '../../shared/state-view';
 
 interface HubItem {
   code: string;
@@ -34,10 +35,13 @@ const SETTINGS: HubItem[] = [
 
 @Component({
   selector: 'app-admin-hub',
-  imports: [RouterLink, PageHeader, Icon],
+  imports: [RouterLink, PageHeader, Icon, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'ระบบ', en: 'System' })" />
+    @if (failed()) {
+      <app-load-error (retry)="load()" />
+    }
     <div class="stack">
       <!-- โหมดง่าย (SetAdmin_E): 4 ทางเข้าหลักที่ต้องใช้บ่อย -->
       <nav class="list easy-only">
@@ -164,14 +168,25 @@ export class AdminHub {
   protected readonly fwAuto = signal<string | null>(null);
   protected readonly configVer = signal<number | null>(null);
   protected readonly latestFw = computed(() => this.firmware()[0]?.version ?? '');
+  protected readonly failed = signal(false);
 
   constructor() {
-    void Promise.all([
-      this.api.overview().then((v) => this.o.set(v)).catch(() => undefined),
-      this.api.firmwareList().then((v) => this.firmware.set(v)).catch(() => undefined),
-      this.api.firmwareAuto().then((v) => this.fwAuto.set(v.version)).catch(() => undefined),
-      this.api.config().then((v) => this.configVer.set(v.config_ver)).catch(() => undefined),
+    void this.load();
+  }
+
+  protected async load(): Promise<void> {
+    this.failed.set(false);
+    const [overview, firmware, auto, config] = await Promise.all([
+      this.api.overview().catch(() => null),
+      this.api.firmwareList().catch(() => null),
+      this.api.firmwareAuto().catch(() => null),
+      this.api.config().catch(() => null),
     ]);
+    if (overview) this.o.set(overview);
+    else this.failed.set(true);
+    if (firmware) this.firmware.set(firmware);
+    if (auto) this.fwAuto.set(auto.version);
+    if (config) this.configVer.set(config.config_ver);
   }
 
   protected planText(): string {

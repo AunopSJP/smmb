@@ -120,7 +120,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       if (b.offline_notified_date) continue;
       await this.pool.query(`UPDATE app.box_tb SET offline_notified_date = now() WHERE box_id = $1`, [b.box_id]);
       const data = { box_id: b.box_id, box_name: b.name };
-      await this.notifications.notify([b.owner_user_id], { type: 'box_offline', data, link: '/home', tag: `offline-${b.box_id}` }).catch(this.warn);
+      await this.notifications.notify([b.owner_user_id], { type: 'box_offline', data, link: `/home/history/offline?box=${encodeURIComponent(b.box_id)}`, tag: `offline-${b.box_id}` }).catch(this.warn);
       await this.notifications.notify(admins, { type: 'box_offline', data, link: `/admin/boxes/detail?id=${b.box_id}`, tag: `offline-${b.box_id}` }).catch(this.warn);
       alerted++;
     }

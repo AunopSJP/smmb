@@ -72,7 +72,7 @@ interface RecentLog {
           <span class="big-n">{{ offline() }}</span>
         </a>
 
-        <a class="big" [class.sos]="(today()?.sos_open ?? 0) > 0" [routerLink]="url('O12')">
+        <a class="big" [class.sos]="(today()?.sos_open ?? 0) > 0" [routerLink]="url('O12')" [queryParams]="{ from: 'L04' }">
           <span class="big-ic"><app-icon name="shield" [size]="26" /></span>
           <span class="grow">
             <b>SOS</b>
@@ -124,7 +124,7 @@ interface RecentLog {
             <p class="value">{{ online() }}</p>
             <p class="label">{{ i18n.t({ th: 'ออนไลน์', en: 'Online' }) }}</p>
           </div>
-          <a class="stat link" [routerLink]="url('O12')">
+          <a class="stat link" [routerLink]="url('O12')" [queryParams]="{ from: 'L04' }">
             <p class="value">{{ today() ? (today()!.sos_open) : '—' }}</p>
             <p class="label">SOS</p>
           </a>
@@ -139,7 +139,7 @@ interface RecentLog {
             <p class="value warn">{{ offline() }}</p>
             <p class="label">{{ i18n.t({ th: 'ตู้ออฟไลน์', en: 'Offline boxes' }) }}</p>
           </div>
-          <a class="stat link" [routerLink]="url('O12')">
+          <a class="stat link" [routerLink]="url('O12')" [queryParams]="{ from: 'L04' }">
             <p class="value">{{ today() ? (today()!.sos_open) : '—' }}</p>
             <p class="label">{{ i18n.t({ th: 'SOS เปิดอยู่', en: 'Open SOS' }) }}</p>
           </a>

@@ -27,7 +27,7 @@ const go = (router: Router, code: string, id?: string) =>
   imports: [RouterLink, PageHeader, Icon, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [title]="'SOS'" [bell]="url('O14')" />
+    <app-page-header [title]="'SOS'" [back]="from() === 'L04' ? url('L04') : undefined" [bell]="url('O14')" />
     <div class="stack">
       <div class="segmented easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'มุมมอง SOS', en: 'SOS view' })">
         <button type="button" [attr.aria-pressed]="view() === 'open'" (click)="view.set('open')">{{ i18n.t({ th: 'เปิดอยู่', en: 'Open' }) }} {{ open().length }}</button>
@@ -130,6 +130,7 @@ const go = (router: Router, code: string, id?: string) =>
 })
 export class OfficerSosList {
   protected readonly i18n = inject(I18n);
+  readonly from = input<string>();
   protected readonly session = inject(Session);
   protected readonly display = inject(DisplaySettings);
   private readonly api = inject(OfficerSosApi);

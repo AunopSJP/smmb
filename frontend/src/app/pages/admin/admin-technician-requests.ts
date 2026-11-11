@@ -13,7 +13,7 @@ import { screenUrl } from '../../screens/registry';
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน Smart Mailbox', en: 'Smart Mailbox admin' })" [title]="i18n.t({ th: 'คำขอช่าง', en: 'Technician requests' })" [back]="url('D16')" />
     <div class="stack">
-      <div class="segmented chips easy-hide" role="group">
+      <div class="segmented chips easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'สถานะคำขอ', en: 'Request status' })">
         @for (option of filters; track option.value) {
           <button type="button" [attr.aria-pressed]="filter() === option.value" (click)="filter.set(option.value); load()">{{ i18n.t(option.label) }}</button>
         }
@@ -34,7 +34,7 @@ import { screenUrl } from '../../screens/registry';
               @if (request.note) { <p class="request-note">{{ request.note }}</p> }
               @if (request.status === 'open') {
                 <label class="field">
-                  <span>{{ i18n.t({ th: 'เวลานัดหมาย', en: 'Appointment time' }) }}</span>
+                  <span>{{ i18n.t({ th: 'เวลานัดหมาย (เวลาไทย)', en: 'Appointment time (Thailand time)' }) }}</span>
                   <input type="datetime-local" [value]="scheduleValue(request.id)" (input)="setSchedule(request.id, $event)" />
                 </label>
                 <label class="field">
@@ -44,6 +44,13 @@ import { screenUrl } from '../../screens/registry';
                 <button type="button" class="btn" [disabled]="saving() === request.id || !scheduleValue(request.id)" (click)="schedule(request)">{{ i18n.t({ th: 'บันทึกนัดหมายและแจ้งเจ้าของ', en: 'Schedule and notify owner' }) }}</button>
               } @else if (request.status === 'scheduled') {
                 <p class="small">{{ i18n.t({ th: 'นัด ', en: 'Scheduled ' }) }}{{ dateTime(request.scheduled_at) }}</p>
+                <label class="field">
+                  <span>{{ i18n.t({ th: 'เลื่อนนัด (เวลาไทย)', en: 'Reschedule (Thailand time)' }) }}</span>
+                  <input type="datetime-local" [value]="scheduleValue(request.id)" (input)="setSchedule(request.id, $event)" />
+                </label>
+                @if (scheduleValue(request.id)) {
+                  <button type="button" class="btn secondary" [disabled]="saving() === request.id" (click)="schedule(request)">{{ i18n.t({ th: 'เลื่อนนัดและแจ้งเจ้าของ', en: 'Reschedule and notify owner' }) }}</button>
+                }
                 <button type="button" class="btn secondary" [disabled]="saving() === request.id" (click)="complete(request)">{{ i18n.t({ th: 'ปิดงานช่าง', en: 'Complete request' }) }}</button>
               } @else if (request.admin_note) {
                 <p class="muted small">{{ request.admin_note }}</p>
@@ -131,8 +138,10 @@ export class AdminTechnicianRequests implements OnInit {
 
   protected async schedule(request: AdminTechnicianRequest): Promise<void> {
     const localDate = this.scheduleValue(request.id);
-    const scheduledAt = new Date(localDate);
-    if (!localDate || Number.isNaN(scheduledAt.getTime())) return;
+    if (!localDate) return;
+    // datetime-local ไม่มี TZ — ตีความเป็นเวลาไทย (ICT, +07:00) ไม่ใช่ TZ ของเครื่อง
+    const scheduledAt = new Date(localDate.length === 16 ? `${localDate}:00+07:00` : `${localDate}+07:00`);
+    if (Number.isNaN(scheduledAt.getTime())) return;
     await this.update(request, { status: 'scheduled', scheduled_at: scheduledAt.toISOString(), note: this.noteValue(request.id).trim() });
   }
 

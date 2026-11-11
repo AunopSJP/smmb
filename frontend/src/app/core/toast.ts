@@ -2,16 +2,27 @@ import { ChangeDetectionStrategy, Component, inject, Injectable, signal } from '
 import { I18n, type Tr } from './i18n';
 import { Icon } from '../shared/icon';
 
-/** ข้อความยืนยันสั้น ๆ ด้านล่างจอ (เช่น "อนุมัติแล้ว") — หายเองใน 4 วิ */
+/** ข้อความยืนยันสั้น ๆ ด้านล่างจอ (เช่น "อนุมัติแล้ว") — หายเองใน 4 วิ (error 8 วิ) */
 @Injectable({ providedIn: 'root' })
 export class Toast {
   readonly message = signal<Tr | null>(null);
+  readonly kind = signal<'ok' | 'error'>('ok');
   private timer: ReturnType<typeof setTimeout> | null = null;
 
-  show(message: Tr): void {
+  /**
+   * `kind` ไม่ส่ง = เดาจากข้อความ (ข้อความแจ้งล้มเหลวต้องไม่หน้าตาเหมือนสำเร็จ)
+   * ผู้เรียกใหม่ควรส่ง 'error' ตรง ๆ
+   */
+  show(message: Tr, kind?: 'ok' | 'error'): void {
+    const isError = kind ? kind === 'error' : /ไม่สำเร็จ|ไม่ได้|ผิดพลาด|ล้มเหลว|Could not|Couldn’t|Couldn't|failed/i.test(`${message.th} ${message.en}`);
+    this.kind.set(isError ? 'error' : 'ok');
     this.message.set(message);
     if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.message.set(null), 4000);
+    this.timer = setTimeout(() => this.message.set(null), isError ? 8000 : 4000);
+  }
+
+  error(message: Tr): void {
+    this.show(message, 'error');
   }
 }
 
@@ -21,9 +32,9 @@ export class Toast {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (toast.message(); as m) {
-      <div class="wrap" role="status" aria-live="polite">
-        <button type="button" class="toast" (click)="toast.message.set(null)">
-          <span class="tick"><app-icon name="check" [size]="16" /></span>
+      <div class="wrap" [attr.role]="toast.kind() === 'error' ? 'alert' : 'status'" [attr.aria-live]="toast.kind() === 'error' ? 'assertive' : 'polite'">
+        <button type="button" class="toast" [class.err]="toast.kind() === 'error'" (click)="toast.message.set(null)">
+          <span class="tick" [class.err]="toast.kind() === 'error'"><app-icon [name]="toast.kind() === 'error' ? 'alert' : 'check'" [size]="16" /></span>
           <span class="text">{{ i18n.t(m) }}</span>
         </button>
       </div>
@@ -35,7 +46,7 @@ export class Toast {
       position: fixed;
       left: 16px;
       right: 16px;
-      bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+      bottom: calc(176px + env(safe-area-inset-bottom, 0px));
       z-index: 50;
       display: flex;
       justify-content: center;
@@ -71,6 +82,14 @@ export class Toast {
       border-radius: 50%;
       background: #16a34a;
       color: #fff;
+    }
+    .tick.err {
+      background: #fff;
+      color: var(--sos);
+    }
+    .toast.err {
+      background: var(--sos-bg);
+      color: var(--sos-fg);
     }
     .text {
       flex: 1;

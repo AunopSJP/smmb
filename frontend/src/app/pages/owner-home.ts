@@ -132,6 +132,7 @@ const REFRESH_MS = 10_000;
               <a class="btn secondary" [routerLink]="url('H13-b')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'ตั้ง Wi-Fi ใหม่', en: 'Set up Wi-Fi' }) }}</a>
               <a class="btn" [routerLink]="url('H13-c')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'แจ้งช่าง', en: 'Get a technician' }) }}</a>
             </div>
+            <a class="see-all" [routerLink]="url('H12-d')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'ดูสาเหตุและวิธีแก้ทั้งหมด', en: 'See causes and fixes' }) }}</a>
           </section>
         }
 
@@ -191,11 +192,9 @@ const REFRESH_MS = 10_000;
             </div>
             <div class="mini adv-hide">
               <span class="label">{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</span>
-              @if (ago(b.last_seen_at); as m) {
-                <strong class="value">{{ m }} {{ i18n.t({ th: 'นาที', en: 'min' }) }}</strong>
+              @if (b.last_seen_at) {
+                <strong class="value">{{ lastSeenText(b.last_seen_at) }}</strong>
                 <span class="label">{{ i18n.t({ th: 'ที่แล้ว', en: 'ago' }) }}</span>
-              } @else if (b.last_seen_at) {
-                <strong class="value">{{ i18n.t({ th: 'เมื่อสักครู่', en: 'just now' }) }}</strong>
               } @else {
                 <strong class="value muted">{{ i18n.t({ th: 'รอข้อมูล', en: 'No report yet' }) }}</strong>
                 <span class="label">{{ i18n.t({ th: 'ยังไม่เคยติดต่อ', en: 'Never connected' }) }}</span>
@@ -467,7 +466,15 @@ export class OwnerHome implements OnDestroy {
   private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
   protected readonly time = hhmm;
-  protected readonly ago = minutesAgo;
+  /** เวลาติดต่อล่าสุดแบบอ่านง่าย — ไม่ปล่อยเป็น “4320 นาทีที่แล้ว” */
+  protected lastSeenText(iso: string): string {
+    const m = minutesAgo(iso) ?? 0;
+    if (m < 1) return this.i18n.t({ th: 'เมื่อสักครู่', en: 'just now' });
+    if (m < 60) return `${m} ${this.i18n.t({ th: 'นาที', en: 'min' })}`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h} ${this.i18n.t({ th: 'ชั่วโมง', en: 'h' })}`;
+    return `${Math.floor(h / 24)} ${this.i18n.t({ th: 'วัน', en: 'd' })}`;
+  }
   /** ?box=BX-00042 เมื่อมีหลายตู้ (ไม่ใส่ = ตู้แรก) */
   readonly box = input<string>();
   protected readonly b = signal<BoxDetail | null>(null);

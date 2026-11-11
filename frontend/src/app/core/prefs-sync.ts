@@ -3,6 +3,7 @@ import { DestroyRef, effect, inject, Injectable, untracked } from '@angular/core
 import { firstValueFrom } from 'rxjs';
 import { DisplaySettings } from './display-settings';
 import { Session, type Me, type ServerPrefs } from './session';
+import { Toast } from './toast';
 
 const sameList = (a: string[], b: string[] | undefined) => !!b && a.length === b.length && a.every((x) => b.includes(x));
 
@@ -21,8 +22,11 @@ export class PrefsSync {
   private readonly http = inject(HttpClient);
   private readonly session = inject(Session);
   private readonly display = inject(DisplaySettings);
+  private readonly toast = inject(Toast);
   private appliedFor: string | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private pending: ServerPrefs | null = null;
+  private retryBound = false;
 
   constructor() {
     effect(() => {
@@ -56,8 +60,22 @@ export class PrefsSync {
       const me = await firstValueFrom(this.http.patch<Me>('/api/v1/me', { prefs }));
       // เก็บค่าที่ server ยืนยันไว้ใน Me (ไม่ apply ซ้ำ เพื่อไม่ให้ค่าเด้งกลับระหว่างที่ผู้ใช้กดต่อ)
       this.session.me.update((cur) => (cur ? { ...cur, prefs: me.prefs } : cur));
+      this.pending = null;
+      this.retryBound = false;
     } catch {
-      // ออฟไลน์/ล้มเหลว — ใช้ค่าในเครื่องต่อ แล้วลองใหม่เมื่อค่าเปลี่ยนครั้งถัดไป
+      // ออฟไลน์/ล้มเหลว — เก็บค่าไว้ในเครื่อง + แจ้งผู้ใช้ และลองใหม่เมื่อกลับมาออนไลน์
+      this.pending = prefs;
+      this.toast.error({
+        th: 'บันทึกการตั้งค่าไม่สำเร็จ — ระบบจะลองใหม่เมื่อกลับมาออนไลน์',
+        en: 'Could not save the setting — it will retry when you are back online',
+      });
+      if (!this.retryBound && typeof window !== 'undefined') {
+        this.retryBound = true;
+        window.addEventListener('online', () => {
+          this.retryBound = false;
+          if (this.pending) void this.push(this.pending);
+        }, { once: true });
+      }
     }
   }
 }

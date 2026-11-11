@@ -5,6 +5,7 @@ import { HeadApi, showGroupCode } from '../../core/head-api';
 import { I18n } from '../../core/i18n';
 import { Toast } from '../../core/toast';
 import { Confirm } from '../../shared/confirm-dialog';
+import { LoadError } from '../../shared/state-view';
 import { screenUrl } from '../../screens/registry';
 import { AgencyFields, agencyDetailPayload, agencyDetailValid, emptyAgencyDetail, type AgencyDetailForm } from '../../shared/agency-fields';
 import { PageHeader } from '../../shared/page-header';
@@ -15,11 +16,14 @@ import { PageHeader } from '../../shared/page-header';
  */
 @Component({
   selector: 'app-head-agency-profile',
-  imports: [PageHeader, AgencyFields],
+  imports: [PageHeader, AgencyFields, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="api.agency()?.name ?? ''" [title]="i18n.t({ th: 'ข้อมูลหน่วยงาน', en: 'Agency details' })" [back]="url('L04')" />
     <div class="stack grow">
+      @if (failed()) {
+        <app-load-error (retry)="retry()" />
+      }
       <!-- รหัสกลุ่ม (ตามแคนวาส HeadProfile ทุกโหมด) -->
       <section class="card group">
         <span class="muted small">{{ i18n.t({ th: 'รหัสกลุ่ม (ให้เจ้าหน้าที่ใช้ขอเข้า)', en: 'Group code (your team uses it to join)' }) }}</span>
@@ -50,7 +54,7 @@ import { PageHeader } from '../../shared/page-header';
       @if (api.agency()?.status !== 'approved') {
         <p class="muted small">{{ i18n.t({ th: 'หมุดจะขึ้นบนแผนที่ของเจ้าของบ้านหลังแอดมินอนุมัติหน่วยงาน', en: 'The pin appears on the owners’ map after the admin approves your agency' }) }}</p>
       }
-      <button type="button" class="btn push-end" [disabled]="busy()" (click)="save()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
+      <button type="button" class="btn push-end" [disabled]="busy() || failed()" (click)="save()">{{ i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
     </div>
   `,
   styles: `
@@ -90,28 +94,38 @@ export class HeadAgencyProfile {
   protected readonly tried = signal(false);
   protected readonly busy = signal(false);
   protected readonly busyCode = signal(false);
+  protected readonly failed = signal(false);
   protected readonly code = computed(() => showGroupCode(this.api.agency()?.group_code ?? null));
 
   constructor() {
-    void this.api
-      .loadAgency()
-      .then((a) => {
-        const p = a.profile;
-        this.contact.set(a.contact ?? '');
-        this.address.set(p?.address ?? '');
-        this.detail.set({
-          subdistrict: p?.subdistrict ?? '',
-          district: p?.district ?? '',
-          province: p?.province ?? '',
-          postal_code: p?.postal_code ?? '',
-          phone: p?.phone ?? '',
-          email: p?.email ?? '',
-          contact_person: p?.contact_person ?? '',
-          coverage_note: p?.coverage_note ?? '',
-          location: p?.lat != null && p?.lng != null ? { lat: p.lat, lng: p.lng } : null,
-        });
-      })
-      .catch(() => undefined);
+    void this.load();
+  }
+
+  protected retry(): void {
+    void this.load();
+  }
+
+  private async load(): Promise<void> {
+    this.failed.set(false);
+    try {
+      const a = await this.api.loadAgency();
+      const p = a.profile;
+      this.contact.set(a.contact ?? '');
+      this.address.set(p?.address ?? '');
+      this.detail.set({
+        subdistrict: p?.subdistrict ?? '',
+        district: p?.district ?? '',
+        province: p?.province ?? '',
+        postal_code: p?.postal_code ?? '',
+        phone: p?.phone ?? '',
+        email: p?.email ?? '',
+        contact_person: p?.contact_person ?? '',
+        coverage_note: p?.coverage_note ?? '',
+        location: p?.lat != null && p?.lng != null ? { lat: p.lat, lng: p.lng } : null,
+      });
+    } catch {
+      this.failed.set(true);
+    }
   }
 
   protected copy(): void {

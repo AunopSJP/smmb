@@ -207,14 +207,15 @@ export const routes: Routes = [
   // ลิงก์ใน QR เปิดใช้ตู้ (PUBLIC_BASE_URL/a/<16 ตัว>) → หน้าผูกตู้ A07 (api.md §4.1)
   { path: 'a/:token', redirectTo: ({ params }) => `/auth/activate?qr=${encodeURIComponent(params['token'])}` },
   // หน้า error สาธารณะ (ไม่ผ่าน AreaShell) — ตามแคนวาส ErrOffline / ErrNoAccess / ErrSession
-  { path: 'error/offline', loadComponent: () => import('./pages/error-screen').then((m) => m.ErrorScreen), data: { kind: 'offline' }, title: 'ไม่มีอินเทอร์เน็ต · Smart Mailbox' },
-  { path: 'error/session', loadComponent: () => import('./pages/error-screen').then((m) => m.ErrorScreen), data: { kind: 'session' }, title: 'หมดเวลาเข้าสู่ระบบ · Smart Mailbox' },
-  { path: 'error/not-found', loadComponent: () => import('./pages/error-screen').then((m) => m.ErrorScreen), data: { kind: 'not-found' }, title: 'ไม่พบหน้านี้ · Smart Mailbox' },
+  { path: 'error/offline', loadComponent: () => import('./pages/error-screen').then((m) => m.ErrorScreen), data: { kind: 'offline', titleTr: { th: 'ไม่มีอินเทอร์เน็ต', en: 'No internet connection' } }, title: 'ไม่มีอินเทอร์เน็ต · Smart Mailbox' },
+  { path: 'error/session', loadComponent: () => import('./pages/error-screen').then((m) => m.ErrorScreen), data: { kind: 'session', titleTr: { th: 'หมดเวลาเข้าสู่ระบบ', en: 'Session expired' } }, title: 'หมดเวลาเข้าสู่ระบบ · Smart Mailbox' },
+  { path: 'error/not-found', loadComponent: () => import('./pages/error-screen').then((m) => m.ErrorScreen), data: { kind: 'not-found', titleTr: { th: 'ไม่พบหน้านี้', en: 'Page not found' } }, title: 'ไม่พบหน้านี้ · Smart Mailbox' },
   // ตั้งค่าการแจ้งเตือน (ทุกบทบาท) — ตามแคนวาส NotifSettings.dc.html
   {
     path: 'settings/notifications',
     canActivate: [requireSignedIn],
     loadComponent: () => import('./pages/notif-settings').then((m) => m.NotifSettings),
+    data: { titleTr: { th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' } },
     title: 'ตั้งค่าการแจ้งเตือน · Smart Mailbox',
   },
   // เลือกโหมดการแสดงผล (ทุกบทบาท) — ตามแคนวาส ModePicker.dc.html
@@ -222,7 +223,7 @@ export const routes: Routes = [
     path: 'settings/display',
     canActivate: [requireSignedIn],
     loadComponent: () => import('./pages/owner/owner-settings').then((m) => m.OwnerDisplay),
-    data: { shared: true },
+    data: { shared: true, titleTr: { th: 'แบบการใช้งาน', en: 'Display mode' } },
     title: 'แบบการใช้งาน · Smart Mailbox',
   },
   { path: '**', redirectTo: '' },

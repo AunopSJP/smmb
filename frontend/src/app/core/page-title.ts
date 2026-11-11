@@ -2,7 +2,7 @@ import { effect, inject, Injectable, signal } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
-import { I18n } from './i18n';
+import { I18n, type Tr } from './i18n';
 import { screen } from '../screens/registry';
 
 /**
@@ -15,24 +15,33 @@ export class PageTitle {
   private readonly i18n = inject(I18n);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  private readonly code = signal<string | null>(null);
+  private readonly titleTr = signal<Tr | null>(null);
 
   constructor() {
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe(() => {
-      this.code.set(this.deepestCode() ?? null);
+      this.titleTr.set(this.resolveTitle());
     });
-    this.code.set(this.deepestCode() ?? null);
+    this.titleTr.set(this.resolveTitle());
 
     effect(() => {
-      const code = this.code();
-      if (!code) return;
-      try {
-        // i18n.t อ่าน signal ภาษา → เปลี่ยนภาษาแล้วชื่อเรื่องอัปเดตตาม
-        this.title.setTitle(`${this.i18n.t(screen(code).title)} · Smart Mailbox`);
-      } catch {
-        // หน้าไม่มีรหัสใน registry (เช่น หน้า error) — ใช้ชื่อเดิมที่ route ตั้งไว้
-      }
+      const tr = this.titleTr();
+      if (tr) this.title.setTitle(`${this.i18n.t(tr)} · Smart Mailbox`);
     });
+  }
+
+  private resolveTitle(): Tr | null {
+    const code = this.deepestCode();
+    if (code) {
+      try {
+        return screen(code).title;
+      } catch {
+        return null;
+      }
+    }
+    // หน้า error/settings ที่ไม่มีรหัสใน registry — route ใส่ titleTr ไว้
+    let r = this.route.snapshot;
+    while (r.firstChild) r = r.firstChild;
+    return (r.data['titleTr'] as Tr | undefined) ?? null;
   }
 
   private deepestCode(): string | undefined {

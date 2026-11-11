@@ -14,6 +14,8 @@
   <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48x48.png" />
   <link rel="apple-touch-icon" href="icons/icon-192x192.png" />
   <link rel="manifest" href="manifest.webmanifest" />
+  <!-- ตั้งธีม/ขนาด/ภาษาก่อน CSS+Angular — กันจอวาบขาว (ไฟล์ public ไม่ต้องใช้ CSP hash) -->
+  <script src="theme-boot.js"></script>
   <!-- ฟอนต์ self-host (public/fonts) — ไม่พึ่ง Google: ไม่มี 504, ไม่ส่ง IP ออกนอก, CSP ไม่ต้องเปิด origin ภายนอก
        ใช้ variable font ไฟล์เดียวต่อ family · path เป็น relative กับ <base href> จึงใช้ได้ทั้ง dev (/) และ prod (/smmb/) -->
   <style>

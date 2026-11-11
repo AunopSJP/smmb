@@ -20,7 +20,9 @@
 | แอดมิน/Auth | P1-12 firmware confirm · P1-13 reset password confirm · P1-14 QR reissue confirm · P1-15 D03/D09 load more · P1-16 เมนู D16/ตั้งค่า/A14 บนคอนโซล · P1-17 signup error summary+scroll · P1-18 เก็บร่างบ้าน/step ข้ามหน้าข้อตกลง · P1-23 A13 busy/error/signout + A04 signout เมื่อบัญชีไม่มีบทบาท |
 | a11y/detail | focus trap + คืนโฟกัสใน ConfirmDialog · skip link · map role=group + i18n label · easy tabs นิ่งตาม area · admin easy มี sign-out |
 
-**ยังไม่ทำ (ตั้งใจเลื่อน):** P2-01 toast error หน้าตาเหมือนสำเร็จ · P2-02 toast ทับ SOS · P2-04 easy mode ซ่อนฟังก์ชันตั้งค่า/แจ้งเตือน · P2-06 tile error/legend · P2-07 theme flash · P2-08 rider dead end · P2-10/P2-13/P2-15 error ที่เหลือ · P2-16 เลื่อน/ยกเลิกนัดช่าง · P2-18 TZ ของ datetime-local · P2-19 activation QR ในใบพิมพ์ · P2-22 title ไทยล้วน · P1-11 total จาก server · P1-15 D11 logs 100 แถว
+**อัปเดตรอบ P2 (11 พ.ย. 2026 — ต่อจาก commit `5d7776c`):** toast แยกสี/ไอคอน error + ไม่ทับ SOS · rider R03-b มีทางออก/R01 แจ้ง error · TZ `datetime-local` เป็นเวลาไทย + เลื่อนนัดได้ · theme boot ก่อน Angular (ไม่มีจอวาบ) · notification mute แจ้งเมื่อบันทึกไม่ได้ + retry online · admin-hub/head agency profile error+retry · head log/D11 load more ไม่ข้ามหน้า · head SOS มีปุ่มกลับ L04 · H12-d เข้าถึงได้ + push offline มี `?box=` · ใบพิมพ์ QR มี activation · notif settings มีปุ่มย้อนกลับ + easy mode ปรับชนิดแจ้งเตือนได้ · relative time เป็นชั่วโมง/วัน · title หน้า error/settings แปลตามภาษา · aria-label กลุ่มตัวกรอง · แผนที่แจ้ง tile error + ปุ่มลองใหม่
+
+**ยังไม่ทำ (ตั้งใจเลื่อน):** legend แผนที่ · ยกเลิกนัดช่าง (เลื่อนได้แล้ว) · easy mode แอดมินบนมือถือยังไม่ถึง D16/ตั้งค่า (มี sign-out แล้ว) · composite widget arrow keys/SOS aria-live · P1-11 total จาก server · firmware counts 100 แถว · CSV filename UTC · dead code · P2-26
 
 ---
 

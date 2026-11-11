@@ -76,7 +76,7 @@ const RESULT_TEXT: Record<string, Tr> = {
       [bell]="url('L09')"
     />
     <div class="stack">
-      <div class="segmented chips easy-hide" role="group">
+      <div class="segmented chips easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'ผลการตรวจ', en: 'Result' })">
         <button type="button" [attr.aria-pressed]="!onlyProblems()" (click)="setProblems(false)">{{ i18n.t({ th: 'ทั้งหมด', en: 'All' }) }}</button>
         <button type="button" [attr.aria-pressed]="onlyProblems()" (click)="setProblems(true)">{{ i18n.t({ th: 'เฉพาะที่มีปัญหา', en: 'Problems only' }) }}</button>
       </div>
@@ -140,9 +140,17 @@ const RESULT_TEXT: Record<string, Tr> = {
             <span class="chip" [class.ok]="ok" [class.danger]="!ok">{{ i18n.t(resultText(l)) }}</span>
           </li>
         } @empty {
-          <li class="row muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ไม่มีรายการ', en: 'Nothing here' }) }}</li>
+          @if (!loadFailed()) {
+            <li class="row muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ไม่มีรายการ', en: 'Nothing here' }) }}</li>
+          }
         }
       </ul>
+      @if (loadFailed()) {
+        <p class="row danger-text" role="alert">
+          <span class="grow">{{ i18n.t({ th: 'โหลดประวัติไม่สำเร็จ', en: 'Could not load the log' }) }}</span>
+          <button type="button" class="see-all" (click)="retry()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button>
+        </p>
+      }
       @if (more()) {
         <button type="button" class="btn secondary easy-hide" (click)="loadMore()">{{ i18n.t({ th: 'ดูเพิ่ม', en: 'Load more' }) }}</button>
       }
@@ -225,6 +233,8 @@ export class HeadLog implements OnInit {
   protected readonly all = signal<LogRow[]>([]);
   protected readonly loading = signal(true);
   protected readonly more = signal(false);
+  protected readonly loadFailed = signal(false);
+  private failedPage: number | null = null;
   private page = 1;
   /** โหมดง่าย: แค่ 5 รายการล่าสุด ไม่ต้องโหลดเพิ่ม */
   protected readonly rows = computed(() => (this.display.easyMode() ? this.all().slice(0, 5) : this.all()));
@@ -262,13 +272,23 @@ export class HeadLog implements OnInit {
     return p;
   }
 
-  private async fetch(): Promise<void> {
+  private async fetch(page = this.page): Promise<void> {
     const p = this.filterQuery();
-    p.set('page', String(this.page));
+    p.set('page', String(page));
     const r = await firstValueFrom(this.http.get<{ data: LogRow[]; per_page: number }>(`/api/v1/agency/logs?${p}`)).catch(() => null);
-    if (!r) return;
-    this.all.update((a) => [...a, ...r.data]);
+    if (!r) {
+      this.loadFailed.set(true);
+      this.failedPage = page;
+      return;
+    }
+    this.all.update((a) => (page === 1 ? r.data : [...a, ...r.data]));
+    this.page = page;
     this.more.set(r.data.length === r.per_page);
+    this.loadFailed.set(false);
+  }
+
+  protected retry(): void {
+    void this.fetch(this.failedPage ?? 1);
   }
 
   protected async apply(): Promise<void> {
@@ -323,8 +343,7 @@ export class HeadLog implements OnInit {
   }
 
   protected async loadMore(): Promise<void> {
-    this.page++;
-    await this.fetch();
+    await this.fetch(this.page + 1);
   }
 
   protected isOk(l: LogRow): boolean {

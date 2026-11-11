@@ -25,7 +25,7 @@ interface Option {
   imports: [RouterLink, Icon, PageHeader, PushStatus],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t(roleLabel())" [title]="i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' })" />
+    <app-page-header [caption]="i18n.t(roleLabel())" [title]="i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' })" [back]="back()" />
 
     <div class="stack grow">
       <app-push-status [required]="required()" [deviceLabel]="role()" />
@@ -48,7 +48,7 @@ interface Option {
       </section>
 
       @if (mutable().length) {
-        <section class="card stack easy-hide">
+        <section class="card stack">
           <h2 class="head"><app-icon name="bell" [size]="20" />{{ i18n.t({ th: 'ชนิดที่อยากรับ', en: 'What to receive' }) }}</h2>
           @for (n of mutable(); track n.type) {
             <label class="toggle">
@@ -68,7 +68,7 @@ interface Option {
         </section>
       }
 
-      <section class="card stack always easy-hide">
+      <section class="card stack always">
         <h2 class="head"><app-icon name="shield" [size]="20" />{{ i18n.t({ th: 'เกี่ยวกับความปลอดภัย', en: 'Safety alerts' }) }}</h2>
         <p>{{ i18n.t({ th: 'SOS · ตู้มีปัญหา/หลุด · QR ไม่ใช่ของระบบ · คำขอเข้าหน่วยงาน', en: 'SOS · mailbox problems/offline · non-system QR · agency join requests' }) }}</p>
         <span class="chip ok">{{ i18n.t({ th: 'เปิดเสมอ · ปิดไม่ได้', en: 'Always on · cannot disable' }) }}</span>

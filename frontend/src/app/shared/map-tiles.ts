@@ -7,10 +7,40 @@ import type * as Leaflet from 'leaflet';
  */
 export function addBaseTiles(L: typeof Leaflet, map: Leaflet.Map, base: string): Leaflet.TileLayer {
   const root = base.replace(/\/+$/, '');
-  return L.tileLayer(`${root}/{z}/{x}/{y}`, {
+  const layer = L.tileLayer(`${root}/{z}/{x}/{y}`, {
     maxZoom: 19,
     maxNativeZoom: 19,
     attribution: '&copy; OpenStreetMap',
   }).addTo(map);
+
+  // tile ล่ม (backend/เน็ต) → บอกผู้ใช้ + แตะลองใหม่ ไม่ปล่อยเป็นแผนที่เทาเปล่า
+  let failed = false;
+  let notice: HTMLButtonElement | null = null;
+  const showNotice = () => {
+    if (failed || !map.getContainer()) return;
+    failed = true;
+    notice = document.createElement('button');
+    notice.type = 'button';
+    notice.setAttribute('role', 'status');
+    notice.textContent = 'โหลดแผนที่ไม่สำเร็จ · แตะเพื่อลองใหม่ / Map failed · tap to retry';
+    notice.style.cssText =
+      'position:absolute;z-index:500;inset-inline:12px;bottom:12px;padding:10px 12px;border:0;border-radius:10px;background:#fff;color:#7a1f24;font:inherit;font-weight:700;box-shadow:0 4px 16px rgb(0 0 0 / 25%);cursor:pointer;text-align:center';
+    notice.onclick = () => {
+      failed = false;
+      notice?.remove();
+      notice = null;
+      layer.redraw();
+    };
+    map.getContainer().appendChild(notice);
+  };
+  layer.on('tileerror', showNotice);
+  layer.on('load', () => {
+    if (notice) {
+      notice.remove();
+      notice = null;
+    }
+    failed = false;
+  });
+  return layer;
 }
 

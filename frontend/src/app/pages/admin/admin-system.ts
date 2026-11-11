@@ -240,6 +240,11 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
         <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดประวัติไม่สำเร็จ · ลองอีกครั้ง', en: 'Could not load logs · try again' }) }}</p>
         <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button>
       }
+      @if (more()) {
+        <button type="button" class="btn secondary" [disabled]="loadingMore()" (click)="loadMore()">
+          {{ loadingMore() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ดูเพิ่ม', en: 'Load more' }) }}
+        </button>
+      }
       <p class="muted small easy-hide">{{ i18n.t({ th: 'บันทึกทุกการสแกน/พิมพ์รหัส แม้ไม่ผ่าน · ลบหรือแก้ไม่ได้', en: 'Every scan or typed code is logged, even failures · cannot be edited' }) }}</p>
     </div>
   `,
@@ -329,11 +334,33 @@ export class AdminLogs {
     this.loading.set(true);
     this.error.set(false);
     try {
-      this.allRows.set((await this.api.logs()).data);
+      const r = await this.api.logs(1);
+      this.allRows.set(r.data);
+      this.page = 1;
+      this.more.set(r.data.length === r.per_page);
     } catch {
       this.error.set(true);
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  private page = 1;
+  protected readonly more = signal(false);
+  protected readonly loadingMore = signal(false);
+
+  protected async loadMore(): Promise<void> {
+    if (this.loadingMore() || !this.more()) return;
+    this.loadingMore.set(true);
+    try {
+      const r = await this.api.logs(this.page + 1);
+      this.allRows.update((rows) => [...rows, ...r.data]);
+      this.page += 1;
+      this.more.set(r.data.length === r.per_page);
+    } catch {
+      this.error.set(true);
+    } finally {
+      this.loadingMore.set(false);
     }
   }
 

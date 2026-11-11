@@ -185,7 +185,7 @@ export class HeadZones implements OnInit {
     <div class="stack grow">
       @if (zone(); as z) {
         <p class="adv-only">{{ i18n.t({ th: 'แก้ล่าสุด ', en: 'Updated ' }) }}{{ updated(z.updated_at) }}</p>
-        <div class="tabs" role="tablist">
+        <div class="tabs" role="tablist" [attr.aria-label]="i18n.t({ th: 'แท็บของโซน', en: 'Zone tabs' })">
           <button type="button" role="tab" [attr.aria-selected]="tab() === 'settings'" [class.active]="tab() === 'settings'" (click)="tab.set('settings')">{{ i18n.t({ th: 'ตั้งค่า', en: 'Settings' }) }}</button>
           <button type="button" role="tab" [attr.aria-selected]="tab() === 'houses'" [class.active]="tab() === 'houses'" (click)="tab.set('houses')">{{ i18n.t({ th: 'บ้าน', en: 'Houses' }) }} ({{ z.houses.length }})</button>
           <button type="button" role="tab" [attr.aria-selected]="tab() === 'officers'" [class.active]="tab() === 'officers'" (click)="tab.set('officers')">{{ i18n.t({ th: 'เจ้าหน้าที่', en: 'Officers' }) }} ({{ z.officers.length }})</button>

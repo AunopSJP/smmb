@@ -100,6 +100,8 @@ export class RiderApi {
         </p>
       } @else if (offline()) {
         <p class="danger-text small" role="alert">{{ i18n.t({ th: 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ ลองอีกครั้ง', en: 'No connection — try again' }) }}</p>
+      } @else if (failed()) {
+        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ทำรายการไม่สำเร็จ ลองอีกครั้ง', en: 'Something went wrong — try again' }) }}</p>
       }
       <p class="muted small adv-only">
         {{ i18n.t({ th: 'รหัส 8 ตัวอักษร · ตั๋วใช้ได้ 10 นาที · ผิดซ้ำจะถูกพักชั่วคราว', en: '8-character code · ticket valid for 10 minutes · repeated errors pause you briefly' }) }}
@@ -151,6 +153,7 @@ export class RiderCode {
   protected readonly busy = signal(false);
   protected readonly locked = signal(false);
   protected readonly offline = signal(false);
+  protected readonly failed = signal(false);
 
   /** GET /public/codes/:code → { house_no, box_status, delivery_ticket } · ผิด 3 ครั้งติดกัน → 429 รอ */
   protected async go(): Promise<void> {
@@ -160,6 +163,7 @@ export class RiderCode {
     this.busy.set(false);
     this.locked.set(code === 'CODE_ATTEMPTS_EXCEEDED' || code === 'RATE_LIMITED');
     this.offline.set(code === 'OFFLINE');
+    this.failed.set(!!code && !ERROR_SCREEN[code] && code !== 'OFFLINE' && code !== 'CODE_ATTEMPTS_EXCEEDED' && code !== 'RATE_LIMITED');
     if (code === null) void this.router.navigateByUrl(screenUrl('R02'));
     else if (ERROR_SCREEN[code]) void this.router.navigateByUrl(screenUrl(ERROR_SCREEN[code]));
   }
@@ -338,7 +342,7 @@ export class RiderInvalid {
 
 @Component({
   selector: 'app-rider-closed',
-  imports: [Brand],
+  imports: [Brand, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-brand />
@@ -349,6 +353,7 @@ export class RiderInvalid {
         {{ i18n.t({ th: 'ส่งของผ่านตู้นี้ไม่ได้ตอนนี้', en: 'Deliveries through this box are paused' }) }}<br />
         {{ i18n.t({ th: 'โปรดติดต่อผู้รับโดยตรง', en: 'Please contact the recipient directly' }) }}
       </p>
+      <a class="btn" [routerLink]="url('R01')">{{ i18n.t({ th: 'สแกน / พิมพ์รหัสตู้อื่น', en: 'Scan or enter another box' }) }}</a>
     </div>
   `,
   styles: `
@@ -359,6 +364,7 @@ export class RiderInvalid {
 })
 export class RiderClosed {
   protected readonly i18n = inject(I18n);
+  protected readonly url = screenUrl;
 }
 
 // ── R03-c · แจ้งส่งของบ่อยเกินไป ───────────────────────────────
