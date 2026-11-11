@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, model } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, model, signal } from '@angular/core';
 import { I18n, type Tr } from '../core/i18n';
 
 /**
@@ -122,8 +122,12 @@ export const careLabel = (v: string, i18n: I18n): string => {
   selector: 'app-profile-extras',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="group form-section">
-      <h2 class="form-title">{{ i18n.t({ th: 'ข้อมูลส่วนตัว', en: 'Personal details' }) }}</h2>
+    <!-- ทุกช่องในกลุ่มนี้ไม่บังคับ → พับไว้ ฟอร์มสมัครจะได้เหลือแต่ช่องที่ต้องกรอก (มีข้อมูลอยู่แล้ว/อีเมลผิด = กางให้เอง) -->
+    <details class="group form-section opt" [open]="personalOpen() || hasPersonal()" (toggle)="personalOpen.set($any($event.target).open)">
+      <summary class="form-title">
+        {{ i18n.t({ th: 'ข้อมูลส่วนตัวเพิ่มเติม', en: 'More personal details' }) }}
+        <span class="opt-tag">{{ i18n.t({ th: 'ไม่บังคับ · กรอกทีหลังได้', en: 'optional · can add later' }) }}</span>
+      </summary>
       <div class="form-grid">
         <label class="field">
           <span>{{ i18n.t({ th: 'คำนำหน้า', en: 'Title' }) }}</span>
@@ -152,7 +156,7 @@ export const careLabel = (v: string, i18n: I18n): string => {
         <input type="email" inputmode="email" maxlength="200" autocomplete="email" [value]="value().email" (input)="set('email', $any($event.target).value)" />
         @if (emailBad()) { <small class="err">{{ i18n.t({ th: 'รูปแบบอีเมลไม่ถูกต้อง', en: 'That email looks wrong' }) }}</small> }
       </label>
-    </section>
+    </details>
 
     @if (kind() === 'officer') {
       <section class="group form-section">
@@ -219,6 +223,35 @@ export const careLabel = (v: string, i18n: I18n): string => {
       display: grid;
       gap: 14px;
     }
+    details.opt > summary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 4px 10px;
+      cursor: pointer;
+      margin: 0;
+    }
+    details.opt > summary::-webkit-details-marker {
+      display: none;
+    }
+    details.opt > summary::after {
+      content: '+';
+      margin-inline-start: auto;
+      font-size: 1.25rem;
+      line-height: 1;
+      color: var(--brand-text);
+    }
+    details.opt[open] > summary::after {
+      content: '−';
+    }
+    details.opt[open] > summary {
+      margin-block-end: 12px;
+    }
+    .opt-tag {
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
     .chips {
       display: flex;
       flex-wrap: wrap;
@@ -238,6 +271,12 @@ export class ProfileExtras {
   protected readonly titles = TITLES;
   protected readonly houseTypes = HOUSE_TYPES;
   protected readonly careOptions = CARE;
+  /** ผู้ใช้กางกลุ่ม "ข้อมูลส่วนตัวเพิ่มเติม" เอง — ไม่พับกลับระหว่างพิมพ์ */
+  protected readonly personalOpen = signal(false);
+  protected readonly hasPersonal = computed(() => {
+    const v = this.value();
+    return !!(v.title || v.first_name.trim() || v.last_name.trim() || v.nickname.trim() || v.email.trim());
+  });
   protected readonly emailBad = computed(() => !!this.value().email.trim() && !EMAIL_RE.test(this.value().email.trim()));
   protected readonly postalOk = computed(() => /^[0-9]{5}$/.test(this.value().postal_code.trim()));
   protected readonly residentsOk = computed(() => {

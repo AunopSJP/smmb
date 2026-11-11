@@ -82,7 +82,7 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
       
       }
       @if (step() === 3) {
-      <app-terms-check from="A06" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="filled() && !f().terms" />
+      <app-terms-check from="A06" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="termsTried() && !f().terms" />
       
       }
 
@@ -100,7 +100,7 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
       @if (step() < 3) {
         <button type="button" class="btn push-end" (click)="next()">{{ i18n.t({ th: 'ถัดไป', en: 'Next' }) }}</button>
       } @else {
-        <button type="submit" class="btn push-end" [disabled]="!f().terms || busy()">{{ i18n.t({ th: 'สมัครและไปผูกตู้', en: 'Sign up and add my mailbox' }) }}</button>
+        <button type="submit" class="btn push-end" [disabled]="busy()">{{ i18n.t({ th: 'สมัครและไปผูกตู้', en: 'Sign up and add my mailbox' }) }}</button>
       }
       @if (step() > 1) {
         <button type="button" class="btn secondary" (click)="step.set(step() - 1)">{{ i18n.t({ th: 'ย้อนกลับ', en: 'Back' }) }}</button>
@@ -145,6 +145,8 @@ export class AuthSignupOwner implements OnInit {
   readonly state = input<string>();
   protected readonly f = this.demo.forms.owner;
   protected readonly tried = signal(false);
+  /** กดสมัครทั้งที่ยังไม่ติ๊กยอมรับ — ค่อยเตือน (ไม่ขึ้นแดงตั้งแต่เพิ่งมาถึงขั้นนี้) */
+  protected readonly termsTried = signal(false);
   /** ขั้นของฟอร์ม 1 บัญชี · 2 บ้าน · 3 ข้อตกลง (ตามแคนวาสดีไซน์) — จำไว้ใน AuthDemo เพื่อกลับจากข้อตกลงแล้วไม่เริ่มใหม่ */
   protected readonly step = this.demo.ownerStep;
   /** ที่อยู่ + หมุด + ผู้ติดต่อฉุกเฉิน (✅ 2026-11-04) — เก็บร่างใน AuthDemo */
@@ -202,6 +204,7 @@ export class AuthSignupOwner implements OnInit {
   /** POST /auth/signup/owner { name, phone, password, house_no, terms_version } → ได้ cookie = ล็อกอินแล้ว */
   protected async submit(): Promise<void> {
     this.tried.set(true);
+    this.termsTried.set(true);
     const f = this.f();
     const phone = normalizePhone(f.phone);
     if (!f.terms || !f.name.trim() || !phone || f.password.length < this.min || !f.house_no.trim() || !houseProfileValid(this.house())) {
@@ -255,7 +258,11 @@ const ACTIVATE_STEPS: Step[] = [
             </p>
           </div>
           <p class="info-box muted">{{ i18n.t({ th: 'ระบบบันทึกการลองครั้งนี้ไว้แล้ว', en: 'This attempt has been logged' }) }}</p>
-          <button type="button" class="btn push-end" (click)="retry()">{{ i18n.t({ th: 'สแกนใหม่', en: 'Scan again' }) }}</button>
+          <div class="stack push-end">
+            <button type="button" class="btn" (click)="retry()">{{ i18n.t({ th: 'สแกนใหม่', en: 'Scan again' }) }}</button>
+            <button type="button" class="btn secondary" (click)="retry(true)">{{ i18n.t({ th: 'พิมพ์รหัสใต้ QR แทน', en: 'Type the code instead' }) }}</button>
+            <a class="later" [routerLink]="backUrl()">{{ i18n.t({ th: 'ไว้ทีหลัง', en: 'Not now' }) }}</a>
+          </div>
         </div>
       }
       @case ('taken') {
@@ -323,6 +330,12 @@ const ACTIVATE_STEPS: Step[] = [
       inline-size: min(100%, 300px);
       align-self: center;
     }
+    .later {
+      align-self: center;
+      padding: 10px 16px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
   `,
 })
 export class AuthActivate implements OnInit {
@@ -335,6 +348,8 @@ export class AuthActivate implements OnInit {
   readonly from = input<string>();
   protected readonly backUrl = computed(() => {
     const from = this.from();
+    // เพิ่งสมัครเสร็จ (มาจาก A06) = ล็อกอินแล้ว — ย้อนกลับต้องไปหน้าหลัก ไม่ใช่ฟอร์มสมัครซ้ำ
+    if (from === 'A06' && this.session.me()) return screenUrl('H03');
     if (from) {
       try {
         return screenUrl(from);
@@ -395,7 +410,10 @@ export class AuthActivate implements OnInit {
     } catch (err) {
       const e = apiError(err);
       this.failCode.set(e.code ? `${e.code} · HTTP ${e.status}` : `HTTP ${e.status}`);
-      if (e.code === 'BOX_ALREADY_OWNED' || e.code === 'QR_INVALID') {
+      if (e.code === 'QR_INVALID' && 'code' in body) {
+        // พิมพ์รหัสผิด (มักพิมพ์ตก/ใช้รหัสหน้าตู้) — อยู่หน้าเดิม รหัสที่พิมพ์ไว้ไม่หาย แก้แล้วกดใหม่ได้เลย
+        this.message.set({ th: 'รหัสไม่ถูกต้อง — ใช้รหัสใต้ QR เปิดใช้ตู้ที่อยู่ด้านในตู้ (ไม่ใช่รหัสหน้าตู้) แล้วตรวจตัวอักษรอีกครั้ง', en: 'Wrong code — use the code under the activation QR inside the box (not the one on the front) and check each character' });
+      } else if (e.code === 'BOX_ALREADY_OWNED' || e.code === 'QR_INVALID') {
         void this.router.navigate([screenUrl('A07')], { queryParams: { state: e.code === 'BOX_ALREADY_OWNED' ? 'taken' : 'invalid', from: this.from() }, replaceUrl: true });
       } else if (e.code === 'CODE_ATTEMPTS_EXCEEDED') {
         this.message.set({ th: 'พิมพ์ผิดหลายครั้ง รอสักครู่แล้วลองอีกครั้ง', en: 'Too many wrong codes — wait a moment and retry' });
@@ -410,7 +428,9 @@ export class AuthActivate implements OnInit {
     }
   }
 
-  protected retry(): void {
+  protected retry(typing = false): void {
+    this.typing.set(typing);
+    this.message.set(null);
     void this.router.navigate([screenUrl('A07')], { queryParams: { from: this.from() }, replaceUrl: true });
   }
 }

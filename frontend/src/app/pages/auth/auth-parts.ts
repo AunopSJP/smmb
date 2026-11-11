@@ -27,11 +27,8 @@ import { screenUrl } from '../../screens/registry';
           {{ show() ? i18n.t({ th: 'ซ่อน', en: 'Hide' }) : i18n.t({ th: 'แสดง', en: 'Show' }) }}
         </button>
       </span>
-      @if (isNew() && hint()) {
-        <small [class.danger-text]="invalid()">{{ i18n.t({ th: 'อย่างน้อย ' + min + ' ตัว', en: 'At least ' + min + ' characters' }) }}</small>
-      }
       @if (isNew()) {
-        <small class="muted">{{ i18n.t({ th: 'ความยาว ' + min + '–' + max + ' ตัว · ไม่ต้องมีอักขระพิเศษ', en: min + '–' + max + ' characters · no special characters required' }) }}</small>
+        <small [class.muted]="!(hint() && invalid())" [class.danger-text]="hint() && invalid()">{{ i18n.t({ th: 'ความยาว ' + min + '–' + max + ' ตัว · ไม่ต้องมีอักขระพิเศษ', en: min + '–' + max + ' characters · no special characters required' }) }}</small>
       }
     </label>
   `,

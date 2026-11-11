@@ -281,8 +281,9 @@ import { firstValueFrom } from 'rxjs';
           <span class="icon-bubble"><app-icon name="bell" [size]="20" /></span>
           <span class="grow">
             <strong>{{ i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' }) }}</strong>
-            <span class="muted small block">{{ i18n.t({ th: 'ชนิดที่รับ · ทดสอบ · วิธีแก้ถ้าไม่เด้ง', en: 'What to receive · test · fixes if nothing arrives' }) }}</span>
+            <span class="muted small block">{{ pushOn() ? i18n.t({ th: 'เครื่องนี้รับแจ้งเตือนอยู่ · เลือกชนิดที่รับ · ทดสอบ', en: 'On for this device · choose what to receive · test' }) : i18n.t({ th: 'เครื่องนี้ยังไม่ได้เปิด — แตะเพื่อเปิด', en: 'Off on this device — tap to turn on' }) }}</span>
           </span>
+          <span class="chip" [class.ok]="pushOn()" [class.warn]="!pushOn()">{{ pushOn() ? i18n.t({ th: 'เปิด', en: 'On' }) : i18n.t({ th: 'ปิด', en: 'Off' }) }}</span>
           <app-icon name="chevronRight" [size]="18" />
         </a>
       </nav>
@@ -726,12 +727,11 @@ export class OwnerSettings {
     void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true }));
   }
   protected readonly menu = computed<{ code: string; icon: IconName; title: Tr; sub: Tr; badge?: Tr; needsBox?: boolean }[]>(() => {
-    const pushOn = this.session.me()?.push.subscribed === true;
     return [
     { code: 'H16', icon: 'pin', title: { th: 'หน่วยงานใกล้บ้านบนแผนที่', en: 'Agencies near you on the map' }, sub: { th: 'ดูว่าอยู่ตรงไหน แล้วเลือกว่าให้ใครดูแลบ้าน', en: 'See where each agency is and pick who looks after you' } },
     { code: 'H13-b', icon: 'layers', title: { th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' }, sub: { th: 'กดสั่งจากเว็บ ตู้จะเข้าโหมดตั้งค่าเอง', en: 'Tap here — the mailbox enters setup mode by itself' }, needsBox: true },
     { code: 'H13-c', icon: 'user', title: { th: 'แจ้งช่าง', en: 'Request a technician' }, sub: { th: 'ให้ช่างนัดมาตั้งค่า / ซ่อม', en: 'A technician will set up or repair' }, needsBox: true },
-    { code: 'H14', icon: 'bell', title: { th: 'การแจ้งเตือน', en: 'Notifications' }, sub: pushOn ? { th: 'เครื่องนี้รับแจ้งเตือนอยู่', en: 'This device gets notifications' } : { th: 'เครื่องนี้ยังไม่ได้เปิด — แตะเพื่อเปิด', en: 'Off on this device — tap to turn on' }, ...(pushOn ? { badge: { th: 'เปิด', en: 'On' } } : {}) },
+    { code: 'H14', icon: 'bell', title: { th: 'แจ้งเตือนย้อนหลัง', en: 'Notification history' }, sub: { th: 'ดูแจ้งเตือนที่เคยได้รับทั้งหมด', en: 'Everything you have been notified about' } },
     { code: 'H13-d', icon: 'settings', title: { th: 'การแสดงผล', en: 'Display' }, sub: { th: 'ธีม · ภาษา · ขนาดตัวอักษร', en: 'Theme · language · text size' } },
   ];
   });

@@ -448,6 +448,13 @@ const REFRESH_MS = 10_000;
         grid-template-columns: 1fr 1fr;
         gap: 10px;
       }
+      /* โหมดง่ายตัวอักษรใหญ่ — สองปุ่มเคียงกันทำให้คำถูกตัดกลาง ("Wi-/Fi") จึงเรียงแนวตั้ง */
+      :host-context(:root[data-mode='easy']) & .two {
+        grid-template-columns: 1fr;
+      }
+      .two > .btn {
+        text-align: center;
+      }
     }
     .center {
       text-align: center;
@@ -618,7 +625,11 @@ export class OwnerHome implements OnDestroy {
 
   /** เวลาแบบมีวินาทีสำหรับโหมดละเอียด */
   protected timeSec(iso: string): string {
-    return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
+    const d = new Date(iso);
+    const t = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
+    // ไม่ใช่วันนี้ต้องมีวันที่กำกับ — เดิมเหตุการณ์เมื่อวาน/ตู้ที่หลุดไปหลายวันขึ้นแค่เวลา อ่านแล้วเข้าใจว่าเป็นวันนี้
+    const bkk = (x: Date) => x.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+    return bkk(d) === bkk(new Date()) ? t : `${this.day(iso)} ${t}`;
   }
 
   /** เวลาปัจจุบันของเวลาตรวจ (มีวินาที) */

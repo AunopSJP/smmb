@@ -50,6 +50,9 @@ export class App {
       win.location.assign(back);
     };
     const onExpired = (e: Event) => {
+      // 401 ตอนยังไม่เคยล็อกอิน (เช่น เช็ก /me ตอนเปิดแอป) ไม่ใช่ "session หมดอายุ" — ปล่อยให้ guard ของ route ตัดสิน
+      // ไม่งั้นลิงก์ตรงของหน้าสาธารณะ (สมัคร · QR เปิดใช้ตู้ · /in/<บทบาท>) ถูกเด้งไปหน้าเข้าสู่ระบบและ ?next= หาย
+      if (!session.me()) return;
       session.invalidate();
       const next = (e as CustomEvent<{ next?: string }>).detail?.next;
       void router.navigateByUrl(next ? `/auth/signin?next=${encodeURIComponent(next)}` : '/auth/signin', { replaceUrl: true });

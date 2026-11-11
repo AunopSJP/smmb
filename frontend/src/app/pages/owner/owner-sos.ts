@@ -457,7 +457,7 @@ export class SosCancel {
       <header class="sos-head ok">
         <span class="check"><app-icon name="check" [size]="30" /></span>
         <h1>{{ i18n.t({ th: 'มีเจ้าหน้าที่รับแล้ว', en: 'An officer accepted' }) }}</h1>
-        <p>{{ i18n.t({ th: 'กำลังเดินทางไปที่บ้านคุณ', en: 'They are on the way to your house' }) }}</p>
+        <p>{{ i18n.t({ th: 'เจ้าหน้าที่รับเรื่องของคุณแล้ว โทรหาได้ถ้าต้องการบอกรายละเอียด', en: 'An officer has taken your case — call them if you need to give details' }) }}</p>
       </header>
       @if (!linkOk()) {
         <p class="link-lost" role="alert">{{ i18n.t({ th: 'ติดต่อเซิร์ฟเวอร์ไม่ได้ — โทรแจ้งเหตุเองทันที: 191 / 1669', en: 'Cannot reach the server — call for help yourself now: 191 / 1669' }) }}</p>

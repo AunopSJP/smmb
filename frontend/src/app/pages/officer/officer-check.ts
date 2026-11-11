@@ -1154,8 +1154,14 @@ const HOLD_MS = 8000;
         </p>
       }
       <div class="stack push-end">
-        <a class="btn on-color" [routerLink]="url('O02')">{{ i18n.t({ th: 'สแกนหลังถัดไป', en: 'Scan the next house' }) }}</a>
-        <a class="btn outline-light" [routerLink]="url('O01')">{{ i18n.t({ th: 'กลับหน้าสรุป', en: 'Back to summary' }) }}</a>
+        <!-- ครบทุกหลังแล้ว → ปุ่มหลักคือกลับหน้าสรุป (ไม่ชวนสแกน "หลังถัดไป" ที่ไม่มี) -->
+        @if (summary() && !summary()?.next_house) {
+          <a class="btn on-color" [routerLink]="url('O01')">{{ i18n.t({ th: 'กลับหน้าสรุป', en: 'Back to summary' }) }}</a>
+          <a class="btn outline-light" [routerLink]="url('O02')">{{ i18n.t({ th: 'สแกนตรวจซ้ำ', en: 'Scan again' }) }}</a>
+        } @else {
+          <a class="btn on-color" [routerLink]="url('O02')">{{ i18n.t({ th: 'สแกนหลังถัดไป', en: 'Scan the next house' }) }}</a>
+          <a class="btn outline-light" [routerLink]="url('O01')">{{ i18n.t({ th: 'กลับหน้าสรุป', en: 'Back to summary' }) }}</a>
+        }
       </div>
     </div>
     }

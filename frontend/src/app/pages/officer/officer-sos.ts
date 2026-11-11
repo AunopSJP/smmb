@@ -12,6 +12,7 @@ import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { LoadError } from '../../shared/state-view';
+import { Toast } from '../../core/toast';
 import { liveRefresh } from '../../core/live-refresh';
 
 /** หน้ารับเรื่อง / รายการ SOS ถามสถานะทุกกี่วินาที */
@@ -365,6 +366,8 @@ export class OfficerSosCase implements OnInit {
             <dt>{{ i18n.t({ th: 'เจ้าของบ้าน', en: 'Owner' }) }}</dt><dd>{{ c?.owner?.name }}</dd>
             @if (c?.house?.address || c?.house?.area) {
               <dt>{{ i18n.t({ th: 'ที่อยู่', en: 'Address' }) }}</dt><dd>{{ c?.house?.address }} {{ c?.house?.area }}</dd>
+            } @else if (c && !c.house?.location) {
+              <dt>{{ i18n.t({ th: 'ที่อยู่', en: 'Address' }) }}</dt><dd class="muted">{{ i18n.t({ th: 'เจ้าของบ้านยังไม่ได้กรอก — โทรถามทาง', en: 'Not provided — call for directions' }) }}</dd>
             }
             <dt class="easy-hide">{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt><dd class="easy-hide ok">{{ i18n.t({ th: 'เจ้าของบ้านเห็นว่าคุณรับแล้ว', en: 'The owner sees you accepted' }) }}</dd>
           </dl>
@@ -510,6 +513,7 @@ const OUTCOMES: { v: string; label: Tr }[] = [
   `,
 })
 export class OfficerSosClose {
+  private readonly toast = inject(Toast);
   protected readonly i18n = inject(I18n);
   private readonly api = inject(OfficerSosApi);
   private readonly router = inject(Router);
@@ -539,6 +543,7 @@ export class OfficerSosClose {
     this.failed.set(false);
     try {
       await this.api.close(this.id(), note.slice(0, 500));
+      this.toast.show({ th: 'ปิดเรื่อง SOS แล้ว · เจ้าของบ้านได้รับแจ้ง', en: 'SOS closed · the owner has been told' }, 'ok');
       void this.router.navigateByUrl(screenUrl('O12'), { replaceUrl: true });
     } catch {
       this.failed.set(true);

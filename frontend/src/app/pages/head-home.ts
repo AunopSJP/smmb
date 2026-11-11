@@ -117,7 +117,7 @@ interface RecentLog {
             <p class="label">{{ i18n.t({ th: 'ตรวจแล้ว', en: 'Checked' }) }}</p>
           </div>
           <div class="stat">
-            <p class="value warn">{{ offline() }}</p>
+            <p class="value" [class.warn]="offline() > 0">{{ offline() }}</p>
             <p class="label">{{ i18n.t({ th: 'ออฟไลน์', en: 'Offline' }) }}</p>
           </div>
           <div class="stat">
@@ -125,7 +125,7 @@ interface RecentLog {
             <p class="label">{{ i18n.t({ th: 'ออนไลน์', en: 'Online' }) }}</p>
           </div>
           <a class="stat link" [routerLink]="url('O12')" [queryParams]="{ from: 'L04' }">
-            <p class="value">{{ today() ? (today()!.sos_open) : '—' }}</p>
+            <p class="value" [class.sos]="(today()?.sos_open ?? 0) > 0">{{ today() ? (today()!.sos_open) : '—' }}</p>
             <p class="label">SOS</p>
           </a>
         </div>
@@ -136,11 +136,11 @@ interface RecentLog {
             <p class="label">{{ i18n.t({ th: 'ตรวจแล้ววันนี้', en: 'Checked today' }) }}</p>
           </div>
           <div class="stat">
-            <p class="value warn">{{ offline() }}</p>
+            <p class="value" [class.warn]="offline() > 0">{{ offline() }}</p>
             <p class="label">{{ i18n.t({ th: 'ตู้ออฟไลน์', en: 'Offline boxes' }) }}</p>
           </div>
           <a class="stat link" [routerLink]="url('O12')" [queryParams]="{ from: 'L04' }">
-            <p class="value">{{ today() ? (today()!.sos_open) : '—' }}</p>
+            <p class="value" [class.sos]="(today()?.sos_open ?? 0) > 0">{{ today() ? (today()!.sos_open) : '—' }}</p>
             <p class="label">{{ i18n.t({ th: 'SOS เปิดอยู่', en: 'Open SOS' }) }}</p>
           </a>
         </div>
@@ -155,6 +155,12 @@ interface RecentLog {
           <span class="count">{{ today()?.members_pending }}</span>
         </a>
       }
+
+      <!-- หัวหน้าตรวจตู้เองได้ (เฉพาะโซนที่ตัวเองอยู่) — เดิมต้องเข้าไปหาในหน้าตั้งค่า -->
+      <a class="btn secondary" [routerLink]="url('O02')">
+        <app-icon name="scan" [size]="20" />
+        {{ i18n.t({ th: 'สแกนตรวจตู้เอง', en: 'Inspect a box myself' }) }}
+      </a>
 
       <div class="sec easy-hide">
         <h2 class="section-title">{{ i18n.t({ th: 'โซนวันนี้', en: 'Zones today' }) }}</h2>
@@ -244,6 +250,15 @@ interface RecentLog {
     .stats3 .value.warn,
     .stats4 .value.warn {
       color: var(--ib-warn-fg);
+    }
+    /* ตัวเลข 0 = ปกติ ใช้สีตัวอักษรธรรมดา (ไม่ใช่สีลิงก์/สีเตือน) · มี SOS เปิดอยู่จึงเป็นสี SOS */
+    .stats3 a.stat .value,
+    .stats4 a.stat .value {
+      color: var(--text);
+    }
+    .stats3 a.stat .value.sos,
+    .stats4 a.stat .value.sos {
+      color: var(--sos);
     }
     .code-row {
       display: flex;

@@ -35,7 +35,7 @@ const ACCOUNT: Row[] = [
   template: `
     <app-page-header [caption]="session.me()?.agency?.name ?? ''" [title]="i18n.t({ th: 'ตั้งค่า', en: 'Settings' })" />
     <div class="stack grow">
-      <app-push-status />
+      <app-push-status [required]="true" deviceLabel="head" />
       <h2 class="section-title">{{ i18n.t({ th: 'หน่วยงาน', en: 'Agency' }) }}</h2>
       <nav class="list">
         @for (r of agency; track r.code) {

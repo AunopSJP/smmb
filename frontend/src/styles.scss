@@ -1174,9 +1174,23 @@ fieldset {
     color: var(--text-muted);
     font-size: 0.8125rem;
   }
-  &.invalid input {
+  /* ต้องเฉพาะเจาะจงเท่ากฎขอบปกติด้านบน (:not ×2) ไม่งั้นขอบแดงถูกทับ — เคยไม่ขึ้นทั้งแอป */
+  &.invalid input:not([type='checkbox']):not([type='radio']),
+  &.invalid select,
+  &.invalid textarea {
     border-color: var(--sos);
+    border-width: 2px;
   }
+  &.invalid > span:first-child {
+    color: var(--sos);
+  }
+}
+/* กล่องสรุปข้อผิดพลาดของฟอร์ม (เช่น "กรอกบ้านเลขที่") */
+.card.err {
+  border: 1.5px solid var(--sos);
+  background: var(--danger-bg);
+  color: var(--text);
+  font-weight: 600;
 }
 .with-unit {
   display: flex;

@@ -339,8 +339,10 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
         <app-password-field [(value)]="password" [invalid]="!!error()" />
         <p class="small easy-hide">
           <span class="danger-text">{{ i18n.t({ th: 'ลืมรหัสผ่าน? ', en: 'Forgot it? ' }) }}</span>
-          {{ i18n.t({ th: 'เจ้าหน้าที่ขอให้หัวหน้ารีเซ็ต · ผู้ใช้อื่นติดต่อผู้ดูแลระบบ: ', en: 'Officers ask their head · everyone else contacts the admin: ' }) }}<strong>{{ support() ?? '—' }}</strong>
-          
+          {{ i18n.t({ th: 'เจ้าหน้าที่ขอให้หัวหน้ารีเซ็ต · ผู้ใช้อื่นติดต่อผู้ดูแลระบบ', en: 'Officers ask their head · everyone else contacts the admin' }) }}
+          @if (support(); as contact) {
+            : <strong>{{ contact }}</strong>
+          }
         </p>
 
         <div class="stack push-end">

@@ -54,9 +54,8 @@ const bkkDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/B
           <li class="row">
             <span class="icon-bubble" [class.danger]="!ok" [class.ok]="ok"><app-icon [name]="ok ? 'check' : 'alert'" [size]="20" /></span>
             <span class="grow">
-              <strong>{{ title(l) }} · {{ i18n.t(resultText(l)) }}</strong>
-              <span class="muted small block">{{ when(l.at) }}</span>
-              <span class="muted small block easy-hide">{{ l.method === 'code' ? i18n.t({ th: 'พิมพ์รหัส', en: 'Typed code' }) : i18n.t({ th: 'สแกน', en: 'Scan' }) }}</span>
+              <strong>{{ title(l) }}</strong>
+              <span class="muted small block">{{ when(l.at) }}<span class="easy-hide"> · {{ i18n.t(how(l)) }}</span></span>
               <span class="muted small block adv-only">{{ i18n.t({ th: 'เวลาบันทึก ', en: 'Logged ' }) }}{{ stamp(l.at) }}</span>
             </span>
             <span class="chip" [class.ok]="ok" [class.danger]="!ok">{{ i18n.t(resultText(l)) }}</span>
@@ -138,7 +137,15 @@ export class OfficerHistory {
   }
 
   protected resultText(l: MyLog): Tr {
+    // ตู้อ่าน QR ประจำตัวได้ = ตรวจผ่าน (แถวของตู้บันทึกเป็น ok เหมือนตอนสแกนหน้าตู้ — แยกด้วย qr_kind เหมือนหน้าประวัติของหัวหน้า)
+    if (l.qr_kind === 'badge' && l.result === 'ok') return RESULT['pass'];
     return RESULT[l.result] ?? { th: l.result, en: l.result };
+  }
+
+  /** ขั้นไหนของการตรวจ: ตู้อ่าน QR ประจำตัว / พิมพ์รหัสใต้ QR / สแกน QR หน้าตู้ */
+  protected how(l: MyLog): Tr {
+    if (l.qr_kind === 'badge') return { th: 'ตู้อ่าน QR ประจำตัว', en: 'Box read your badge' };
+    return l.method === 'code' ? { th: 'พิมพ์รหัสใต้ QR', en: 'Typed the code' } : { th: 'สแกน QR หน้าตู้', en: 'Scanned the front QR' };
   }
 
   protected title(l: MyLog): string {
