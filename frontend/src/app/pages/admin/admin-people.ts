@@ -308,7 +308,7 @@ const ROLE_LABEL: Record<string, Tr> = {
   imports: [PageHeader, UserPlan],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [title]="i18n.t({ th: 'ผู้ใช้', en: 'Users' })" [bell]="url('D12')" />
+    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'ผู้ใช้', en: 'Users' })" [bell]="url('D12')" />
     <div class="stack">
       <form class="search" (submit)="$event.preventDefault(); search()">
         <input type="search" [placeholder]="i18n.t({ th: 'ค้นเบอร์โทรหรือชื่อ', en: 'Search phone or name' })" [value]="q()" (input)="q.set($any($event.target).value)" />
@@ -439,7 +439,6 @@ const ROLE_LABEL: Record<string, Tr> = {
       gap: var(--gap);
     }
     .detail {
-      order: -1;
       display: flex;
       flex-direction: column;
       gap: var(--gap);

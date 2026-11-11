@@ -204,7 +204,7 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
-      [caption]="i18n.t({ th: 'แอดมิน Smart Mailbox', en: 'Smart Mailbox admin' })"
+      [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })"
       [title]="i18n.t({ th: 'ประวัติทั้งหมด', en: 'All logs' })"
       [bell]="url('D12')"
     />

@@ -62,6 +62,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
+      [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })"
       [title]="i18n.t({ th: 'ตู้ทั้งหมด', en: 'All mailboxes' })"
       [bell]="url('D12')"
     />

@@ -6,13 +6,14 @@ import { Toast } from '../../core/toast';
 import { Confirm } from '../../shared/confirm-dialog';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
+import { Icon } from '../../shared/icon';
 
 const kb = (n: number) => (n >= 1_048_576 ? (n / 1_048_576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
 
 /** D17 เฟิร์มแวร์ (ตามแคนวาสดีไซน์) — ใช้ API เดิม: รายการ/อัปโหลด/ลบ/อัปเดตอัตโนมัติ (`/admin/firmware*`) */
 @Component({
   selector: 'app-admin-firmware',
-  imports: [PageHeader],
+  imports: [PageHeader, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'เฟิร์มแวร์', en: 'Firmware' })" [back]="url('D16')" />
@@ -80,13 +81,37 @@ const kb = (n: number) => (n >= 1_048_576 ? (n / 1_048_576).toFixed(1) + ' MB' :
           <span>{{ i18n.t({ th: 'ชื่อรุ่น (ต้องตรงกับในไฟล์)', en: 'Version (must match the file)' }) }}</span>
           <input maxlength="32" [value]="version()" (input)="version.set($any($event.target).value)" />
         </label>
-        <input type="file" accept=".bin" (change)="file.set($any($event.target).files?.[0] ?? null)" />
+        <label class="file-pick">
+          <input type="file" accept=".bin" (change)="file.set($any($event.target).files?.[0] ?? null)" />
+          <span class="btn secondary small-btn"><app-icon name="plus" [size]="16" />{{ i18n.t({ th: 'เลือกไฟล์ .bin', en: 'Choose a .bin file' }) }}</span>
+          <span class="muted small">{{ file()?.name ?? i18n.t({ th: 'ยังไม่ได้เลือกไฟล์', en: 'No file selected' }) }}</span>
+        </label>
         <button type="button" class="btn" [disabled]="busy() || !file() || !version().trim()" (click)="upload()">{{ i18n.t({ th: 'อัปโหลด', en: 'Upload' }) }}</button>
       </section>
       <p class="muted small easy-hide">{{ i18n.t({ th: 'ตู้ตรวจไฟล์ก่อนติดตั้ง และย้อนกลับรุ่นเดิมเองถ้าอัปเดตไม่สำเร็จ', en: 'Boxes verify the file first and roll back by themselves if an update fails' }) }}</p>
     </div>
   `,
   styles: `
+    .file-pick {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      min-inline-size: 0;
+    }
+    .file-pick input {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      opacity: 0;
+    }
+    .file-pick:focus-within .btn {
+      outline: 2px solid var(--brand);
+      outline-offset: 2px;
+    }
+    .file-pick .muted {
+      overflow-wrap: anywhere;
+    }
     .grow {
       flex: 1;
       min-inline-size: 0;

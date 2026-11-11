@@ -46,6 +46,24 @@ interface Segment {
           <button type="button" class="see-all" (click)="refresh()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button>
         </p>
       }
+      @if (loaded()) {
+        <nav class="quick-actions desk-only" [attr.aria-label]="i18n.t({ th: 'งานด่วน', en: 'Quick actions' })">
+          <a class="quick" [routerLink]="url('D03')"><span class="qb"><app-icon name="box" [size]="20" /></span><span><strong>{{ i18n.t({ th: 'ตู้ทั้งหมด', en: 'All mailboxes' }) }}</strong><small>{{ i18n.t({ th: 'ลงทะเบียน · ปลุก · ตั้งค่า', en: 'Register · wake · configure' }) }}</small></span></a>
+          <a class="quick" [routerLink]="url('D05')"><span class="qb"><app-icon name="scan" [size]="20" /></span><span><strong>{{ i18n.t({ th: 'จัดการ QR', en: 'QR cases' }) }}</strong><small>{{ i18n.t({ th: 'เคสเสีย/ปลอม/ออกใหม่', en: 'Damaged · fake · reissue' }) }}</small></span></a>
+          <a class="quick" [routerLink]="url('D09')"><span class="qb"><app-icon name="user" [size]="20" /></span><span><strong>{{ i18n.t({ th: 'ผู้ใช้', en: 'Users' }) }}</strong><small>{{ i18n.t({ th: 'ค้นหา · รีเซ็ต · ปิดบัญชี', en: 'Search · reset · disable' }) }}</small></span></a>
+          <a class="quick" [routerLink]="url('D17')"><span class="qb"><app-icon name="layers" [size]="20" /></span><span><strong>{{ i18n.t({ th: 'เฟิร์มแวร์', en: 'Firmware' }) }}</strong><small>{{ i18n.t({ th: 'อัปเดตตู้ทั้งระบบ', en: 'Update the fleet' }) }}</small></span></a>
+        </nav>
+        @if (todo().length) {
+          <a class="card action-summary" [routerLink]="todo()[0].path" [queryParams]="todo()[0].query ?? null">
+            <span class="as-ic"><app-icon name="alert" [size]="20" /></span>
+            <span class="grow">
+              <strong>{{ i18n.t({ th: 'ต้องจัดการ ', en: 'Needs action: ' }) }}{{ todo().length }} {{ i18n.t({ th: 'รายการ', en: 'items' }) }}</strong>
+              <span class="muted small block">{{ i18n.t(todo()[0].title) }}</span>
+            </span>
+            <span class="btn secondary small-btn">{{ i18n.t({ th: 'เปิด', en: 'Open' }) }}</span>
+          </a>
+        }
+      }
       <div class="asof easy-hide desk-only">
         <span class="muted small">{{ i18n.t({ th: 'ข้อมูล ณ ', en: 'As of ' }) }}{{ asOf() }}</span>
         <button type="button" class="btn secondary small-btn" [disabled]="refreshing()" (click)="refresh()">{{ refreshing() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'รีเฟรช', en: 'Refresh' }) }}</button>
@@ -387,13 +405,14 @@ interface Segment {
     /* ตัวเลขสรุป */
     .kpis {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
       gap: 12px;
     }
     .kpi {
       display: flex;
       flex-direction: column;
       gap: 2px;
+      min-inline-size: 0;
       padding: 14px 16px;
       background: var(--surface);
       border: 1px solid var(--line-strong, var(--line));
@@ -491,22 +510,90 @@ interface Segment {
       gap: 12px;
       margin-block-end: -8px;
     }
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .quick,
+    .action-summary {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-inline-size: 0;
+      text-decoration: none;
+    }
+    .quick {
+      gap: 10px;
+      padding: 12px 14px;
+      border: 1px solid var(--line-strong, var(--line));
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: var(--shadow);
+    }
+    .quick:hover {
+      border-color: var(--brand);
+    }
+    .quick .qb,
+    .action-summary .as-ic {
+      display: grid;
+      place-items: center;
+      flex: none;
+      inline-size: 38px;
+      block-size: 38px;
+    }
+    .quick .qb {
+      border-radius: 10px;
+      background: var(--icon-bg);
+      color: var(--brand-dark);
+    }
+    .quick > span:last-child,
+    .action-summary .grow {
+      min-inline-size: 0;
+    }
+    .quick strong,
+    .quick small,
+    .action-summary strong,
+    .action-summary .block {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .quick strong,
+    .quick small {
+      display: block;
+    }
+    .quick small {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+    .action-summary {
+      border-color: var(--warn);
+      color: inherit;
+    }
+    .action-summary .as-ic {
+      border-radius: 50%;
+      background: var(--warn-bg);
+      color: var(--warn);
+    }
+    @media (max-width: 1100px) {
+      .quick-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
     .kpi-value.warn {
       color: var(--warn);
+    }
+    .kpi-label,
+    .kpi-value,
+    .kpi-hint {
+      min-inline-size: 0;
+      overflow-wrap: break-word;
     }
     .kpi-hint {
       font-size: 0.75rem;
       color: var(--text-muted);
-    }
-    @media (min-width: 700px) {
-      .kpis {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-    }
-    @media (min-width: 1200px) {
-      .kpis {
-        grid-template-columns: repeat(6, minmax(0, 1fr));
-      }
     }
 
     /* แผง */

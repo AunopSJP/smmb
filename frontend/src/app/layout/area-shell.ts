@@ -6,7 +6,7 @@ import { AdminApi } from '../core/admin-api';
 import { I18n, type Tr } from '../core/i18n';
 import { ToastHost } from '../core/toast';
 import { AREA_LABEL, screen, TABS, TABS_EASY, type Area } from '../screens/registry';
-import { DisplaySettings } from '../core/display-settings';
+import { DisplaySettings, type Theme } from '../core/display-settings';
 import { Icon, type IconName } from '../shared/icon';
 import { TabBar } from '../shared/tab-bar';
 import { ConfirmDialog } from '../shared/confirm-dialog';
@@ -50,6 +50,7 @@ const ADMIN_NAV: { id: string; title: Tr; items: NavItem[] }[] = [
       },
       { code: 'D05', icon: 'scan', label: { th: 'จัดการ QR', en: 'QR cases' } },
       { code: 'D10', icon: 'layers', label: { th: 'ค่าตั้งค่าตู้', en: 'Mailbox config' } },
+      { code: 'D17', icon: 'layers', label: { th: 'เฟิร์มแวร์', en: 'Firmware' } },
       {
         code: 'T01',
         icon: 'settings',
@@ -95,10 +96,10 @@ const ADMIN_NAV: { id: string; title: Tr; items: NavItem[] }[] = [
     title: { th: 'ระบบ', en: 'System' },
     items: [
       { code: 'D16', icon: 'settings', label: { th: 'ระบบและเครื่องมือ', en: 'System and tools' } },
-      { code: 'D11', icon: 'list', label: { th: 'ประวัติระบบ', en: 'System log' } },
-      { code: 'display', path: '/settings/display', icon: 'settings', label: { th: 'การแสดงผล', en: 'Display' } },
+      { code: 'D11', icon: 'list', label: { th: 'บันทึกทั้งหมด', en: 'All logs' } },
+      { code: 'display', path: '/settings/display', icon: 'sun', label: { th: 'การแสดงผล', en: 'Display' } },
       { code: 'notifications', path: '/settings/notifications', icon: 'bell', label: { th: 'การแจ้งเตือน', en: 'Notifications' } },
-      { code: 'A14', icon: 'user', label: { th: 'เปลี่ยนรหัสผ่านของฉัน', en: 'Change my password' } },
+      { code: 'A14', icon: 'user', label: { th: 'เปลี่ยนรหัสผ่าน', en: 'Change password' } },
     ],
   },
 ];
@@ -138,8 +139,31 @@ const MOCK_SCREENS = new Set<string>();
               <app-icon [name]="mini() ? 'chevronRight' : 'chevronLeft'" [size]="18" />
             </button>
           </div>
+          <div class="theme-switch" role="group" [attr.aria-label]="i18n.t({ th: 'ธีม', en: 'Theme' })">
+            @for (t of adminThemes; track t.v) {
+              <button type="button" [attr.aria-pressed]="display.theme() === t.v" [attr.title]="i18n.t(t.label)" (click)="setTheme(t.v)">
+                <app-icon [name]="t.icon" [size]="16" />
+                <span class="sr-only">{{ i18n.t(t.label) }}</span>
+              </button>
+            }
+          </div>
           <nav class="nav">
-            @for (g of adminNav; track g.id) {
+            @if (!mini()) {
+              <label class="nav-search">
+                <app-icon name="search" [size]="16" />
+                <input
+                  type="search"
+                  [value]="navQuery()"
+                  (input)="navQuery.set($any($event.target).value)"
+                  [placeholder]="i18n.t({ th: 'ค้นหาเมนู…', en: 'Find a menu…' })"
+                  [attr.aria-label]="i18n.t({ th: 'ค้นหาเมนูแอดมิน', en: 'Search admin menu' })"
+                />
+                @if (navQuery()) {
+                  <button type="button" class="clear" (click)="navQuery.set('')" [attr.aria-label]="i18n.t({ th: 'ล้างคำค้น', en: 'Clear search' })">×</button>
+                }
+              </label>
+            }
+            @for (g of adminGroups(); track g.id) {
               @if (mini()) {
                 <hr class="sep" />
               } @else {
@@ -148,12 +172,12 @@ const MOCK_SCREENS = new Set<string>();
                   <app-icon class="caret" [class.down]="!groupClosed(g.id)" name="chevronRight" [size]="14" />
                 </button>
               }
-              @if (mini() || !groupClosed(g.id)) {
+              @if (mini() || navQuery() || !groupClosed(g.id)) {
                 @for (it of g.items; track it.code + it.label.en) {
                   <div class="item" [class.within]="within(it)" [class.easy-hide]="g.id === 'system'">
                     <a [routerLink]="it.path ?? url(it.code)" routerLinkActive="active"
                       [routerLinkActiveOptions]="{ paths: it.code === 'D01' ? 'exact' : 'subset', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }"
-                      [attr.title]="mini() ? i18n.t(it.label) : null" (click)="it.children && openItem(it)">
+                      [attr.title]="i18n.t(it.label)" (click)="it.children && openItem(it)">
                       <app-icon [name]="it.icon" [size]="18" />
                       <span class="lbl">{{ i18n.t(it.label) }}</span>
                       @if (badges()[it.code]; as n) {
@@ -167,7 +191,7 @@ const MOCK_SCREENS = new Set<string>();
                       </button>
                     }
                   </div>
-                  @if (it.children && !mini() && expanded(it)) {
+                  @if (it.children && !mini() && (expanded(it) || navQuery())) {
                     <div class="sub">
                       @for (c of it.children; track c.label.en) {
                         <a [routerLink]="url(c.code)" [queryParams]="c.query ?? null" [class.active]="childActive(c)" [attr.aria-current]="childActive(c) ? 'page' : null">
@@ -183,10 +207,13 @@ const MOCK_SCREENS = new Set<string>();
               }
             }
           </nav>
+          @if (!mini() && !adminGroups().length) {
+            <p class="nav-empty">{{ i18n.t({ th: 'ไม่พบเมนูที่ค้นหา', en: 'No menus match' }) }}</p>
+          }
           <div class="me">
             <span class="avatar" aria-hidden="true" [attr.title]="mini() ? (session.me()?.display_name ?? '') : null">{{ initial() }}</span>
             <span class="who">
-              <strong>{{ session.me()?.display_name ?? '' }}</strong>
+              <strong [attr.title]="session.me()?.display_name ?? ''">{{ session.me()?.display_name ?? '' }}</strong>
               <small>{{ i18n.t({ th: 'แอดมิน', en: 'Admin' }) }}</small>
             </span>
             <button type="button" class="out" (click)="signout()" [attr.aria-label]="i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' })" [attr.title]="i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' })">
@@ -204,6 +231,11 @@ const MOCK_SCREENS = new Set<string>();
       <main id="main-content" tabindex="-1" [class.full]="fullscreen()">
         <router-outlet />
       </main>
+      @if (isAdmin) {
+        <button type="button" class="theme-fab" (click)="toggleAdminTheme()" [attr.title]="i18n.t({ th: 'สลับธีมสว่าง/มืด', en: 'Toggle light/dark theme' })" [attr.aria-label]="i18n.t({ th: 'สลับธีมสว่าง/มืด', en: 'Toggle light/dark theme' })">
+          <app-icon [name]="effectiveDark() ? 'sun' : 'moon'" [size]="20" />
+        </button>
+      }
       <app-toast />
       <app-confirm-dialog />
       @if (tabs(); as t) {
@@ -230,6 +262,27 @@ const MOCK_SCREENS = new Set<string>();
       font: inherit;
       font-weight: 700;
       transform: translateY(-200%);
+    }
+    .theme-fab {
+      display: none;
+    }
+    @media (max-width: 1023px) {
+      .theme-fab {
+        position: fixed;
+        inset-block-end: calc(84px + env(safe-area-inset-bottom));
+        inset-inline-end: 16px;
+        z-index: 3;
+        display: grid;
+        place-items: center;
+        inline-size: 46px;
+        block-size: 46px;
+        border: 1px solid var(--line-strong, var(--line));
+        border-radius: 50%;
+        background: var(--surface);
+        color: var(--text);
+        box-shadow: var(--shadow);
+        cursor: pointer;
+      }
     }
     .skip-link:focus-visible {
       transform: none;
@@ -479,6 +532,9 @@ const MOCK_SCREENS = new Set<string>();
     .lbl {
       flex: 1;
       min-inline-size: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .count {
       flex: none;
@@ -546,10 +602,13 @@ const MOCK_SCREENS = new Set<string>();
       flex-direction: column;
       line-height: 1.4;
     }
-    .who strong {
+    .who strong,
+    .who small {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    .who strong {
       font-size: 0.875rem;
     }
     .who small {
@@ -620,6 +679,15 @@ export class AreaShell {
   /** แอดมิน/หัวหน้ามีตารางและรายการเยอะ → กว้างกว่าบทบาทอื่น */
   protected readonly isAdmin = this.area === 'admin';
   protected readonly adminNav = ADMIN_NAV;
+  /** ค้นหาเมนู (จอคอม) — ช่วยหาเมนูเมื่อมีหลายกลุ่ม */
+  protected readonly navQuery = signal('');
+  protected readonly adminGroups = computed(() => {
+    const q = this.navQuery().trim().toLowerCase();
+    if (!q) return ADMIN_NAV;
+    const match = (x: { label: Tr; children?: { label: Tr }[] }) =>
+      `${x.label.th} ${x.label.en}`.toLowerCase().includes(q) || (x.children ?? []).some((c) => `${c.label.th} ${c.label.en}`.toLowerCase().includes(q));
+    return ADMIN_NAV.map((g) => ({ ...g, items: g.items.filter(match) })).filter((g) => g.items.length);
+  });
   /** ย่อเมนูเหลือไอคอน · กลุ่มที่พับ · เมนูที่กาง/พับเมนูย่อยเอง (จำไว้ในเครื่อง) */
   private readonly saved = readNav();
   protected readonly mini = signal(this.saved.mini);
@@ -653,6 +721,7 @@ export class AreaShell {
   }
   /** หน้าปัจจุบันอยู่ในเมนูย่อยที่ไม่ใช่หน้าของเมนูแม่ (เช่น คำขอช่าง ใต้ งานช่าง) */
   protected within(it: NavItem): boolean {
+    if (it.path) return false;
     const p = this.currentPath();
     return p !== screenUrl(it.code) && !!it.children?.some((c) => p === screenUrl(c.code));
   }
@@ -661,10 +730,10 @@ export class AreaShell {
   }
   protected toggleGroup(id: string): void {
     this.closedGroups.update((cur) => {
-      const n = new Set(cur);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
+      const all = ADMIN_NAV.map((g) => g.id);
+      const wasClosed = cur.has(id);
+      // accordion: เปิดได้ทีละกลุ่ม — ลดความยาวเมนูและหาง่าย
+      return new Set(wasClosed ? all.filter((x) => x !== id) : all);
     });
   }
   /** กางไว้เอง · หรืออยู่ในหน้าของเมนูนี้ (ถ้าไม่ได้พับไว้เอง) */
@@ -708,7 +777,22 @@ export class AreaShell {
     void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true }));
   }
   protected readonly areaLabel = computed(() => AREA_LABEL[this.area]);
-  private readonly display = inject(DisplaySettings);
+  protected readonly display = inject(DisplaySettings);
+  protected readonly adminThemes: { v: Theme; icon: IconName; label: Tr }[] = [
+    { v: 'light', icon: 'sun', label: { th: 'ธีมสว่าง', en: 'Light theme' } },
+    { v: 'system', icon: 'monitor', label: { th: 'ตามเครื่อง', en: 'System theme' } },
+    { v: 'dark', icon: 'moon', label: { th: 'ธีมมืด', en: 'Dark theme' } },
+  ];
+  protected setTheme(v: Theme): void {
+    this.display.theme.set(v);
+  }
+  protected readonly effectiveDark = computed(() => {
+    const t = this.display.theme();
+    return t === 'dark' || (t === 'system' && typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches);
+  });
+  protected toggleAdminTheme(): void {
+    this.display.theme.set(this.effectiveDark() ? 'light' : 'dark');
+  }
   /** โหมดง่ายลดเมนูเหลือ 3 รายการ "เฉพาะหน้าหลักของบทบาท" ตามแคนวาส (หน้าอื่นยังใช้แท็บเต็ม) */
   protected readonly tabs = computed(() => {
     return this.display.easyMode() ? TABS_EASY[this.area] ?? TABS[this.area] : TABS[this.area];
@@ -738,6 +822,16 @@ export class AreaShell {
         }),
       )
       .catch(() => undefined);
+  });
+  /** เปิดเฉพาะกลุ่มที่มีหน้าปัจจุบัน — เมนู sidebar สั้นและไม่ต้องเลื่อนห |
+   *  D04 (รายละเอียดตู้) อยู่ในกลุ่มตู้ แต่ไม่มี item ตรงรหัส */
+  private readonly syncGroup = effect(() => {
+    const c = this.code();
+    if (!c || !this.isAdmin) return;
+    const lookup = c === 'D04' ? 'D03' : c;
+    const group = ADMIN_NAV.find((g) => g.items.some((it) => it.code === lookup));
+    if (!group) return;
+    this.closedGroups.set(new Set(ADMIN_NAV.filter((g) => g.id !== group.id).map((g) => g.id)));
   });
   protected readonly fullscreen = computed(() => {
     const c = this.code();

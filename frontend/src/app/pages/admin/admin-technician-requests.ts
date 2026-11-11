@@ -12,7 +12,7 @@ import { screenUrl } from '../../screens/registry';
   imports: [PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'แอดมิน Smart Mailbox', en: 'Smart Mailbox admin' })" [title]="i18n.t({ th: 'คำขอช่าง', en: 'Technician requests' })" [back]="url('D16')" />
+    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'คำขอช่าง', en: 'Technician requests' })" [back]="url('D16')" />
     <div class="stack">
       <div class="segmented chips easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'สถานะคำขอ', en: 'Request status' })">
         @for (option of filters; track option.value) {

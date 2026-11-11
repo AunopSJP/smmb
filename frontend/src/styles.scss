@@ -1468,7 +1468,6 @@ fieldset {
         app-tech-wifi,
         app-tech-lights,
         app-tech-wifi-failed,
-        app-admin-plans,
         app-admin-qr-fake,
         app-admin-qr-damaged,
         app-admin-qr-swap,
@@ -1687,6 +1686,101 @@ fieldset {
 }
 
 .admin-layout {
+  /* กันข้อความ/ตารางล้น: flex/grid item ต้องยอมหด และคำยาว (รหัส/อีเมล) ตัดบรรทัดได้ */
+  .row > *,
+  .list-head > *,
+  .card,
+  .panel {
+    min-inline-size: 0;
+  }
+  .row :is(strong, .name, .info, .sub),
+  .panel :is(h2, header > *, p) {
+    overflow-wrap: break-word;
+  }
+  .mono,
+  .secret,
+  .temp {
+    overflow-wrap: anywhere;
+  }
+
+  .nav-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 4px 6px;
+    padding: 0 10px;
+    min-block-size: 38px;
+    border: 1px solid var(--line-strong, var(--line));
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-muted);
+
+    &:focus-within {
+      border-color: var(--brand);
+      box-shadow: var(--focus, 0 0 0 3px rgb(154 47 54 / 18%));
+    }
+    input {
+      flex: 1;
+      min-inline-size: 0;
+      padding: 8px 0;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 0.875rem;
+      outline: none;
+    }
+    .clear {
+      flex: none;
+      border: 0;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 1.125rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+  }
+  .nav-empty {
+    margin: 12px;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+  }
+  .theme-switch {
+    display: flex;
+    gap: 4px;
+    margin: 4px 4px 10px;
+    padding-block: 6px 10px;
+    border-block-end: 1px solid var(--line-strong, var(--line));
+
+    button {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      min-block-size: 34px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    button:hover {
+      background: var(--icon-bg);
+      color: var(--text);
+    }
+    button[aria-pressed='true'] {
+      background: var(--brand-light);
+      border-color: var(--line-strong, var(--line));
+      color: var(--brand-dark);
+    }
+  }
+  .side.mini .theme-switch {
+    flex-direction: column;
+    margin-inline: 0;
+  }
+  .side.mini .theme-switch button {
+    flex: none;
+  }
+
   // ── ปุ่ม ──
   .btn {
     font-weight: 600;

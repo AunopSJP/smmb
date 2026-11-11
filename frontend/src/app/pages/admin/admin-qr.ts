@@ -150,6 +150,7 @@ export class QrPrintSheet {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
+      [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })"
       [title]="i18n.t({ th: 'สุขภาพ QR', en: 'QR health' })"
       [back]="url('D16')"
       [bell]="url('D12')"
@@ -582,7 +583,7 @@ const REISSUE_STEPS: FlowStep[] = [
       gap: 16px;
       align-items: start;
     }
-    @media (min-width: 1024px) {
+    @media (min-width: 1200px) {
       .case {
         grid-template-columns: minmax(0, 1fr) 340px;
         gap: 24px;
