@@ -6,10 +6,10 @@
     "kind": "none"
   },
   "stack": "Rust + egui (eframe)",
-  "status": "building",
-  "note": "Improving the build…",
+  "status": "ready",
+  "note": "Ready: all 2 checks pass. 2 questions about the original are still open.",
   "created_ms": 1794367773655,
-  "updated_ms": 1794381868442,
+  "updated_ms": 1794382483454,
   "checks": [
     {
       "round": 1,
@@ -130,14 +130,74 @@
         "checks\\round-6\\screenshot.png"
       ],
       "at_ms": 1794381142640
+    },
+    {
+      "round": 7,
+      "check": "build",
+      "passed": true,
+      "similarity": null,
+      "note": "Build succeeded.",
+      "artifacts": [],
+      "at_ms": 1794382171038
+    },
+    {
+      "round": 7,
+      "check": "app-screenshot",
+      "passed": true,
+      "similarity": null,
+      "note": "The program starts and draws (1350×1025).",
+      "artifacts": [
+        "checks\\round-7\\screenshot.png"
+      ],
+      "at_ms": 1794382174110
+    },
+    {
+      "round": 8,
+      "check": "build",
+      "passed": true,
+      "similarity": null,
+      "note": "Build succeeded.",
+      "artifacts": [],
+      "at_ms": 1794382332299
+    },
+    {
+      "round": 8,
+      "check": "app-screenshot",
+      "passed": true,
+      "similarity": null,
+      "note": "The program starts and draws (1350×1025).",
+      "artifacts": [
+        "checks\\round-8\\screenshot.png"
+      ],
+      "at_ms": 1794382335844
+    },
+    {
+      "round": 9,
+      "check": "build",
+      "passed": true,
+      "similarity": null,
+      "note": "Build succeeded.",
+      "artifacts": [],
+      "at_ms": 1794382480211
+    },
+    {
+      "round": 9,
+      "check": "app-screenshot",
+      "passed": true,
+      "similarity": null,
+      "note": "The program starts and draws (1350×1025).",
+      "artifacts": [
+        "checks\\round-9\\screenshot.png"
+      ],
+      "at_ms": 1794382483442
     }
   ],
-  "agent_session": "01a1c970-f8e9-7182-9ae5-7e7da62544a0",
+  "agent_session": "01a1c986-40ba-7c42-8b0c-dfbb9c38354c",
   "agent_session_by": "codex",
   "allowed_actions": [
     "tool:rebuild_start"
   ],
-  "last_reply": "ผมจะตรวจโครงสร้างโปรเจกต์และหน้าปัจจุบันใน Craft Anything ก่อน แล้วปรับเนื้อหาใน `app/` ให้ตรงกับบอร์ด ESP32-CAM ที่มีปุ่ม RST และ IO0 ในตัว จากนั้นจะ build และตรวจด้วย `rebuild_check` ให้เรียบร้อยครับ\nจากหน้าสินค้าเป็นชุด ESP32-CAM พร้อมฐานอัปโหลด และข้อมูลเดิมในแอปยังสั่งให้ “ต่อ/ถอด IO0 กับ GND” อยู่ ผมกำลังเปลี่ยนคำแนะนำให้เป็นลำดับกดปุ่มบนบอร์ดโดยตรง: กด IO0 ค้าง → กด RST → ปล่อย IO0 และหลังแฟลชกด RST อีกครั้งครับ\nแก้ข้อความในแอปเสร็จแล้วและ build ผ่านครับ โดยไฟล์ build เดิมถูกโปรแกรมที่กำลังเปิดอยู่ล็อกไว้ จึงตรวจ build ใหม่ในโฟลเดอร์เป้าหมายแยกแทน ตอนนี้กำลังรัน `rebuild_check` เพื่อตรวจหน้าจอและความพร้อมรอบสุดท้ายครับ\nปรับคำแนะนำใน `app/` ให้ใช้ปุ่มบนบอร์ดโดยตรง: กด IO0 ค้าง → กด RST → ปล่อย IO0 และกด RST หลังแฟลชเสร็จ จากนั้น build และ `rebuild_check` ผ่านเรียบร้อยแล้วครับ",
+  "last_reply": "ผมจะตรวจดูโปรเจกต์ใน `app/` เพื่อหาว่าหน้าแอปควรแสดงตำแหน่งไฟล์ `.exe` ตรงไหน แล้วจะ build และตรวจด้วย `rebuild_check` ให้ครบครับ\nตอนนี้ตัวแอปเป็นโปรเจกต์ Rust และไฟล์ที่ build จะอยู่ลึกใน `target/release`; ผมจะสร้าง release ใหม่และวางสำเนา `.exe` ไว้ตรง `app/` เพื่อให้หาและเปิดใช้งานได้ง่ายครับ\nBuild release สำเร็จแล้ว และตอนนี้มีไฟล์เปิดใช้งานอยู่ตรง `app/SMMB-Firmware-Flasher.exe`; ผมกำลังรันการตรวจรอบสุดท้ายด้วย `rebuild_check` ครับ\nสร้างและตรวจสอบผ่านแล้ว ไฟล์อยู่ที่ [SMMB-Firmware-Flasher.exe](C:\\aunopsjp\\dev\\smmb\\firmware-program\\app\\SMMB-Firmware-Flasher.exe) เปิดใช้งานได้เลยครับ",
   "asset_budget_usd": 5.0,
   "generate_assets": false
 }

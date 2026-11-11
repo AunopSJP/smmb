@@ -235,7 +235,7 @@ impl FirmwareApp {
                 Self::step_header(ui, "3", "แฟลชเฟิร์มแวร์", self.state == FlashState::Success);
                 ui.add_space(14.0);
                 Frame::new().fill(Color32::from_rgb(255, 248, 229)).corner_radius(9).inner_margin(Margin::same(12)).show(ui, |ui| {
-                    ui.label(RichText::new("กดปุ่ม IO0 ค้างไว้ กดปุ่ม RST 1 ครั้ง แล้วปล่อย IO0 เพื่อเข้าโหมดแฟลช").color(Color32::from_rgb(126, 87, 20)).strong());
+                    ui.label(RichText::new("บอร์ดมีปุ่มในตัว ไม่ต้องต่อสายเพิ่ม: กด IO0 ค้างไว้ กด RST 1 ครั้ง แล้วปล่อย IO0").color(Color32::from_rgb(126, 87, 20)).strong());
                 });
                 ui.add_space(14.0);
                 ui.add(egui::ProgressBar::new(self.progress).desired_width(f32::INFINITY).animate(self.state == FlashState::Flashing));
