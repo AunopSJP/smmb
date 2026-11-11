@@ -251,6 +251,16 @@
 
 **หมายเหตุ:** งานชุดนี้ยัง **ไม่ commit / ยังไม่ deploy** — prod จึงยังเสิร์ฟ bundle เก่า (W-02)
 
+## 3.1-b ปิดแล้ว — ตรวจช่องโหว่ input/การรับส่งข้อมูล (11 พ.ย. 2026)
+
+| เรื่อง | แก้ | ไฟล์ |
+|---|---|---|
+| หน้าตั้ง Wi-Fi ของตู้ (SoftAP ไม่มีรหัส) แก้ URL/รหัสตู้/รหัสลับได้ → ชี้ตู้ไปเซิร์ฟเวอร์ปลอม | ตู้ที่ตั้งค่าครบแล้ว แก้ได้แค่ Wi-Fi · URL ต้อง `https://` (http ได้เฉพาะ LAN) · build `esp32cam` ผ่าน · **ยังไม่ได้ทดสอบบนบอร์ดจริง** | `firmware/src/portal.cpp`, `docs/HARDWARE_FIRMWARE_GUIDE.md` §5 |
+| ล็อกอินโดยไม่ส่ง `X-Device-Id` หลบแจ้งเตือน "เจ้าหน้าที่เข้าจากเครื่องใหม่" | ไม่มี/ผิดรูปแบบ = เครื่องไม่รู้จัก → แจ้ง | `backend/src/auth/auth.service.ts`, `docs/api.md` |
+| `deploy/nginx-smmb.conf` ยังเป็น CSP Report-Only (ไม่ตรง production) | เปลี่ยนเป็น `Content-Security-Policy` ทั้งสอง location | `deploy/nginx-smmb.conf` |
+
+เหลือ (ยังไม่แก้): ตัวกันเดารหัสปล่อยผ่านเมื่อ Redis ล่ม (ต้องมี alert — W-06) · ตรวจว่า origin เข้าตรงไม่ผ่าน Cloudflare ไม่ได้ (ไม่งั้นปลอม `X-Forwarded-For` ได้ เพราะ `TRUST_PROXY=2`) · รหัส Wi-Fi บ้านวิ่งผ่าน SoftAP ไม่เข้ารหัส
+
 ## 3.2 ค้างจาก audit UX (P2/P3 ที่ยังไม่ได้แก้)
 
 | รหัส | ระดับ | เรื่อง | หลักฐาน |

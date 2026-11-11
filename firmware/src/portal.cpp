@@ -16,6 +16,37 @@ static DNSServer dns;
 static String networksHtml;
 static String lastError;
 static bool done = false;
+// ตู้ที่ตั้งค่าครบแล้ว (url + box + secret) → หน้าเว็บแก้ได้แค่ Wi-Fi
+// SoftAP ไม่มีรหัสผ่าน และตู้ตั้งอยู่หน้าบ้าน — ถ้าไม่ล็อก คนแถวนั้นทำให้ตู้หลุด Wi-Fi แล้วเปลี่ยน URL ไปเซิร์ฟเวอร์ปลอมได้
+// ช่างเปลี่ยนค่าอุปกรณ์ได้ทางสาย Serial เท่านั้น (url / box / secret / factory)
+static bool deviceLocked = false;
+
+/** https ได้เสมอ · http ได้เฉพาะเครื่องในวง LAN (ทดสอบบอร์ดกับ dev:mock) — กันชี้ตู้ไปเซิร์ฟเวอร์ภายนอกแบบไม่เข้ารหัส */
+static bool urlAllowed(const String &url)
+{
+  if (url.startsWith("https://"))
+    return url.length() > 8;
+  if (!url.startsWith("http://"))
+    return false;
+  String host = url.substring(7);
+  int end = host.length();
+  for (int i = 0; i < (int)host.length(); i++)
+    if (host[i] == ':' || host[i] == '/')
+    {
+      end = i;
+      break;
+    }
+  host = host.substring(0, end);
+  host.toLowerCase();
+  if (host.endsWith(".local") || host.startsWith("10.") || host.startsWith("192.168."))
+    return true;
+  if (host.startsWith("172."))
+  {
+    int second = host.substring(4).toInt();
+    return second >= 16 && second <= 31;
+  }
+  return false;
+}
 
 static String esc(const String &s)
 {
@@ -78,12 +109,21 @@ static void handleRoot()
   h += "<label>Wi-Fi บ้าน</label><select name=ssid>" + networksHtml + "<option value=''>— พิมพ์ชื่อเอง —</option></select>";
   h += "<label>หรือพิมพ์ชื่อ Wi-Fi</label><input name=ssid2 autocomplete=off placeholder='ถ้าไม่เห็นในรายการ'>";
   h += "<label>รหัส Wi-Fi</label><input name=pass type=password autocomplete=off>";
-  h += "</div><details class=box><summary>ตั้งค่าอุปกรณ์ (ช่าง)</summary>";
-  h += "<label>URL เซิร์ฟเวอร์</label><input name=url value=\"" + esc(settings.url.length() ? settings.url : String(DEFAULT_SERVER_URL)) + "\" placeholder='https://hub.sjp-dev.net/smmb-api'>";
-  h += "<label>รหัสตู้ (box_id)</label><input name=box value=\"" + esc(settings.boxId) + "\" placeholder='BX-00003'>";
-  h += "<label>รหัสลับประจำตู้ (device_secret)</label><input name=secret autocomplete=off placeholder='" +
-       String(settings.secret.length() == 64 ? "ตั้งไว้แล้ว — เว้นว่าง = ใช้ค่าเดิม" : "64 ตัว จากหลังบ้าน") + "'>";
-  h += "<p class=muted>ได้จากหลังบ้าน → ตู้ → รายละเอียดตู้</p></details>";
+  h += "</div>";
+  if (deviceLocked)
+  {
+    h += "<div class=box><p class=muted>ตู้ " + esc(settings.boxId) +
+         " ตั้งค่าอุปกรณ์ครบแล้ว — หน้านี้เปลี่ยนได้เฉพาะ Wi-Fi · เปลี่ยนเซิร์ฟเวอร์/รหัสตู้ต้องต่อสาย Serial</p></div>";
+  }
+  else
+  {
+    h += "<details class=box><summary>ตั้งค่าอุปกรณ์ (ช่าง)</summary>";
+    h += "<label>URL เซิร์ฟเวอร์</label><input name=url value=\"" + esc(settings.url.length() ? settings.url : String(DEFAULT_SERVER_URL)) + "\" placeholder='https://hub.sjp-dev.net/smmb-api'>";
+    h += "<label>รหัสตู้ (box_id)</label><input name=box value=\"" + esc(settings.boxId) + "\" placeholder='BX-00003'>";
+    h += "<label>รหัสลับประจำตู้ (device_secret)</label><input name=secret autocomplete=off placeholder='" +
+         String(settings.secret.length() == 64 ? "ตั้งไว้แล้ว — เว้นว่าง = ใช้ค่าเดิม" : "64 ตัว จากหลังบ้าน") + "'>";
+    h += "<p class=muted>ได้จากหลังบ้าน → ตู้ → รายละเอียดตู้ · URL ต้องเป็น https:// (http:// ได้เฉพาะเครื่องในวง LAN)</p></details>";
+  }
   h += "<button>เชื่อมต่อ</button></form><p class=muted>firmware " FW_VERSION "</p></body></html>";
   server.send(200, "text/html; charset=utf-8", h);
 }
@@ -92,8 +132,13 @@ static void handleSave()
 {
   String ssid = server.arg("ssid2").length() ? server.arg("ssid2") : server.arg("ssid");
   ssid.trim();
-  String url = server.arg("url"), box = server.arg("box"), secret = server.arg("secret");
+  // ตู้ที่ล็อกแล้ว: ไม่สนค่าอุปกรณ์ที่ส่งมา (กันคนยิง POST /save ตรง ๆ โดยไม่ผ่านหน้าเว็บ)
+  String url = deviceLocked ? String() : server.arg("url");
+  String box = deviceLocked ? String() : server.arg("box");
+  String secret = deviceLocked ? String() : server.arg("secret");
   url.trim();
+  while (url.endsWith("/"))
+    url.remove(url.length() - 1);
   box.trim();
   box.toUpperCase();
   secret.trim();
@@ -101,6 +146,20 @@ static void handleSave()
   if (!ssid.length())
   {
     lastError = "เลือกหรือพิมพ์ชื่อ Wi-Fi ก่อน";
+    server.sendHeader("Location", "/");
+    server.send(302);
+    return;
+  }
+  if (url.length() && !urlAllowed(url))
+  {
+    lastError = "URL เซิร์ฟเวอร์ต้องขึ้นต้นด้วย https:// (http:// ได้เฉพาะเครื่องในวง LAN)";
+    server.sendHeader("Location", "/");
+    server.send(302);
+    return;
+  }
+  if (box.length() && !box.startsWith("BX-"))
+  {
+    lastError = "รหัสตู้ต้องขึ้นต้นด้วย BX-";
     server.sendHeader("Location", "/");
     server.send(302);
     return;
@@ -162,6 +221,7 @@ bool runSetupPortal(unsigned long timeoutMs)
 {
   done = false;
   lastError = "";
+  deviceLocked = settingsProvisioned();
   WiFi.disconnect(true);
   WiFi.mode(WIFI_AP_STA);
   scanNetworks();

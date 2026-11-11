@@ -1012,6 +1012,7 @@ interface ZoneRequest { id: string; box: { id; name; house_no }; agency: { name;
 ### §2 เครื่องใหม่
 - เว็บส่ง header `X-Device-Id` (สุ่มเก็บใน localStorage) ทุกคำขอ · ตอน `POST /auth/signin` server เก็บ hash ใน `user_device_tb`
 - เจ้าหน้าที่ (สมาชิก active) เข้าจากเครื่องที่ไม่เคยเห็น และไม่ใช่เครื่องแรกของบัญชี → แจ้ง `officer_new_device` ถึงหัวหน้าทุกคน + ตัวเจ้าหน้าที่
+- ไม่ส่ง `X-Device-Id` หรือรูปแบบผิด (ไม่ใช่ `[A-Za-z0-9-]{16,64}`) = ถือว่าเป็นเครื่องที่ไม่รู้จัก → แจ้งเหมือนกัน แต่ไม่บันทึกลง `user_device_tb` (✅ 2026-11-11 ปิดช่องล็อกอินด้วยสคริปต์โดยไม่ส่ง header เพื่อหลบการแจ้ง)
 
 ### §14 แจ้งเตือนใหม่ (ปิดรับไม่ได้)
 `zone_join_request` · `zone_join_accepted` · `zone_join_rejected` · `officer_new_device`

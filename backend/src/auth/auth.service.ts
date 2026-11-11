@@ -260,22 +260,25 @@ export class AuthService {
 
   /**
    * ✅ 2026-11-04 กันการสแกนแทนกัน: เจ้าหน้าที่เข้าสู่ระบบจากเครื่องที่ไม่เคยเห็น → แจ้งหัวหน้าทุกคนของหน่วยงาน (และตัวเจ้าหน้าที่)
-   * เครื่องแรกของบัญชีไม่แจ้ง · ไม่ส่งรหัสเครื่อง = ข้าม · เก็บแค่ hash
+   * เครื่องแรกของบัญชีไม่แจ้ง · เก็บแค่ hash
+   * ไม่ส่งรหัสเครื่อง / รหัสผิดรูปแบบ = ถือว่าเป็นเครื่องที่ไม่รู้จัก (เว็บส่งให้ทุกคำขอ — ไม่มี = สคริปต์หรือเครื่องมืออื่น ห้ามข้ามการแจ้ง)
    */
   private async checkDevice(userId: string, meta: ClientMeta): Promise<void> {
-    const id = meta.deviceId?.trim();
-    if (!id || !/^[A-Za-z0-9-]{16,64}$/.test(id)) return;
-    const hash = createHash('sha256').update(id).digest('hex');
+    const raw = meta.deviceId?.trim();
+    const id = raw && /^[A-Za-z0-9-]{16,64}$/.test(raw) ? raw : null;
+    const hash = id ? createHash('sha256').update(id).digest('hex') : null;
     const ua = meta.userAgent?.slice(0, 300) ?? null;
-    const { rows: known } = await this.pool.query<{ n: number; seen: boolean }>(
+    const { rows: known } = await this.pool.query<{ n: number; seen: boolean | null }>(
       `SELECT count(*)::int AS n, bool_or(device_hash = $2) AS seen FROM app.user_device_tb WHERE user_id = $1`,
       [userId, hash],
     );
-    await this.pool.query(
-      `INSERT INTO app.user_device_tb (user_id, device_hash, user_agent) VALUES ($1, $2, $3)
-       ON CONFLICT (user_id, device_hash) DO UPDATE SET last_seen_date = now(), user_agent = EXCLUDED.user_agent`,
-      [userId, hash, ua],
-    );
+    if (hash) {
+      await this.pool.query(
+        `INSERT INTO app.user_device_tb (user_id, device_hash, user_agent) VALUES ($1, $2, $3)
+         ON CONFLICT (user_id, device_hash) DO UPDATE SET last_seen_date = now(), user_agent = EXCLUDED.user_agent`,
+        [userId, hash, ua],
+      );
+    }
     if (known[0].seen || known[0].n === 0) return;
     const { rows: m } = await this.pool.query<{ agency_id: string; name: string }>(
       `SELECT m.agency_id, u.display_name AS name FROM app.agency_member_tb m JOIN app.user_tb u ON u.user_id = m.user_id
