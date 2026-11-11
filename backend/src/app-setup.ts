@@ -1,4 +1,4 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, ValidationPipe, type PipeTransform } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
@@ -18,6 +18,43 @@ export function stripPathPrefix(prefix: string) {
   };
 }
 
+/**
+ * ตัวอักษร NUL (U+0000) เก็บลง Postgres ไม่ได้ → เดิมกลายเป็น 500 (ยิงได้แม้ไม่ล็อกอิน เช่น เบอร์ตอน signin)
+ * ตรวจ string ทุกตัวใน body / query / path ก่อนถึง handler → 400
+ */
+const NUL = String.fromCharCode(0);
+export function containsNul(value: unknown, depth = 0): boolean {
+  if (typeof value === 'string') return value.includes(NUL);
+  if (depth > 20 || value === null || typeof value !== 'object' || Buffer.isBuffer(value)) return false;
+  for (const [k, v] of Object.entries(value)) if (k.includes(NUL) || containsNul(v, depth + 1)) return true;
+  return false;
+}
+
+@Injectable()
+export class RejectNulPipe implements PipeTransform {
+  transform(value: unknown): unknown {
+    if (containsNul(value)) throw new BadRequestException('input contains a NUL character');
+    return value;
+  }
+}
+
+/** เมธอดที่เปลี่ยนข้อมูลต้องส่ง JSON เท่านั้น — form-urlencoded จากเว็บอื่นทำ login CSRF ได้ (ไม่ต้องผ่าน CORS preflight) */
+const JSON_ONLY_EXEMPT = /^\/(v1\/box\/|api\/v1\/admin\/firmware(\/|$))/;
+export function requireJsonBody() {
+  return (req: express.Request, res: express.Response, next: express.NextFunction): void => {
+    const hasBody = Number(req.headers['content-length'] ?? 0) > 0 || req.headers['transfer-encoding'] !== undefined;
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) || !hasBody || JSON_ONLY_EXEMPT.test(req.path) || req.is('application/json')) return next();
+    res.status(415).json({
+      statusCode: 415,
+      error: 'Unsupported Media Type',
+      code: 'UNSUPPORTED_MEDIA_TYPE',
+      message: 'content-type must be application/json',
+      path: req.originalUrl,
+      timestamp: new Date().toISOString(),
+    });
+  };
+}
+
 /** ตั้งค่าที่ใช้ทั้งตอนรันจริงและตอนเทสต์ — แก้ที่เดียว */
 export function configureApp(app: NestExpressApplication): void {
   const config = app.get<ConfigService<Env, true>>(ConfigService);
@@ -29,6 +66,7 @@ export function configureApp(app: NestExpressApplication): void {
   const prefix = config.get('API_PATH_PREFIX', { infer: true });
   if (prefix) app.use(stripPathPrefix(prefix)); // ต้องอยู่ก่อน express.raw ของ /v1/box
 
+  app.use(requireJsonBody()); // ต้องอยู่ก่อนตัวอ่าน body ของ Nest
   app.use(cookieParser());
   // API ของตู้: อ่าน body เป็นไบต์ดิบ (ต้องเซ็นจากไบต์ที่ตู้ส่งจริง) — BoxAuthGuard ตรวจลายเซ็นแล้วค่อยแปลงเป็น JSON
   // ลงทะเบียนก่อน app.init() → อยู่ก่อนตัวอ่าน JSON ของ Nest (ตัวนั้นข้ามคำขอที่อ่าน body แล้ว)
@@ -59,6 +97,7 @@ export function configureApp(app: NestExpressApplication): void {
     });
   }
   app.useGlobalPipes(
+    new RejectNulPipe(),
     new ValidationPipe({
       whitelist: true, // ตัดฟิลด์ที่ไม่ได้ประกาศทิ้ง
       forbidNonWhitelisted: true, // และตอบ 400 ถ้าส่งมา

@@ -4,6 +4,7 @@ import { cannotChangeSelf } from '../agency/agency.service.js';
 import { AccountService, type Role } from '../auth/account.service.js';
 import { SessionService } from '../auth/session.service.js';
 import { AuditService } from '../common/audit.service.js';
+import { likeContains } from '../common/like.js';
 import { PG_POOL } from '../db/db.module.js';
 import { withTx } from '../db/tx.js';
 import type { Page } from '../push/notification.service.js';
@@ -77,11 +78,11 @@ export class AdminUsersService {
          AND ($2::text IS NULL
               OR ($2 = 'head' AND EXISTS (SELECT 1 FROM app.agency_member_tb m WHERE m.user_id = u.user_id AND m.is_head))
               OR EXISTS (SELECT 1 FROM app.user_role_tb r WHERE r.user_id = u.user_id AND r.role = $2))
-         AND ($3::text IS NULL OR u.name ILIKE '%' || $3 || '%' OR u.display_name ILIKE '%' || $3 || '%'
-              OR ($4::text <> '' AND u.phone LIKE '%' || $4 || '%'))
+         AND ($3::text IS NULL OR u.name ILIKE $3 OR u.display_name ILIKE $3
+              OR ($4::text <> '' AND u.phone LIKE $4))
        ORDER BY u.created_date DESC, u.user_id
        LIMIT $5 OFFSET $6`,
-      [q.status ?? null, q.role ?? null, q.q ?? null, phoneQ ?? '', q.perPage, (q.page - 1) * q.perPage],
+      [q.status ?? null, q.role ?? null, q.q ? likeContains(q.q) : null, phoneQ ? likeContains(phoneQ) : '', q.perPage, (q.page - 1) * q.perPage],
     );
     return { data: rows.map(toRow), page: q.page, per_page: q.perPage, total: Number(rows[0]?.total ?? 0) };
   }

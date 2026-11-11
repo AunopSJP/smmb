@@ -104,6 +104,8 @@ export class BoxAuthGuard implements CanActivate {
       }
     }
     if (!body || typeof body !== 'object' || Array.isArray(body)) throw new BadRequestException('body must be a JSON object');
+    // JSON ที่เขียน NUL เป็นข้อความ 6 ตัวอักษร (backslash-u-0-0-0-0) — parse แล้วจะกลายเป็น NUL จริง
+    if (raw.includes(String.fromCharCode(92) + 'u0000')) throw new BadRequestException('body contains a NUL character'); // U+0000 ใน JSON เก็บลง Postgres ไม่ได้
     req.body = body;
     req.box = { id: boxId };
     return true;

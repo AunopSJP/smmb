@@ -6,6 +6,7 @@ import { PG_POOL } from '../db/db.module.js';
 import { isPgError, PG_UNIQUE_VIOLATION, withTx, type Db } from '../db/tx.js';
 import { BoxConfigService } from '../box/box-config.service.js';
 import type { BoxStatus } from '../box/box-config.js';
+import { likeContains } from '../common/like.js';
 import { AgencyService, type MemberDto } from './agency.service.js';
 
 /** api.md §8.3 `Zone` */
@@ -67,8 +68,7 @@ export interface HouseSearchDto {
 /** ผลค้นบ้านสูงสุดต่อครั้ง */
 export const HOUSE_SEARCH_LIMIT = 20;
 
-/** ใส่ใน LIKE ได้ปลอดภัย (\ % _ เป็นตัวอักษรธรรมดา) */
-export const likeContains = (q: string) => '%' + q.replace(/[\\%_]/g, (c) => '\\' + c) + '%';
+export { likeContains };
 
 export type ZoneFilter = 'mine' | 'all';
 

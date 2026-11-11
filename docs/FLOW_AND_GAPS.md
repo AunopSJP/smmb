@@ -259,7 +259,15 @@
 | ล็อกอินโดยไม่ส่ง `X-Device-Id` หลบแจ้งเตือน "เจ้าหน้าที่เข้าจากเครื่องใหม่" | ไม่มี/ผิดรูปแบบ = เครื่องไม่รู้จัก → แจ้ง | `backend/src/auth/auth.service.ts`, `docs/api.md` |
 | `deploy/nginx-smmb.conf` ยังเป็น CSP Report-Only (ไม่ตรง production) | เปลี่ยนเป็น `Content-Security-Policy` ทั้งสอง location | `deploy/nginx-smmb.conf` |
 
-เหลือ (ยังไม่แก้): ตัวกันเดารหัสปล่อยผ่านเมื่อ Redis ล่ม (ต้องมี alert — W-06) · ตรวจว่า origin เข้าตรงไม่ผ่าน Cloudflare ไม่ได้ (ไม่งั้นปลอม `X-Forwarded-For` ได้ เพราะ `TRUST_PROXY=2`) · รหัส Wi-Fi บ้านวิ่งผ่าน SoftAP ไม่เข้ารหัส
+**ทดสอบเจาะบน mock (11 พ.ย. 2026 · ~330 ข้อ):** สิทธิ์ 143 route × 5 บทบาท · IDOR ข้ามผู้ใช้/หน่วยงาน · ลายเซ็นตู้ · ไรเดอร์ · SSRF push ผ่านหมด · พบ+แก้ 3 เรื่อง:
+
+| เรื่อง | แก้ | ไฟล์ |
+|---|---|---|
+| ตัวอักษร NUL ใน input → 500 (ยิงได้แม้ไม่ล็อกอิน: เบอร์ตอน signin, `/public/codes/%00`) | `RejectNulPipe` ตอบ 400 · guard ตู้ตรวจ JSON · filter แปลง PG 22021 เป็น 400 · JSON ซ้อนลึก → 400 | `backend/src/app-setup.ts`, `box/box-auth.guard.ts`, `common/http-exception.filter.ts` |
+| signin รับ `x-www-form-urlencoded` (login CSRF) | `requireJsonBody` → 415 | `backend/src/app-setup.ts` |
+| ค้นผู้ใช้แอดมินด้วย `%` ได้ทุกคน | escape wildcard ผ่าน `common/like.ts` | `backend/src/admin/admin-users.service.ts` |
+
+เหลือ (ยังไม่แก้): ตรวจว่า origin เข้าตรงไม่ผ่าน Cloudflare ไม่ได้ (ไม่งั้นปลอม `X-Forwarded-For` ได้ เพราะ `TRUST_PROXY=2`) · รหัส Wi-Fi บ้านวิ่งผ่าน SoftAP ไม่เข้ารหัส
 
 ## 3.2 ค้างจาก audit UX (P2/P3 ที่ยังไม่ได้แก้)
 
