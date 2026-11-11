@@ -1,11 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, OnDestroy, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { apiError } from '../core/api';
 import { DisplaySettings } from '../core/display-settings';
 import { I18n } from '../core/i18n';
 import { hhmm } from '../core/inspection-api';
-import { type BoxDetail, minutesAgo, OwnerApi, type Sos } from '../core/owner-api';
+import { type BoxDetail, type BoxSummary, minutesAgo, OwnerApi, type Sos } from '../core/owner-api';
 import { screenUrl } from '../screens/registry';
+import { BoxPicker } from '../shared/box-picker';
 import { Icon } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
 import { LoadingRows } from '../shared/state-view';
@@ -21,7 +23,7 @@ const REFRESH_MS = 10_000;
 /** H03 หน้าหลักเจ้าของบ้าน (api.md §4.2) · H03-L แบบเรียบง่าย · H03-e กดค้าง SOS — ข้อมูลจริง */
 @Component({
   selector: 'app-owner-home',
-  imports: [RouterLink, PageHeader, Icon, LoadingRows],
+  imports: [RouterLink, PageHeader, Icon, LoadingRows, BoxPicker],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (noBox()) {
@@ -88,11 +90,7 @@ const REFRESH_MS = 10_000;
 
       <div class="stack page">
         @if (boxes().length > 1) {
-          <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'เลือกตู้', en: 'Choose a mailbox' })">
-            @for (x of boxes(); track x.id) {
-              <button type="button" [attr.aria-pressed]="b.id === x.id" (click)="select(x.id)">{{ x.house_no }} · {{ x.name || x.id }}</button>
-            }
-          </div>
+          <app-box-picker [boxes]="boxes()" [value]="b.id" (pick)="select($event)" />
         }
         @if (b.open_sos; as s) {
           <a class="card sos-open" [routerLink]="url(s.status === 'accepted' ? 'H11' : 'H09')" [queryParams]="{ id: s.id }">
@@ -461,6 +459,7 @@ export class OwnerHome implements OnDestroy {
   protected readonly display = inject(DisplaySettings);
   private readonly api = inject(OwnerApi);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
   protected readonly time = hhmm;
@@ -468,7 +467,11 @@ export class OwnerHome implements OnDestroy {
   /** ?box=BX-00042 เมื่อมีหลายตู้ (ไม่ใส่ = ตู้แรก) */
   readonly box = input<string>();
   protected readonly b = signal<BoxDetail | null>(null);
-  protected readonly boxes = signal<{ id: string; name: string; house_no: string }[]>([]);
+  protected readonly boxes = signal<BoxSummary[]>([]);
+  /** ตู้ที่กำลังดูจริง (ไม่พึ่ง input ?box= อย่างเดียว — กันสถานะค้างหลังสลับตู้) */
+  private readonly selected = signal<string | null>(null);
+  /** คำขอที่เก่ากว่าห้ามเขียนทับคำขอใหม่ (สลับตู้เร็ว ๆ / รีเฟรชอัตโนมัติทับกัน) */
+  private loadSeq = 0;
   protected readonly noBox = signal(false);
   private readonly me = inject(Session).me;
   protected readonly greeting = computed(() => {
@@ -490,15 +493,29 @@ export class OwnerHome implements OnDestroy {
   protected readonly remaining = computed(() => Math.max(1, HOLD_SEC - Math.floor(this.heldMs() / 1000)));
 
   constructor() {
+    // อ่าน ?box= จาก snapshot ก่อน (constructor ยังไม่เห็น input ที่ผูกจาก router)
+    const initial = this.route.snapshot.queryParamMap.get('box');
+    if (initial) this.selected.set(initial);
+    // ลิงก์/ปุ่มย้อนกลับเปลี่ยน ?box= ระหว่างอยู่หน้านี้ → โหลดตู้ใหม่ให้ตรง
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
+      const q = params.get('box');
+      if (!q || q === this.selected()) return;
+      this.selected.set(q);
+      this.b.set(null);
+      this.error.set(false);
+      void this.load();
+    });
     void this.load();
     liveRefresh(() => this.load(), REFRESH_MS);
   }
 
   async load(): Promise<void> {
+    const seq = ++this.loadSeq;
     try {
-      let id = this.box() ?? this.b()?.id;
+      let id = this.selected() ?? this.box() ?? this.b()?.id;
       if (!id || !this.boxes().length) {
         const boxes = await this.api.boxes();
+        if (seq !== this.loadSeq) return;
         if (!boxes.length) {
           this.noBox.set(true);
           return;
@@ -506,17 +523,24 @@ export class OwnerHome implements OnDestroy {
         this.boxes.set(boxes);
         id ??= boxes[0].id;
       }
-      this.b.set(await this.api.box(id));
+      const detail = await this.api.box(id);
+      if (seq !== this.loadSeq) return;
+      this.selected.set(detail.id);
+      this.b.set(detail);
       this.error.set(false);
     } catch {
-      this.error.set(true);
+      if (seq === this.loadSeq) this.error.set(true);
     }
   }
 
   /** สลับตู้ (เจ้าของมีหลายตู้) — จำใน ?box= ให้รีเฟรชแล้วยังอยู่ตู้เดิม */
   protected async select(id: string): Promise<void> {
-    if (id === this.b()?.id) return;
-    await this.router.navigate([], { queryParams: { box: id }, replaceUrl: true });
+    if (id === (this.selected() ?? this.b()?.id)) return;
+    this.selected.set(id);
+    // ล้างข้อมูลตู้เดิมทันที — ไม่งั้นป้าย "ตู้ไม่ออนไลน์" ของตู้เก่าค้างระหว่างรอคำตอบ
+    this.b.set(null);
+    this.error.set(false);
+    await this.router.navigate([], { queryParams: { box: id }, queryParamsHandling: 'merge', replaceUrl: true });
     await this.load();
   }
 

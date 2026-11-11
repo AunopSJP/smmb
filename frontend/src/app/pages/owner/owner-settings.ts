@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { OwnerApi, type BoxAddress, type BoxDetail, type PlanInfo, type ZoneRequest, type TechnicianRequest } from '../../core/owner-api';
+import { OwnerApi, type BoxAddress, type BoxDetail, type BoxSummary, type PlanInfo, type ZoneRequest, type TechnicianRequest } from '../../core/owner-api';
 import { Session } from '../../core/session';
 import { Toast } from '../../core/toast';
 import { DisplaySettings, type TextSize, type Theme, type UiMode } from '../../core/display-settings';
 import { I18n, type Lang, type Tr } from '../../core/i18n';
 import { screenUrl } from '../../screens/registry';
+import { BoxPicker } from '../../shared/box-picker';
 import { MapPin, type LatLng } from '../../shared/map-pin';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
@@ -19,7 +20,7 @@ import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-owner-settings',
-  imports: [RouterLink, PageHeader, Icon, AccountActions, PushStatus, MapPin, ProfileExtras],
+  imports: [RouterLink, PageHeader, Icon, AccountActions, PushStatus, MapPin, ProfileExtras, BoxPicker],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
@@ -50,11 +51,7 @@ import { firstValueFrom } from 'rxjs';
         </section>
       }
       @if (boxes().length > 1) {
-        <div class="segmented chips" role="group">
-          @for (b of boxes(); track b.id) {
-            <button type="button" [attr.aria-pressed]="box()?.id === b.id" (click)="open(b.id)">{{ b.house_no }} · {{ b.name }}</button>
-          }
-        </div>
+        <app-box-picker [boxes]="boxes()" [value]="box()?.id ?? null" (pick)="switchBox($event)" />
       }
 
       @if (display.easyMode()) {
@@ -183,6 +180,24 @@ import { firstValueFrom } from 'rxjs';
             </summary>
             <div class="fold-body stack">
               @if (editingAddr()) {
+                @if (copySources().length) {
+                  <label class="field">
+                    <span>{{ i18n.t({ th: 'ใช้ที่อยู่เดียวกับตู้อื่น', en: 'Use the same address as another mailbox' }) }}</span>
+                    <select (change)="copyAddrFrom($any($event.target).value)">
+                      <option value="">{{ i18n.t({ th: '— เลือกตู้ที่จะคัดลอก —', en: '— Pick a mailbox to copy from —' }) }}</option>
+                      @for (o of copySources(); track o.id) {
+                        <option [value]="o.id">{{ o.house_no }} · {{ o.name || o.id }}</option>
+                      }
+                    </select>
+                    <small>{{ i18n.t({ th: 'คัดลอกที่อยู่และหมุดบ้านมาให้ ตรวจแล้วกดบันทึก', en: 'Copies the address and house pin — review, then save' }) }}</small>
+                  </label>
+                }
+                @if (copiedFrom(); as c) {
+                  <p class="copied small" role="status">
+                    <app-icon name="check" [size]="16" />
+                    {{ i18n.t({ th: 'คัดลอกจากบ้านเลขที่ ', en: 'Copied from house ' }) }}{{ c }}
+                  </p>
+                }
                 <label class="field"><span>{{ i18n.t({ th: 'ที่อยู่ (ซอย / ถนน / หมู่)', en: 'Address (soi / road / moo)' }) }}</span>
                   <input maxlength="200" [value]="addr().line" (input)="setAddr('line', $any($event.target).value)" /></label>
                 <div class="two">
@@ -352,6 +367,14 @@ import { firstValueFrom } from 'rxjs';
       grid-template-columns: 1fr 1fr;
       gap: 10px;
     }
+    .copied {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0;
+      color: var(--ok);
+      font-weight: 700;
+    }
     .nobox {
       display: flex;
       flex-direction: column;
@@ -411,7 +434,7 @@ export class OwnerSettings {
   private readonly session = inject(Session);
   private readonly router = inject(Router);
   private readonly toast = inject(Toast);
-  protected readonly boxes = signal<{ id: string; name: string; house_no: string }[]>([]);
+  protected readonly boxes = signal<BoxSummary[]>([]);
   protected readonly box = signal<BoxDetail | null>(null);
   protected readonly renaming = signal(false);
   protected readonly draft = signal('');
@@ -429,6 +452,14 @@ export class OwnerSettings {
   protected readonly savingExtras = signal(false);
   protected readonly showExtras = signal(false);
   protected readonly showAddr = signal(false);
+  /** คัดลอกที่อยู่จากตู้ใบอื่นแล้ว — บอกว่ามาจากบ้านไหน */
+  protected readonly copiedFrom = signal<string | null>(null);
+  /** ตู้ใบอื่นที่มีที่อยู่/หมุดแล้ว (ใช้เป็นต้นแบบคัดลอก) */
+  protected readonly copySources = computed(() =>
+    this.boxes().filter((x) => x.id !== this.box()?.id && (!!x.address?.line || !!x.address?.subdistrict || !!x.address?.district || !!x.address?.province || !!x.location)),
+  );
+  /** ลำดับคำขอโหลดตู้ — สลับตู้เร็ว ๆ แล้วคำตอบเก่าห้ามทับ */
+  private openSeq = 0;
   /** บรรทัดสรุปตอนพับอยู่ — บอกว่ากรอกครบหรือยัง */
   protected readonly extrasSummary = computed(() => {
     const f = this.extras();
@@ -449,15 +480,41 @@ export class OwnerSettings {
   constructor() {
     void this.api.plan().then((p) => this.plan.set(p)).catch(() => undefined);
     void this.loadRequests();
-    void this.api.boxes().then((b) => {
-      this.boxes.set(b);
-      this.loaded.set(true);
-      if (b[0]) void this.open(b[0].id);
-    });
+    void this.api
+      .boxes()
+      .then((b) => {
+        this.boxes.set(b);
+        this.loaded.set(true);
+        if (b[0]) void this.open(b[0].id);
+      })
+      .catch(() => this.loaded.set(true));
   }
 
   protected async open(id: string): Promise<void> {
-    this.box.set(await this.api.box(id).catch(() => null));
+    const seq = ++this.openSeq;
+    const detail = await this.api.box(id).catch(() => null);
+    if (seq !== this.openSeq) return;
+    this.box.set(detail);
+  }
+
+  /** เปลี่ยนตู้จากตัวเลือก — ปิดฟอร์มที่แก้ค้างของตู้เดิม กันกดบันทึกข้ามตู้ */
+  protected async switchBox(id: string): Promise<void> {
+    this.copiedFrom.set(null);
+    this.editingAddr.set(false);
+    this.showAddr.set(false);
+    this.renaming.set(false);
+    this.editingArea.set(false);
+    await this.open(id);
+  }
+
+  /** คัดลอกที่อยู่ + หมุดจากตู้อื่น (เจ้าของมีหลายตู้อยู่บ้านเดียวกัน) */
+  protected copyAddrFrom(id: string): void {
+    if (!id) return;
+    const src = this.boxes().find((x) => x.id === id);
+    if (!src) return;
+    this.addr.set({ ...src.address });
+    this.pin.set(src.location);
+    this.copiedFrom.set(src.house_no || src.name || src.id);
   }
 
   protected windows(b: BoxDetail): string {
@@ -545,6 +602,7 @@ export class OwnerSettings {
     if (!b) return;
     this.addr.set({ ...b.address });
     this.pin.set(b.location);
+    this.copiedFrom.set(null);
     this.editingAddr.set(true);
   }
 
@@ -560,6 +618,16 @@ export class OwnerSettings {
     try {
       await this.api.setAddress(b.id, this.addr(), this.pin());
       this.editingAddr.set(false);
+      this.copiedFrom.set(null);
+      // อัปเดตรายการตู้ด้วย — ตู้ใบอื่นจะได้คัดลอกที่อยู่ใหม่นี้ได้ทันที
+      const a = this.addr();
+      this.boxes.update((list) =>
+        list.map((x) =>
+          x.id === b.id
+            ? { ...x, address: { line: a.line.trim(), subdistrict: a.subdistrict.trim(), district: a.district.trim(), province: a.province.trim() }, location: this.pin() }
+            : x,
+        ),
+      );
       await this.open(b.id);
       this.toast.show({ th: 'บันทึกที่อยู่แล้ว', en: 'Address saved' });
     } catch {

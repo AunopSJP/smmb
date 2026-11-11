@@ -6,6 +6,7 @@ import { I18n, type Tr } from '../../core/i18n';
 import { hhmm } from '../../core/inspection-api';
 import { OwnerApi, type BoxDetail, type BoxEvent, type BoxSummary } from '../../core/owner-api';
 import { screenUrl } from '../../screens/registry';
+import { BoxPicker } from '../../shared/box-picker';
 import { Icon, type IconName } from '../../shared/icon';
 import { PrivatePhoto } from '../../shared/private-photo';
 import { PageHeader } from '../../shared/page-header';
@@ -128,17 +129,13 @@ const clockSec = (iso: string) =>
 
 @Component({
   selector: 'app-owner-history',
-  imports: [RouterLink, PageHeader, Icon, LoadingRows, EmptyState, LoadError],
+  imports: [RouterLink, PageHeader, Icon, LoadingRows, EmptyState, LoadError, BoxPicker],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="caption()" [title]="i18n.t({ th: 'ประวัติ', en: 'History' })" [bell]="url('H14')" />
     <div class="stack">
       @if (store.boxes().length > 1) {
-        <div class="segmented chips" role="group" [attr.aria-label]="i18n.t({ th: 'ตู้', en: 'Mailbox' })">
-          @for (b of store.boxes(); track b.id) {
-            <button type="button" [attr.aria-pressed]="store.boxId() === b.id" (click)="store.load(b.id)">{{ b.house_no }} · {{ b.name }}</button>
-          }
-        </div>
+        <app-box-picker [boxes]="store.boxes()" [value]="store.boxId()" (pick)="store.load($event)" />
       }
       <div class="segmented easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'ช่วงเวลา', en: 'Period' })">
         @for (r of ranges; track r.v) {
