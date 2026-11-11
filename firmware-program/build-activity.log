@@ -529,3 +529,38 @@
 07:34:43 done  Check app-screenshot: The program starts and draws (1350×1025).
 07:34:43 stage Ready: all 2 checks pass. 2 questions about the original are still open.
 07:34:43 stage Ready: all 2 checks pass. 2 questions about the original are still open.
+--- Craft Anything 0.4.0: a run started 2026-11-11 08:02:02 UTC ---
+08:02:02 stage Getting the builder ready…
+08:02:44 stage Improving the build…
+08:02:44 note  Asking Codex…
+08:02:55 said  ผมจะตรวจหน้าจอและพฤติกรรมของแอปใน Craft Anything ก่อน แล้วปรับให้เห็นชัดว่าเสียบบอร์ดตัวไหนอยู่ พร้อมหยุดหน้าต่าง CMD ที่เด้งซ้ำ จากนั้นจะ build และตรวจด้วย `rebuild_check` ให้ครบครับ
+08:03:06 start core investigation show
+08:03:06 start core session show
+08:03:07 done  core session show: {"content":[{"text":"{\"result\":{\"active_target\":null,\"analysis_mode\":\"deep\",\"clean_room\":false,\"evidence_not_loaded\":0,\"evidence_records\":2,\"host\":\"windows-x86_64\",\"open\":false,\"p
+08:03:07 done  core investigation show: {"content":[{"text":"{\"result\":{\"brief\":{\"constraints\":[\"แก้ไขเฉพาะใน app/\",\"ไม่ติดตั้งไลบรารีใหม่\",\"ต้อง build และผ่าน rebuild_check\"],\"done_when\":\"app/ สอดคล้องกับ codebase, build สำเ
+08:03:09 start core target open: C:\aunopsjp\dev\smmb\firmware-program
+08:03:09 done  core target open: C:\aunopsjp\dev\smmb\firmware-program: {"content":[{"text":"{\"result\":{\"bytes\":0,\"description\":\"A folder\",\"kind\":\"directory\",\"name\":\"firmware-program\",\"path\":\"C:\\\\aunopsjp\\\\dev\\\\smmb\\\\firmware-program\",\"raw\":n
+08:03:14 note  Running: "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --files app; rg -n \"cmd|Command|serial|board|port|powershell|esptool\" app -g '"'!target/**'"'"
+08:03:21 note  Running: "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -LiteralPath app\\src\\main.rs"
+08:03:30 said  พบสาเหตุแล้วครับ: แอปเรียก PowerShell สแกนพอร์ตทุก 2 วินาทีโดยไม่ได้ซ่อนหน้าต่าง จึงทำให้ CMD กระพริบซ้ำ ๆ; ผมกำลังเปลี่ยนให้สแกนแบบเบื้องหลังและจัดลำดับ/ติดป้ายพอร์ต USB ที่น่าจะเป็น ESP32 ให้เด่นชัดขึ้นครับ
+08:04:04 note  Running: "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'cargo build --release --offline --locked'
+08:04:37 said  โค้ดส่วนสแกนบอร์ดและซ่อนหน้าต่างเสร็จแล้ว ตอนนี้กำลังสร้างไฟล์โปรแกรมเวอร์ชันใหม่และจะตรวจหน้าจอจริงต่อทันทีครับ
+08:05:55 note  Running: "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Copy-Item -LiteralPath target\\release\\smmb-firmware-flasher.exe -Destination SMMB-Firmware-Flasher.exe -Force"
+08:06:02 note  Running: "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -LiteralPath ..\\target\\release -Filter *.exe | Select-Object -ExpandProperty FullName; Get-ChildItem -Literal
+08:06:10 note  Running: "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -Path C:\\aunopsjp\\dev\\smmb\\firmware-program -Filter smmb-firmware-flasher.exe -Recurse -ErrorAction Silentl
+08:06:15 note  Running: "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Copy-Item -LiteralPath target-build\\release\\smmb-firmware-flasher.exe -Destination SMMB-Firmware-Flasher.exe -Force"
+08:06:20 start rebuild check
+08:06:20 stage The builder is checking its work…
+08:06:36 stage The builder checked its work: all 2 checks pass.
+08:06:36 done  rebuild check (16 s): {"content":[{"text":"{\"result\":{\"project\":\"C:\\\\aunopsjp\\\\dev\\\\smmb\\\\firmware-program\",\"report\":\"build: passed — Build succeeded.\\napp-screenshot: passed — The program starts and draw
+08:06:47 start core handoff write
+08:06:47 done  core handoff write: {"content":[{"text":"{\"result\":{\"revision\":19}}","type":"text"}],"structured_content":{"result":{"revision":19}}}
+08:06:47 start core plan update
+08:06:47 FAIL  core plan update: {"content":[{"text":"{\"error\":{\"category\":\"input\",\"code\":\"stale_revision\",\"message\":\"The investigation is at revision 19, not 18.\",\"remediation\":\"Call core_investigation_show, merge y
+08:06:50 said  ปรับให้บอร์ด ESP32 ที่น่าจะเสียบอยู่แสดงก่อนและมีป้ายบอกชัดเจน พร้อมซ่อนหน้าต่าง CMD จากการสแกนและแฟลชทั้งหมดแล้ว สร้างโปรแกรมใหม่และตรวจ `rebuild_check` ผ่านเรียบร้อยครับ
+08:06:53 note  The builder's turn ended (854981 tokens in, 3744 out)
+08:06:54 stage Checking the build…
+08:07:01 done  Check build: Build succeeded.
+08:07:01 done  Check app-screenshot: The program starts and draws (1350×1025).
+08:07:01 stage Ready: all 2 checks pass. 2 questions about the original are still open.
+08:07:01 stage Ready: all 2 checks pass. 2 questions about the original are still open.

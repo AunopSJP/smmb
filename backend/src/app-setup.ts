@@ -55,6 +55,34 @@ export function requireJsonBody() {
   };
 }
 
+/**
+ * วัดเวลาในเซิร์ฟเวอร์ต่อคำขอ — ส่งกลับเป็น `Server-Timing: app;dur=<ms>` (เห็นใน DevTools/Performance API)
+ * เพื่อแยก "เวลาเซิร์ฟเวอร์" ออกจาก "เวลาเครือข่าย/เบราว์เซอร์" · log เฉพาะคำขอที่ช้ากว่า SLOW_REQUEST_MS
+ * ห้าม log query string — มีเบอร์โทร/คำค้น (ข้อมูลส่วนบุคคล) ใช้ req.path เท่านั้น
+ */
+export function serverTiming(): express.RequestHandler {
+  const slowMs = Number(process.env.SLOW_REQUEST_MS ?? 300);
+  const logger = new Logger('HTTP');
+  return (req, res, next): void => {
+    const start = process.hrtime.bigint();
+    const elapsed = () => Number(process.hrtime.bigint() - start) / 1e6;
+    const originalWriteHead = res.writeHead.bind(res) as (...args: unknown[]) => express.Response;
+    res.writeHead = function (...args: unknown[]) {
+      if (!res.headersSent && !res.getHeader('Server-Timing')) {
+        res.setHeader('Server-Timing', `app;dur=${elapsed().toFixed(1)}`);
+      }
+      return originalWriteHead(...args);
+    } as typeof res.writeHead;
+    res.on('finish', () => {
+      const ms = elapsed();
+      // long-poll ของตู้ตั้งใจถือคำขอไว้นาน — ไม่ใช่ปัญหา performance
+      if (ms < slowMs || req.path.startsWith('/v1/box/jobs')) return;
+      logger.warn(`${req.method} ${req.path} → ${res.statusCode} (${ms.toFixed(0)} ms)`);
+    });
+    next();
+  };
+}
+
 /** ตั้งค่าที่ใช้ทั้งตอนรันจริงและตอนเทสต์ — แก้ที่เดียว */
 export function configureApp(app: NestExpressApplication): void {
   const config = app.get<ConfigService<Env, true>>(ConfigService);
@@ -63,6 +91,7 @@ export function configureApp(app: NestExpressApplication): void {
   const trustProxy = config.get('TRUST_PROXY', { infer: true });
   if (trustProxy !== false) app.set('trust proxy', trustProxy);
   app.disable('x-powered-by');
+  app.use(serverTiming());
   const prefix = config.get('API_PATH_PREFIX', { infer: true });
   if (prefix) app.use(stripPathPrefix(prefix)); // ต้องอยู่ก่อน express.raw ของ /v1/box
 

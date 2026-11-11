@@ -4,6 +4,8 @@ use eframe::egui::{self, Align, Color32, FontData, FontDefinitions, FontFamily, 
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use std::sync::mpsc::{self, Receiver};
 use std::time::{Duration, Instant};
 
@@ -14,11 +16,14 @@ const SUPPORTED_CAMERA: &str = "OV2640";
 const FLASH_BAUD: &str = "460800";
 const APP_OFFSET: &str = "0x10000";
 const REFRESH_INTERVAL: Duration = Duration::from_secs(2);
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 #[derive(Clone)]
 struct BoardPort {
     port: String,
     description: String,
+    likely_esp32: bool,
 }
 
 #[derive(PartialEq)]
@@ -197,9 +202,15 @@ impl FirmwareApp {
                             ui.label(RichText::new("เสียบบอร์ดด้วยสาย USB แล้วกดรีเฟรช").size(13.0).color(Color32::from_rgb(118, 128, 141)));
                         });
                     } else {
+                        if let Some(board) = self.selected_board.and_then(|index| self.boards.get(index)) {
+                            let status = if board.likely_esp32 { "✓ พบบอร์ด ESP32 ที่น่าจะเสียบอยู่" } else { "เลือกพอร์ตที่ตรงกับชื่ออุปกรณ์ของบอร์ด" };
+                            ui.label(RichText::new(status).strong().color(if board.likely_esp32 { Color32::from_rgb(24, 139, 91) } else { Color32::from_rgb(105, 116, 130) }));
+                            ui.add_space(5.0);
+                        }
                         for (index, board) in self.boards.iter().enumerate() {
                             let selected = self.selected_board == Some(index);
-                            if ui.selectable_label(selected, RichText::new(format!("{}   {}", board.port, board.description)).size(14.0)).clicked() {
+                            let badge = if board.likely_esp32 { "  • น่าจะเป็นบอร์ดนี้" } else { "" };
+                            if ui.selectable_label(selected, RichText::new(format!("{}   {}{}", board.port, board.description, badge)).size(14.0)).clicked() {
                                 self.selected_board = Some(index);
                             }
                         }
@@ -312,12 +323,29 @@ fn configure_style(ctx: &egui::Context) {
 }
 
 fn find_boards() -> Vec<BoardPort> {
-    let script = "Get-CimInstance Win32_SerialPort | ForEach-Object { \"$($_.DeviceID)|$($_.Name)\" }";
-    let Ok(output) = Command::new("powershell").args(["-NoProfile", "-Command", script]).output() else { return Vec::new(); };
-    String::from_utf8_lossy(&output.stdout).lines().filter_map(|line| {
-        let (port, description) = line.trim().split_once('|')?;
-        (!port.is_empty()).then(|| BoardPort { port: port.to_owned(), description: description.to_owned() })
-    }).collect()
+    let script = "Get-CimInstance Win32_SerialPort | ForEach-Object { \"$($_.DeviceID)|$($_.Name)|$($_.PNPDeviceID)\" }";
+    let mut command = Command::new("powershell");
+    command.args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script]);
+    hide_child_window(&mut command);
+    let Ok(output) = command.output() else { return Vec::new(); };
+    let mut boards: Vec<BoardPort> = String::from_utf8_lossy(&output.stdout).lines().filter_map(|line| {
+        let mut fields = line.trim().splitn(3, '|');
+        let port = fields.next()?;
+        let description = fields.next()?;
+        let device_id = fields.next().unwrap_or_default();
+        let identity = format!("{description} {device_id}").to_ascii_lowercase();
+        let likely_esp32 = ["cp210", "ch340", "ch341", "usb serial", "silicon labs", "ftdi"]
+            .iter()
+            .any(|keyword| identity.contains(keyword));
+        (!port.is_empty()).then(|| BoardPort { port: port.to_owned(), description: description.to_owned(), likely_esp32 })
+    }).collect();
+    boards.sort_by_key(|board| !board.likely_esp32);
+    boards
+}
+
+fn hide_child_window(command: &mut Command) {
+    #[cfg(target_os = "windows")]
+    command.creation_flags(CREATE_NO_WINDOW);
 }
 
 fn find_firmwares() -> Vec<PathBuf> {
@@ -347,6 +375,7 @@ fn run_esptool(port: &str, firmware: &Path) -> Result<String, String> {
     for (program, prefix) in attempts {
         let mut command = Command::new(program);
         command.args(prefix).args(["--chip", "esp32", "--port", port, "--baud", FLASH_BAUD, "write_flash", "--flash_mode", "dio", "--flash_freq", "40m", APP_OFFSET]).arg(&firmware_path);
+        hide_child_window(&mut command);
         match command.output() {
             Ok(output) if output.status.success() => return Ok(format!("แฟลช {} สำเร็จแล้ว", firmware_name(&firmware_path))),
             Ok(output) => {
@@ -363,7 +392,10 @@ fn run_esptool(port: &str, firmware: &Path) -> Result<String, String> {
         let python = platformio_root.join("penv/Scripts/python.exe");
         let esptool = platformio_root.join("packages/tool-esptoolpy/esptool.py");
         if python.is_file() && esptool.is_file() {
-            let output = Command::new(python).arg(esptool).args(["--chip", "esp32", "--port", port, "--baud", FLASH_BAUD, "write_flash", "--flash_mode", "dio", "--flash_freq", "40m", APP_OFFSET]).arg(&firmware_path).output()
+            let mut command = Command::new(python);
+            command.arg(esptool).args(["--chip", "esp32", "--port", port, "--baud", FLASH_BAUD, "write_flash", "--flash_mode", "dio", "--flash_freq", "40m", APP_OFFSET]).arg(&firmware_path);
+            hide_child_window(&mut command);
+            let output = command.output()
                 .map_err(|error| format!("เปิดเครื่องมือแฟลชไม่ได้: {error}"))?;
             if output.status.success() {
                 return Ok(format!("แฟลช {} สำเร็จแล้ว", firmware_name(&firmware_path)));

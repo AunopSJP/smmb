@@ -186,6 +186,7 @@ wireframe 110 หน้า: `SMMB Wireframe.figcraft` (มี `.fig` ด้ว�
 ## วิธีทำงาน
 
 - ตรวจสุขภาพโปรเจ็คก่อนส่งงาน: `node scripts/project-guardian.mjs --full` หรือพิมพ์ `/guardian` (agent read-only) · รายงานอยู่ `reports/` · มี CI รายวันที่ `.github/workflows/project-guardian.yml` · คู่มือ `docs/PROJECT_GUARDIAN.md`
+- **แชท Frontend กับแชท Backend คุยกันผ่าน `docs/agent-sync/`** (`README.md` = กติกา · `to-backend.md` ฝั่งเว็บเขียน · `to-frontend.md` ฝั่ง server เขียน · `state.md` แผน/สถานะ · `measurements.md` ตัวเลขวัด) · agent `frontend-bridge` + คำสั่ง `/bridge` ฝั่งเว็บ · ห้ามแก้ไฟล์ของอีกฝ่าย
 
 - เขียน migration ใหม่เสมอ ห้ามแก้ไฟล์ migration ที่ apply แล้ว
 - เพิ่ม/เปลี่ยน endpoint → อัปเดต `docs/api.md` ในรอบเดียวกัน · ตัดสินใจเรื่องใหม่ → อัปเดต `docs/smmb-design.md` + `docs/HANDOFF.md`

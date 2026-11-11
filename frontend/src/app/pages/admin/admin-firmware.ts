@@ -219,11 +219,20 @@ export class AdminFirmware {
 
   /** โหลดตู้ทั้งหมด (API แบ่งหน้า 100) — ตัวเลข “ใช้รุ่นล่าสุด” ต้องไม่นับแค่ 100 ใบแรก */
   private async allBoxes(): Promise<AdminBoxRow[]> {
-    const out: AdminBoxRow[] = [];
-    for (let page = 1; page <= 50; page += 1) {
-      const r = await this.api.boxes('', page);
-      out.push(...r.data);
-      if (r.data.length < r.per_page || out.length >= r.total) break;
+    // หน้าละ 100 → รู้จำนวนหน้าจาก total แล้วยิงที่เหลือพร้อมกัน (เดิมยิงเรียงทีละหน้า = ช้าเป็นเท่าตัว)
+    const first = await this.api.boxes('', 1);
+    const out = [...first.data];
+    const pages = Math.min(50, Math.ceil(first.total / Math.max(1, first.per_page)));
+    if (pages > 1) {
+      const rest = await Promise.all(
+        Array.from({ length: pages - 1 }, (_, i) =>
+          this.api
+            .boxes('', i + 2)
+            .then((r) => r.data)
+            .catch(() => [] as AdminBoxRow[]),
+        ),
+      );
+      for (const rows of rest) out.push(...rows);
     }
     return out;
   }
