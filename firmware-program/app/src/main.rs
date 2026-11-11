@@ -1,3 +1,5 @@
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+
 use eframe::egui::{self, Align, Color32, FontData, FontDefinitions, FontFamily, FontId, Frame, Layout, Margin, RichText, Stroke, Vec2};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -6,7 +8,7 @@ use std::sync::mpsc::{self, Receiver};
 use std::time::{Duration, Instant};
 
 const APP_TITLE: &str = "SMMB Firmware Flasher";
-const LATEST_FIRMWARE_VERSION: &str = "0.2.10";
+const LATEST_FIRMWARE_VERSION: &str = "0.2.11";
 const TARGET_BOARD: &str = "ESP32-CAM (AI-Thinker)";
 const SUPPORTED_CAMERA: &str = "OV2640";
 const FLASH_BAUD: &str = "460800";
@@ -37,6 +39,7 @@ struct FirmwareApp {
     progress: f32,
     message: String,
     result_rx: Option<Receiver<Result<String, String>>>,
+    board_scan_rx: Option<Receiver<Vec<BoardPort>>>,
     screenshot_path: Option<PathBuf>,
     rendered_frames: u32,
     screenshot_requested: bool,
@@ -46,18 +49,22 @@ impl FirmwareApp {
     fn new(context: &eframe::CreationContext<'_>, screenshot_path: Option<PathBuf>) -> Self {
         configure_fonts(&context.egui_ctx);
         configure_style(&context.egui_ctx);
-        let boards = find_boards();
         let firmwares = find_firmwares();
+        let (board_sender, board_receiver) = mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = board_sender.send(find_boards());
+        });
         Self {
-            selected_board: (!boards.is_empty()).then_some(0),
+            selected_board: None,
             selected_firmware: (!firmwares.is_empty()).then_some(0),
-            boards,
+            boards: Vec::new(),
             firmwares,
             last_refresh: Instant::now(),
             state: FlashState::Ready,
             progress: 0.0,
             message: format!("พร้อมอัปเดตเฟิร์มแวร์เวอร์ชัน {LATEST_FIRMWARE_VERSION}"),
             result_rx: None,
+            board_scan_rx: Some(board_receiver),
             screenshot_path,
             rendered_frames: 0,
             screenshot_requested: false,
@@ -65,12 +72,28 @@ impl FirmwareApp {
     }
 
     fn refresh_boards(&mut self) {
-        let previous = self.selected_board.and_then(|index| self.boards.get(index)).map(|board| board.port.clone());
-        self.boards = find_boards();
-        self.selected_board = previous
-            .and_then(|port| self.boards.iter().position(|board| board.port == port))
-            .or_else(|| (!self.boards.is_empty()).then_some(0));
+        if self.board_scan_rx.is_some() {
+            return;
+        }
+        let (sender, receiver) = mpsc::channel();
+        self.board_scan_rx = Some(receiver);
         self.last_refresh = Instant::now();
+        std::thread::spawn(move || {
+            let _ = sender.send(find_boards());
+        });
+    }
+
+    fn poll_board_scan(&mut self) {
+        let scanned_boards = self.board_scan_rx.as_ref().and_then(|receiver| receiver.try_recv().ok());
+        if let Some(boards) = scanned_boards {
+            let previous = self.selected_board.and_then(|index| self.boards.get(index)).map(|board| board.port.clone());
+            self.boards = boards;
+            self.selected_board = previous
+                .and_then(|port| self.boards.iter().position(|board| board.port == port))
+                .or_else(|| (!self.boards.is_empty()).then_some(0));
+            self.board_scan_rx = None;
+            self.last_refresh = Instant::now();
+        }
     }
 
     fn start_flash(&mut self) {
@@ -212,7 +235,7 @@ impl FirmwareApp {
                 Self::step_header(ui, "3", "แฟลชเฟิร์มแวร์", self.state == FlashState::Success);
                 ui.add_space(14.0);
                 Frame::new().fill(Color32::from_rgb(255, 248, 229)).corner_radius(9).inner_margin(Margin::same(12)).show(ui, |ui| {
-                    ui.label(RichText::new("ต่อ IO0 ลง GND แล้วกด RST 1 ครั้งเพื่อเข้าโหมดแฟลช").color(Color32::from_rgb(126, 87, 20)).strong());
+                    ui.label(RichText::new("กดปุ่ม IO0 ค้างไว้ กดปุ่ม RST 1 ครั้ง แล้วปล่อย IO0 เพื่อเข้าโหมดแฟลช").color(Color32::from_rgb(126, 87, 20)).strong());
                 });
                 ui.add_space(14.0);
                 ui.add(egui::ProgressBar::new(self.progress).desired_width(f32::INFINITY).animate(self.state == FlashState::Flashing));
@@ -230,7 +253,7 @@ impl FirmwareApp {
                         self.start_flash();
                     }
                     if self.state == FlashState::Success {
-                        ui.label(RichText::new("✓ เสร็จเรียบร้อย ถอด IO0 จาก GND แล้วกด RST").color(Color32::from_rgb(24, 139, 91)).strong());
+                        ui.label(RichText::new("✓ เสร็จเรียบร้อย กดปุ่ม RST 1 ครั้งเพื่อเริ่มใช้งาน").color(Color32::from_rgb(24, 139, 91)).strong());
                     }
                 });
             });
@@ -245,6 +268,7 @@ impl eframe::App for FirmwareApp {
         if self.last_refresh.elapsed() >= REFRESH_INTERVAL && self.state != FlashState::Flashing {
             self.refresh_boards();
         }
+        self.poll_board_scan();
         self.poll_flash();
         self.draw(ui);
         self.rendered_frames += 1;
