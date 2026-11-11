@@ -1,0 +1,6 @@
+/target/
+/target-build/
+/target-verify/
+/shots/
+*.pdb
+

@@ -1,0 +1,16 @@
+{
+  "id": "unk_c0c0d02b864eccf9",
+  "revision": 1,
+  "question": "การตรวจพบบอร์ดควรยืนยันด้วย USB VID/PID ใดบ้าง",
+  "severity": "medium",
+  "domain": "device-detection",
+  "status": "open",
+  "probes": [
+    "ค้นหาเอกสารฮาร์ดแวร์และคำสั่งแฟลชเดิม",
+    "ตรวจอุปกรณ์จริงที่ผู้ใช้ใช้"
+  ],
+  "evidence_for": [
+    "ev_ba1e8f66c866f6ebf47863feee8a01e9a6d5033a71a67f17f5ac058593ab6417"
+  ],
+  "evidence_against": []
+}

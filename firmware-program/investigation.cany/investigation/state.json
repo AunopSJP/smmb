@@ -1,0 +1,43 @@
+{
+  "revision": 12,
+  "brief": {
+    "question": "ตรวจ codebase ปัจจุบันและปรับ implementation ใน app/ ให้สอดคล้องกับโครงสร้าง ข้อมูล และพฤติกรรมของโปรเจกต์",
+    "purpose": "ทำให้แอปที่สร้างขึ้นตรงกับ codebase จริงสำหรับผู้ใช้ที่ไม่เขียนโค้ด",
+    "targets": [
+      "C:\\aunopsjp\\dev\\smmb\\firmware-program",
+      "C:\\aunopsjp\\dev\\smmb\\firmware-program\\app"
+    ],
+    "constraints": [
+      "แก้ไขเฉพาะใน app/",
+      "ไม่ติดตั้งไลบรารีใหม่",
+      "ต้อง build และผ่าน rebuild_check"
+    ],
+    "done_when": "app/ สอดคล้องกับ codebase, build สำเร็จ และ rebuild_check ผ่าน"
+  },
+  "plan": [
+    {
+      "title": "เทียบ app กับ codebase หลัก",
+      "status": "done",
+      "why": "ยืนยันเวอร์ชัน บอร์ด กล้อง และขั้นตอนแฟลชจาก firmware/platformio.ini และ include/board.h"
+    },
+    {
+      "title": "ปรับ app/ ให้ตรงกับ codebase",
+      "status": "done",
+      "why": "เปลี่ยนเป็น 0.2.10, AI-Thinker, OV2640 และคำแนะนำ IO0-to-GND"
+    },
+    {
+      "title": "Build แบบ offline/locked",
+      "status": "done",
+      "why": "cargo build --offline --locked สำเร็จ"
+    },
+    {
+      "title": "ตรวจ rebuild_check",
+      "status": "done",
+      "why": "build และ app-screenshot ผ่าน"
+    }
+  ],
+  "hypotheses": [],
+  "findings": [],
+  "handoff": "เพิ่ม app/.gitignore เพื่อไม่รวม target/, target-build/, target-verify/, shots/ และ *.pdb; ใช้ cargo clean ล้าง build artifacts เดิมรวมประมาณ 6.4 GiB แล้ว build ใหม่สำเร็จด้วย cargo build --offline --locked --target-dir target. rebuild_check ล่าสุดผ่านทั้ง build และ app-screenshot (1350×1025). Unknown เดิมเรื่อง firmware offset/partition table และ USB VID/PID ยังไม่ได้แก้เพราะไม่เกี่ยวกับงาน cleanup รอบนี้.",
+  "updated": "2026-11-11T05:11:27Z"
+}

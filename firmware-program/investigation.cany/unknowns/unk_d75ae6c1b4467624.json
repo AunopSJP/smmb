@@ -1,0 +1,16 @@
+{
+  "id": "unk_d75ae6c1b4467624",
+  "revision": 1,
+  "question": "ไฟล์ firmware-*.bin ต้องแฟลชที่ offset ใด และต้องแฟลช bootloader/partition table ร่วมด้วยหรือไม่",
+  "severity": "high",
+  "domain": "flashing",
+  "status": "open",
+  "probes": [
+    "ตรวจเอกสาร build/release และสคริปต์แฟลชในโปรเจ็ค",
+    "ตรวจข้อมูลจาก PlatformIO build configuration"
+  ],
+  "evidence_for": [
+    "ev_ba1e8f66c866f6ebf47863feee8a01e9a6d5033a71a67f17f5ac058593ab6417"
+  ],
+  "evidence_against": []
+}
