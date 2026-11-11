@@ -305,6 +305,8 @@
 
 **D01 ภาพรวมแอดมิน (แก้ 11 พ.ย.):** โหลด skeleton ค้าง/ขึ้นช้า → แยก `overview` (แสดงหน้าได้ทันที) จากรายละเอียดรอง, cache overview 15 วิ + รวมคำขอจาก sidebar/หน้า D01, เปลี่ยน query กิจกรรม 7 วันเป็น single-pass และเพิ่ม index `created_date` (migration `0037`)
 
+**Admin redesign (11 พ.ย. 2026 — commit `ea552f2`, frontend only):** ปิดงาน UX/UI แอดมินทั้งชุด — สวิตช์ธีม 3 ทาง (สว่าง/ตามเครื่อง/มืด) ใต้โลโก้ + FAB มือถือ, ค่าเริ่มต้นสว่าง, เก็บตามบัญชี · เมนูมีค้นหา + accordion เปิดกลุ่มปัจจุบัน + ellipsis label + เพิ่ม D17 · D01 มี quick actions/การ์ด “ต้องจัดการ”/KPI auto-fit · caption หน้าแอดมินเป็นมาตรฐานเดียว · กติกากันข้อความล้นกลางใน `styles.scss` · QR case 2 คอลัมน์ที่ ≥1200px · plans เต็มความกว้าง · D17 file picker ภาษาไทย. ตรวจ Playwright 1440px (9 หน้า) และ 390px ไม่มี overflow, build/lint/test ผ่าน. **Deploy:** build frontend ใหม่พอ (ไม่ต้อง migrate เพิ่มถ้ารัน `0037` แล้วจากรอบ D01)
+
 **ยังเหลือจากรอบนี้:** composite widget arrow keys (radio/tab) · easy mode แอดมินบนมือถือยังไม่ถึง D16/ตั้งค่าโดยตรง (มีลิงก์ใน D01) · dead code บางส่วน/P2-26
 
 ## 3.3 งานฝั่งเซิร์ฟเวอร์ — พร้อมสั่ง Codex (ทำจาก SSH เท่านั้น)

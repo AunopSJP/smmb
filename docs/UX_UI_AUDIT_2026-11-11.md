@@ -24,6 +24,14 @@
 
 **อัปเดตรอบ D01 performance (11 พ.ย. 2026):** หน้าแอดมินค้าง skeleton/ช้า → โหลด `overview` ก่อนแล้วแสดงผลทันที (รายละเอียดรองโหลดเบื้องหลัง), cache overview 15 วิ รวมคำขอ sidebar+หน้า, single-pass activity query, index `created_date` migration `0037`; มี error+retry เมื่อ overview ล้ม
 
+**อัปเดตรอบ Admin redesign (11 พ.ย. 2026 — commit `ea552f2`):** ปิดงาน UX/UI พื้นที่แอดมินทั้งชุด
+- **ธีมผู้ใช้เลือกเอง:** สวิตช์ 3 ทาง (สว่าง / ตามเครื่อง / มืด) ใต้โลโก้ sidebar + FAB บนมือถือ (`<1024px`) · ค่าเริ่มต้นแอดมินเป็นธีมสว่าง · เก็บใน `DisplaySettings.theme` และ sync กับบัญชีผ่าน `PrefsSync` · `theme-boot.js` กันจอวาบ
+- **เมนู:** ค้นหาเมนูได้ · กลุ่มเป็น accordion เปิดทีละกลุ่ม + เปิดกลุ่มของหน้าปัจจุบันอัตโนมัติ · ป้ายเมนู ellipsis พร้อม `title` · เพิ่มเมนู D17 เฟิร์มแวร์ในกลุ่มตู้ · เปลี่ยนชื่อ D11 เป็น “บันทึกทั้งหมด”
+- **D01:** แถว Quick actions (ตู้ / QR / ผู้ใช้ / เฟิร์มแวร์) + การ์ดสรุป “ต้องจัดการ N รายการ” · KPI เป็น auto-fit (เดิม 7 ใบตัดขึ้นบรรทัดใหม่) · skeleton ระหว่างโหลด
+- **ความสอดคล้อง:** caption หน้าแอดมินทั้งหมดเป็น “แอดมิน” · `PageHeader` ตัดบรรทัดได้ทั้ง caption/title · D17 ใช้ file picker ที่แสดงชื่อไฟล์ภาษาไทย
+- **Text overflow:** กติกากลางใน `styles.scss` (`min-inline-size:0` ให้ row/list-head/card/panel, `overflow-wrap` ให้ชื่อ/ข้อความ, `anywhere` เฉพาะ `.mono/.secret/.temp`) · หน้ารายละเอียดผู้ใช้ไม่ลอยขึ้นก่อนรายการบนมือถือ · เคส QR ใช้ 2 คอลัมน์ที่ ≥1200px · plans เลิกจำกัด 760px
+- **ตรวจแล้ว:** Playwright 1440px 9 หน้าแอดมิน ไม่มี document/element overflow · 390px (D01/D03/D09/D17) ไม่มี horizontal overflow · สลับธีมสว่าง/มืด/ตามเครื่องแล้วคงอยู่หลังรีโหลด · build/lint/test ผ่าน (83 tests) ไม่มี budget warning
+
 **ยังไม่ทำ (ตั้งใจเลื่อน):** composite widget arrow keys (radio/tab) · easy mode แอดมินบนมือถือยังไม่ถึง D16/ตั้งค่าโดยตรง (มีลิงก์ใน D01 แล้ว) · dead code บางส่วน · P2-26
 
 ---
