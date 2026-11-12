@@ -70,7 +70,7 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
       <!-- โหมดง่าย: หลังรายการคำขอ แสดงทีมแบบสั้น + ปุ่มโทร (ตาม HeadMembers_E) -->
       @if (display.easyMode() && team().length) {
         <h2 class="section-title">{{ i18n.t({ th: 'ทีมตอนนี้', en: 'Your team' }) }} ({{ team().length }})</h2>
-        @for (m of team().slice(0, 3); track m.id) {
+        @for (m of showAllTeam() ? team() : team().slice(0, 3); track m.id) {
           <div class="card easy-member">
             <span class="grow">
               <strong>{{ m.display_name }}</strong>
@@ -78,6 +78,9 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
             </span>
             <a class="btn secondary call" [href]="'tel:' + m.phone" [attr.aria-label]="i18n.t({ th: 'โทรหา ', en: 'Call ' }) + m.display_name">{{ i18n.t({ th: 'โทร', en: 'Call' }) }}</a>
           </div>
+        }
+        @if (team().length > 3 && !showAllTeam()) {
+          <button type="button" class="btn secondary" (click)="showAllTeam.set(true)">{{ i18n.t({ th: 'ดูทั้งหมด ', en: 'Show all ' }) }}{{ team().length }}{{ i18n.t({ th: ' คน', en: '' }) }}</button>
         }
       }
 
@@ -163,6 +166,8 @@ export class HeadMembers implements OnInit {
   protected readonly pending = computed(() => this.all().filter((m) => m.status === 'pending'));
   /** รออนุมัติ / ทั้งหมด (ตามแคนวาสดีไซน์) */
   protected readonly view = signal<'pending' | 'all'>('pending');
+  /** โหมดง่ายแสดงทีม 3 คนแรก — กดดูทั้งหมดได้ (ไม่ให้ทีมใหญ่เป็นทางตัน) */
+  protected readonly showAllTeam = signal(false);
   private initialViewSet = false;
   protected readonly team = computed(() => this.all().filter((m) => m.status !== 'pending'));
   protected readonly busy = signal(false);

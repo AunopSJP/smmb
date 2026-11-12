@@ -273,14 +273,14 @@
 
 | รหัส | ระดับ | เรื่อง | หลักฐาน |
 |---|---|---|---|
-| U-01 | P2 | หลายหน้าใช้ “empty” แทน “error” (โหลดพังแล้วขึ้น “ไม่มีข้อมูล”) | 🟡 แก้แล้ว: notification-list, owner-history, admin-boxes, admin-people (คิว+ผู้ใช้), head-zones (มี `app-load-error` + retry) · เหลือ owner-agencies, admin-hub |
+| U-01 | P2 | ✅ 12 พ.ย. 2026 (ตรวจโค้ด: owner-agencies + admin-hub มี `app-load-error` แล้ว) — หลายหน้าใช้ “empty” แทน “error” | 🟡 แก้แล้ว: notification-list, owner-history, admin-boxes, admin-people (คิว+ผู้ใช้), head-zones (มี `app-load-error` + retry) · เหลือ owner-agencies, admin-hub |
 | U-02 | P2 | วันที่/เวลา: `DatePipe`/`toLocaleString` ยังใช้ TZ เครื่อง ไม่ fix `Asia/Bangkok` | 🟡 fix จุดหลักแล้ว (owner/admin technician requests, firmware, push diagnostic) · เหลือ sweep ทั้งโปรเจ็ค |
-| U-03 | P2 | destructive action ที่ยังไม่มี confirm | 🟡 ปิดบัญชี (D09) + ปิดสิทธิ์/ถอดหัวหน้า (L05) มี confirm · เหลือ firmware auto-update, QR, ถอดบ้านออกโซน |
-| U-04 | P2 | easy mode ยังเป็น dead end: D16/ระบบ, D05 QR, ปุ่มจัดการผู้ใช้, เปลี่ยนภาษา/ธีม, ปิดชนิดแจ้งเตือน, ทีม >3 คน | `admin-home.ts`, `registry.ts`, `notif-settings.ts`, `owner-settings.ts`, `head-members.ts` |
+| U-03 | P2 | ✅ 12 พ.ย. 2026 (ตรวจโค้ด: firmware auto-update, QR, ถอดบ้านออกโซน มี `Confirm` แล้ว) — destructive action ที่ยังไม่มี confirm | 🟡 ปิดบัญชี (D09) + ปิดสิทธิ์/ถอดหัวหน้า (L05) มี confirm · เหลือ firmware auto-update, QR, ถอดบ้านออกโซน |
+| U-04 | P2 | ✅ 12 พ.ย. 2026 — `/settings/display` โหมดง่ายเห็นขนาดตัวอักษร+ธีม (เห็นในเบราว์เซอร์) · L05 โหมดง่ายมีปุ่ม “ดูทั้งหมด” เมื่อทีม >3 · D16 โหมดง่ายมีลิงก์แจ้งเตือน/การแสดงผล · ปิดชนิดแจ้งเตือนใช้ได้ในโหมดง่ายอยู่แล้ว — เดิม: easy mode ยังเป็น dead end: D16/ระบบ, D05 QR, ปุ่มจัดการผู้ใช้, เปลี่ยนภาษา/ธีม, ปิดชนิดแจ้งเตือน, ทีม >3 คน | `admin-home.ts`, `registry.ts`, `notif-settings.ts`, `owner-settings.ts`, `head-members.ts` |
 | U-05 | P2 | polling ถี่ (1–5 วิ) และไม่หยุดตอนแท็บซ่อน — ควรทำ `liveRefresh` กลาง + `visibilitychange` | หลายหน้า SOS/ตรวจตู้/D04 |
-| U-06 | P2 | Service Worker prefetch JS ทุก chunk (~1.7 MB) — ควร lazy เฉพาะ shell | `ngsw-config.json` |
+| U-06 | P2 | ✅ 12 พ.ย. 2026 — `ngsw-config.json` prefetch เฉพาะ shell (main/polyfills/theme-boot/css/html = 6 ไฟล์) · chunk 78 ไฟล์เป็น lazy · หน้า offline ยัง preload ที่ `app.ts` | `ngsw-config.json` |
 | U-07 | P2 | a11y: focus trap ใน dialog, skip link, `aria-live` ทั้งหน้า SOS, progressbar ไม่มี label, field error เป็นสีอย่างเดียว | `confirm-dialog.ts`, `area-shell.ts`, `owner-sos.ts`, auth forms |
-| U-08 | P2 | ไม่มี CSRF token (พึ่ง SameSite/cookie) — ควรเพิ่ม double-submit หรือตรวจ Origin ฝั่ง server | `core/api.ts`, backend guard |
+| U-08 | P2 | ไม่มี CSRF token (พึ่ง SameSite/cookie) | ✅ 12 พ.ย. 2026 — `requireSameOrigin` ใน `backend/src/app-setup.ts` ตรวจ `Origin` ของคำขอที่เปลี่ยนข้อมูล → 403 `CROSS_ORIGIN` · unit test ใน `app-setup.spec.ts` |
 | U-09 | P3 | ลบ dead code/ตัวซ้ำ (owner-home-alerts, mock state, component ยักษ์ 1,400–1,700 บรรทัด) + เพิ่ม test guard/401/QR print | ตามรายงาน audit |
 
 ## 3.2-b ผลตรวจ UX/UI รอบ 2 (11 พ.ย. 2026)

@@ -47,14 +47,15 @@ import { PageHeader } from '../../shared/page-header';
         </div>
       </section>
 
-      <section class="card stack easy-hide">
+      <!-- ไม่ซ่อนในโหมดง่าย — ผู้ใช้โหมดง่ายต้องปรับขนาดตัวอักษร/ธีมเองได้ (U-04) -->
+      <section class="card stack">
         <span class="lbl">{{ i18n.t({ th: 'ขนาดตัวอักษร', en: 'Text size' }) }}</span>
         <div class="segmented" role="group" [attr.aria-label]="i18n.t({ th: 'ขนาดตัวอักษร', en: 'Text size' })">
           @for (o of sizes; track o.v) {
             <button type="button" [attr.aria-pressed]="display.textSize() === o.v" (click)="display.textSize.set(o.v)">{{ i18n.t(o.label) }}</button>
           }
         </div>
-        <span class="muted small">{{ i18n.t({ th: 'ขนาดตัวอักษรถูกจำกัดตามชนิดจอ (มือถือ / แท็บเล็ต / คอม) เพื่อให้อ่านสบายและไม่ล้น', en: 'Text size is capped per screen type (phone / tablet / desktop) so it stays readable and never overflows.' }) }}</span>
+        <span class="muted small easy-hide">{{ i18n.t({ th: 'ขนาดตัวอักษรถูกจำกัดตามชนิดจอ (มือถือ / แท็บเล็ต / คอม) เพื่อให้อ่านสบายและไม่ล้น', en: 'Text size is capped per screen type (phone / tablet / desktop) so it stays readable and never overflows.' }) }}</span>
         <span class="lbl">{{ i18n.t({ th: 'ธีม', en: 'Theme' }) }}</span>
         <div class="segmented" role="group" [attr.aria-label]="i18n.t({ th: 'ธีม', en: 'Theme' })">
           @for (o of themes; track o.v) {

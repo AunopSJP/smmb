@@ -151,7 +151,9 @@ try {
 try {
   const pages = walk(join(ROOT, 'frontend/src/app/pages')).filter((p) => p.endsWith('.ts') && !p.endsWith('.spec.ts'));
   /** component ย่อย/หน้าสาธารณะที่ไม่ต้องมี marker โหมด (ตั้งใจ) */
-  const MODE_EXEMPT = new Set(['frontend/src/app/pages/auth/auth-parts.ts', 'frontend/src/app/pages/error-screen.ts']);
+  const MODE_EXEMPT = new Set(['frontend/src/app/pages/auth/auth-parts.ts', 'frontend/src/app/pages/error-screen.ts',
+    // component ย่อยของ D04 — admin-box.ts ห่อด้วย .easy-hide แล้ว · shared ไม่มี template
+    'frontend/src/app/pages/admin/admin-box-diagnostics.ts', 'frontend/src/app/pages/admin/admin-box-firmware.ts', 'frontend/src/app/pages/admin/admin-box-shared.ts']);
   const missing = [];
   for (const file of pages) {
     const src = readFileSync(file, 'utf8');

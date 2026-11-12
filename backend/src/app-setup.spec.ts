@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { containsNul, RejectNulPipe, requireJsonBody, stripPathPrefix } from './app-setup.js';
+import { containsNul, RejectNulPipe, requireJsonBody, requireSameOrigin, stripPathPrefix } from './app-setup.js';
 import { validateEnv } from './config/env.js';
 
 const run = (prefix: string, url: string) => {
@@ -81,5 +81,30 @@ describe('requireJsonBody (กัน form-urlencoded login CSRF)', () => {
     expect(call('GET', '/api/v1/me', {}).nextCalled).toBe(true);
     expect(call('POST', '/v1/box/report', { 'content-length': '10' }, 'application/octet-stream').nextCalled).toBe(true);
     expect(call('POST', '/api/v1/admin/firmware/0.3.0', { 'content-length': '900000' }, 'application/octet-stream').nextCalled).toBe(true);
+  });
+});
+
+describe('requireSameOrigin (กัน CSRF ด้วย Origin)', () => {
+  const call = (method: string, headers: Record<string, string>, production = true) => {
+    const req = { method, originalUrl: '/api/v1/me', headers, app: { get: () => false } } as unknown as Request;
+    let status = 0;
+    let nextCalled = false;
+    const res = { status: (s: number) => ((status = s), { json: () => undefined }) } as unknown as Response;
+    requireSameOrigin('https://smmb.example', production)(req, res, (() => (nextCalled = true)) as NextFunction);
+    return { status, nextCalled };
+  };
+  it('allows same host, PUBLIC_BASE_URL, missing Origin and GET', () => {
+    expect(call('POST', { origin: 'https://api.local', host: 'api.local' }).nextCalled).toBe(true);
+    expect(call('POST', { origin: 'https://smmb.example', host: 'internal:3000' }).nextCalled).toBe(true);
+    expect(call('POST', { host: 'x' }).nextCalled).toBe(true);
+    expect(call('GET', { origin: 'https://evil.example', host: 'x' }).nextCalled).toBe(true);
+  });
+  it('rejects foreign or null Origin with 403', () => {
+    expect(call('POST', { origin: 'https://evil.example', host: 'smmb.example' }).status).toBe(403);
+    expect(call('DELETE', { origin: 'null', host: 'smmb.example' }).status).toBe(403);
+    expect(call('POST', { origin: 'http://localhost:4200', host: 'smmb.example' }).status).toBe(403);
+  });
+  it('allows localhost outside production', () => {
+    expect(call('POST', { origin: 'http://localhost:4200', host: '127.0.0.1:3000' }, false).nextCalled).toBe(true);
   });
 });

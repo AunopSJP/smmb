@@ -56,6 +56,34 @@ export function requireJsonBody() {
 }
 
 /**
+ * กัน CSRF อีกชั้น: คำขอที่เปลี่ยนข้อมูลและมี header `Origin` ต้องมาจาก host เดียวกัน หรือ origin ของ PUBLIC_BASE_URL
+ * ไม่มี Origin (ตู้/curl) = ผ่าน · นอก production ยอม localhost/127.0.0.1 (ng serve proxy เปลี่ยน host)
+ */
+export function requireSameOrigin(publicBaseUrl: string, production: boolean) {
+  const allowed = new Set<string>();
+  if (publicBaseUrl && URL.canParse(publicBaseUrl)) allowed.add(new URL(publicBaseUrl).origin);
+  return (req: express.Request, res: express.Response, next: express.NextFunction): void => {
+    const origin = req.headers.origin;
+    if (!origin || !['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+    const o = origin !== 'null' && URL.canParse(origin) ? new URL(origin) : null;
+    const fwdHost = req.app?.get?.('trust proxy') ? String(req.headers['x-forwarded-host'] ?? '').split(',')[0].trim() : '';
+    const hosts = [req.headers.host, fwdHost].filter(Boolean);
+    const ok =
+      o !== null &&
+      (allowed.has(o.origin) || hosts.includes(o.host) || (!production && ['localhost', '127.0.0.1', '[::1]'].includes(o.hostname)));
+    if (ok) return next();
+    res.status(403).json({
+      statusCode: 403,
+      error: 'Forbidden',
+      code: 'CROSS_ORIGIN',
+      message: 'cross-origin request rejected',
+      path: req.originalUrl,
+      timestamp: new Date().toISOString(),
+    });
+  };
+}
+
+/**
  * วัดเวลาในเซิร์ฟเวอร์ต่อคำขอ — ส่งกลับเป็น `Server-Timing: app;dur=<ms>` (เห็นใน DevTools/Performance API)
  * เพื่อแยก "เวลาเซิร์ฟเวอร์" ออกจาก "เวลาเครือข่าย/เบราว์เซอร์" · log เฉพาะคำขอที่ช้ากว่า SLOW_REQUEST_MS
  * ห้าม log query string — มีเบอร์โทร/คำค้น (ข้อมูลส่วนบุคคล) ใช้ req.path เท่านั้น
@@ -95,6 +123,7 @@ export function configureApp(app: NestExpressApplication): void {
   const prefix = config.get('API_PATH_PREFIX', { infer: true });
   if (prefix) app.use(stripPathPrefix(prefix)); // ต้องอยู่ก่อน express.raw ของ /v1/box
 
+  app.use(requireSameOrigin(config.get('PUBLIC_BASE_URL', { infer: true }), config.get('NODE_ENV', { infer: true }) === 'production'));
   app.use(requireJsonBody()); // ต้องอยู่ก่อนตัวอ่าน body ของ Nest
   app.use(cookieParser());
   // API ของตู้: อ่าน body เป็นไบต์ดิบ (ต้องเซ็นจากไบต์ที่ตู้ส่งจริง) — BoxAuthGuard ตรวจลายเซ็นแล้วค่อยแปลงเป็น JSON
