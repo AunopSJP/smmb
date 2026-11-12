@@ -180,10 +180,8 @@ export class AuthSignupOwner implements OnInit {
   }
 
   ngOnInit(): void {
-    if (this.state() === 'no-terms') {
-      this.step.set(3);
-      this.f.set({ ...this.f(), name: 'สมศรี ใจดี', phone: '089-123-4567', password: 'demo-pass', house_no: '99/9', terms: false });
-    }
+    // A06-b: กลับมาขั้น 3 (ข้อตกลง) ได้เฉพาะเมื่อมีร่างจริงอยู่แล้ว — ห้ามเติมข้อมูลตัวอย่างแทนผู้ใช้
+    if (this.state() === 'no-terms' && this.filled()) this.step.set(3);
   }
 
   protected set<K extends keyof SignupForm>(key: K, value: SignupForm[K]): void {

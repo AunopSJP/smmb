@@ -75,7 +75,7 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
       </label>
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
       <p class="small easy-only">{{ i18n.t({ th: 'หลังสมัครต้องเปิดแจ้งเตือนก่อนใช้งาน เพื่อรับ SOS', en: 'After signing up, notifications must be on before you can work, so you get SOS alerts' }) }}</p>
-      <app-terms-check from="A10" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="filled() && !f().terms" />
+      <app-terms-check from="A10" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="termsTried() && !f().terms" />
       
       }
       @if (errorCode(); as e) {
@@ -89,7 +89,7 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
       @if (step() < 2) {
         <button type="button" class="btn push-end" (click)="next()">{{ i18n.t({ th: 'ถัดไป', en: 'Next' }) }}</button>
       } @else {
-        <button type="submit" class="btn push-end" [disabled]="!f().terms || busy()">{{ i18n.t({ th: 'ส่งคำขอสมัคร', en: 'Send request' }) }}</button>
+        <button type="submit" class="btn push-end" [disabled]="busy()">{{ i18n.t({ th: 'ส่งคำขอสมัคร', en: 'Send request' }) }}</button>
         <button type="button" class="btn secondary" (click)="step.set(1)">{{ i18n.t({ th: 'ย้อนกลับ', en: 'Back' }) }}</button>
       }
     </form>
@@ -136,6 +136,8 @@ export class AuthSignupOfficer {
   protected readonly errors = SIGNUP_ERROR;
   protected readonly f = this.demo.forms.officer;
   protected readonly tried = signal(false);
+  /** กดส่งคำขอทั้งที่ยังไม่ติ๊กยอมรับ — ค่อยเตือน (ไม่ขึ้นแดงตั้งแต่เพิ่งพิมพ์เบอร์) */
+  protected readonly termsTried = signal(false);
   /** 1 ข้อมูลและรหัสกลุ่ม · 2 เบอร์/รหัสผ่าน/ข้อตกลง (ตามแคนวาสดีไซน์) */
   protected readonly step = signal(1);
   protected readonly extras = signal(emptyExtras());
@@ -169,6 +171,7 @@ export class AuthSignupOfficer {
   /** POST /auth/signup/officer { name, phone, password, group_code, terms_version } → ล็อกอินแล้ว แต่ยังไม่มีบทบาท officer จนกว่าหัวหน้ายืนยัน */
   protected async submit(): Promise<void> {
     this.tried.set(true);
+    this.termsTried.set(true);
     const f = this.f();
     const phone = normalizePhone(f.phone);
     if (!f.terms) return;

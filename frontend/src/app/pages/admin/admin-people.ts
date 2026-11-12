@@ -426,6 +426,8 @@ const ROLE_LABEL: Record<string, Tr> = {
     }
     .lookup .btn {
       flex: none;
+      /* global .btn บนมือถือ = เต็มความกว้าง ทำให้ปุ่ม "ค้น" ทับช่องค้นหาในแถบเดียวกัน */
+      inline-size: auto;
     }
     .two {
       display: grid;

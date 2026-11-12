@@ -6,10 +6,10 @@
     "kind": "none"
   },
   "stack": "Rust + egui (eframe)",
-  "status": "ready",
-  "note": "Ready: all 2 checks pass. 2 questions about the original are still open.",
+  "status": "building",
+  "note": "Improving the build…",
   "created_ms": 1794367773655,
-  "updated_ms": 1794384421373,
+  "updated_ms": 1794390235885,
   "checks": [
     {
       "round": 1,
@@ -212,8 +212,8 @@
       "at_ms": 1794384421345
     }
   ],
-  "agent_session": "01a1c9a1-7c39-7ed3-b891-823521706522",
-  "agent_session_by": "codex",
+  "agent_session": null,
+  "agent_session_by": "opencode",
   "allowed_actions": [
     "tool:rebuild_start"
   ],

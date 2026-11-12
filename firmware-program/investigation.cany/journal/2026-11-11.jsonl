@@ -257,3 +257,19 @@
 {"caller":"mcp","duration_ms":19,"kind":"tool_call","ok":true,"params":{"text":"ปรับ app/src/main.rs ให้การสแกนพอร์ตและการเรียก esptool/Python บน Windows ใช้ CREATE_NO_WINDOW จึงไม่มีหน้าต่าง CMD กระพริบซ้ำ เพิ่มการจำแนก CP210x/CH34x/USB Serial/Silicon Labs/FTDI เรียงไว้ก่อนและติดป้ายว่า 'น่าจะเป็นบอร์ดนี้' พร้อมสถานะบอร์ดที่เลือก สร้าง release build สำเร็จ คัดลอกเป็น app/SMMB-Firmware-Flasher.exe และ rebuild_check ผ่านทั้ง build กับ app-screenshot (1350×1025). Unknown เดิมเรื่อง firmware offset และ VID/PID ยังเปิดอยู่และไม่ขัดกับงานนี้."},"time":"2026-11-11T08:06:47Z","tool":"core_handoff_write","ts":1794384407}
 {"caller":"mcp","duration_ms":2,"error":"The investigation is at revision 19, not 18.","error_code":"stale_revision","kind":"tool_call","ok":false,"params":{"based_on_revision":18,"steps":[{"status":"done","title":"ระบุสาเหตุหน้าต่าง CMD","why":"PowerShell ถูกเรียกสแกน serial port ทุก 2 วินาทีโดยไม่ซ่อนหน้าต่าง"},{"status":"done","title":"ทำให้บอร์ดที่เสียบอยู่ดูออกง่าย","why":"เรียงพอร์ต USB-to-serial ที่ตรงกับ ESP32 ไว้ก่อนและติดป้ายกำกับ"},{"status":"done","title":"ซ่อน process เบื้องหลัง","why":"ใช้ CREATE_NO_WINDOW กับ PowerShell, Python และ esptool ทุกจุด"},{"status":"done","title":"Build และตรวจ rebuild_check","why":"release build สำเร็จ และ build/app-screenshot ผ่าน"}]},"time":"2026-11-11T08:06:47Z","tool":"core_plan_update","ts":1794384407}
 {"caller":"ui","duration_ms":3,"kind":"tool_call","ok":true,"params":{},"time":"2026-11-11T08:07:01Z","tool":"project_pins_list","ts":1794384421}
+{"caller":"ui","duration_ms":3,"kind":"tool_call","ok":true,"params":{},"time":"2026-11-11T09:30:06Z","tool":"project_pins_list","ts":1794389406}
+{"caller":"ui","duration_ms":3014,"kind":"tool_call","ok":true,"params":{"project":"C:\\aunopsjp\\dev\\smmb\\firmware-program"},"time":"2026-11-11T09:30:11Z","tool":"project_play","ts":1794389411}
+{"caller":"ui","duration_ms":2,"kind":"tool_call","ok":true,"params":{},"time":"2026-11-11T09:30:14Z","tool":"project_pins_list","ts":1794389414}
+{"caller":"ui","duration_ms":4,"kind":"tool_call","ok":true,"params":{},"time":"2026-11-11T09:34:29Z","tool":"project_pins_list","ts":1794389669}
+{"caller":"ui","duration_ms":1,"kind":"tool_call","ok":true,"params":{},"time":"2026-11-11T09:35:07Z","tool":"project_pins_list","ts":1794389707}
+{"caller":"ui","duration_ms":1,"kind":"tool_call","ok":true,"params":{},"time":"2026-11-11T09:35:09Z","tool":"project_pins_list","ts":1794389709}
+{"caller":"ui","duration_ms":1,"kind":"tool_call","ok":true,"params":{},"time":"2026-11-11T09:35:24Z","tool":"project_pins_list","ts":1794389724}
+{"caller":"ui","duration_ms":1,"kind":"tool_call","ok":true,"params":{},"time":"2026-11-11T09:35:38Z","tool":"project_pins_list","ts":1794389738}
+{"caller":"ui","duration_ms":2,"kind":"tool_call","ok":true,"params":{},"time":"2026-11-11T09:36:00Z","tool":"project_pins_list","ts":1794389760}
+{"caller":"ui","duration_ms":2,"kind":"tool_call","ok":true,"params":{},"time":"2026-11-11T09:36:22Z","tool":"project_pins_list","ts":1794389782}
+{"caller":"ui","duration_ms":1,"kind":"tool_call","ok":true,"params":{},"time":"2026-11-11T09:36:35Z","tool":"project_pins_list","ts":1794389795}
+{"caller":"ui","duration_ms":2,"kind":"tool_call","ok":true,"params":{},"time":"2026-11-11T09:42:53Z","tool":"project_pins_list","ts":1794390173}
+{"caller":"ui","duration_ms":1,"kind":"tool_call","ok":true,"params":{},"time":"2026-11-11T09:43:28Z","tool":"project_pins_list","ts":1794390208}
+{"caller":"ui","duration_ms":2,"kind":"tool_call","ok":true,"params":{},"time":"2026-11-11T09:43:53Z","tool":"project_pins_list","ts":1794390233}
+{"caller":"ui","duration_ms":3,"kind":"tool_call","ok":true,"params":{},"time":"2026-11-11T09:58:45Z","tool":"project_pins_list","ts":1794391125}
+{"caller":"ui","duration_ms":1,"kind":"tool_call","ok":true,"params":{},"time":"2026-11-11T10:07:32Z","tool":"project_pins_list","ts":1794391652}

@@ -284,8 +284,13 @@ textarea {
   font-size: max(16px, 1rem);
   scroll-margin-block: 96px;
 }
-main:has(input:focus, select:focus, textarea:focus) {
-  padding-block-end: calc(120px + env(safe-area-inset-bottom));
+/* เผื่อที่ให้เลื่อนช่องกรอก/ปุ่มหลักขึ้นมาเหนือคีย์บอร์ดเมื่อเปิดใช้งาน
+   — ต้องเผื่อถาวรบนจอสัมผัส ไม่ผูกกับ :focus เพราะเมื่อผู้ใช้แตะปุ่ม ช่องกรอกจะ blur
+   แล้วพื้นที่หาย → หน้าเลื่อนกลับ/ปุ่มขยับใต้มือ ทำให้คลิกครั้งแรกไม่ติด */
+@media (max-width: 1023px) {
+  body {
+    padding-block-end: calc(120px + env(safe-area-inset-bottom));
+  }
 }
 
 

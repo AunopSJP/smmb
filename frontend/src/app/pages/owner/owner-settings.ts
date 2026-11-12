@@ -39,7 +39,7 @@ import { firstValueFrom } from 'rxjs';
         <section class="card stack request" role="status">
           <strong>{{ i18n.t({ th: 'หน่วยงานขอดูแลบ้านของคุณ', en: 'An agency asks to cover your house' }) }}</strong>
           <span>{{ r.agency.name }} · {{ i18n.t({ th: 'โซน ', en: 'zone ' }) }}{{ r.zone_name }}</span>
-          <span class="muted small">{{ i18n.t({ th: 'ตู้ ', en: 'Mailbox ' }) }}{{ r.box.name }} · {{ i18n.t({ th: 'บ้านเลขที่ ', en: 'house ' }) }}{{ r.box.house_no }}</span>
+          <span class="muted small">{{ r.box.name }} · {{ i18n.t({ th: 'บ้านเลขที่ ', en: 'house ' }) }}{{ r.box.house_no }}</span>
           <span class="muted small">{{ i18n.t({ th: 'ยอมรับแล้ว เจ้าหน้าที่ของหน่วยงานนี้จะมาตรวจตู้ในเวลาตรวจ และได้รับ SOS ของบ้านนี้', en: 'If you accept, this agency’s officers will check your mailbox during patrol hours and receive your SOS' }) }}</span>
           <div class="two">
             <button type="button" class="btn secondary" [disabled]="deciding() === r.id" (click)="decide(r.id, false)">{{ i18n.t({ th: 'ปฏิเสธ', en: 'Decline' }) }}</button>
@@ -1325,7 +1325,13 @@ export class OwnerTechnician {
   selector: 'app-owner-display',
   imports: [RouterLink, PageHeader, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[class.shared-page]': 'shared' },
+  host: {
+    '[class.shared-page]': 'shared',
+    // เปิดนอก AreaShell (/settings/display) ต้องมี landmark main เอง — ใน AreaShell มี <main> อยู่แล้ว
+    '[attr.role]': 'shared ? "main" : null',
+    '[attr.id]': 'shared ? "main-content" : null',
+    '[attr.tabindex]': 'shared ? "-1" : null',
+  },
   template: `
     <app-page-header [title]="i18n.t({ th: 'แบบการใช้งาน', en: 'How you use the app' })" [back]="backUrl()" />
     <div class="stack">
@@ -1345,6 +1351,16 @@ export class OwnerTechnician {
         }
       </div>
 
+      <!-- ภาษาเห็นทุกโหมด: โหมดง่ายซ่อนเฉพาะตัวเลือกการแสดงผล แต่ผู้ใช้ที่อ่านไทยไม่ได้ต้องเปลี่ยนภาษาได้ -->
+      <section class="card stack">
+        <span class="lbl">{{ i18n.t({ th: 'ภาษา', en: 'Language' }) }}</span>
+        <div class="segmented" role="group" [attr.aria-label]="i18n.t({ th: 'ภาษา', en: 'Language' })">
+          @for (o of langs; track o.v) {
+            <button type="button" [attr.aria-pressed]="display.lang() === o.v" (click)="display.lang.set(o.v)" [attr.lang]="o.v">{{ o.label }}</button>
+          }
+        </div>
+      </section>
+
       <section class="card stack easy-hide">
         <span class="lbl">{{ i18n.t({ th: 'ขนาดตัวอักษร', en: 'Text size' }) }}</span>
         <div class="segmented" role="group" [attr.aria-label]="i18n.t({ th: 'ขนาดตัวอักษร', en: 'Text size' })">
@@ -1357,12 +1373,6 @@ export class OwnerTechnician {
         <div class="segmented" role="group" [attr.aria-label]="i18n.t({ th: 'ธีม', en: 'Theme' })">
           @for (o of themes; track o.v) {
             <button type="button" [attr.aria-pressed]="display.theme() === o.v" (click)="display.theme.set(o.v)">{{ i18n.t(o.label) }}</button>
-          }
-        </div>
-        <span class="lbl">{{ i18n.t({ th: 'ภาษา', en: 'Language' }) }}</span>
-        <div class="segmented" role="group" [attr.aria-label]="i18n.t({ th: 'ภาษา', en: 'Language' })">
-          @for (o of langs; track o.v) {
-            <button type="button" [attr.aria-pressed]="display.lang() === o.v" (click)="display.lang.set(o.v)" [attr.lang]="o.v">{{ o.label }}</button>
           }
         </div>
       </section>

@@ -73,7 +73,15 @@ const toMinutes = (hhmm: string): number | null => {
             </section>
           }
         }
-        @if (!s.in_window) {
+        @if (!s.window) {
+          <!-- ยังไม่ถูกใส่เข้าโซน — ต้องบอกให้ชัด ไม่ใช่ "นอกเวลาตรวจ" (looks like the box is asleep) -->
+          <section class="card center stack">
+            <span class="zz" aria-hidden="true">Zz</span>
+            <h2>{{ i18n.t({ th: 'ยังไม่ได้อยู่ในโซน', en: 'You’re not in a zone yet' }) }}</h2>
+            <p class="muted small">{{ i18n.t({ th: 'หัวหน้าต้องใส่คุณเข้าโซนก่อน จึงจะเริ่มตรวจตู้ได้', en: 'Your head must add you to a zone before you can inspect mailboxes' }) }}</p>
+            <p class="sos-note"><app-icon name="bell" [size]="18" />{{ i18n.t({ th: 'SOS ยังรับได้ตลอด 24 ชม.', en: 'SOS still comes in 24/7' }) }}</p>
+          </section>
+        } @else if (!s.in_window) {
           <!-- O01-d -->
           <section class="card center stack">
             <span class="zz" aria-hidden="true">Zz</span>

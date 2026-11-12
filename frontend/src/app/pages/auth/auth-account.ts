@@ -268,7 +268,7 @@ export class AuthChangePassword {
     <form class="stack grow" (submit)="$event.preventDefault(); submit()">
       <p class="info-box muted small easy-hide">{{ i18n.t({ th: 'ใช้บัญชีนี้ต่อ ไม่ต้องสมัครใหม่ · ได้แพ็กฟรีอัตโนมัติ · ขั้นต่อไปสแกน QR เปิดใช้ตู้', en: 'Keep this account, no new sign-up · free plan included · next you scan the activation QR' }) }}</p>
       <p class="small easy-only">{{ i18n.t({ th: 'ใช้บัญชีเดิม · ได้แพ็กฟรี · ขั้นต่อไปสแกน QR เปิดใช้ตู้', en: 'Same account · free plan · next scan the activation QR' }) }}</p>
-      <label class="field" [class.invalid]="errorCode() === 'INVALID'">
+      <label class="field" [class.invalid]="tried() && !f().house_no.trim()">
         <span>{{ i18n.t({ th: 'บ้านเลขที่', en: 'House number' }) }}</span>
         <input autocomplete="address-line1" [value]="f().house_no" (input)="set('house_no', $any($event.target).value)" />
       </label>
@@ -279,11 +279,11 @@ export class AuthChangePassword {
       </label>
       <app-house-fields [(value)]="house" [tried]="tried()" />
       
-      <app-terms-check from="A15" [returnTo]="from()" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="!!f().house_no.trim() && !f().terms" />
+      <app-terms-check from="A15" [returnTo]="from()" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="termsTried() && !f().terms" />
       @if (errorCode(); as e) {
         <p class="danger-text small" role="alert">{{ i18n.t(errors[e]) }}</p>
       }
-      <button type="submit" class="btn push-end" [disabled]="!f().terms || busy()">{{ i18n.t({ th: 'เพิ่มบทบาทแล้วไปผูกตู้', en: 'Add role and bind my mailbox' }) }}</button>
+      <button type="submit" class="btn push-end" [disabled]="busy()">{{ i18n.t({ th: 'เพิ่มบทบาทแล้วไปผูกตู้', en: 'Add role and bind my mailbox' }) }}</button>
     </form>
   `,
   styles: `
@@ -308,6 +308,8 @@ export class AuthAddOwner {
   protected readonly busy = signal(false);
   protected readonly house = signal(emptyHouseProfile());
   protected readonly tried = signal(false);
+  /** กดบันทึกทั้งที่ยังไม่ติ๊กยอมรับ — ค่อยเตือน (ไม่ขึ้นแดงตั้งแต่พิมพ์บ้านเลขที่) */
+  protected readonly termsTried = signal(false);
 
   protected set<K extends keyof SignupForm>(key: K, value: SignupForm[K]): void {
     this.f.update((f) => ({ ...f, [key]: value }));
@@ -317,6 +319,7 @@ export class AuthAddOwner {
   /** ของจริง: POST /me/roles/owner { house_no, terms_version } → 201 Me (มี owner แล้ว) → A07 */
   protected async submit(): Promise<void> {
     this.tried.set(true);
+    this.termsTried.set(true);
     if (!this.f().terms || !this.f().house_no.trim() || this.busy()) return;
     if (!houseProfileValid(this.house())) {
       this.errorCode.set('INVALID');
@@ -359,16 +362,16 @@ export class AuthAddOwner {
           <input maxlength="50" autocomplete="off" [value]="f().staff_no" (input)="set('staff_no', $any($event.target).value)" />
         </label>
       </div>
-      <label class="field" [class.invalid]="errorCode() === 'GROUP_CODE_INVALID'">
+      <label class="field" [class.invalid]="(joinTried() && !f().group_code.trim()) || errorCode() === 'GROUP_CODE_INVALID'">
         <span>{{ i18n.t({ th: 'รหัสกลุ่มจากหัวหน้า', en: 'Group code from your head' }) }}</span>
         <input autocomplete="off" autocapitalize="characters" spellcheck="false" [placeholder]="i18n.t({ th: 'เช่น PX7K-2MQ9', en: 'e.g. PX7K-2MQ9' })" [value]="f().group_code" (input)="set('group_code', $any($event.target).value)" />
       </label>
-      <app-terms-check from="A16" [returnTo]="from()" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="!!f().group_code.trim() && !f().terms" />
+      <app-terms-check from="A16" [returnTo]="from()" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="termsTried() && !f().terms" />
       
       @if (errorCode(); as e) {
         <p class="danger-text small" role="alert">{{ i18n.t(errors[e]) }}</p>
       }
-      <button type="submit" class="btn push-end" [disabled]="!f().terms || !f().group_code.trim() || busy()">{{ i18n.t({ th: 'ส่งคำขอ', en: 'Send request' }) }}</button>
+      <button type="submit" class="btn push-end" [disabled]="busy()">{{ i18n.t({ th: 'ส่งคำขอ', en: 'Send request' }) }}</button>
     </form>
   `,
   styles: `
@@ -398,6 +401,8 @@ export class AuthJoinAgency {
   protected readonly busy = signal(false);
 
   protected readonly joinTried = signal(false);
+  /** กดส่งทั้งที่ยังไม่ติ๊กยอมรับ — ค่อยเตือน */
+  protected readonly termsTried = signal(false);
 
   protected set<K extends keyof SignupForm>(key: K, value: SignupForm[K]): void {
     this.f.update((f) => ({ ...f, [key]: value }));
@@ -408,6 +413,7 @@ export class AuthJoinAgency {
   protected async submit(): Promise<void> {
     const groupCode = this.f().group_code.replace(/[\s-]/g, '').toUpperCase();
     this.joinTried.set(true);
+    this.termsTried.set(true);
     if (!this.f().terms || !groupCode || this.busy()) return;
     if (!this.f().position.trim()) {
       this.errorCode.set('INVALID');

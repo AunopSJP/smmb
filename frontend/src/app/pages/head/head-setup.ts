@@ -90,7 +90,7 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
       </section>
       }
       @if (step() === 3) {
-      <app-terms-check from="L01" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="filled() && !f().terms" />
+      <app-terms-check from="L01" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="termsTried() && !f().terms" />
       }
       @if (errorCode(); as e) {
         <p class="danger-text small" role="alert">
@@ -103,7 +103,7 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
       @if (step() < 3) {
         <button type="button" class="btn push-end" (click)="next()">{{ i18n.t({ th: 'ถัดไป', en: 'Next' }) }}</button>
       } @else {
-        <button type="submit" class="btn push-end" [disabled]="!f().terms || busy()">{{ i18n.t({ th: 'ส่งคำขอหน่วยงาน', en: 'Send agency request' }) }}</button>
+        <button type="submit" class="btn push-end" [disabled]="busy()">{{ i18n.t({ th: 'ส่งคำขอหน่วยงาน', en: 'Send agency request' }) }}</button>
       }
       @if (step() > 1) {
         <button type="button" class="btn secondary" (click)="step.set(step() - 1)">{{ i18n.t({ th: 'ย้อนกลับ', en: 'Back' }) }}</button>
@@ -158,6 +158,8 @@ export class HeadSignup {
   protected readonly errors = SIGNUP_ERROR;
   protected readonly f = this.demo.forms.agency;
   protected readonly tried = signal(false);
+  /** กดส่งทั้งที่ยังไม่ติ๊กยอมรับ — ค่อยเตือน (แบบเดียวกับ A06/A10/A15/A16) */
+  protected readonly termsTried = signal(false);
   /** 1 บัญชีหัวหน้า · 2 ข้อมูลหน่วยงาน · 3 ข้อตกลง (ตามแคนวาสดีไซน์) */
   protected readonly step = signal(1);
   protected readonly detail = signal(emptyAgencyDetail());
@@ -187,6 +189,7 @@ export class HeadSignup {
   /** POST /auth/signup/agency { agency: { name, type, contact }, head: { name, phone, password }, terms_version } → ล็อกอินแล้ว รอแอดมินอนุมัติ */
   protected async submit(): Promise<void> {
     this.tried.set(true);
+    this.termsTried.set(true);
     const f = this.f();
     const phone = normalizePhone(f.phone);
     if (!f.terms) return;

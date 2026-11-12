@@ -194,7 +194,9 @@ const REFRESH_MS = 10_000;
               <span class="label">{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</span>
               @if (b.last_seen_at) {
                 <strong class="value">{{ lastSeenText(b.last_seen_at) }}</strong>
-                <span class="label">{{ i18n.t({ th: 'ที่แล้ว', en: 'ago' }) }}</span>
+                @if (needsAgo(b.last_seen_at)) {
+                  <span class="label">{{ i18n.t({ th: 'ที่แล้ว', en: 'ago' }) }}</span>
+                }
               } @else {
                 <strong class="value muted">{{ i18n.t({ th: 'รอข้อมูล', en: 'No report yet' }) }}</strong>
                 <span class="label">{{ i18n.t({ th: 'ยังไม่เคยติดต่อ', en: 'Never connected' }) }}</span>
@@ -481,6 +483,10 @@ export class OwnerHome implements OnDestroy {
     const h = Math.floor(m / 60);
     if (h < 24) return `${h} ${this.i18n.t({ th: 'ชั่วโมง', en: 'h' })}`;
     return `${Math.floor(h / 24)} ${this.i18n.t({ th: 'วัน', en: 'd' })}`;
+  }
+  /** "เมื่อสักครู่" ไม่ต้องมีคำว่า "ที่แล้ว" ต่อท้าย (เดิมอังกฤษขึ้น "just now ago") */
+  protected needsAgo(iso: string): boolean {
+    return (minutesAgo(iso) ?? 0) >= 1;
   }
   /** ?box=BX-00042 เมื่อมีหลายตู้ (ไม่ใส่ = ตู้แรก) */
   readonly box = input<string>();

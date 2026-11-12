@@ -595,7 +595,7 @@ export class AdminBoxes implements OnInit {
         <div class="kpi">
           <span class="kpi-label">{{ i18n.t({ th: 'แบตเตอรี่', en: 'Battery' }) }}</span>
           <span class="kpi-value" [class.warn]="!!b.battery && b.battery.pct < lowPct">{{ b.battery ? b.battery.pct + '%' : '—' }}</span>
-          <span class="kpi-hint">{{ b.battery?.charging ? i18n.t({ th: 'ชาร์จอยู่', en: 'charging' }) : i18n.t({ th: 'ไม่ได้ชาร์จ', en: 'not charging' }) }}</span>
+          <span class="kpi-hint">{{ !b.battery ? i18n.t({ th: 'ยังไม่มีข้อมูล', en: 'No data yet' }) : b.battery.charging ? i18n.t({ th: 'ชาร์จอยู่', en: 'charging' }) : i18n.t({ th: 'ไม่ได้ชาร์จ', en: 'not charging' }) }}</span>
         </div>
         <button type="button" class="kpi click" (click)="tab.set('settings')">
           <span class="kpi-label">{{ i18n.t({ th: 'บริการ', en: 'Service' }) }}</span>
@@ -605,7 +605,7 @@ export class AdminBoxes implements OnInit {
         <button type="button" class="kpi click easy-hide" (click)="tab.set('firmware')">
           <span class="kpi-label">{{ i18n.t({ th: 'เฟิร์มแวร์', en: 'Firmware' }) }}</span>
           <span class="kpi-value">{{ b.fw ?? '—' }}</span>
-          <span class="kpi-hint" [class.warn-text]="b.fw_stuck">{{ b.fw_stuck ? i18n.t({ th: 'อัปเดตค้าง · กดดู', en: 'update stuck · tap' }) : b.fw_target ? i18n.t({ th: 'รออัปเดตเป็น ', en: 'updating to ' }) + b.fw_target : i18n.t({ th: 'กดเพื่ออัปเดต', en: 'tap to update' }) }}</span>
+          <span class="kpi-hint" [class.warn-text]="b.fw_stuck">{{ b.fw_stuck ? i18n.t({ th: 'อัปเดตค้าง · กดดู', en: 'update stuck · tap' }) : b.fw_target ? i18n.t({ th: 'รออัปเดตเป็น ', en: 'updating to ' }) + b.fw_target : b.fw ? i18n.t({ th: 'กดเพื่ออัปเดต', en: 'tap to update' }) : i18n.t({ th: 'ยังไม่มีข้อมูล', en: 'No data yet' }) }}</span>
         </button>
         <div class="kpi easy-hide">
           <span class="kpi-label">{{ i18n.t({ th: 'ค่าตั้งค่า', en: 'Config' }) }}</span>
