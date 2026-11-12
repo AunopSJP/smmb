@@ -72,7 +72,7 @@ export async function cameraPermission(): Promise<'granted' | 'denied' | 'prompt
       display: block;
       overflow: hidden;
       border-radius: var(--radius, 16px);
-      background: #000;
+      background: var(--print-ink);
       aspect-ratio: 1;
     }
     video {
@@ -94,7 +94,7 @@ export async function cameraPermission(): Promise<'granted' | 'denied' | 'prompt
       right: 8%;
       top: 50%;
       height: 2px;
-      background: #ff3b3b;
+      background: var(--media-line);
       animation: sweep 1.8s ease-in-out infinite alternate;
     }
     @keyframes sweep {
@@ -120,7 +120,7 @@ export async function cameraPermission(): Promise<'granted' | 'denied' | 'prompt
       border-radius: 22px;
       border: 0;
       background: rgb(0 0 0 / 55%);
-      color: #fff;
+      color: var(--on-dark);
       font: inherit;
       font-weight: 700;
       cursor: pointer;

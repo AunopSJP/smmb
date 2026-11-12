@@ -259,7 +259,7 @@ export const careLabel = (v: string, i18n: I18n): string => {
       margin-block-start: 6px;
     }
     .err {
-      color: var(--danger, #c81e1e);
+      color: var(--sos);
     }
   `,
 })
@@ -312,7 +312,7 @@ export class ProfileExtras {
   `,
   styles: `
     .care {
-      color: var(--danger, #c81e1e);
+      color: var(--sos);
       font-weight: 700;
     }
   `,

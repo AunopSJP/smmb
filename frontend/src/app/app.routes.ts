@@ -13,6 +13,9 @@ const owner = {
   sos: () => import('./pages/owner/owner-sos'),
   history: () => import('./pages/owner/owner-history'),
   settings: () => import('./pages/owner/owner-settings'),
+  wifi: () => import('./pages/owner/owner-wifi'),
+  technician: () => import('./pages/owner/owner-technician'),
+  display: () => import('./pages/owner/owner-display'),
 };
 
 const officer = {
@@ -28,6 +31,7 @@ const head = {
 
 const admin = {
   boxes: () => import('./pages/admin/admin-boxes'),
+  box: () => import('./pages/admin/admin-box'),
   qr: () => import('./pages/admin/admin-qr'),
   people: () => import('./pages/admin/admin-people'),
   system: () => import('./pages/admin/admin-system'),
@@ -58,9 +62,9 @@ const BUILT: Record<string, Loader> = {
   'H12-d': () => owner.history().then((m) => m.OwnerOffline),
   'H12-e': () => owner.history().then((m) => m.OwnerRange),
   H13: () => owner.settings().then((m) => m.OwnerSettings),
-  'H13-b': () => owner.settings().then((m) => m.OwnerWifi),
-  'H13-c': () => owner.settings().then((m) => m.OwnerTechnician),
-  'H13-d': () => owner.settings().then((m) => m.OwnerDisplay),
+  'H13-b': () => owner.wifi().then((m) => m.OwnerWifi),
+  'H13-c': () => owner.technician().then((m) => m.OwnerTechnician),
+  'H13-d': () => owner.display().then((m) => m.OwnerDisplay),
   H14: () => import('./pages/owner/owner-notifications').then((m) => m.OwnerNotifications),
   H16: () => import('./pages/owner/owner-agencies').then((m) => m.OwnerAgencies),
   L10: () => import('./pages/head/head-agency-profile').then((m) => m.HeadAgencyProfile),
@@ -84,7 +88,7 @@ const BUILT: Record<string, Loader> = {
   O11: () => officer.sos().then((m) => m.OfficerSosClose),
   O13: () => import('./pages/officer/officer-account').then((m) => m.OfficerAccount),
   O14: () => import('./pages/officer/officer-notifications').then((m) => m.OfficerNotifications),
-  'O13-b': () => owner.settings().then((m) => m.OwnerDisplay),
+  'O13-b': () => owner.display().then((m) => m.OwnerDisplay),
   L04: () => import('./pages/head-home').then((m) => m.HeadHome),
   L05: () => head.members().then((m) => m.HeadMembers),
   'L05-b': () => head.members().then((m) => m.HeadMember),
@@ -97,7 +101,7 @@ const BUILT: Record<string, Loader> = {
   D01: () => import('./pages/admin-home').then((m) => m.AdminHome),
   D02: () => admin.people().then((m) => m.AdminAgencyRequests),
   D03: () => admin.boxes().then((m) => m.AdminBoxes),
-  D04: () => admin.boxes().then((m) => m.AdminBox),
+  D04: () => admin.box().then((m) => m.AdminBox),
   D05: () => admin.qr().then((m) => m.AdminQr),
   // ทุกขั้นของเคส QR อยู่หน้าเดียว (รหัสหน้าเดิมยังใช้ได้เพื่อลิงก์เก่า)
   D06: () => admin.qr().then((m) => m.AdminQrCase),
@@ -222,7 +226,7 @@ export const routes: Routes = [
   {
     path: 'settings/display',
     canActivate: [requireSignedIn],
-    loadComponent: () => import('./pages/owner/owner-settings').then((m) => m.OwnerDisplay),
+    loadComponent: () => import('./pages/owner/owner-display').then((m) => m.OwnerDisplay),
     data: { shared: true, titleTr: { th: 'แบบการใช้งาน', en: 'Display mode' } },
     title: 'แบบการใช้งาน · Smart Mailbox',
   },

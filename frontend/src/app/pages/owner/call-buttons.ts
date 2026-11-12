@@ -46,7 +46,7 @@ import { I18n } from '../../core/i18n';
       font-size: 1.125rem;
     }
     :host-context([data-mode='advanced']) .call span {
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
     }
   `,
 })

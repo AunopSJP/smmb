@@ -246,6 +246,7 @@ static void runCommand(String line)
         "  boot                   send POST /v1/box/boot now\n"
         "  report                 send POST /v1/box/report now\n"
         "  beep [ready|pass|retry|fail|error|wifi]  play a buzzer pattern (default ready)\n"
+        "  identify               blink the flash LED (find this board)\n"
         "  scan [sec]             open the camera and try to read a QR (no server)\n"
         "  debugcam on|off        live camera page http://<box ip>/?k=<key> (test only, off by default)\n"
         "  camweb [sec]           the same page, temporarily (default 120 s)\n"
@@ -442,6 +443,17 @@ static void runCommand(String line)
     name.toLowerCase();
     if (!beepByName(name.c_str()))
       Serial.println("usage: beep [ready|pass|retry|fail|error|wifi]");
+  }
+  else if (cmd == "identify")
+  {
+    Serial.println("[identify] blink flash LED");
+    for (int i = 0; i < 6; i++)
+    {
+      digitalWrite(PIN_FLASH_LED, HIGH);
+      delay(120);
+      digitalWrite(PIN_FLASH_LED, LOW);
+      delay(120);
+    }
   }
   else if (cmd == "reboot")
   {

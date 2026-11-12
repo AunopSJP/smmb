@@ -83,7 +83,7 @@ const bkkDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/B
     }
     .tech {
       margin: 0;
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
     }
   `,

@@ -538,8 +538,8 @@ export class AuthNameBox {
   `,
   styles: `
     .done {
-      background: #157347;
-      color: #fff;
+      background: var(--success-bg);
+      color: var(--success-fg);
     }
     .result h1 {
       font-size: 1.5rem;
@@ -550,7 +550,7 @@ export class AuthNameBox {
       padding: 12px 14px;
     }
     .on-color {
-      color: #157347 !important;
+      color: var(--success-text) !important;
     }
   `,
 })

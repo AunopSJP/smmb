@@ -10,6 +10,7 @@ import { UserPlan } from './admin-plans';
 import { Icon } from '../../shared/icon';
 import { Confirm } from '../../shared/confirm-dialog';
 import { PageHeader } from '../../shared/page-header';
+import { EmptyState } from '../../shared/state-view';
 
 // แอดมิน: D02 หน่วยงานรออนุมัติ · D13 หน่วยงานทั้งหมด · D09 ผู้ใช้ — ใช้ API จริง (api.md §9.2–9.3)
 
@@ -201,7 +202,7 @@ export class AdminAgencyRequests implements OnInit {
 
 @Component({
   selector: 'app-admin-agencies',
-  imports: [PageHeader, RouterLink],
+  imports: [PageHeader, RouterLink, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'หน่วยงาน', en: 'Agencies' })" [back]="url('D16')" />
@@ -225,7 +226,7 @@ export class AdminAgencyRequests implements OnInit {
             <span><span class="chip" [class.ok]="a.status === 'approved'" [class.warn]="a.status === 'pending'">{{ i18n.t(status[a.status]) }}</span></span>
           </div>
         } @empty {
-          <p class="row muted">{{ i18n.t({ th: 'ยังไม่มีหน่วยงาน', en: 'No agencies yet' }) }}</p>
+          <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีหน่วยงาน', en: 'No agencies yet' })" />
         }
       </div>
     </div>

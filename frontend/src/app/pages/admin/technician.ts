@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, signal, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AdminApi, type AdminBoxDetail, type AdminBoxRow } from '../../core/admin-api';
+import { ApiConfig } from '../../core/api';
 import { I18n, type Tr } from '../../core/i18n';
 import { minutesAgo } from '../../core/owner-api';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
+import { BoxSetupQr } from '../../shared/box-setup-qr';
 import { BoxTest } from '../../shared/box-test';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
@@ -34,7 +36,7 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
 
 @Component({
   selector: 'app-tech-checklist',
-  imports: [RouterLink, PageHeader, Steps, BoxTest, QrScanner, Icon],
+  imports: [RouterLink, PageHeader, Steps, BoxTest, BoxSetupQr, QrScanner, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'งานช่าง', en: 'Technician' }) + (id() ? ' · ' + id() : '')" [title]="i18n.t({ th: 'ติดตั้งตู้', en: 'Install a mailbox' })" [back]="backUrl()" />
@@ -117,6 +119,8 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
                   <li>{{ i18n.t({ th: 'มือถือกลับมาใช้อินเทอร์เน็ตตามปกติ แล้วรอหน้านี้ขึ้น "ตู้เชื่อมต่ออินเทอร์เน็ตแล้ว" (ตู้ปี๊บ 1 ครั้ง)', en: 'Switch the phone back to normal internet and wait for “Box is online” (the box beeps once)' }) }}</li>
                 </ol>
               </div>
+              <app-box-setup-qr [boxId]="b.id" [serverUrl]="apiUrl" />
+              <p class="muted small center">{{ i18n.t({ th: 'ถ้าเปิดหน้านี้บนมือถือเครื่องที่จะตั้ง Wi-Fi ให้เปิด QR นี้บนอีกเครื่อง (เช่น แล็ปท็อป) แล้วสแกนด้วยมือถือ', en: 'If this page is open on the phone that will set up Wi-Fi, show this QR on another device (e.g. a laptop) and scan it with the phone.' }) }}</p>
               <p class="muted small center" role="status">{{ i18n.t({ th: 'กำลังรอตู้เชื่อมต่ออินเทอร์เน็ต… (ตรวจทุก 3 วินาที)', en: 'Waiting for the box… (checking every 3 s)' }) }}</p>
               <div class="two">
                 <a class="btn secondary" [routerLink]="url('T02')" [queryParams]="{ id: b.id, from: from() }">{{ i18n.t({ th: 'หน้าตั้งค่าในตู้หน้าตาแบบนี้', en: 'What the box page looks like' }) }}</a>
@@ -252,6 +256,8 @@ export class TechChecklist {
   protected readonly wakeOk = signal(false);
 
   protected readonly ap = computed(() => apName(this.id() ?? ''));
+  /** URL เซิร์ฟเวอร์ที่ตู้ใช้ = origin + apiBase ของเว็บนี้ (ไม่ฮาร์ดโค้ดโดเมน) */
+  protected readonly apiUrl = location.origin + inject(ApiConfig).apiBase();
   protected readonly online = computed(() => {
     const m = minutesAgo(this.box()?.last_seen_at ?? null);
     return m !== null && m <= ONLINE_WITHIN_MIN;

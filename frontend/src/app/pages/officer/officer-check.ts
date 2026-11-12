@@ -125,8 +125,8 @@ async function startInspection(api: InspectionApi, router: Router, body: Paramet
       border-radius: 6px;
       background: rgb(0 0 0 / 45%);
       padding: 4px 10px;
-      font-size: 0.6875rem;
-      color: #cfe3ff;
+      font-size: 0.75rem;
+      color: rgb(255 255 255 / 85%);
     }
     :host-context([data-mode='easy']) .aim {
       margin-block-start: 40px;
@@ -306,7 +306,6 @@ const CAMERA_NOTE: Record<string, Tr> = {
       text-transform: uppercase;
     }
     input:focus {
-      outline: none;
       border-color: var(--brand-text);
     }
     input[aria-invalid='true'] {
@@ -316,7 +315,7 @@ const CAMERA_NOTE: Record<string, Tr> = {
       color: var(--sos);
     }
     .tech {
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       line-height: 1.7;
       padding: 8px 12px;
     }
@@ -407,7 +406,7 @@ const CONDITIONS: { v: QrCondition; label: Tr; wide?: boolean }[] = [
     }
     .tech {
       margin: 0;
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
       overflow-wrap: break-word;
     }
@@ -494,7 +493,7 @@ export class OfficerQrCondition implements OnInit {
       color: var(--sos);
     }
     .tech {
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
     }
   `,
@@ -552,7 +551,7 @@ const DENIED: Record<string, { title: Tr; body: Tr }> = {
   `,
   styles: `
     .tech {
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
     }
   `,
@@ -637,7 +636,7 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
     }
     .tech {
       margin: 0;
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
       overflow-wrap: break-word;
     }
@@ -854,7 +853,7 @@ interface WakeLockSentinelLike {
       padding: 8px;
       border: 2px solid var(--text);
       border-radius: var(--radius);
-      background: #fff;
+      background: var(--qr-bg);
     }
     .copy-qr {
       display: block;
@@ -862,7 +861,7 @@ interface WakeLockSentinelLike {
       margin-block-start: 6px;
       border: 0;
       background: none;
-      color: #555;
+      color: var(--text-muted);
       font: inherit;
       font-size: 0.75rem;
       text-decoration: underline;
@@ -896,7 +895,7 @@ interface WakeLockSentinelLike {
         border-radius: 9px;
         background: var(--bg);
         padding: 6px 8px;
-        font-size: 0.625rem;
+        font-size: 0.75rem;
         color: var(--text-muted);
       }
       b {
@@ -908,7 +907,7 @@ interface WakeLockSentinelLike {
     .tech {
       align-self: stretch;
       margin: 0;
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
       overflow-wrap: break-word;
     }
@@ -923,7 +922,7 @@ interface WakeLockSentinelLike {
         background: var(--line);
       }
       .failed {
-        background: #b45309;
+        background: var(--orange);
       }
       .now {
         background: var(--brand);
@@ -1082,7 +1081,7 @@ export class OfficerBadge implements OnInit {
   `,
   styles: `
     .tech {
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
       overflow-wrap: break-word;
     }
@@ -1168,8 +1167,8 @@ const HOLD_MS = 8000;
   `,
   styles: `
     .done {
-      background: #157347;
-      color: #fff;
+      background: var(--success-bg);
+      color: var(--success-fg);
     }
     .result h1 {
       font-size: 1.75rem;
@@ -1179,7 +1178,7 @@ const HOLD_MS = 8000;
       width: 56px;
       height: 56px;
       border: 5px solid rgba(255, 255, 255, 0.35);
-      border-top-color: #fff;
+      border-top-color: var(--success-fg);
       border-radius: 50%;
       animation: spin 0.9s linear infinite;
     }
@@ -1203,7 +1202,7 @@ const HOLD_MS = 8000;
       span {
         display: block;
         height: 100%;
-        background: #fff;
+        background: var(--success-fg);
         transition: width 0.25s linear;
       }
     }
@@ -1213,7 +1212,7 @@ const HOLD_MS = 8000;
     }
     .tech {
       margin: 0;
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       line-height: 1.7;
       color: rgb(255 255 255 / 82%);
       overflow-wrap: break-word;
@@ -1224,7 +1223,7 @@ const HOLD_MS = 8000;
       padding: 12px 14px;
     }
     .on-color {
-      color: #157347 !important;
+      color: var(--success-text) !important;
     }
   `,
 })

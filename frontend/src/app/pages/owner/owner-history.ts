@@ -512,7 +512,7 @@ function useEvent(type: BoxEvent['type']) {
       block-size: 48px;
       border-radius: 50%;
       background: var(--ok);
-      color: #fff;
+      color: var(--surface);
     }
     .okc.compact {
       inline-size: 36px;
@@ -761,8 +761,8 @@ export class OwnerDelivery {
       inline-size: 64px;
       block-size: 64px;
       border-radius: 50%;
-      background: #9a5b00;
-      color: #fff;
+      background: var(--warn);
+      color: var(--surface);
     }
     .hero-warn strong {
       font-size: 1.25rem;
@@ -802,7 +802,7 @@ export class OwnerDelivery {
       background: var(--surface);
       box-shadow: var(--shadow);
     }
-    .label { font-size: 0.6875rem; color: var(--text-muted); }
+    .label { font-size: 0.75rem; color: var(--text-muted); }
     .adv-cause ol { margin: 6px 0 0; padding-inline-start: 20px; font-size: 0.8125rem; line-height: 1.7; }
     .steps {
       margin: 0;

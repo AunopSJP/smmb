@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
-import { I18n } from '../core/i18n';
+import { booleanAttribute, ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { I18n, type Tr } from '../core/i18n';
 import { Icon, type IconName } from './icon';
 
 /**
@@ -106,22 +106,38 @@ export class LoadingRows {
   protected readonly items = computed(() => Array.from({ length: Math.max(1, this.rows()) }, (_, i) => i));
 }
 
+export type EmptyKind = 'first' | 'cleared' | 'search' | 'error';
+
+const KIND_DEFAULTS: Record<EmptyKind, { icon: IconName; title: Tr; hint: Tr }> = {
+  first: { icon: 'info', title: { th: 'ยังไม่มีรายการ', en: 'Nothing here yet' }, hint: { th: '', en: '' } },
+  cleared: { icon: 'info', title: { th: 'จัดการครบแล้ว', en: 'All done' }, hint: { th: 'ไม่มีรายการค้างอยู่', en: 'Nothing is waiting' } },
+  search: { icon: 'info', title: { th: 'ไม่พบรายการที่ค้นหา', en: 'No matches found' }, hint: { th: 'ลองเปลี่ยนคำค้นหรือล้างตัวกรอง', en: 'Try another search or clear the filters' } },
+  error: { icon: 'alert', title: { th: 'โหลดข้อมูลไม่สำเร็จ', en: 'Couldn’t load' }, hint: { th: 'ตรวจการเชื่อมต่อแล้วลองอีกครั้ง — ไม่ได้แปลว่าไม่มีข้อมูล', en: 'Check your connection and try again — this does not mean there is no data' } },
+};
+
 /**
- * สถานะ "ว่าง" กลาง — ไอคอน + หัวข้อ + คำอธิบาย + ปุ่ม/ลิงก์ที่ส่งผ่าน ng-content
- * ทุกหน้าจอใช้โครงเดียวกัน เพื่อไม่ให้ข้อความว่างกระจัดกระจายคนละแบบ
+ * สถานะ "ว่าง" กลาง 4 แบบ (ใช้ `kind` เลือก — ห้ามสลับกัน เพราะความหมายต่อผู้ใช้ต่างกัน):
+ * - `first`   ว่างครั้งแรก: ยังไม่เคยมีข้อมูล (ชวนให้เริ่ม · ใส่ปุ่มผ่าน ng-content)
+ * - `cleared` ว่างหลังเคลียร์: เคยมีแต่จัดการครบแล้ว (ข้อความเชิงบวก)
+ * - `search`  ค้นไม่พบ: มีข้อมูลแต่ตัวกรอง/คำค้นไม่ตรง (ชวนล้างตัวกรอง)
+ * - `error`   โหลดไม่ได้: หน้าตาต่างจากสามแบบข้างบนชัดเจน (กรอบ+สีเตือน · role=alert · ปุ่ม "ลองอีกครั้ง" เมื่อมี (retry))
+ * `compact` ใช้ในแถวของรายการ/การ์ดที่ฝังอยู่ (ไม่มีพื้นหลังการ์ดซ้อน)
  */
 @Component({
   selector: 'app-empty-state',
   imports: [Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="empty" role="status">
-      <span class="ico" aria-hidden="true"><app-icon [name]="icon()" [size]="30" /></span>
-      <strong>{{ title() }}</strong>
-      @if (hint()) {
-        <span class="muted small">{{ hint() }}</span>
+    <div class="empty" [class.compact]="compact()" [class.error]="kind() === 'error'" [attr.role]="kind() === 'error' ? 'alert' : 'status'">
+      <span class="ico" aria-hidden="true"><app-icon [name]="icon() ?? d().icon" [size]="compact() ? 24 : 30" /></span>
+      <strong>{{ title() || i18n.t(d().title) }}</strong>
+      @if (hint() || i18n.t(d().hint)) {
+        <span class="muted small">{{ hint() || i18n.t(d().hint) }}</span>
       }
       <ng-content />
+      @if (kind() === 'error') {
+        <button type="button" class="btn secondary" (click)="retry.emit()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button>
+      }
     </div>
   `,
   styles: `
@@ -137,6 +153,14 @@ export class LoadingRows {
       box-shadow: var(--shadow);
       overflow-wrap: break-word;
     }
+    .empty.compact {
+      padding: 20px 12px;
+      background: none;
+      box-shadow: none;
+    }
+    .empty.error {
+      border: 1px solid var(--line-strong, var(--line));
+    }
     .ico {
       display: grid;
       place-items: center;
@@ -146,6 +170,14 @@ export class LoadingRows {
       background: var(--brand-light);
       color: var(--brand-text);
     }
+    .compact .ico {
+      inline-size: 48px;
+      block-size: 48px;
+    }
+    .error .ico {
+      background: var(--danger-bg);
+      color: var(--sos);
+    }
     strong {
       font-size: 1.0625rem;
       line-height: 1.4;
@@ -154,12 +186,23 @@ export class LoadingRows {
       max-inline-size: 34ch;
       line-height: 1.5;
     }
+    .btn {
+      inline-size: auto;
+      margin-block-start: 4px;
+    }
   `,
 })
 export class EmptyState {
-  readonly icon = input<IconName>('info');
-  readonly title = input.required<string>();
+  protected readonly i18n = inject(I18n);
+  readonly kind = input<EmptyKind>('first');
+  /** ไม่ใส่ = ใช้ไอคอน/ข้อความตาม kind */
+  readonly icon = input<IconName | undefined>(undefined);
+  readonly title = input<string>('');
   readonly hint = input<string>('');
+  readonly compact = input(false, { transform: booleanAttribute });
+  /** kind="error" เท่านั้น — ผู้ใช้กด "ลองอีกครั้ง" */
+  readonly retry = output<void>();
+  protected readonly d = computed(() => KIND_DEFAULTS[this.kind()]);
 }
 
 /**

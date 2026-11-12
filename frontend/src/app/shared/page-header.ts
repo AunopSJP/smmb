@@ -63,14 +63,14 @@ import { Icon } from './icon';
       inset-block-start: 2px;
       inset-inline-end: 2px;
       min-inline-size: 18px;
-      block-size: 18px;
+      min-block-size: 18px;
       padding: 0 5px;
-      border-radius: 9px;
+      border-radius: 999px;
       background: var(--badge-bg);
-      color: #fff;
-      font-size: 0.6875rem;
+      color: var(--badge-fg);
+      font-size: 0.75rem;
       font-weight: 800;
-      line-height: 18px;
+      line-height: 1.5;
       text-align: center;
     }
     /* แอดมินบนจอคอม: หัวหน้าจอใหญ่ขึ้น ปุ่มกลมเล็กลง เส้นคั่นใต้หัว */
@@ -98,8 +98,10 @@ import { Icon } from './icon';
       :host-context(.admin-layout) a.circle:not(.bell) {
         display: none;
       }
-      :host-context(.admin-layout) .circle:hover {
-        background: var(--icon-bg);
+      @media (hover: hover) {
+        :host-context(.admin-layout) .circle:hover {
+          background: var(--icon-bg);
+        }
       }
     }
     .circle {

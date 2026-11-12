@@ -6,6 +6,7 @@ import { AppUpdate } from './core/app-update';
 import { PrefsSync } from './core/prefs-sync';
 import { PageTitle } from './core/page-title';
 import { Session } from './core/session';
+import { startFieldA11y } from './core/field-a11y';
 
 @Component({
   imports: [RouterOutlet],
@@ -25,7 +26,9 @@ export class App {
 
   constructor() {
     // แคนวาส ErrOffline: เน็ตหลุด → พาไปหน้าแจ้งไม่มีอินเทอร์เน็ต (ไม่เด้งกลับอัตโนมัติ ให้ผู้ใช้กดลองอีกครั้ง)
-    const win = inject(DOCUMENT).defaultView;
+    const doc = inject(DOCUMENT);
+    startFieldA11y(doc);
+    const win = doc.defaultView;
     const router = inject(Router);
     const session = inject(Session);
     const AFTER_OFFLINE = 'smmb.after-offline';

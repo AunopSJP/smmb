@@ -289,6 +289,13 @@ export class HeadMembers implements OnInit {
       margin-block-start: 10px;
       text-decoration: none;
     }
+    /* เบอร์โทรในตารางข้อมูล: ให้พื้นที่แตะ ≥44px โดยไม่ทำให้ตัวอักษรขยับ */
+    .kv dd a[href^='tel:'] {
+      display: inline-flex;
+      align-items: center;
+      min-block-size: 44px;
+      padding-block: 4px;
+    }
     .temp {
       font-size: 1.5rem;
       font-weight: 700;
@@ -338,10 +345,20 @@ export class HeadMember {
     return m.zones.map((z) => z.name).join(', ') || '—';
   }
 
+  private async undoUnhead(id: string): Promise<void> {
+    try {
+      await this.api.makeHead(id);
+      this.toast.show({ th: 'เลิกทำแล้ว · กลับเป็นหัวหน้า', en: 'Undone · head again' });
+      await this.load(id);
+    } catch {
+      this.toast.show({ th: 'เลิกทำไม่สำเร็จ ลองตั้งหัวหน้าอีกครั้ง', en: 'Couldn’t undo — make them head again' }, 'error');
+    }
+  }
+
   protected async run(action: 'head' | 'unhead' | 'reset' | 'disable' | 'enable'): Promise<void> {
     const m = this.member();
     if (!m) return;
-    if (action === 'disable' || action === 'unhead') {
+    if (action === 'disable') {
       const ok = await this.confirm.ask({
         title:
           action === 'disable'
@@ -363,7 +380,10 @@ export class HeadMember {
       if (action === 'disable') await this.api.setActive(m.id, false);
       if (action === 'enable') await this.api.setActive(m.id, true);
       if (action === 'reset') this.temp.set((await this.api.resetPassword(m.id)).temp_password);
-      else this.toast.show({ th: 'บันทึกแล้ว', en: 'Saved' });
+      else if (action === 'unhead') {
+        // ย้อนได้จริง: ตั้งกลับเป็นหัวหน้า — ไม่ต้องถามก่อน
+        this.toast.showUndo({ th: `ถอด ${m.display_name} จากหัวหน้าแล้ว`, en: `${m.display_name} is no longer a head` }, () => this.undoUnhead(m.id));
+      } else this.toast.show({ th: 'บันทึกแล้ว', en: 'Saved' });
       await this.load(m.id);
     } catch (err) {
       this.toast.show(MEMBER_ERROR[apiError(err).code ?? ''] ?? { th: 'ทำรายการไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t do it — try again' });

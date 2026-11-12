@@ -97,7 +97,7 @@ import { Icon, type IconName } from '../shared/icon';
       cursor: wait;
     }
     .error {
-      color: var(--danger, #b42318);
+      color: var(--sos);
     }
     .grow {
       flex: 1;

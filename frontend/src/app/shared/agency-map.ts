@@ -41,8 +41,8 @@ const DEFAULT_CENTER: LatLng = { lat: 13.7563, lng: 100.5018 };
       inline-size: 26px;
       block-size: 26px;
       border-radius: 50% 50% 50% 0;
-      background: var(--brand);
-      border: 3px solid #fff;
+      background: var(--map-brand);
+      border: 3px solid var(--map-ring);
       transform: rotate(-45deg);
       box-shadow: 0 2px 6px rgb(0 0 0 / 35%);
       display: grid;
@@ -50,22 +50,23 @@ const DEFAULT_CENTER: LatLng = { lat: 13.7563, lng: 100.5018 };
     }
     :host ::ng-deep .ag-pin span {
       transform: rotate(45deg);
-      color: #fff;
-      font-size: 11px;
+      color: var(--map-on-brand);
+      /* 12px ที่โหมดปกติ และโตตามโหมดตัวอักษรแต่ไม่เกิน 14px เพื่อให้เลข 2 หลักยังพอดีหมุด */
+      font-size: clamp(12px, 0.75rem, 14px);
       font-weight: 700;
       line-height: 1;
     }
     :host ::ng-deep .ag-pin.sel {
-      background: #6f1f25;
-      outline: 3px solid #efefef;
+      background: var(--map-brand-dark);
+      outline: 3px solid var(--map-selected-ring);
     }
     :host ::ng-deep .home-dot {
       inline-size: 18px;
       block-size: 18px;
       border-radius: 50%;
-      background: #e8590c;
-      border: 3px solid #fff;
-      box-shadow: 0 0 0 2px #e8590c;
+      background: var(--map-picked);
+      border: 3px solid var(--map-ring);
+      box-shadow: 0 0 0 2px var(--map-picked);
     }
   `,
 })

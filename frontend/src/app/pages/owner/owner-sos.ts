@@ -148,7 +148,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
     .link-lost {
       margin: 0;
       padding: 12px 16px;
-      background: #fff;
+      background: var(--on-dark);
       color: var(--sos);
       font-weight: 800;
       text-align: center;
@@ -193,7 +193,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
         inline-size: 70px;
         block-size: 70px;
         border-radius: 50%;
-        background: #fff;
+        background: var(--on-dark);
       }
     }
     .easy-cancel {
@@ -201,7 +201,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       min-block-size: 60px;
       border: 2px solid rgb(255 255 255 / 75%);
       background: transparent;
-      color: #fff;
+      color: var(--sos-fg);
       font-size: 1.25rem;
     }
     .adv-grid {
@@ -217,12 +217,12 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
         border-radius: var(--radius-sm);
         background: rgb(255 255 255 / 14%);
       }
-      span { font-size: 0.6875rem; opacity: 0.85; }
+      span { font-size: 0.75rem; opacity: 0.85; }
       b { font-size: 0.8125rem; }
     }
     .adv-line {
       margin: 0 16px;
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       text-align: center;
       opacity: 0.85;
       overflow-wrap: break-word;
@@ -269,9 +269,9 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       color: var(--sos-fg);
     }
     li.done .num {
-      background: var(--ok);
-      border-color: var(--ok);
-      color: #fff;
+      background: var(--success-bg);
+      border-color: var(--success-bg);
+      color: var(--success-fg);
     }
     .note {
       display: flex;
@@ -408,7 +408,7 @@ export class SosNoOfficer {
   `,
   styles: `
     .sos-dim {
-      background: #4a1013;
+      background: var(--sos-dim);
     }
     .behind {
       flex: 1;
@@ -498,7 +498,7 @@ export class SosCancel {
     .link-lost {
       margin: 0;
       padding: 12px 16px;
-      background: #fff;
+      background: var(--on-dark);
       color: var(--sos);
       font-weight: 800;
       text-align: center;
@@ -509,8 +509,8 @@ export class SosCancel {
       inline-size: 56px;
       block-size: 56px;
       border-radius: 50%;
-      background: #fff;
-      color: #157347;
+      background: var(--qr-bg);
+      color: var(--success-text);
     }
     .officer {
       display: flex;

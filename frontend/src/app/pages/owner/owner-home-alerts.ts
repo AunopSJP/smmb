@@ -133,7 +133,8 @@ import { Icon } from '../../shared/icon';
       gap: 10px;
     }
     .dark {
-      background: #111827;
+      background: var(--call-bg);
+      color: var(--call-fg);
     }
     .chips-row {
       display: flex;

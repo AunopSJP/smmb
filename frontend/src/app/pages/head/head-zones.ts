@@ -7,7 +7,7 @@ import { I18n, type Tr } from '../../core/i18n';
 import { Toast } from '../../core/toast';
 import { Confirm } from '../../shared/confirm-dialog';
 import { HousesMap, type HouseMapPoint } from '../../shared/houses-map';
-import { LoadError } from '../../shared/state-view';
+import { EmptyState, LoadError } from '../../shared/state-view';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
 import { liveRefresh } from '../../core/live-refresh';
@@ -177,7 +177,7 @@ export class HeadZones implements OnInit {
 
 @Component({
   selector: 'app-head-zone-edit',
-  imports: [PageHeader, RouterLink, LoadError, HousesMap],
+  imports: [PageHeader, RouterLink, LoadError, EmptyState, HousesMap],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './head-zone-edit.scss',
   template: `
@@ -277,6 +277,7 @@ export class HeadZones implements OnInit {
               <div class="house-row" [class.pending]="h.pending">
                 <span class="grow">
                   <strong>{{ h.house_no ?? h.box_id }}</strong>
+                  <span class="muted small block">{{ h.box_id }}{{ h.box_name ? ' · ' + h.box_name : '' }}</span>
                   @if (h.area) { <span class="muted small block">{{ h.area }}</span> }
                 </span>
                 @if (h.pending) {
@@ -289,7 +290,7 @@ export class HeadZones implements OnInit {
                 </button>
               </div>
             } @empty {
-              <p class="muted small">{{ i18n.t({ th: 'ยังไม่มีบ้านในโซน', en: 'No houses in this zone yet' }) }}</p>
+              <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีบ้านในโซน', en: 'No houses in this zone yet' })" />
             }
           </div>
           @if (!areaReady()) {
@@ -433,12 +434,12 @@ export class HeadZones implements OnInit {
       inline-size: 10px;
       block-size: 10px;
       border-radius: 50%;
-      border: 2px solid #fff;
+      border: 2px solid var(--map-ring);
       box-shadow: 0 0 0 1px var(--line);
     }
     .lg.ok { background: var(--ok); }
     .lg.warn { background: var(--warn); }
-    .lg.picked { background: #e8590c; }
+    .lg.picked { background: var(--map-picked); }
     .warn-text {
       color: var(--orange);
       font-weight: 700;
@@ -768,10 +769,13 @@ export class HeadZoneEdit {
 
   /** ลบบ้าน/ยกเลิกคำขอ — ต้องยืนยัน (แตะพลาดแล้วบ้านหลุดจากโซน) */
   protected async askRemoveHouse(h: ZoneHouse): Promise<void> {
+    // บ้านเลขที่ซ้ำกันได้ (เจ้าของคนเดียวมีหลายตู้) — ใส่ชื่อตู้เพื่อให้ยืนยันถูกหลัง
+    const name = h.house_no ?? h.box_id;
+    const label = h.box_name ? `${name} (${h.box_name})` : name;
     const ok = await this.confirm.ask({
       title: h.pending
-        ? { th: `ยกเลิกคำขอของบ้าน ${h.house_no ?? h.box_id}?`, en: `Cancel the request for ${h.house_no ?? h.box_id}?` }
-        : { th: `นำบ้าน ${h.house_no ?? h.box_id} ออกจากโซน?`, en: `Remove ${h.house_no ?? h.box_id} from this zone?` },
+        ? { th: `ยกเลิกคำขอของบ้าน ${label}?`, en: `Cancel the request for ${label}?` }
+        : { th: `นำบ้าน ${label} ออกจากโซน?`, en: `Remove ${label} from this zone?` },
       body: h.pending
         ? { th: 'เจ้าของบ้านจะไม่ได้รับคำขอให้ยอมรับอีก (เพิ่มใหม่ได้ภายหลัง)', en: 'The owner will no longer see this request (you can add it again later).' }
         : { th: 'บ้านหลังนี้จะไม่ถูกตรวจและไม่รับ SOS ของโซนนี้ (ประวัติเดิมยังอยู่)', en: 'This house will no longer be inspected or receive SOS for this zone (history is kept).' },
@@ -829,8 +833,9 @@ export class HeadZoneEdit {
     const current = this.officerIds ?? z.officers.map((o) => o.id);
     const next = current.filter((x) => x !== id);
     if (on) next.push(id);
-    if (!on) {
-      const leavingNone = next.length === 0;
+    // ถอดเจ้าหน้าที่ที่ยังเหลือคนอื่นในโซน = ย้อนได้ด้วยการเพิ่มกลับ → ทำเลย + "เลิกทำ" · ถ้าโซนจะว่างเจ้าหน้าที่ยังถามก่อน
+    if (!on && next.length === 0) {
+      const leavingNone = true;
       const ok = await this.confirm.ask({
         title: { th: 'นำเจ้าหน้าที่ออกจากโซน?', en: 'Remove this officer from the zone?' },
         body: leavingNone
@@ -855,6 +860,9 @@ export class HeadZoneEdit {
         if (this.officerIds === ids) {
           this.officerIds = null;
           await this.load(z.id);
+        }
+        if (!on) {
+          this.toast.showUndo({ th: 'นำเจ้าหน้าที่ออกจากโซนแล้ว', en: 'Officer removed from the zone' }, () => this.toggleOfficer(id, true));
         }
       } catch {
         this.officerIds = null;

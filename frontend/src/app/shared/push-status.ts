@@ -113,7 +113,7 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
       }
       &.warn {
         background: var(--ib-warn-bg);
-        border: 1.5px solid #e5b85c;
+        border: 1.5px solid var(--warn);
         box-shadow: none;
       }
     }

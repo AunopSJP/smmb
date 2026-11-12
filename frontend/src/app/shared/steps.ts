@@ -76,9 +76,9 @@ export interface Step {
       color: var(--action-fg);
     }
     li.done .num {
-      background: var(--ok);
-      border-color: var(--ok);
-      color: #fff;
+      background: var(--success-bg);
+      border-color: var(--success-bg);
+      color: var(--success-fg);
     }
   `,
 })

@@ -114,7 +114,7 @@ function todayInBangkok(): string {
     summary {
       cursor: pointer;
       font-weight: 700;
-      min-block-size: 32px;
+      min-block-size: 44px;
     }
     .history {
       list-style: none;
@@ -395,7 +395,7 @@ export class UserPlan {
       align-items: center;
     }
     .mini {
-      min-block-size: 36px;
+      min-block-size: 44px;
       padding: 4px 12px;
       border-radius: 999px;
       border: 1.5px solid var(--line);
@@ -420,8 +420,10 @@ export class UserPlan {
       .mini {
         border-width: 1px;
       }
-      .mini:hover:not([disabled]) {
-        background: var(--icon-bg);
+      @media (hover: hover) {
+        .mini:hover:not([disabled]) {
+          background: var(--icon-bg);
+        }
       }
     }
   `,

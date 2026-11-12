@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, OnDestroy, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -17,6 +18,8 @@ import { liveRefresh } from '../core/live-refresh';
 import { SelectedBox } from '../core/selected-box';
 import { CallButtons } from './owner/call-buttons';
 
+type AlertKey = 'sos' | 'offline' | 'qr' | 'noOfficer';
+
 /** ต้องกดค้างกี่วินาทีถึงส่ง SOS (กันกดโดนโดยไม่ตั้งใจ ✅) */
 const HOLD_SEC = 3;
 /** รีเฟรชหน้าหลักทุกกี่วินาที */
@@ -25,7 +28,7 @@ const REFRESH_MS = 10_000;
 /** H03 หน้าหลักเจ้าของบ้าน (api.md §4.2) · H03-L แบบเรียบง่าย · H03-e กดค้าง SOS — ข้อมูลจริง */
 @Component({
   selector: 'app-owner-home',
-  imports: [RouterLink, PageHeader, Icon, LoadingRows, BoxPicker, CallButtons],
+  imports: [NgTemplateOutlet, RouterLink, PageHeader, Icon, LoadingRows, BoxPicker, CallButtons],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (noBox()) {
@@ -94,30 +97,15 @@ const REFRESH_MS = 10_000;
         @if (boxes().length > 1) {
           <app-box-picker [boxes]="boxes()" [value]="b.id" (pick)="select($event)" />
         }
-        @if (b.open_sos; as s) {
+        <ng-template #tSos let-b>
+          @let s = b.open_sos!;
           <a class="card sos-open" [routerLink]="url(s.status === 'accepted' ? 'H11' : 'H09')" [queryParams]="{ id: s.id }">
             <app-icon name="alert" [size]="22" />
             <strong class="grow">{{ s.status === 'accepted' ? i18n.t({ th: 'มีเจ้าหน้าที่รับ SOS แล้ว', en: 'An officer took your SOS' }) : i18n.t({ th: 'SOS ของคุณยังเปิดอยู่', en: 'Your SOS is still open' }) }}</strong>
             <span>{{ i18n.t({ th: 'เปิด', en: 'Open' }) }}</span>
           </a>
-        }
-        @if (b.qr_task) {
-          <section class="card warn-card stack">
-            <strong>{{ i18n.t({ th: 'QR หน้าตู้ชำรุด', en: 'Front QR is damaged' }) }}</strong>
-            <span class="small">{{ i18n.t({ th: 'นำ QR สำรองที่เก็บด้านในมาติดหน้าตู้ แล้วกดยืนยัน ระบบจะปิด QR ใบเก่าและออกใบสำรองใหม่ให้ผู้ดูแลระบบจัดส่ง', en: 'Move the backup QR inside the box to the front, then confirm. The old QR will be disabled and a replacement backup issued.' }) }}</span>
-            <button type="button" class="btn secondary" [disabled]="confirmingQr()" (click)="confirmBackup(b.id)">
-              {{ confirmingQr() ? i18n.t({ th: 'กำลังบันทึก…', en: 'Saving…' }) : i18n.t({ th: 'ติด QR สำรองแล้ว', en: 'Backup QR is in place' }) }}
-            </button>
-          </section>
-        }
-        @if (!b.coverage.has_officer) {
-          <p class="card warn-card">
-            <strong>{{ i18n.t({ th: 'ยังไม่มีเจ้าหน้าที่ดูแลบ้านนี้', en: 'No officer covers this house yet' }) }}</strong><br />
-            <span class="small">{{ i18n.t({ th: 'กด SOS ระบบจะบอกให้โทร 191 / 1669 ทันที', en: 'SOS will tell you to call 191 / 1669 straight away' }) }}</span>
-          </p>
-        }
-
-        @if (b.status === 'offline') {
+        </ng-template>
+        <ng-template #tOffline let-b>
           <section class="card offline stack" role="status">
             <strong>{{ i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' }) }}</strong>
             <span class="small">{{ i18n.t({ th: 'เจ้าหน้าที่จะตรวจตู้ไม่ได้จนกว่าตู้จะกลับมาออนไลน์', en: 'Officers cannot check the mailbox until it is back online' }) }}</span>
@@ -135,6 +123,38 @@ const REFRESH_MS = 10_000;
             </div>
             <a class="see-all" [routerLink]="url('H12-d')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'ดูสาเหตุและวิธีแก้ทั้งหมด', en: 'See causes and fixes' }) }}</a>
           </section>
+        </ng-template>
+        <ng-template #tQr let-b>
+          <section class="card warn-card stack">
+            <strong>{{ i18n.t({ th: 'QR หน้าตู้ชำรุด', en: 'Front QR is damaged' }) }}</strong>
+            <span class="small">{{ i18n.t({ th: 'นำ QR สำรองที่เก็บด้านในมาติดหน้าตู้ แล้วกดยืนยัน ระบบจะปิด QR ใบเก่าและออกใบสำรองใหม่ให้ผู้ดูแลระบบจัดส่ง', en: 'Move the backup QR inside the box to the front, then confirm. The old QR will be disabled and a replacement backup issued.' }) }}</span>
+            <button type="button" class="btn secondary" [disabled]="confirmingQr()" (click)="confirmBackup(b.id)">
+              {{ confirmingQr() ? i18n.t({ th: 'กำลังบันทึก…', en: 'Saving…' }) : i18n.t({ th: 'ติด QR สำรองแล้ว', en: 'Backup QR is in place' }) }}
+            </button>
+          </section>
+        </ng-template>
+        <ng-template #tNoOfficer let-b>
+          <p class="card warn-card">
+            <strong>{{ i18n.t({ th: 'ยังไม่มีเจ้าหน้าที่ดูแลบ้านนี้', en: 'No officer covers this house yet' }) }}</strong><br />
+            <span class="small">{{ i18n.t({ th: 'กด SOS ระบบจะบอกให้โทร 191 / 1669 ทันที', en: 'SOS will tell you to call 191 / 1669 straight away' }) }}</span>
+          </p>
+        </ng-template>
+
+        <!-- เรื่องเร่ง: แสดงใบเดียว (SOS ก่อนเสมอ → ตู้ออฟไลน์ → QR ชำรุด → ยังไม่มีเจ้าหน้าที่) ที่เหลือพับเป็น "มีอีก N เรื่อง" -->
+        @let alerts = alertKeys(b);
+        @if (alerts.length) {
+          <ng-container *ngTemplateOutlet="{ sos: tSos, offline: tOffline, qr: tQr, noOfficer: tNoOfficer }[alerts[0]]; context: { $implicit: b }" />
+          @if (alerts.length > 1) {
+            <button type="button" class="more-alerts" [attr.aria-expanded]="alertsOpen()" (click)="alertsOpen.set(!alertsOpen())">
+              <span>{{ alertsOpen() ? i18n.t({ th: 'ซ่อนเรื่องอื่น', en: 'Hide the others' }) : i18n.t({ th: 'มีอีก ' + (alerts.length - 1) + ' เรื่อง', en: (alerts.length - 1) + ' more ' + (alerts.length - 1 === 1 ? 'issue' : 'issues') }) }}</span>
+              <app-icon [name]="alertsOpen() ? 'chevronUp' : 'chevronDown'" [size]="18" />
+            </button>
+            @if (alertsOpen()) {
+              @for (k of alerts.slice(1); track k) {
+                <ng-container *ngTemplateOutlet="{ sos: tSos, offline: tOffline, qr: tQr, noOfficer: tNoOfficer }[k]; context: { $implicit: b }" />
+              }
+            }
+          }
         }
 
         @if (easy()) {
@@ -394,6 +414,21 @@ const REFRESH_MS = 10_000;
       color: var(--sos-fg);
       text-decoration: none;
     }
+    .more-alerts {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-block-size: 44px;
+      padding: 8px 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
     .warn-card {
       background: var(--warn-bg);
       color: var(--warn);
@@ -510,6 +545,17 @@ export class OwnerHome implements OnDestroy {
   protected readonly sending = signal(false);
   protected readonly sosError = signal(false);
   protected readonly confirmingQr = signal(false);
+  protected readonly alertsOpen = signal(false);
+
+  /** เรื่องเร่งของตู้นี้ เรียงจากเร่งสุด — SOS ที่ยังเปิดอยู่ขึ้นก่อนเสมอ */
+  protected alertKeys(b: BoxDetail): AlertKey[] {
+    const keys: AlertKey[] = [];
+    if (b.open_sos) keys.push('sos');
+    if (b.status === 'offline') keys.push('offline');
+    if (b.qr_task) keys.push('qr');
+    if (!b.coverage.has_officer) keys.push('noOfficer');
+    return keys;
+  }
 
   protected readonly holding = signal(false);
   protected readonly confirmSos = signal(false);
@@ -564,6 +610,7 @@ export class OwnerHome implements OnDestroy {
 
   /** สลับตู้ (เจ้าของมีหลายตู้) — จำใน ?box= ให้รีเฟรชแล้วยังอยู่ตู้เดิม */
   protected async select(id: string): Promise<void> {
+    this.alertsOpen.set(false);
     if (id === (this.selected() ?? this.b()?.id)) return;
     this.selected.set(id);
     // ล้างข้อมูลตู้เดิมทันที — ไม่งั้นป้าย "ตู้ไม่ออนไลน์" ของตู้เก่าค้างระหว่างรอคำตอบ

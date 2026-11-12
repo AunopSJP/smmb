@@ -7,6 +7,8 @@ import { Icon } from '../shared/icon';
 export class Toast {
   readonly message = signal<Tr | null>(null);
   readonly kind = signal<'ok' | 'error'>('ok');
+  /** มีค่า = toast นี้มีปุ่ม "เลิกทำ" (การกระทำที่ย้อนกลับได้จริงเท่านั้น) */
+  readonly undoAction = signal<(() => void | Promise<void>) | null>(null);
   private timer: ReturnType<typeof setTimeout> | null = null;
 
   /**
@@ -16,9 +18,37 @@ export class Toast {
   show(message: Tr, kind?: 'ok' | 'error'): void {
     const isError = kind ? kind === 'error' : /ไม่สำเร็จ|ไม่ได้|ผิดพลาด|ล้มเหลว|Could not|Couldn’t|Couldn't|failed/i.test(`${message.th} ${message.en}`);
     this.kind.set(isError ? 'error' : 'ok');
+    this.undoAction.set(null);
     this.message.set(message);
+    this.arm(isError ? 8000 : 4000);
+  }
+
+  /**
+   * ทำไปแล้วทันที + ให้เวลาเลิกทำ 8 วิ — ใช้กับการกระทำที่ย้อนกลับได้จริงด้วยคำสั่งตรงข้าม
+   * (งานย้อนไม่ได้ เช่น คืนตู้ ปิดบริการ รีเซ็ตรหัส ยังต้องใช้ ConfirmDialog ก่อนทำ)
+   */
+  showUndo(message: Tr, undo: () => void | Promise<void>, ms = 8000): void {
+    this.kind.set('ok');
+    this.undoAction.set(undo);
+    this.message.set(message);
+    this.arm(ms);
+  }
+
+  async runUndo(): Promise<void> {
+    const fn = this.undoAction();
+    this.dismiss();
+    if (fn) await fn();
+  }
+
+  dismiss(): void {
     if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.message.set(null), isError ? 8000 : 4000);
+    this.undoAction.set(null);
+    this.message.set(null);
+  }
+
+  private arm(ms: number): void {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.dismiss(), ms);
   }
 
   error(message: Tr): void {
@@ -33,10 +63,15 @@ export class Toast {
   template: `
     @if (toast.message(); as m) {
       <div class="wrap" [attr.role]="toast.kind() === 'error' ? 'alert' : 'status'" [attr.aria-live]="toast.kind() === 'error' ? 'assertive' : 'polite'">
-        <button type="button" class="toast" [class.err]="toast.kind() === 'error'" (click)="toast.message.set(null)">
-          <span class="tick" [class.err]="toast.kind() === 'error'"><app-icon [name]="toast.kind() === 'error' ? 'alert' : 'check'" [size]="16" /></span>
-          <span class="text">{{ i18n.t(m) }}</span>
-        </button>
+        <div class="toast" [class.err]="toast.kind() === 'error'">
+          <button type="button" class="body" (click)="toast.dismiss()" [attr.aria-label]="i18n.t({ th: 'ปิดข้อความ', en: 'Dismiss' })">
+            <span class="tick" [class.err]="toast.kind() === 'error'"><app-icon [name]="toast.kind() === 'error' ? 'alert' : 'check'" [size]="16" /></span>
+            <span class="text">{{ i18n.t(m) }}</span>
+          </button>
+          @if (toast.undoAction()) {
+            <button type="button" class="undo" (click)="toast.runUndo()">{{ i18n.t({ th: 'เลิกทำ', en: 'Undo' }) }}</button>
+          }
+        </div>
       </div>
     }
   `,
@@ -55,7 +90,7 @@ export class Toast {
     .toast {
       pointer-events: auto;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       gap: 12px;
       width: fit-content;
       max-width: min(100%, 520px);
@@ -72,6 +107,32 @@ export class Toast {
       box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
       cursor: pointer;
     }
+    .body {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    .undo {
+      flex: none;
+      min-block-size: 44px;
+      padding: 0 12px;
+      border: 1px solid currentColor;
+      border-radius: 10px;
+      background: none;
+      color: inherit;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
     .tick {
       flex: none;
       display: grid;
@@ -80,12 +141,12 @@ export class Toast {
       height: 24px;
       margin-top: 1px;
       border-radius: 50%;
-      background: #16a34a;
-      color: #fff;
+      background: var(--success-bg);
+      color: var(--success-fg);
     }
     .tick.err {
-      background: #fff;
-      color: var(--sos);
+      background: var(--sos-fg);
+      color: var(--sos-bg);
     }
     .toast.err {
       background: var(--sos-bg);

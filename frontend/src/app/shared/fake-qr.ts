@@ -11,8 +11,8 @@ const N = 25; // ขนาดตาราง
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <svg [attr.viewBox]="'-2 -2 ' + (size + 4) + ' ' + (size + 4)" role="img" [attr.aria-label]="label()">
-      <rect x="-2" y="-2" [attr.width]="size + 4" [attr.height]="size + 4" fill="#fff" />
-      <path [attr.d]="path()" fill="#111827" />
+      <rect x="-2" y="-2" [attr.width]="size + 4" [attr.height]="size + 4" fill="var(--qr-bg)" />
+      <path [attr.d]="path()" fill="var(--qr-ink)" />
     </svg>
   `,
   styles: `

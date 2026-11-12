@@ -176,9 +176,11 @@
   color: var(--text-muted);
   cursor: pointer;
 
-  &:hover {
-    color: var(--sos);
-    border-color: var(--sos);
+  @media (hover: hover) {
+    &:hover {
+      color: var(--sos);
+      border-color: var(--sos);
+    }
   }
 }
 .result-head {

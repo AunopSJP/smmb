@@ -228,7 +228,7 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
           <li class="row lcols">
             <span><span class="chip" [class.warn]="m.tone === 'warn'" [class.danger]="m.tone === 'danger' || l.fail">{{ i18n.t(m.label) }}</span></span>
             <span class="grow">
-              <strong>{{ i18n.t(title(l)) }}</strong>
+              <strong [attr.title]="i18n.t(title(l))">{{ i18n.t(title(l)) }}</strong>
               <span class="muted small block easy-hide">{{ i18n.t(sub(l)) }}</span>
             </span>
             <span class="res">

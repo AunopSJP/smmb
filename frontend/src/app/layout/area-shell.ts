@@ -5,7 +5,7 @@ import { filter, map, startWith } from 'rxjs';
 import { AdminApi } from '../core/admin-api';
 import { I18n, type Tr } from '../core/i18n';
 import { ToastHost } from '../core/toast';
-import { AREA_LABEL, screen, TABS, TABS_EASY, type Area } from '../screens/registry';
+import { AREA_LABEL, screen, TABS, type Area } from '../screens/registry';
 import { DisplaySettings, type Theme } from '../core/display-settings';
 import { Icon, type IconName } from '../shared/icon';
 import { TabBar } from '../shared/tab-bar';
@@ -179,7 +179,7 @@ const MOCK_SCREENS = new Set<string>();
                       [routerLinkActiveOptions]="{ paths: it.code === 'D01' ? 'exact' : 'subset', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }"
                       [attr.title]="i18n.t(it.label)" (click)="it.children && openItem(it)">
                       <app-icon [name]="it.icon" [size]="18" />
-                      <span class="lbl">{{ i18n.t(it.label) }}</span>
+                      <span class="lbl" [attr.title]="i18n.t(it.label)">{{ i18n.t(it.label) }}</span>
                       @if (badges()[it.code]; as n) {
                         <b class="count" [class.hot]="it.code === 'D03'" [attr.aria-label]="n + ' ' + i18n.t({ th: 'รายการรอจัดการ', en: 'items waiting' })">{{ n > 99 ? '99+' : n }}</b>
                       }
@@ -195,7 +195,7 @@ const MOCK_SCREENS = new Set<string>();
                     <div class="sub">
                       @for (c of it.children; track c.label.en) {
                         <a [routerLink]="url(c.code)" [queryParams]="c.query ?? null" [class.active]="childActive(c)" [attr.aria-current]="childActive(c) ? 'page' : null">
-                          <span class="lbl">{{ i18n.t(c.label) }}</span>
+                          <span class="lbl" [attr.title]="i18n.t(c.label)">{{ i18n.t(c.label) }}</span>
                           @if (!c.query && c.code !== it.code && badges()[c.code]; as n) {
                             <b class="count">{{ n > 99 ? '99+' : n }}</b>
                           }
@@ -231,11 +231,6 @@ const MOCK_SCREENS = new Set<string>();
       <main id="main-content" tabindex="-1" [class.full]="fullscreen()">
         <router-outlet />
       </main>
-      @if (isAdmin) {
-        <button type="button" class="theme-fab" (click)="toggleAdminTheme()" [attr.title]="i18n.t({ th: 'สลับธีมสว่าง/มืด', en: 'Toggle light/dark theme' })" [attr.aria-label]="i18n.t({ th: 'สลับธีมสว่าง/มืด', en: 'Toggle light/dark theme' })">
-          <app-icon [name]="effectiveDark() ? 'sun' : 'moon'" [size]="20" />
-        </button>
-      }
       <app-toast />
       <app-confirm-dialog />
       @if (tabs(); as t) {
@@ -262,27 +257,6 @@ const MOCK_SCREENS = new Set<string>();
       font: inherit;
       font-weight: 700;
       transform: translateY(-200%);
-    }
-    .theme-fab {
-      display: none;
-    }
-    @media (max-width: 1023px) {
-      .theme-fab {
-        position: fixed;
-        inset-block-end: calc(84px + env(safe-area-inset-bottom));
-        inset-inline-end: 16px;
-        z-index: 3;
-        display: grid;
-        place-items: center;
-        inline-size: 46px;
-        block-size: 46px;
-        border: 1px solid var(--line-strong, var(--line));
-        border-radius: 50%;
-        background: var(--surface);
-        color: var(--text);
-        box-shadow: var(--shadow);
-        cursor: pointer;
-      }
     }
     .skip-link:focus-visible {
       transform: none;
@@ -365,9 +339,11 @@ const MOCK_SCREENS = new Set<string>();
       color: var(--text-muted);
       cursor: pointer;
     }
-    .collapse:hover {
-      color: var(--text);
-      background: var(--icon-bg);
+    @media (hover: hover) {
+      .collapse:hover {
+        color: var(--text);
+        background: var(--icon-bg);
+      }
     }
     .nav {
       display: flex;
@@ -399,9 +375,11 @@ const MOCK_SCREENS = new Set<string>();
     .item:has(.twisty) > a {
       padding-inline-end: 36px;
     }
-    .twisty:hover {
-      background: var(--line);
-      color: var(--text);
+    @media (hover: hover) {
+      .twisty:hover {
+        background: var(--line);
+        color: var(--text);
+      }
     }
     .caret {
       transition: transform 0.15s ease;
@@ -426,8 +404,10 @@ const MOCK_SCREENS = new Set<string>();
       font-size: 0.875rem;
       color: var(--text-muted);
     }
-    .side .sub a:hover {
-      color: var(--text);
+    @media (hover: hover) {
+      .side .sub a:hover {
+        color: var(--text);
+      }
     }
     .side .sub a.active {
       color: var(--brand-dark);
@@ -468,7 +448,7 @@ const MOCK_SCREENS = new Set<string>();
       inset-inline-end: 2px;
       min-inline-size: 18px;
       padding: 0 4px;
-      font-size: 0.625rem;
+      font-size: 0.75rem;
     }
     .side.mini a.active::before {
       inset-inline-start: -10px;
@@ -515,8 +495,10 @@ const MOCK_SCREENS = new Set<string>();
       cursor: pointer;
       text-align: start;
     }
-    .group:hover {
-      color: var(--text);
+    @media (hover: hover) {
+      .group:hover {
+        color: var(--text);
+      }
     }
     .side a {
       position: relative;
@@ -550,13 +532,15 @@ const MOCK_SCREENS = new Set<string>();
     }
     .count.hot {
       background: var(--badge-bg);
-      color: #fff;
+      color: var(--badge-fg);
     }
     .side a app-icon {
       color: var(--text-muted);
     }
-    .side a:hover {
-      background: var(--icon-bg);
+    @media (hover: hover) {
+      .side a:hover {
+        background: var(--icon-bg);
+      }
     }
     .side a.active {
       background: var(--brand-light);
@@ -627,9 +611,11 @@ const MOCK_SCREENS = new Set<string>();
       color: var(--text-muted);
       cursor: pointer;
     }
-    .out:hover {
-      background: var(--danger-bg);
-      color: var(--sos);
+    @media (hover: hover) {
+      .out:hover {
+        background: var(--danger-bg);
+        color: var(--sos);
+      }
     }
     .demo {
       display: block;
@@ -668,11 +654,6 @@ const MOCK_SCREENS = new Set<string>();
     @media (max-width: 1023px) {
       main {
         padding: 12px 20px calc(28px + env(safe-area-inset-bottom));
-      }
-      /* ปุ่มธีมลอย (fixed) ทับบรรทัดสุดท้ายของแอดมิน — เว้นที่ให้พ้นปุ่มทั้งจอมี/ไม่มีแท็บ
-         (ต้องชนะกฎกลาง main:has(form) ของหน้าฟอร์มด้วย) */
-      .admin-layout main:not(.full) {
-        padding-block-end: calc(140px + env(safe-area-inset-bottom)) !important;
       }
     }
   `,
@@ -791,17 +772,8 @@ export class AreaShell {
   protected setTheme(v: Theme): void {
     this.display.theme.set(v);
   }
-  protected readonly effectiveDark = computed(() => {
-    const t = this.display.theme();
-    return t === 'dark' || (t === 'system' && typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches);
-  });
-  protected toggleAdminTheme(): void {
-    this.display.theme.set(this.effectiveDark() ? 'light' : 'dark');
-  }
-  /** โหมดง่ายลดเมนูเหลือ 3 รายการ "เฉพาะหน้าหลักของบทบาท" ตามแคนวาส (หน้าอื่นยังใช้แท็บเต็ม) */
-  protected readonly tabs = computed(() => {
-    return this.display.easyMode() ? TABS_EASY[this.area] ?? TABS[this.area] : TABS[this.area];
-  });
+  /** แท็บล่างชุดเดียวกันทุกโหมด (easy/default/advanced) — ผู้ใช้ย้ายโหมดแล้วเมนูไม่หาย */
+  protected readonly tabs = computed(() => TABS[this.area]);
   /** แถบ "ต้นแบบ" เฉพาะหน้าที่ยังเป็นข้อมูลจำลอง — ที่เหลือใช้ API จริงทั้งหมด */
   protected readonly mock = computed(() => MOCK_SCREENS.has(this.code() ?? ''));
 

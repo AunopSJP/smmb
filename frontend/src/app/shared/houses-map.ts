@@ -39,12 +39,13 @@ export interface HouseMapPoint {
       inline-size: 26px;
       block-size: 26px;
       border-radius: 50% 50% 50% 0;
-      background: var(--brand);
-      border: 3px solid #fff;
+      background: var(--map-brand);
+      border: 3px solid var(--map-ring);
       rotate: -45deg;
       box-shadow: 0 2px 6px rgb(0 0 0 / 35%);
-      color: #fff;
-      font-size: 11px;
+      color: var(--map-on-brand);
+      /* 12px ที่โหมดปกติ และโตตามโหมดตัวอักษรแต่ไม่เกิน 14px เพื่อให้เลข 2 หลักยังพอดีหมุด */
+      font-size: clamp(12px, 0.75rem, 14px);
       font-weight: 700;
     }
     :host ::ng-deep .h-pin > span {
@@ -53,16 +54,18 @@ export interface HouseMapPoint {
     }
     :host ::ng-deep .h-pin.zone {
       background: var(--ok);
+      color: var(--surface);
     }
     :host ::ng-deep .h-pin.pending {
       background: var(--warn);
+      color: var(--surface);
     }
     :host ::ng-deep .h-pin.picked {
-      background: #e8590c;
-      outline: 3px solid #ffd9c2;
+      background: var(--map-picked);
+      outline: 3px solid var(--map-picked-soft);
     }
     :host ::ng-deep .h-pin.sel {
-      outline: 3px solid #f3c6c9;
+      outline: 3px solid var(--map-selected-ring);
     }
   `,
 })

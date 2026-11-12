@@ -24,7 +24,7 @@ export function addBaseTiles(L: typeof Leaflet, map: Leaflet.Map, base: string):
     notice.setAttribute('role', 'status');
     notice.textContent = 'โหลดแผนที่ไม่สำเร็จ · แตะเพื่อลองใหม่ / Map failed · tap to retry';
     notice.style.cssText =
-      'position:absolute;z-index:500;inset-inline:12px;bottom:12px;padding:10px 12px;border:0;border-radius:10px;background:#fff;color:#7a1f24;font:inherit;font-weight:700;box-shadow:0 4px 16px rgb(0 0 0 / 25%);cursor:pointer;text-align:center';
+      'position:absolute;z-index:500;inset-inline:12px;bottom:12px;padding:10px 12px;border:0;border-radius:10px;background:var(--qr-bg);color:var(--map-brand-dark);font:inherit;font-weight:700;box-shadow:0 4px 16px rgb(0 0 0 / 25%);cursor:pointer;text-align:center';
     notice.onclick = () => {
       failed = false;
       notice?.remove();

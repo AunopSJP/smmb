@@ -99,7 +99,7 @@ const fmtDate = (iso: string, lang: 'th' | 'en') => new Date(iso).toLocaleString
   `,
   styles: `
     .print-card {
-      border: 1px solid #000;
+      border: 1px solid var(--print-ink);
       border-radius: 4mm;
       padding: 6mm;
       text-align: center;
@@ -715,9 +715,9 @@ const REISSUE_STEPS: FlowStep[] = [
       font-weight: 700;
     }
     .steps li.done .num {
-      background: var(--ok);
-      border-color: var(--ok);
-      color: #fff;
+      background: var(--success-bg);
+      border-color: var(--success-bg);
+      color: var(--success-fg);
     }
     .steps li.now .num {
       background: var(--action-bg);

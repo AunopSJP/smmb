@@ -428,8 +428,8 @@ export class RiderLimited {
   `,
   styles: `
     .done {
-      background: #157347;
-      color: #fff;
+      background: var(--success-bg);
+      color: var(--success-fg);
     }
     .done .adv-only {
       color: rgb(255 255 255 / 75%);

@@ -6,8 +6,8 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px 0;
-  background: #1f2937;
-  color: #fff;
+  background: var(--media-bg);
+  color: var(--on-dark);
 }
 .top {
   align-self: stretch;
@@ -26,7 +26,7 @@
   border: 0;
   border-radius: 50%;
   background: rgb(255 255 255 / 12%);
-  color: #fff;
+  color: var(--on-dark);
   cursor: pointer;
 }
 .aim {
@@ -39,7 +39,7 @@
   aspect-ratio: 1;
   border-radius: 16px;
   background: rgb(255 255 255 / 6%);
-  outline: 3px solid #fff;
+  outline: 3px solid var(--on-dark);
   outline-offset: -3px;
   clip-path: polygon(
     0 0,
@@ -70,7 +70,7 @@
   inset-inline-end: 8%;
   inset-block-start: 50%;
   block-size: 2px;
-  background: #f87171;
+  background: var(--media-line);
   animation: scan 2s ease-in-out infinite alternate;
 }
 @keyframes scan {
@@ -95,18 +95,18 @@
   border-radius: 999px;
   padding: 8px 18px;
   background: rgb(255 255 255 / 15%);
-  color: #fff;
+  color: var(--on-dark);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
   &[aria-pressed='true'] {
-    background: #fde68a;
-    color: #111827;
+    background: var(--torch-on-bg);
+    color: var(--torch-on-fg);
   }
 }
 .demo-tools.light {
   border-color: rgb(255 255 255 / 50%);
-  color: #fff;
+  color: var(--on-dark);
 }
 .sheet {
   margin-block-start: auto;
@@ -115,7 +115,7 @@
   color: var(--text);
 }
 .dim {
-  background: #1f2937;
+  background: var(--media-bg);
 }
 .faded {
   margin-block-start: 64px;

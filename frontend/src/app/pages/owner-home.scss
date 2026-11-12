@@ -68,7 +68,7 @@
   block-size: 76px;
   border-radius: 50%;
   background: var(--ok);
-  color: #fff;
+  color: var(--surface);
   &.warn {
     background: var(--warn);
   }
@@ -157,7 +157,7 @@
   .ticks {
     display: flex;
     justify-content: space-between;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
   }
 }
@@ -283,8 +283,8 @@
   gap: 20px;
   padding: 24px;
   text-align: center;
-  color: #fff;
-  background: #7f1d1d;
+  color: var(--sos-fg);
+  background: var(--sos-deep);
 }
 .ring {
   --p: 0;
@@ -295,7 +295,7 @@
   inline-size: 176px;
   block-size: 176px;
   border-radius: 50%;
-  background: conic-gradient(#fff calc(var(--p) * 1turn), rgb(255 255 255 / 25%) 0);
+  background: conic-gradient(var(--sos-fg) calc(var(--p) * 1turn), rgb(255 255 255 / 25%) 0);
   position: relative;
 
   &::before {
@@ -370,11 +370,11 @@
   .post { fill: color-mix(in srgb, var(--text) 55%, var(--surface)); }
   .body { fill: var(--brand); }
   .door { fill: var(--brand-dark); }
-  .slot { fill: color-mix(in srgb, #000 35%, var(--brand-dark)); }
-  .qr-bg { fill: #fff; stroke: var(--brand-dark); stroke-width: 1.5; }
-  .qr-ink { fill: #111; }
+  .slot { fill: color-mix(in srgb, var(--print-ink) 35%, var(--brand-dark)); }
+  .qr-bg { fill: var(--qr-bg); stroke: var(--brand-dark); stroke-width: 1.5; }
+  .qr-ink { fill: var(--qr-ink); }
   .flag-pole { stroke: color-mix(in srgb, var(--text) 55%, var(--surface)); stroke-width: 3; stroke-linecap: round; }
-  .flag { fill: var(--warn, #f59e0b); }
+  .flag { fill: var(--warn); }
   .spark { fill: var(--brand); opacity: 0.35; }
 }
 .intro {

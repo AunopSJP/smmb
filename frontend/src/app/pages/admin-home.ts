@@ -10,7 +10,7 @@ import { LOW_BATTERY_PCT, seenText } from './admin/admin-boxes';
 import { screenUrl } from '../screens/registry';
 import { Icon, type IconName } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
-import { LoadingRows } from '../shared/state-view';
+import { EmptyState, LoadingRows } from '../shared/state-view';
 
 type Tone = 'danger' | 'warn' | '';
 
@@ -25,7 +25,7 @@ interface Segment {
 /** D01 ภาพรวมแอดมิน — ตัวเลขสรุปก่อน → สถานะรวม → รายการที่ต้องลงมือทำ (ทุกอย่างกดไปจัดการต่อได้) */
 @Component({
   selector: 'app-admin-home',
-  imports: [RouterLink, PageHeader, Icon, LoadingRows],
+  imports: [RouterLink, PageHeader, Icon, LoadingRows, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
@@ -48,13 +48,13 @@ interface Segment {
       }
       @if (loaded()) {
         <nav class="quick-actions desk-only" [attr.aria-label]="i18n.t({ th: 'งานด่วน', en: 'Quick actions' })">
-          <a class="quick" [routerLink]="url('D03')"><span class="qb"><app-icon name="box" [size]="20" /></span><span><strong>{{ i18n.t({ th: 'ตู้ทั้งหมด', en: 'All mailboxes' }) }}</strong><small>{{ i18n.t({ th: 'ลงทะเบียน · ปลุก · ตั้งค่า', en: 'Register · wake · configure' }) }}</small></span></a>
-          <a class="quick" [routerLink]="url('D05')"><span class="qb"><app-icon name="scan" [size]="20" /></span><span><strong>{{ i18n.t({ th: 'จัดการ QR', en: 'QR cases' }) }}</strong><small>{{ i18n.t({ th: 'เคสเสีย/ปลอม/ออกใหม่', en: 'Damaged · fake · reissue' }) }}</small></span></a>
-          <a class="quick" [routerLink]="url('D09')"><span class="qb"><app-icon name="user" [size]="20" /></span><span><strong>{{ i18n.t({ th: 'ผู้ใช้', en: 'Users' }) }}</strong><small>{{ i18n.t({ th: 'ค้นหา · รีเซ็ต · ปิดบัญชี', en: 'Search · reset · disable' }) }}</small></span></a>
-          <a class="quick" [routerLink]="url('D17')"><span class="qb"><app-icon name="layers" [size]="20" /></span><span><strong>{{ i18n.t({ th: 'เฟิร์มแวร์', en: 'Firmware' }) }}</strong><small>{{ i18n.t({ th: 'อัปเดตตู้ทั้งระบบ', en: 'Update the fleet' }) }}</small></span></a>
+          <a class="quick" [routerLink]="url('D03')" [attr.title]="i18n.t({ th: 'ตู้ทั้งหมด · ลงทะเบียน · ปลุก · ตั้งค่า', en: 'All mailboxes · register · wake · configure' })"><span class="qb"><app-icon name="box" [size]="20" /></span><span><strong>{{ i18n.t({ th: 'ตู้ทั้งหมด', en: 'All mailboxes' }) }}</strong><small>{{ i18n.t({ th: 'ลงทะเบียน · ปลุก · ตั้งค่า', en: 'Register · wake · configure' }) }}</small></span></a>
+          <a class="quick" [routerLink]="url('D05')" [attr.title]="i18n.t({ th: 'จัดการ QR · เคสเสีย/ปลอม/ออกใหม่', en: 'QR cases · damaged/fake/reissue' })"><span class="qb"><app-icon name="scan" [size]="20" /></span><span><strong>{{ i18n.t({ th: 'จัดการ QR', en: 'QR cases' }) }}</strong><small>{{ i18n.t({ th: 'เคสเสีย/ปลอม/ออกใหม่', en: 'Damaged · fake · reissue' }) }}</small></span></a>
+          <a class="quick" [routerLink]="url('D09')" [attr.title]="i18n.t({ th: 'ผู้ใช้ · ค้นหา · รีเซ็ต · ปิดบัญชี', en: 'Users · search · reset · disable' })"><span class="qb"><app-icon name="user" [size]="20" /></span><span><strong>{{ i18n.t({ th: 'ผู้ใช้', en: 'Users' }) }}</strong><small>{{ i18n.t({ th: 'ค้นหา · รีเซ็ต · ปิดบัญชี', en: 'Search · reset · disable' }) }}</small></span></a>
+          <a class="quick" [routerLink]="url('D17')" [attr.title]="i18n.t({ th: 'เฟิร์มแวร์ · อัปเดตตู้ทั้งระบบ', en: 'Firmware · update the fleet' })"><span class="qb"><app-icon name="layers" [size]="20" /></span><span><strong>{{ i18n.t({ th: 'เฟิร์มแวร์', en: 'Firmware' }) }}</strong><small>{{ i18n.t({ th: 'อัปเดตตู้ทั้งระบบ', en: 'Update the fleet' }) }}</small></span></a>
         </nav>
         @if (todo().length) {
-          <a class="card action-summary" [routerLink]="todo()[0].path" [queryParams]="todo()[0].query ?? null">
+          <a class="card action-summary" [routerLink]="todo()[0].path" [queryParams]="todo()[0].query ?? null" [attr.title]="i18n.t({ th: 'ต้องจัดการ ', en: 'Needs action: ' }) + todo().length + ' ' + i18n.t({ th: 'รายการ', en: 'items' }) + ' · ' + i18n.t(todo()[0].title)">
             <span class="as-ic"><app-icon name="alert" [size]="20" /></span>
             <span class="grow">
               <strong>{{ i18n.t({ th: 'ต้องจัดการ ', en: 'Needs action: ' }) }}{{ todo().length }} {{ i18n.t({ th: 'รายการ', en: 'items' }) }}</strong>
@@ -166,7 +166,7 @@ interface Segment {
               </tbody>
             </table>
           } @else {
-            <p class="empty">{{ i18n.t({ th: 'ยังไม่มีตู้ในระบบ — ลงทะเบียนที่หน้า "ตู้ทั้งหมด"', en: 'No boxes yet — register some on the boxes page' }) }}</p>
+            <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีตู้ในระบบ', en: 'No boxes yet' })" [hint]="i18n.t({ th: 'ลงทะเบียนที่หน้า “ตู้ทั้งหมด”', en: 'Register some on the boxes page' })" />
           }
         </section>
 
@@ -219,7 +219,7 @@ interface Segment {
             <li>{{ i18n.t({ th: 'SOS', en: 'SOS' }) }} <strong>{{ activitySum().sos }}</strong></li>
           </ul>
         } @else {
-          <p class="empty">{{ i18n.t({ th: 'ยังไม่มีกิจกรรมใน 7 วันที่ผ่านมา', en: 'No activity in the last 7 days' }) }}</p>
+          <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีกิจกรรมใน 7 วันที่ผ่านมา', en: 'No activity in the last 7 days' })" />
         }
       </section>
 
@@ -279,7 +279,7 @@ interface Segment {
             </div>
           }
         } @else {
-          <p class="empty">{{ i18n.t({ th: 'ยังไม่มีข้อมูลเฟิร์มแวร์จากตู้', en: 'No firmware report from boxes yet' }) }}</p>
+          <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีข้อมูลเฟิร์มแวร์จากตู้', en: 'No firmware report from boxes yet' })" />
         }
       </section>
 
@@ -420,8 +420,10 @@ interface Segment {
       color: inherit;
       text-decoration: none;
     }
-    .kpi:hover {
-      border-color: var(--text);
+    @media (hover: hover) {
+      .kpi:hover {
+        border-color: var(--text);
+      }
     }
     .kpi-label {
       font-size: 0.8125rem;
@@ -532,8 +534,10 @@ interface Segment {
       color: var(--text);
       box-shadow: var(--shadow);
     }
-    .quick:hover {
-      border-color: var(--brand);
+    @media (hover: hover) {
+      .quick:hover {
+        border-color: var(--brand);
+      }
     }
     .quick .qb,
     .action-summary .as-ic {
@@ -641,9 +645,17 @@ interface Segment {
     .act a {
       text-decoration: none;
     }
-    .panel header a:hover,
-    .act a:hover {
-      text-decoration: underline;
+    .panel header a {
+      display: inline-flex;
+      align-items: center;
+      min-block-size: 44px;
+      padding-block: 4px;
+    }
+    @media (hover: hover) {
+      .panel header a:hover,
+      .act a:hover {
+        text-decoration: underline;
+      }
     }
     .panel header a {
       font-size: 0.875rem;
@@ -733,8 +745,10 @@ interface Segment {
       border-block-start: 1px solid var(--line-strong, var(--line));
       vertical-align: middle;
     }
-    .tbl tbody tr:hover {
-      background: var(--brand-lighter);
+    @media (hover: hover) {
+      .tbl tbody tr:hover {
+        background: var(--brand-lighter);
+      }
     }
     .tbl .num,
     .tbl .act {
@@ -743,7 +757,7 @@ interface Segment {
     .small-btn {
       display: inline-flex;
       inline-size: auto;
-      min-block-size: 34px;
+      min-block-size: 44px;
       padding: 4px 14px;
       font-size: 0.875rem;
     }
@@ -812,8 +826,10 @@ interface Segment {
       text-align: center;
       text-decoration: none;
     }
-    .easy-kpi:hover {
-      border-color: var(--text);
+    @media (hover: hover) {
+      .easy-kpi:hover {
+        border-color: var(--text);
+      }
     }
     .easy-n {
       font-size: 2rem;
@@ -993,7 +1009,7 @@ export class AdminHome implements OnInit {
       { key: 'sleeping', label: { th: 'พักอยู่', en: 'Sleeping' }, n: b.sleeping, tone: 'color-mix(in srgb, var(--text-muted) 70%, transparent)', query: null },
       { key: 'offline', label: { th: 'ไม่ออนไลน์', en: 'Offline' }, n: b.offline, tone: 'var(--sos)', query: { filter: 'offline' } },
       { key: 'closed', label: { th: 'ปิดบริการ', en: 'Service closed' }, n: b.service_closed, tone: 'var(--orange-line)', query: null },
-      { key: 'unbound', label: { th: 'ยังไม่ผูกเจ้าของ', en: 'Unbound' }, n: b.unbound, tone: 'var(--line-strong, #b8bec7)', query: { filter: 'unbound' } },
+      { key: 'unbound', label: { th: 'ยังไม่ผูกเจ้าของ', en: 'Unbound' }, n: b.unbound, tone: 'var(--line-strong)', query: { filter: 'unbound' } },
     ];
   });
 

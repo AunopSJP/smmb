@@ -6,7 +6,7 @@ import { ApiConfig } from '../../core/api';
 import { I18n } from '../../core/i18n';
 import { Toast } from '../../core/toast';
 import { Confirm } from '../../shared/confirm-dialog';
-import { AdminBox } from './admin-boxes';
+import { AdminBox } from './admin-box';
 
 const config = {
   report_at: '23:30',

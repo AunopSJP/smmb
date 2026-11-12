@@ -70,7 +70,7 @@ static String esc(const String &s)
 static void scanNetworks()
 {
   int n = WiFi.scanNetworks(false, false);
-  networksHtml = "";
+  networksHtml = "<option value=''>— เลือก Wi-Fi จากรายการ —</option>";
   for (int i = 0; i < n && i < 20; i++)
   {
     String ssid = WiFi.SSID(i);
@@ -90,41 +90,78 @@ static void scanNetworks()
 #endif
 
 static const char PAGE_HEAD[] = R"HTML(<!doctype html><html lang="th"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>ตั้ง Wi-Fi ให้ตู้</title>
-<style>body{font-family:sans-serif;margin:0;padding:16px;max-width:480px;margin:auto;background:#fafafa;color:#222}
-h1{font-size:1.3rem;color:#D7141E}label{display:block;margin:12px 0 4px;font-weight:700}
-input,select{width:100%;box-sizing:border-box;padding:12px;font-size:1rem;border:1.5px solid #ccc;border-radius:10px}
-button{width:100%;margin-top:18px;padding:14px;font-size:1.05rem;font-weight:700;border:0;border-radius:12px;background:#D7141E;color:#fff}
-.box{background:#fff;padding:14px;border-radius:12px;margin:12px 0}.muted{color:#777;font-size:.85rem}.err{color:#C81E1E;font-weight:700}
-details summary{font-weight:700;cursor:pointer}</style></head><body>)HTML";
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#9A2F36"><title>ตั้งค่า Wi-Fi · SMMB</title>
+<style>
+:root{--brand:#9A2F36;--brand-dark:#6F1F25;--bg:#F3F1ED;--surface:#fff;--text:#1F1D1B;--muted:#6F675E;--border:#E4DFD8;--danger:#A5332F;--success:#1C6F4B}
+*{box-sizing:border-box}
+body{margin:0;padding:20px 16px 40px;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans Thai",sans-serif;line-height:1.55}
+.wrap{max-width:520px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:12px;margin:8px 0 16px}
+.logo{width:44px;height:44px;border-radius:12px;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:800;font-size:20px;flex:none}
+h1{font-size:22px;line-height:1.3;margin:0}h2{font-size:18px;line-height:1.3;margin:0 0 6px}
+.sub{color:var(--muted);font-size:14px;margin:3px 0 0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin:14px 0}
+.steps{display:flex;gap:8px;margin:14px 0}
+.step{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px;font-size:12px;color:var(--muted)}
+.step b{display:block;color:var(--brand);font-size:16px}
+label{display:block;margin:14px 0 6px;font-weight:700;font-size:14px}
+input,select{width:100%;padding:13px 14px;font-size:16px;border:1.5px solid var(--border);border-radius:12px;background:#fff;color:var(--text)}
+input:focus,select:focus{outline:2px solid var(--brand);outline-offset:1px;border-color:var(--brand)}
+.hint{color:var(--muted);font-size:12.5px;margin:6px 0 0}
+.alert{background:#FBECEA;color:var(--danger);border:1px solid #F0C9C5;border-radius:12px;padding:12px 14px;font-weight:700}
+.ok{background:#E8F4EE;color:var(--success);border:1px solid #C5E3D4;border-radius:12px;padding:12px 14px;font-weight:700}
+button{width:100%;margin-top:18px;padding:15px;font-size:16px;font-weight:800;border:0;border-radius:12px;background:var(--brand);color:#fff;font-family:inherit}
+button:active{background:var(--brand-dark)}
+.manual{background:#FBF2DF;color:#8A5A12;border:1px solid #EAD8B0;border-radius:12px;padding:12px 14px;font-size:13px;margin:14px 0}
+.manual b{display:block}
+details{margin-top:14px}summary{cursor:pointer;font-weight:700;color:var(--brand)}
+.muted{color:var(--muted);font-size:13px}a{color:var(--brand);font-weight:700}
+.pw{display:flex;gap:8px}.pw input{flex:1}.pw button{width:auto;margin:0;padding:0 14px;font-size:13px;background:var(--surface);color:var(--brand);border:1.5px solid var(--border)}
+@media(max-width:380px){h1{font-size:20px}.steps{display:none}body{padding:16px 12px 32px}}
+</style></head><body><div class="wrap">)HTML";
 
 static void handleRoot()
 {
   String h = PAGE_HEAD;
-  h += "<h1>ตั้ง Wi-Fi ให้ตู้ " + esc(apName()) + "</h1>";
-  h += "<p class=muted>หน้านี้มาจากตู้ ไม่ต้องใช้เน็ต · ตู้ใช้ได้เฉพาะ Wi-Fi 2.4 GHz</p>";
+  h += "<div class=brand><div class=logo>S</div><div><h1>ตั้งค่า Wi-Fi ให้ตู้</h1><p class=sub>" + esc(apName()) +
+       " · ไม่ต้องใช้อินเทอร์เน็ต</p></div></div>";
+  h += "<div class=manual><b>ไม่เด้งเข้าหน้านี้อัตโนมัติ?</b>เปิด Chrome หรือ Samsung Internet แล้วพิมพ์ <b>http://192.168.4.1</b></div>";
   if (lastError.length())
-    h += "<p class=err>" + esc(lastError) + "</p>";
-  h += "<form method=post action=/save><div class=box>";
-  h += "<label>Wi-Fi บ้าน</label><select name=ssid>" + networksHtml + "<option value=''>— พิมพ์ชื่อเอง —</option></select>";
-  h += "<label>หรือพิมพ์ชื่อ Wi-Fi</label><input name=ssid2 autocomplete=off placeholder='ถ้าไม่เห็นในรายการ'>";
-  h += "<label>รหัส Wi-Fi</label><input name=pass type=password autocomplete=off>";
-  h += "</div>";
+    h += "<div class=alert>" + esc(lastError) + "</div>";
+  h += "<div class=steps><div class=step><b>1</b>เลือก Wi-Fi บ้าน</div><div class=step><b>2</b>ใส่รหัส</div><div class=step><b>3</b>กดเชื่อมต่อ</div></div>";
+  h += "<form method=post action=/save class=card>";
+  h += "<label for=ssid>Wi-Fi บ้าน (2.4 GHz)</label><select id=ssid name=ssid>" + networksHtml +
+       "<option value=''>— พิมพ์ชื่อเองด้านล่าง —</option></select>";
+  h += "<label for=ssid2>หรือพิมพ์ชื่อ Wi-Fi</label><input id=ssid2 name=ssid2 autocomplete=off autocapitalize=none autocorrect=off spellcheck=false placeholder='ชื่อ Wi-Fi ที่ไม่เห็นในรายการ'>";
+  h += "<label for=pass>รหัส Wi-Fi</label><div class=pw><input id=pass name=pass type=password autocomplete=off placeholder='รหัสผ่าน Wi-Fi'><button type=button id=pwbtn onclick=togglePw()>แสดง</button></div>";
+  h += "<p class=hint>ตู้รองรับ Wi-Fi 2.4 GHz เท่านั้น · ถ้าไม่เห็นชื่อ Wi-Fi ให้พิมพ์เอง</p>";
   if (deviceLocked)
   {
-    h += "<div class=box><p class=muted>ตู้ " + esc(settings.boxId) +
-         " ตั้งค่าอุปกรณ์ครบแล้ว — หน้านี้เปลี่ยนได้เฉพาะ Wi-Fi · เปลี่ยนเซิร์ฟเวอร์/รหัสตู้ต้องต่อสาย Serial</p></div>";
+    // ล็อกอุปกรณ์แล้ว: หน้านี้แก้ได้เฉพาะ Wi-Fi
   }
   else
   {
-    h += "<details class=box><summary>ตั้งค่าอุปกรณ์ (ช่าง)</summary>";
-    h += "<label>URL เซิร์ฟเวอร์</label><input name=url value=\"" + esc(settings.url.length() ? settings.url : String(DEFAULT_SERVER_URL)) + "\" placeholder='https://hub.sjp-dev.net/smmb-api'>";
-    h += "<label>รหัสตู้ (box_id)</label><input name=box value=\"" + esc(settings.boxId) + "\" placeholder='BX-00003'>";
-    h += "<label>รหัสลับประจำตู้ (device_secret)</label><input name=secret autocomplete=off placeholder='" +
+    h += "<details><summary>ตั้งค่าอุปกรณ์ (ช่าง)</summary>";
+    h += "<label for=url>URL เซิร์ฟเวอร์</label><input id=url name=url value=\"" +
+         esc(settings.url.length() ? settings.url : String(DEFAULT_SERVER_URL)) +
+         "\" placeholder='https://hub.sjp-dev.net/smmb-api'>";
+    h += "<label for=box>รหัสตู้ (box_id)</label><input id=box name=box value=\"" + esc(settings.boxId) +
+         "\" placeholder='BX-00003'>";
+    h += "<label for=secret>รหัสลับประจำตู้ (device_secret)</label><input id=secret name=secret autocomplete=off placeholder='" +
          String(settings.secret.length() == 64 ? "ตั้งไว้แล้ว — เว้นว่าง = ใช้ค่าเดิม" : "64 ตัว จากหลังบ้าน") + "'>";
-    h += "<p class=muted>ได้จากหลังบ้าน → ตู้ → รายละเอียดตู้ · URL ต้องเป็น https:// (http:// ได้เฉพาะเครื่องในวง LAN)</p></details>";
+    h += "<p class=hint>ได้จากหลังบ้าน → ตู้ → รายละเอียดตู้ · URL ต้องเป็น https:// (http:// ได้เฉพาะเครื่องในวง LAN)</p></details>";
   }
-  h += "<button>เชื่อมต่อ</button></form><p class=muted>firmware " FW_VERSION "</p></body></html>";
+  h += "<button type=submit>เชื่อมต่อ Wi-Fi</button></form>";
+  if (deviceLocked)
+  {
+    h += "<div class=card><p class=muted>ตู้ " + esc(settings.boxId) +
+         " ตั้งค่าอุปกรณ์ครบแล้ว — หน้านี้เปลี่ยนได้เฉพาะ Wi-Fi · เปลี่ยนเซิร์ฟเวอร์/รหัสตู้ต้องต่อสาย Serial</p></div>";
+  }
+  h += "<p class=muted>เฟิร์มแวร์ " FW_VERSION " · ถ้าเชื่อมต่อไม่สำเร็จ ให้กลับมาเปิดหน้านี้ใหม่</p>";
+  h += "<script>function togglePw(){var p=document.getElementById('pass'),b=document.getElementById('pwbtn');if(p.type==='password'){p.type='text';b.textContent='ซ่อน'}else{p.type='password';b.textContent='แสดง'}}</script>";
+  h += "</div></body></html>";
+  server.sendHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
   server.send(200, "text/html; charset=utf-8", h);
 }
 
@@ -185,9 +222,17 @@ static void handleSave()
   settingsSave();
 
   String h = PAGE_HEAD;
-  h += "<h1>กำลังเชื่อมต่อ " + esc(ssid) + "…</h1><p>ถ้าสำเร็จ ตู้จะปี๊บ 1 ครั้ง และสัญญาณ " + esc(apName()) +
-       " จะหายไป — ให้มือถือกลับไปใช้เน็ตปกติ แล้วดูในแอปช่างว่า \"ตู้ต่อเน็ตแล้ว\"</p>"
-       "<p>ถ้าไม่สำเร็จ ตู้จะปี๊บยาว 1 + สั้น 2 แล้วกลับมาหน้านี้ (เปิด 192.168.4.1 อีกครั้ง)</p></body></html>";
+  h += "<div class=brand><div class=logo>S</div><div><h1>กำลังเชื่อมต่อ Wi-Fi</h1><p class=sub>" + esc(apName()) +
+       "</p></div></div>";
+  h += "<div class=ok>กำลังเชื่อมต่อ \"" + esc(ssid) + "\"…</div>";
+  h += "<div class=card><p>ถ้าสำเร็จ สัญญาณ " + esc(apName()) +
+       " จะหายไป และบอร์ดจะเริ่มทำงาน — ให้มือถือกลับไปใช้เน็ตปกติ</p>";
+  h += "<p>ถ้าไม่สำเร็จ หน้านี้จะกลับมาให้ลองใหม่</p>";
+  h += "<p class=hint>หน้านี้จะลองโหลดใหม่ใน 20 วินาที — ถ้า Wi-Fi หายไป ถือว่าสำเร็จ · ถ้ายังเชื่อมต่อไม่เสร็จ ให้รอแล้วเปิด http://192.168.4.1 อีกครั้ง</p>";
+  h += "<p><a href=\"/\">กลับไปหน้าตั้งค่า</a></p></div>";
+  h += "<script>setTimeout(function(){location.href='/'},20000)</script>";
+  h += "</div></body></html>";
+  server.sendHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
   server.send(200, "text/html; charset=utf-8", h);
   delay(300);
 
@@ -213,8 +258,14 @@ static void handleSave()
 
 static void redirectHome()
 {
-  server.sendHeader("Location", String("http://") + WiFi.softAPIP().toString() + "/");
-  server.send(302, "text/plain", "");
+  const String target = String("http://") + WiFi.softAPIP().toString() + "/";
+  server.sendHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  server.sendHeader("Connection", "close");
+  server.sendHeader("Location", target);
+  String body = "<!doctype html><html lang=th><head><meta charset=utf-8><meta http-equiv=refresh content=\"0;url=" +
+                target + "\"></head><body style=\"font-family:sans-serif;padding:20px\"><a href=\"" + target +
+                "\">เปิดหน้าตั้งค่า Wi-Fi</a></body></html>";
+  server.send(302, "text/html; charset=utf-8", body);
 }
 
 bool runSetupPortal(unsigned long timeoutMs)
@@ -231,10 +282,17 @@ bool runSetupPortal(unsigned long timeoutMs)
   dns.start(53, "*", WiFi.softAPIP());
   server.on("/", HTTP_GET, handleRoot);
   server.on("/save", HTTP_POST, handleSave);
-  // หน้าเช็กเน็ตของ Android / iPhone / Windows → เด้งมาหน้านี้
-  server.on("/generate_204", redirectHome);
-  server.on("/hotspot-detect.html", redirectHome);
-  server.on("/connecttest.txt", redirectHome);
+  // Captive portal probes: Android/Samsung, iOS, Windows → redirect to setup
+  server.on("/generate_204", HTTP_GET, redirectHome);
+  server.on("/gen_204", HTTP_GET, redirectHome);
+  server.on("/hotspot-detect.html", HTTP_GET, redirectHome);
+  server.on("/library/test/success.html", HTTP_GET, redirectHome);
+  server.on("/connecttest.txt", HTTP_GET, redirectHome);
+  server.on("/ncsi.txt", HTTP_GET, redirectHome);
+  server.on("/redirect", HTTP_GET, redirectHome);
+  server.on("/success.txt", HTTP_GET, redirectHome);
+  server.on("/canonical.html", HTTP_GET, redirectHome);
+  server.on("/captiveportal.html", HTTP_GET, redirectHome);
   server.onNotFound(redirectHome);
   server.begin();
   Serial.printf("[portal] setup mode: join Wi-Fi \"%s\" then open http://%s\n", ap.c_str(), WiFi.softAPIP().toString().c_str());
@@ -253,4 +311,8 @@ bool runSetupPortal(unsigned long timeoutMs)
   WiFi.softAPdisconnect(true);
   WiFi.mode(WIFI_STA);
   return done;
+}
+
+static void()
+{
 }

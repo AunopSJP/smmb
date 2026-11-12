@@ -5,7 +5,7 @@ import { InspectionApi, type OfficerBoxDetail } from '../../core/inspection-api'
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
-import { LoadingRows, LoadError } from '../../shared/state-view';
+import { EmptyState, LoadingRows, LoadError } from '../../shared/state-view';
 
 const STATUS: Record<OfficerBoxDetail['box']['status'], { label: Tr; icon: IconName; tone: '' | 'warn' | 'danger' }> = {
   online: { label: { th: 'ตู้ออนไลน์ พร้อมตรวจ', en: 'Online — ready to inspect' }, icon: 'check', tone: '' },
@@ -18,7 +18,7 @@ const STATUS: Record<OfficerBoxDetail['box']['status'], { label: Tr; icon: IconN
 /** OffBoxDetail — รายละเอียดตู้ก่อนเริ่มตรวจ (เฉพาะตู้ในโซนของเจ้าหน้าที่) */
 @Component({
   selector: 'app-officer-box-detail',
-  imports: [RouterLink, PageHeader, Icon, LoadingRows, LoadError],
+  imports: [RouterLink, PageHeader, Icon, LoadingRows, LoadError, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="caption()" [title]="detail()?.box?.name || (detail()?.box?.house_no ?? i18n.t({ th: 'รายละเอียดตู้', en: 'Mailbox details' }))" [back]="url('O01')" />
@@ -67,7 +67,7 @@ const STATUS: Record<OfficerBoxDetail['box']['status'], { label: Tr; icon: IconN
             }
           </ul>
         } @else {
-          <p class="muted small">{{ i18n.t({ th: 'ยังไม่มีประวัติการตรวจ', en: 'No inspection history yet' }) }}</p>
+          <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีประวัติการตรวจ', en: 'No inspection history yet' })" />
         }
 
         <a class="btn big push-end" [routerLink]="url('O02')">

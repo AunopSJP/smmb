@@ -1,6 +1,7 @@
 import { DOCUMENT } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, isDevMode } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ApiConfig } from '../core/api';
 import { I18n, type Tr } from '../core/i18n';
 import { screenUrl } from '../screens/registry';
 import { Icon, type IconName } from '../shared/icon';
@@ -61,7 +62,9 @@ const COPY: Record<Kind, Copy> = {
         <a class="btn" [routerLink]="signin">{{ i18n.t(copy().action) }}</a>
       } @else {
         <a class="btn" [routerLink]="home">{{ i18n.t(copy().action) }}</a>
-        <a class="btn secondary" routerLink="/demo">{{ i18n.t({ th: 'เปลี่ยนบทบาท', en: 'Switch role' }) }}</a>
+        @if (showDemo()) {
+          <a class="btn secondary" routerLink="/demo">{{ i18n.t({ th: 'เปลี่ยนบทบาท', en: 'Switch role' }) }}</a>
+        }
       }
 
       <a class="muted small" routerLink="/">{{ i18n.t({ th: 'กลับหน้าแรก', en: 'Go to start' }) }}</a>
@@ -84,6 +87,9 @@ export class ErrorScreen {
   protected readonly i18n = inject(I18n);
   private readonly route = inject(ActivatedRoute);
   private readonly doc = inject(DOCUMENT);
+  private readonly api = inject(ApiConfig);
+  /** เงื่อนไขเดียวกับ guard ของ /demo ใน app.routes.ts */
+  protected readonly showDemo = computed(() => this.api.devTools() || isDevMode());
   protected readonly home = '/';
   protected readonly signin = screenUrl('A04');
 

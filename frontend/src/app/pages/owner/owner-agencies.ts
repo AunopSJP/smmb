@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { firstValueFrom } from 'rxjs';
 import { DisplaySettings } from '../../core/display-settings';
 import { I18n } from '../../core/i18n';
-import { LoadError } from '../../shared/state-view';
+import { EmptyState, LoadError } from '../../shared/state-view';
 import { OwnerApi } from '../../core/owner-api';
 import { screenUrl } from '../../screens/registry';
 import { AgencyMap, type AgencyMapItem } from '../../shared/agency-map';
@@ -30,7 +30,7 @@ const km = (a: LatLng, b: LatLng): number => {
  */
 @Component({
   selector: 'app-owner-agencies',
-  imports: [PageHeader, AgencyMap, LoadError],
+  imports: [PageHeader, AgencyMap, LoadError, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [title]="i18n.t({ th: 'หน่วยงานใกล้บ้าน', en: 'Agencies near you' })" [back]="url('H13')" />
@@ -46,7 +46,7 @@ const km = (a: LatLng, b: LatLng): number => {
       @if (failed()) {
         <app-load-error (retry)="load()" />
       } @else if (loaded() && !agencies().length) {
-        <p class="card muted" role="status">{{ i18n.t({ th: 'ยังไม่มีหน่วยงานที่ปักหมุดไว้', en: 'No agency has put a pin on the map yet' }) }}</p>
+        <app-empty-state [title]="i18n.t({ th: 'ยังไม่มีหน่วยงานที่ปักหมุดไว้', en: 'No agency has put a pin on the map yet' })" />
       }
       <div class="ag-list">
         @for (a of sorted(); track a.item.id; let i = $index) {

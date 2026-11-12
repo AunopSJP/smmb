@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SMMB — รายงานเส้นทางผู้ใช้</title>
+<style>
+  :root{--ink:#111;--muted:#666;--line:#ddd;--accent:#9a2f36;--ok:#0a7d33;--warn:#b45309;--bad:#b91c1c;--bg:#fafafa;--card:#fff}
+  *{box-sizing:border-box;margin:0}
+  body{font:16px/1.6 "Noto Sans Thai",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg);padding:48px 24px;max-width:880px;margin:0 auto}
+  h1{font-size:28px;letter-spacing:-.02em}
+  h2{font-size:20px;margin:48px 0 8px;padding-top:24px;border-top:1px solid var(--line)}
+  h3{font-size:15px;color:var(--muted);margin:28px 0 12px}
+  .meta{color:var(--muted);font-size:14px;margin:6px 0 4px}
+  .skills{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 0}
+  .chip{font-size:13px;padding:3px 10px;border:1px solid var(--line);border-radius:999px;background:var(--card)}
+  .flow{list-style:none;padding:0;margin:16px 0}
+  .flow>li{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;position:relative}
+  .flow>li+li{margin-top:34px}
+  .flow>li+li::before{content:"";position:absolute;top:-27px;left:32px;width:2px;height:20px;background:var(--accent)}
+  .flow>li+li::after{content:"";position:absolute;top:-12px;left:28px;border:5px solid transparent;border-top-color:var(--accent)}
+  .step-n{display:inline-block;font-size:12px;font-weight:700;color:var(--accent);border:1.5px solid var(--accent);border-radius:999px;padding:1px 9px;margin-right:8px}
+  .step-t{font-weight:650}
+  .step-d{color:var(--muted);font-size:14px;margin-top:6px}
+  .cta{font-size:13px;margin-top:8px}
+  .cta b{color:var(--ok)}
+  .branch{font-size:13px;margin-top:8px;padding:8px 12px;background:#f7f0f0;border-left:3px solid var(--accent);border-radius:0 6px 6px 0}
+  table{border-collapse:collapse;width:100%;font-size:14px;background:var(--card)}
+  th,td{text-align:left;padding:9px 12px;border:1px solid var(--line);vertical-align:top}
+  th{background:var(--bg);font-size:12px;color:var(--muted)}
+  .pass{color:var(--ok);font-weight:650}.warn{color:var(--warn);font-weight:650}.fail{color:var(--bad);font-weight:650}
+  .overflow{overflow-x:auto}
+  footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  @media print{body{background:#fff;padding:0}.flow>li{break-inside:avoid}}
+</style>
+</head>
+<body>
+
+<h1>SMMB — รายงานเส้นทางผู้ใช้</h1>
+<p class="meta">2026-11-12 · ตรวจจากโค้ด frontend (ยังไม่ได้เปิดแอปจริง) · 4 เส้นทางหลัก</p>
+<div class="skills">
+  <span class="chip">flow-onboarding</span>
+  <span class="chip">flow-auth</span>
+  <span class="chip">flow-forms</span>
+  <span class="chip">flow-errors</span>
+  <span class="chip">flow-settings</span>
+  <span class="chip">flow-empty-states</span>
+  <span class="chip">flow-permissions</span>
+  <span class="chip">flow-navigation</span>
+  <span class="chip">web-design-guidelines</span>
+</div>
+
+<h2>สรุป</h2>
+<p>เส้นทางหลักเรียบง่ายและตรงกับหลักที่ดี (ปุ่มหลักปุ่มเดียว ผูกตู้ 3 ขั้น หน้าออฟไลน์โทร 191 ได้) จุดอ่อนอยู่ที่ "ตาข่ายรองรับ" รอบเส้นทาง: ไม่มีเลิกทำ ไม่มีสิทธิ์ข้อมูลส่วนตัวของผู้ใช้ ข้อผิดพลาดของฟอร์มไม่ผูกกับช่อง และหน้าหลักเจ้าของบ้านแสดงการ์ดเตือนซ้อนกันได้โดยไม่จัดลำดับ</p>
+
+<h2>เส้นทาง: เจ้าของบ้านผูกตู้ครั้งแรก</h2>
+<p class="meta">แหล่งแบบแผน: flow-onboarding · จุดเข้า: สมัครเจ้าของบ้าน (A06) แล้วเข้าหน้าหลัก H03</p>
+<h3>ขั้นตอน</h3>
+<ol class="flow">
+  <li><span class="step-n">1</span><span class="step-t">สมัครเจ้าของบ้าน 3 ขั้น (บัญชี / บ้าน / ข้อตกลง)</span>
+    <p class="step-d">เบอร์โทร รหัสผ่าน ที่อยู่ หมุดบ้าน ผู้ติดต่อฉุกเฉิน แล้วยอมรับข้อตกลง</p>
+    <p class="cta">ปุ่มหลัก: <b>ถัดไป / สมัคร</b> → หน้าหลักเจ้าของบ้าน</p></li>
+  <li><span class="step-n">2</span><span class="step-t">หน้าหลักแบบยังไม่มีตู้ (H03)</span>
+    <p class="step-d">ภาพ + ขั้นตอน 3 ข้อ (เปิดฝา / สแกน QR / ตั้งชื่อ)</p>
+    <p class="cta">ปุ่มหลัก: <b>ผูกตู้ตอนนี้</b> → A07 สแกน QR</p></li>
+  <li><span class="step-n">3</span><span class="step-t">สแกน QR เปิดใช้ตู้ (A07–A09)</span>
+    <p class="step-d">กล้องจริง หรือพิมพ์รหัส 8 ตัวใต้ QR แล้วตั้งชื่อตู้</p>
+    <p class="cta">ปุ่มหลัก: <b>ยืนยัน</b> → หน้าหลักพร้อมตู้</p>
+    <div class="branch">ถ้าไม่มีเจ้าหน้าที่ดูแลบ้านนี้ → การ์ดเตือนบอกให้โทร 191 / 1669 เมื่อกด SOS</div></li>
+</ol>
+<h3>ตารางหน้าจอ</h3>
+<div class="overflow"><table>
+  <tr><th>หน้าจอ</th><th>จุดประสงค์</th><th>ปุ่มหลัก</th><th>สถานะ ว่าง/โหลด/ผิดพลาด</th></tr>
+  <tr><td>H03 ไม่มีตู้</td><td>พาไปผูกตู้</td><td>ผูกตู้ตอนนี้</td><td>มีสถานะว่างของจริง</td></tr>
+  <tr><td>H03 มีตู้</td><td>ดูสถานะ + SOS</td><td>กดค้าง SOS</td><td>โหลด: skeleton · ผิดพลาด: ตรวจต่อ</td></tr>
+</table></div>
+<h3>ตรวจรูปแบบที่ไม่ควรมี</h3>
+<div class="overflow"><table>
+  <tr><th>รายการตรวจ (flow-onboarding)</th><th>ผล</th><th>หมายเหตุ</th></tr>
+  <tr><td>สไลด์แนะนำฟีเจอร์ก่อนใช้งาน</td><td class="pass">PASS</td><td>ไม่มี ใช้ขั้นตอน 3 ข้อในหน้าจริง</td></tr>
+  <tr><td>ขอสิทธิ์ก่อนมีเหตุผล</td><td class="pass">PASS</td><td>แจ้งเตือนของเจ้าของบ้านไม่ได้บังคับตอนสมัคร</td></tr>
+  <tr><td>หน้าแรกว่างเปล่า "แล้วไงต่อ"</td><td class="pass">PASS</td><td>มีปุ่มผูกตู้ปุ่มเดียว</td></tr>
+  <tr><td>ฟอร์มสมัครยาวถามเกินจำเป็น</td><td class="warn">WARN</td><td>ถามที่อยู่ ผู้ติดต่อฉุกเฉิน ฯลฯ ตั้งแต่สมัคร ควรเลื่อนบางช่องไปถามหลังผูกตู้ (progressive profiling) แต่ API ไม่บังคับอยู่แล้ว</td></tr>
+</table></div>
+
+<h2>เส้นทาง: เจ้าหน้าที่ตรวจตู้</h2>
+<p class="meta">แหล่งแบบแผน: flow-permissions + flow-errors · จุดเข้า: หน้าสรุป O01</p>
+<h3>ขั้นตอน</h3>
+<ol class="flow">
+  <li><span class="step-n">1</span><span class="step-t">เปิดแจ้งเตือน (A12)</span>
+    <p class="step-d">ถ้ายังไม่เปิด เซิร์ฟเวอร์ตอบ 403 PUSH_REQUIRED แล้วพาเข้า A12 ที่เดียว</p>
+    <p class="cta">ปุ่มหลัก: <b>เปิดแจ้งเตือน</b> → คำขอสิทธิ์ของเบราว์เซอร์</p></li>
+  <li><span class="step-n">2</span><span class="step-t">สแกน QR หน้าตู้ (O05–O06)</span>
+    <p class="step-d">กล้องจริง ตู้ปลุกแล้วเริ่มเวลา 60 วินาที</p>
+    <p class="cta">ปุ่มหลัก: <b>สแกน</b> → ยื่น QR ประจำตัว</p></li>
+  <li><span class="step-n">3</span><span class="step-t">ยื่น QR ประจำตัวให้กล้องตู้ (O06–O07)</span>
+    <p class="step-d">QR เปลี่ยนทุก ~9 วินาที ลองได้ 3 ครั้ง</p>
+    <div class="branch">ถ้าไม่ผ่านครบ 3 ครั้ง หรือตู้ไม่ตอบ → แจ้งปัญหาตู้ให้เจ้าของบ้านกับแอดมิน</div></li>
+  <li><span class="step-n">4</span><span class="step-t">กำลังบันทึกผล 8 วินาที (O08)</span>
+    <p class="step-d">ให้ยืนหน้าตู้จนตู้ถ่าย Snapface (ห้ามบอกว่าถ่ายรูป)</p>
+    <p class="cta">ผลลัพธ์: <b>ตรวจผ่าน</b> → หน้าเขียวเต็มจอ</p></li>
+</ol>
+<h3>ตรวจรูปแบบที่ไม่ควรมี</h3>
+<div class="overflow"><table>
+  <tr><th>รายการตรวจ</th><th>ผล</th><th>หมายเหตุ</th></tr>
+  <tr><td>ขอสิทธิ์โดยไม่อธิบาย (flow-permissions)</td><td class="pass">PASS</td><td>A12 เป็นหน้าอธิบายก่อนขอ และเป็นกฎของระบบที่ต้องบังคับ</td></tr>
+  <tr><td>สิทธิ์ถูกปฏิเสธแล้วทางตัน</td><td class="warn">WARN</td><td>มี "ตรวจแจ้งเตือน (ละเอียด)" แต่ยังไม่ยืนยันว่ามีลิงก์พาไปตั้งค่าเบราว์เซอร์ทุกกรณี</td></tr>
+  <tr><td>ข้อผิดพลาดไม่มีทางไปต่อ (flow-errors)</td><td class="warn">WARN</td><td>ข้อความจากเซิร์ฟเวอร์ยังไม่ได้ตรวจ (Not verified)</td></tr>
+  <tr><td>ปุ่มเลิกทำ</td><td class="fail">FAIL</td><td>ไม่พบใน frontend เลย</td></tr>
+</table></div>
+
+<h2>เส้นทาง: SOS</h2>
+<p class="meta">แหล่งแบบแผน: flow-errors + flow-app-shell · จุดเข้า: ปุ่ม SOS หน้าหลักเจ้าของบ้าน หรือ O12 ฝั่งเจ้าหน้าที่</p>
+<h3>ขั้นตอน</h3>
+<ol class="flow">
+  <li><span class="step-n">1</span><span class="step-t">กดค้าง 3 วินาที (H03)</span>
+    <p class="step-d">กันกดโดนโดยไม่ตั้งใจ</p>
+    <p class="cta">ปุ่มหลัก: <b>SOS</b> → หน้าติดตามสถานะ</p></li>
+  <li><span class="step-n">2</span><span class="step-t">ระบบเลื่อนขั้นทุก 5 วินาทีไปหาเจ้าหน้าที่</span>
+    <p class="step-d">ไม่ส่งถึงเจ้าของบ้านเอง ทุกหน่วยงานที่ดูแลบ้านได้รับ</p>
+    <div class="branch">ถ้าไม่มีเจ้าหน้าที่ → บอกให้โทร 191 / 1669 ทันที</div></li>
+  <li><span class="step-n">3</span><span class="step-t">เจ้าหน้าที่รับ → ติดตาม (H11 / O12)</span>
+    <p class="step-d">เจ้าหน้าที่เห็นเบอร์และที่อยู่เฉพาะตอน SOS เปิดอยู่</p></li>
+</ol>
+<h3>ตรวจรูปแบบที่ไม่ควรมี</h3>
+<div class="overflow"><table>
+  <tr><th>รายการตรวจ</th><th>ผล</th><th>หมายเหตุ</th></tr>
+  <tr><td>กดผิดแล้วย้อนไม่ได้</td><td class="pass">PASS</td><td>กดค้างแทนกล่องยืนยัน เหมาะกับเหตุฉุกเฉิน</td></tr>
+  <tr><td>ฉุกเฉินใช้งานไม่ได้เมื่อออฟไลน์</td><td class="pass">PASS</td><td>หน้าออฟไลน์มีปุ่มโทรทันที</td></tr>
+  <tr><td>การ์ดเตือนซ้อนกันหลายใบในหน้าหลัก</td><td class="warn">WARN</td><td>SOS ค้าง / QR ชำรุด / ไม่มีเจ้าหน้าที่ / ตู้ออฟไลน์ แสดงพร้อมกันได้ ควรจัดลำดับให้ SOS ขึ้นก่อนเสมอ</td></tr>
+</table></div>
+
+<h2>เส้นทาง: ตั้งค่าและข้อมูลของฉัน</h2>
+<p class="meta">แหล่งแบบแผน: flow-settings + flow-forms · จุดเข้า: แท็บตั้งค่า H13</p>
+<h3>ตรวจรูปแบบที่ไม่ควรมี</h3>
+<div class="overflow"><table>
+  <tr><th>รายการตรวจ (flow-settings / flow-forms)</th><th>ผล</th><th>หมายเหตุ</th></tr>
+  <tr><td>ลบบัญชีเองได้ / ส่งออกข้อมูล</td><td class="fail">FAIL</td><td>ไม่พบทั้งสองอย่าง ระบบเก็บข้อมูลบ้านและผู้ที่ต้องดูแลพิเศษ</td></tr>
+  <tr><td>รายการเครื่องที่ล็อกอิน + ออกจากทุกเครื่อง</td><td class="fail">FAIL</td><td>รอ API ตามที่ CLAUDE.md ระบุ</td></tr>
+  <tr><td>ค่าปัจจุบันแสดงตรงของจริง</td><td class="warn">WARN</td><td>เมนู "แบบการใช้งาน" ในโหมดง่ายเขียนตายตัวว่า "ง่าย · ตัวใหญ่"</td></tr>
+  <tr><td>ข้อผิดพลาดผูกกับช่อง (aria-invalid / aria-describedby)</td><td class="fail">FAIL</td><td>จาก ~124 ช่องกรอก พบ aria-invalid 2 จุด และ aria-describedby 1 จุด</td></tr>
+  <tr><td>ช่องรหัสผ่านมี autocomplete ถูกต้อง</td><td class="pass">PASS</td><td>auth-parts.ts ใช้ new-password / current-password (ยกเว้นฟอร์มช่างที่ปิดไว้)</td></tr>
+  <tr><td>ตัวเลือกเมนู/แท็บเดียวกันทุกโหมด (flow-navigation)</td><td class="warn">WARN</td><td>โหมดง่ายตัดแท็บ เจ้าหน้าที่ 4→3, หัวหน้า 4→3, แอดมิน 4→3</td></tr>
+</table></div>
+
+<h2>ตรวจการเข้าถึง (web-design-guidelines)</h2>
+<div class="overflow"><table>
+  <tr><th>รายการ</th><th>ผล</th><th>หมายเหตุ</th></tr>
+  <tr><td>Skip link</td><td class="pass">PASS</td><td>มีใน area-shell.ts</td></tr>
+  <tr><td>Live region / role=alert</td><td class="pass">PASS</td><td>พบ 67 จุด</td></tr>
+  <tr><td>ฟอร์มมี label</td><td class="pass">PASS</td><td>label 131 จุด สำหรับช่องกรอก ~124 ช่อง</td></tr>
+  <tr><td>กรอบโฟกัสมองเห็นได้</td><td class="warn">WARN</td><td>แก้ outline: none ที่ทับกรอบกลางแล้ว ยังไม่ได้ทดสอบด้วยคีย์บอร์ดจริง</td></tr>
+  <tr><td>prefers-reduced-motion</td><td class="warn">WARN</td><td>พบ 8 จุด เทียบกับ @keyframes 6 จุด ต้องดูทีละชิ้นว่าครอบคลุมครบ</td></tr>
+  <tr><td>aria-busy ตอนโหลด</td><td class="warn">WARN</td><td>ไม่พบ aria-busy แต่ skeleton ใช้ role="status" อยู่ ถือว่าอ่านออกเสียงได้</td></tr>
+</table></div>
+
+<h2>คำถามที่ยังเปิดอยู่</h2>
+<ul>
+  <li>ข้อความผิดพลาดจากเซิร์ฟเวอร์ยังไม่ได้ตรวจ (Not verified)</li>
+  <li>การแสดงผลที่ 320px และซูม 200% ยังไม่ได้ตรวจ</li>
+  <li>การส่งออก/ลบข้อมูลและรายการเครื่องต้องมี API ฝั่ง backend เพิ่ม</li>
+</ul>
+
+<footer>จัดทำด้วยสกิล flow-* · ผลตรวจมาจากการอ่านโค้ด ไม่ใช่การทดสอบบนหน้าจอจริง</footer>
+
+</body>
+</html>

@@ -141,7 +141,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
       margin-inline-start: 4px;
       border-radius: 999px;
       background: var(--badge-bg);
-      color: #fff;
+      color: var(--badge-fg);
       font-size: 0.75rem;
       font-weight: 700;
     }
@@ -156,7 +156,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
       display: block;
       margin-block-start: 3px;
       color: var(--text-muted);
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       overflow-wrap: break-word;
     }
     .read-all {
@@ -210,8 +210,10 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
     .item + .item {
       border-block-start: 1px solid var(--line);
     }
-    .item:hover {
-      background: var(--icon-bg);
+    @media (hover: hover) {
+      .item:hover {
+        background: var(--icon-bg);
+      }
     }
     .item.unread {
       background: color-mix(in srgb, var(--brand-light) 45%, var(--surface));

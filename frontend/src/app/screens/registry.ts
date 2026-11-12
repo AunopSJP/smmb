@@ -78,29 +78,6 @@ export const TABS: Partial<Record<Area, TabDef[]>> = {
   ],
 };
 
-/**
- * แท็บล่างของ "โหมดง่าย" — ตามแคนวาสดีไซน์ (2026-11-09)
- * โหมดง่ายลดเมนูเหลือเฉพาะงานหลัก: เจ้าหน้าที่ตัด "ประวัติ" · หัวหน้าตัด "โซน" · แอดมินตัด "ระบบ"
- * บทบาทที่ไม่อยู่ในรายการนี้ใช้แท็บชุดเดียวกับโหมดปกติ
- */
-export const TABS_EASY: Partial<Record<Area, TabDef[]>> = {
-  officer: [
-    { code: 'O01', icon: 'home', label: { th: 'สรุป', en: 'Summary' } },
-    { code: 'O12', icon: 'alert', label: { th: 'SOS', en: 'SOS' } },
-    { code: 'O13', icon: 'settings', label: { th: 'ตั้งค่า', en: 'Settings' } },
-  ],
-  head: [
-    { code: 'L04', icon: 'home', label: { th: 'ภาพรวม', en: 'Overview' } },
-    { code: 'L05', icon: 'user', label: { th: 'สมาชิก', en: 'Members' } },
-    { code: 'L11', icon: 'settings', label: { th: 'ตั้งค่า', en: 'Settings' } },
-  ],
-  admin: [
-    { code: 'D01', icon: 'home', label: { th: 'ภาพรวม', en: 'Overview' } },
-    { code: 'D03', icon: 'box', label: { th: 'ตู้', en: 'Boxes' } },
-    { code: 'D09', icon: 'user', label: { th: 'ผู้ใช้', en: 'Users' } },
-  ],
-};
-
 const s = (code: string, area: Area, path: string, th: string, en: string, extra: Partial<ScreenDef> = {}): ScreenDef => ({
   code,
   area,

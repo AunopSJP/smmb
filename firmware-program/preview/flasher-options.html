@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SMMB Firmware Flasher · 3 UI options</title>
+<style>
+  :root{--brand:#9A2F36;--text:#1F1D1B;--muted:#6F675E;--border:#E4DFD8;--bg:#CFCAC3}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Leelawadee UI","Noto Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;padding:28px 26px 60px}
+  .hero{max-width:1166px;margin:0 auto 22px}
+  .eyebrow{font-size:12px;font-weight:800;letter-spacing:.08em;color:var(--brand);text-transform:uppercase}
+  h1{font-size:29px;line-height:1.25;margin:6px 0 6px;letter-spacing:-.02em}
+  .sub{color:#5F574E;font-size:14px;max-width:760px}
+  .note{margin-top:12px;display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);border-radius:100px;padding:7px 13px;font-size:12px;color:var(--muted)}
+  .grid{max-width:1166px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,572px);gap:22px;justify-content:center}
+  .item{background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:18px;padding:16px;box-shadow:0 10px 30px rgba(43,35,28,.08)}
+  .item-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+  .badge{width:30px;height:30px;border-radius:9px;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px;flex:none}
+  .item h2{font-size:17px;margin:0;line-height:1.3}
+  .item .desc{font-size:12px;color:var(--muted);margin-top:2px}
+  .preview{width:540px;height:410px;border-radius:12px;overflow:hidden;background:#D9D5CF;border:1px solid var(--border);position:relative}
+  .preview iframe{width:1080px;height:820px;border:0;transform:scale(.5);transform-origin:top left;pointer-events:none;display:block}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+  .tag{font-size:11px;font-weight:700;border-radius:100px;padding:4px 9px;background:#F3F1ED;color:#5F574E}
+  .pros{margin:10px 0 0;padding:0;list-style:none;font-size:12px;color:#5F574E}
+  .pros li{padding-left:16px;position:relative;margin-top:3px}
+  .pros li::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--brand);position:absolute;left:2px;top:7px}
+  .open{display:inline-flex;align-items:center;gap:7px;margin-top:14px;height:36px;padding:0 14px;border-radius:9px;background:var(--brand);color:#fff;font-weight:800;font-size:12.5px;text-decoration:none}
+  .open:hover{background:#6F1F25}
+  .footer{max-width:1166px;margin:26px auto 0;color:#5F574E;font-size:12px}
+</style></head>
+<body>
+  <div class="hero">
+    <div class="eyebrow">SMMB Firmware Flasher · UI concepts</div>
+    <h1>เลือกหน้าจอที่อยากใช้</h1>
+    <div class="sub">ทั้ง 3 แบบใช้ข้อมูลและขั้นตอนเดียวกัน (เลือกบอร์ด → เลือกเวอร์ชัน → แฟลช/ล้างค่า/ระบุบอร์ดด้วยการถอด-เสียบ) ต่างกันที่การจัดวางและลำดับความสำคัญของข้อมูล</div>
+    <div class="note">คลิก “เปิดแบบเต็ม” เพื่อดูขนาดจริง 1080×820</div>
+  </div>
+
+  <div class="grid">
+    <div class="item">
+      <div class="item-head">
+        <div class="badge">1</div>
+        <div><h2>Guided Steps — ทีละขั้น</h2><div class="desc">เหมาะกับผู้ใช้ครั้งแรก / ใช้งานง่ายที่สุด</div></div>
+      </div>
+      <div class="preview"><iframe src="flasher-option-1.html" title="Option 1"></iframe></div>
+      <div class="tags"><span class="tag">ขั้นตอนชัด</span><span class="tag">ไม่รก</span><span class="tag">มือใหม่</span></div>
+      <ul class="pros">
+        <li>เห็นลำดับ 1-2-3 ชัด ไม่ต้องเดา</li>
+        <li>ข้อมูลที่เลือกแล้วพับเป็นแถวสั้น ๆ</li>
+        <li>ปุ่มหลักอยู่ในการ์ดขั้นที่ 3</li>
+      </ul>
+      <a class="open" href="flasher-option-1.html" target="_blank">เปิดแบบเต็ม →</a>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <div class="badge">2</div>
+        <div><h2>Workbench — แผงซ้าย + รายละเอียด</h2><div class="desc">เหมาะกับช่างเทคนิค / เห็นข้อมูลครบ</div></div>
+      </div>
+      <div class="preview"><iframe src="flasher-option-2.html" title="Option 2"></iframe></div>
+      <div class="tags"><span class="tag">เห็นบอร์ด+เวอร์ชันพร้อมกัน</span><span class="tag">มี log</span><span class="tag">เทคนิค</span></div>
+      <ul class="pros">
+        <li>สลับบอร์ด/เวอร์ชันได้เร็ว</li>
+        <li>เห็นขั้นตอนแฟลชและ log จาก esptool</li>
+        <li>เหมาะกับการตรวจปัญหาหน้างาน</li>
+      </ul>
+      <a class="open" href="flasher-option-2.html" target="_blank">เปิดแบบเต็ม →</a>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <div class="badge">3</div>
+        <div><h2>Dashboard — ภาพรวม + ปุ่มลอยล่าง</h2><div class="desc">ทันสมัย / ปุ่มแฟลชเห็นตลอด</div></div>
+      </div>
+      <div class="preview"><iframe src="flasher-option-3.html" title="Option 3"></iframe></div>
+      <div class="tags"><span class="tag">ปุ่มหลักเห็นตลอด</span><span class="tag">ภาพรวมเร็ว</span><span class="tag">กระชับ</span></div>
+      <ul class="pros">
+        <li>ปุ่มเริ่มแฟลชอยู่ล่างจอตลอดเวลา</li>
+        <li>เห็นบอร์ด/เวอร์ชัน/โหมดพร้อมกันในหน้าเดียว</li>
+        <li>เหมาะกับผู้ใช้ที่แฟลชบ่อย</li>
+      </ul>
+      <a class="open" href="flasher-option-3.html" target="_blank">เปิดแบบเต็ม →</a>
+    </div>
+  </div>
+
+  <div class="footer">หมายเหตุ: เป็น HTML mockup เพื่อเลือกทิศทาง UI ก่อนนำไปทำใน egui — ข้อมูลตัวอย่างใช้บอร์ด COM3/COM7 และเฟิร์มแวร์ 0.2.13</div>
+</body></html>

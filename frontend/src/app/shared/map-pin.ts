@@ -81,7 +81,7 @@ export const directionsUrl = (p: LatLng) => `https://www.google.com/maps/dir/?ap
       block-size: 26px;
       border-radius: 50% 50% 50% 0;
       background: var(--brand);
-      border: 3px solid #fff;
+      border: 3px solid var(--map-ring);
       transform: rotate(-45deg);
       box-shadow: 0 2px 6px rgb(0 0 0 / 35%);
     }

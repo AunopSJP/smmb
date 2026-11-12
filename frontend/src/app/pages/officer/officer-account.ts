@@ -90,7 +90,7 @@ import { PushStatus } from '../../shared/push-status';
     .icon-bubble.ok { background: var(--ok-bg); color: var(--ok); }
     .push-toggle { min-block-size: 44px; padding: 6px 12px; }
     .signout { color: var(--brand-text); box-shadow: inset 0 0 0 1.5px var(--line); }
-    .tech { margin: 0; font-size: 0.6875rem; color: var(--text-muted); }
+    .tech { margin: 0; font-size: 0.75rem; color: var(--text-muted); }
   `,
 })
 export class OfficerAccount {

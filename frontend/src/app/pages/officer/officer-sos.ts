@@ -283,7 +283,7 @@ export class OfficerSosList {
     }
     .tech {
       margin: 0;
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       line-height: 1.6;
       opacity: 0.85;
       overflow-wrap: break-word;
@@ -400,20 +400,20 @@ export class OfficerSosCase implements OnInit {
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      color: #fff;
+      color: var(--sos-fg);
       font-weight: 700;
       font-size: 0.875rem;
       text-decoration: none;
     }
     .tech {
       margin: 0;
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       opacity: 0.85;
       overflow-wrap: break-word;
     }
     .tech-muted {
       margin: 0;
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
     }
   `,
@@ -502,12 +502,11 @@ const OUTCOMES: { v: string; label: Tr }[] = [
       resize: vertical;
     }
     textarea:focus {
-      outline: none;
       border-color: var(--brand-text);
     }
     .tech {
       margin: 0;
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
     }
   `,

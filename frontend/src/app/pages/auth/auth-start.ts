@@ -175,7 +175,7 @@ export class AuthLine {
         stroke-dasharray: 4 4;
       }
       .tiny {
-        font-size: 9px;
+        font-size: 11px;
         fill: var(--text);
       }
       .strongT {
@@ -188,7 +188,7 @@ export class AuthLine {
         fill: var(--brand);
       }
       .mail {
-        fill: #fff;
+        fill: var(--on-dark);
       }
       .mailline {
         fill: none;
@@ -321,9 +321,6 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
           <p class="card err" role="alert">
             <strong>{{ i18n.t(e.title) }}</strong><br />
             <span class="small">{{ i18n.t(e.sub) }}</span>
-            @if (errorInfo()) {
-              <br /><span class="mono adv-only">{{ errorInfo() }}</span>
-            }
           </p>
         }
         @if (session.me(); as me) {

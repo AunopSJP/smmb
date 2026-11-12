@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>แบบที่ 2 · Workbench</title>
+<link rel="stylesheet" href="mock.css">
+<style>
+  .sidebar{width:344px;flex:none;background:#fff;border-right:1px solid var(--border)}
+  .sidebar-inner{padding:18px}
+  .board-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface-muted);margin-bottom:8px}
+  .board-row.selected{border-color:var(--brand);background:var(--brand-soft)}
+  .board-row b{font-size:14px;display:block}
+  .board-row small{display:block;font-size:11.5px;color:var(--muted);margin-top:1px}
+  .version-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0 8px}
+  .version{border:1px solid var(--border);background:var(--surface-muted);border-radius:9px;padding:8px 10px;font-family:Consolas,"Cascadia Mono",monospace;font-size:12.5px;color:var(--secondary)}
+  .version.selected{border-color:var(--brand);background:var(--brand-soft);color:var(--brand);font-weight:800}
+  .main{padding:22px 26px;flex:1;background:var(--bg)}
+  .summary-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+  .tile{background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+  .tile small{display:block;color:var(--muted);font-size:11.5px;margin-bottom:2px}
+  .tile b{font-size:14px}
+  .timeline{display:flex;align-items:center;gap:7px;margin:14px 0 12px}
+  .tstep{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);white-space:nowrap}
+  .tick{width:20px;height:20px;border-radius:50%;background:var(--success-soft);color:var(--success);display:grid;place-items:center;font-weight:800;font-size:11px;flex:none}
+  .progress{height:7px;background:#EEE9E2;border-radius:20px;overflow:hidden}
+  .progress > div{height:100%;width:100%;background:var(--success);border-radius:20px}
+  .result{display:flex;align-items:center;gap:8px;background:var(--success-soft);color:var(--success);border-radius:9px;padding:9px 12px;font-size:12.5px;font-weight:700;margin-top:12px}
+  .log{background:#211E1B;color:#D8D2CA;border:0;border-radius:14px;padding:14px 16px;margin-top:14px;font-family:Consolas,"Cascadia Mono",monospace;font-size:11.5px;line-height:1.6}
+  .log .log-head{display:flex;align-items:center;color:#F5F1EC;font-family:inherit;font-size:12.5px;font-weight:700;margin-bottom:8px}
+  .log pre{margin:0;white-space:pre-wrap}
+  @media(max-width:900px){
+    .sidebar{width:100%;border-right:0;border-bottom:1px solid var(--border)}
+    .main{padding:18px}
+    .timeline{flex-wrap:wrap}
+  }
+</style></head>
+<body>
+<div class="window">
+  <header class="app-header">
+    <div class="logo">S</div>
+    <div><div class="app-title">SMMB Firmware Flasher</div><div class="app-sub">ESP32-CAM (AI-Thinker) · กล้อง OV2640</div></div>
+    <div class="header-right"><span class="status-pill"><span class="dot"></span>สำเร็จ</span></div>
+  </header>
+
+  <div class="body">
+    <aside class="sidebar scroll">
+      <div class="sidebar-inner">
+        <div class="row">
+          <div class="section-title">บอร์ดที่เชื่อมต่อ</div>
+          <span class="chip success" style="margin-left:auto">2</span>
+          <button class="btn ghost" style="height:28px;padding:0 6px" title="ค้นหาอีกครั้ง">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+          </button>
+        </div>
+        <div class="small muted" style="margin:2px 0 12px">แสดงเฉพาะบอร์ดที่เสียบอยู่ตอนนี้</div>
+
+        <div class="board-row selected">
+          <span class="radio on"></span>
+          <div class="grow"><b>COM3</b><small>USB-SERIAL CH340</small></div>
+          <span class="chip success">ESP32</span>
+        </div>
+        <div class="board-row">
+          <span class="radio"></span>
+          <div class="grow"><b>COM7</b><small>Silicon Labs CP210x</small></div>
+          <span class="chip success">ESP32</span>
+        </div>
+
+        <button class="btn outline" style="width:100%;height:36px;margin-top:2px;font-size:12.5px">ระบุบอร์ดด้วยการถอด/เสียบ USB</button>
+        <div class="row" style="margin-top:8px"><span class="small muted">ไม่แตะโค้ดบอร์ด · ใช้ได้แม้ flash ว่าง</span></div>
+
+        <div class="divider" style="margin:18px 0"></div>
+
+        <div class="row">
+          <div class="section-title">เฟิร์มแวร์</div>
+          <span class="small muted" style="margin-left:auto">7 เวอร์ชัน</span>
+        </div>
+        <div class="version-grid">
+          <div class="version selected">0.2.13</div>
+          <div class="version">0.2.12</div>
+          <div class="version">0.2.11</div>
+          <div class="version">0.2.10</div>
+          <div class="version">0.2.9</div>
+          <div class="version">0.2.8</div>
+          <div class="version">0.2.7</div>
+        </div>
+        <div class="row"><span class="chip brand">แนะนำ 0.2.13</span><a class="link" style="margin-left:auto">เปิดโฟลเดอร์</a></div>
+
+        <div class="divider" style="margin:18px 0"></div>
+        <div class="small muted">แฟลชเต็มรูปแบบ: bootloader + partition + แอป<br>ตรวจสอบข้อมูลบนบอร์ดหลังเขียนทุกครั้ง</div>
+      </div>
+    </aside>
+
+    <main class="scroll main">
+      <div class="row">
+        <div>
+          <div style="font-size:25px;font-weight:800;letter-spacing:-.02em">แฟลชสำเร็จ</div>
+          <div class="secondary small" style="margin-top:2px">COM3 · 0.2.13 · แฟลชเต็มรูปแบบ</div>
+        </div>
+        <span class="chip success" style="margin-left:auto">ตรวจสอบข้อมูลแล้ว</span>
+      </div>
+
+      <div class="summary-row">
+        <div class="tile"><small>บอร์ด</small><b>COM3</b></div>
+        <div class="tile"><small>เฟิร์มแวร์</small><b>0.2.13</b></div>
+        <div class="tile"><small>โหมด</small><b style="color:var(--success)">เต็มรูปแบบ</b></div>
+      </div>
+
+      <div class="card" style="padding:18px;margin-top:14px">
+        <div class="row">
+          <b style="font-size:15px">ขั้นตอนการแฟลช</b>
+          <span class="chip success" style="margin-left:auto">สำเร็จ</span>
+        </div>
+        <div class="timeline">
+          <div class="tstep"><span class="tick">✓</span>เตรียมข้อมูล</div>
+          <div class="tstep"><span class="tick">✓</span>bootloader</div>
+          <div class="tstep"><span class="tick">✓</span>partition</div>
+          <div class="tstep"><span class="tick">✓</span>แอป</div>
+          <div class="tstep"><span class="tick">✓</span>ตรวจสอบ</div>
+        </div>
+        <div class="progress"><div></div></div>
+        <div class="result">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+          แฟลชเต็มรูปแบบ 0.2.13 สำเร็จ — ตรวจสอบข้อมูลบนบอร์ดแล้ว
+        </div>
+        <div class="row" style="margin-top:14px">
+          <button class="btn primary" style="min-width:150px">แฟลชอีกครั้ง</button>
+          <button class="btn danger" style="min-width:150px">ล้างข้อมูลบอร์ด</button>
+          <span class="small muted" style="margin-left:auto">กด RST 1 ครั้งเพื่อเริ่มใช้งาน</span>
+        </div>
+      </div>
+
+      <div class="log">
+        <div class="log-head">
+          <svg class="icon" viewBox="0 0 24 24" style="margin-right:7px"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></svg>
+          Log จาก esptool
+          <a class="link" style="margin-left:auto;color:#E8B45A">คัดลอก</a>
+        </div>
+        <pre>esptool v5.6.0
+Writing bootloader at 0x1000...
+Writing partitions at 0x8000...
+Writing boot_app0 at 0xe000...
+Writing app at 0x10000...
+Hash of data verified.</pre>
+      </div>
+    </main>
+  </div>
+</div>
+</body></html>
