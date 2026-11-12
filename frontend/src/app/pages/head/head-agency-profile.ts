@@ -151,7 +151,7 @@ export class HeadAgencyProfile {
       await this.api.loadAgency();
       this.toast.show({ th: 'สร้างรหัสกลุ่มใหม่แล้ว', en: 'New group code created' });
     } catch {
-      this.toast.show({ th: 'สร้างรหัสไม่สำเร็จ ลองอีกครั้ง', en: 'Could not create a new code' });
+      this.toast.show({ th: 'สร้างรหัสไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Could not create a new code — check your connection and try again' });
     } finally {
       this.busyCode.set(false);
     }
@@ -171,7 +171,7 @@ export class HeadAgencyProfile {
       await this.api.loadAgency();
       this.toast.show({ th: 'บันทึกแล้ว', en: 'Saved' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t save — check your connection and try again' });
     } finally {
       this.busy.set(false);
     }

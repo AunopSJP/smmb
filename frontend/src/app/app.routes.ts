@@ -230,5 +230,13 @@ export const routes: Routes = [
     data: { shared: true, titleTr: { th: 'แบบการใช้งาน', en: 'Display mode' } },
     title: 'แบบการใช้งาน · Smart Mailbox',
   },
+  // ข้อมูลของฉัน (ทุกบทบาท) — เครื่องที่ล็อกอิน · ส่งออกข้อมูล · ลบบัญชี (ใช้ API ตามข้อเสนอ F-002 · ยังไม่มี = หน้าขึ้นว่ายังไม่เปิดให้ใช้)
+  {
+    path: 'settings/my-data',
+    canActivate: [requireSignedIn],
+    loadComponent: () => import('./pages/my-data').then((m) => m.MyData),
+    data: { titleTr: { th: 'ข้อมูลของฉัน', en: 'My data' } },
+    title: 'ข้อมูลของฉัน · Smart Mailbox',
+  },
   { path: '**', redirectTo: '' },
 ];

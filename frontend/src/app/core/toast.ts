@@ -133,6 +133,13 @@ export class Toast {
       font-weight: 700;
       cursor: pointer;
     }
+    /* toast พื้นสลับสี (var(--text)) — กรอบโฟกัสทั่วไปสีชมพู/แดงกลืนกับพื้น จึงใช้สีตัวอักษรของ toast (ตัดกัน ≥14:1) */
+    .toast:focus-visible,
+    .body:focus-visible,
+    .undo:focus-visible {
+      outline: 3px solid var(--surface);
+      outline-offset: 2px;
+    }
     .tick {
       flex: none;
       display: grid;

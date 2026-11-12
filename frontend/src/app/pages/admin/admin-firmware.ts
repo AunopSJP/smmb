@@ -7,13 +7,14 @@ import { Confirm } from '../../shared/confirm-dialog';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
 import { Icon } from '../../shared/icon';
+import { EmptyState, LoadingRows } from '../../shared/state-view';
 
 const kb = (n: number) => (n >= 1_048_576 ? (n / 1_048_576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
 
 /** D17 เฟิร์มแวร์ (ตามแคนวาสดีไซน์) — ใช้ API เดิม: รายการ/อัปโหลด/ลบ/อัปเดตอัตโนมัติ (`/admin/firmware*`) */
 @Component({
   selector: 'app-admin-firmware',
-  imports: [PageHeader, Icon],
+  imports: [PageHeader, Icon, EmptyState, LoadingRows],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'เฟิร์มแวร์', en: 'Firmware' })" [back]="url('D16')" />
@@ -56,7 +57,15 @@ const kb = (n: number) => (n >= 1_048_576 ? (n / 1_048_576).toFixed(1) + ' MB' :
             }
           </li>
         } @empty {
-          <li class="row muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ยังไม่มีไฟล์', en: 'No files yet' }) }}</li>
+          <li>
+            @if (loading()) {
+              <app-loading-rows [rows]="2" [label]="i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' })" />
+            } @else if (loadFailed()) {
+              <app-empty-state kind="error" compact [hint]="i18n.t({ th: 'โหลดรายการเฟิร์มแวร์ไม่สำเร็จ — ไม่ได้แปลว่าไม่มีไฟล์', en: 'Could not load the firmware list — this does not mean there are no files' })" (retry)="reload()" />
+            } @else {
+              <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีไฟล์เฟิร์มแวร์', en: 'No firmware files yet' })" [hint]="i18n.t({ th: 'อัปโหลดไฟล์ด้านล่างเพื่อเริ่มใช้งาน', en: 'Upload a file below to get started' })" />
+            }
+          </li>
         }
       </ul>
 
@@ -167,6 +176,7 @@ export class AdminFirmware {
   protected readonly boxes = signal<AdminBoxRow[]>([]);
   protected readonly auto = signal<string | null>(null);
   protected readonly loading = signal(true);
+  protected readonly loadFailed = signal(false);
   protected readonly busy = signal(false);
   protected readonly version = signal('');
   protected readonly file = signal<File | null>(null);
@@ -199,8 +209,13 @@ export class AdminFirmware {
     return new Date(iso).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Bangkok' });
   }
 
+  protected reload(): void {
+    void this.load();
+  }
+
   private async load(): Promise<void> {
     this.loading.set(true);
+    this.loadFailed.set(false);
     try {
       const [list, auto, boxes] = await Promise.all([
         this.api.firmwareList(),
@@ -211,7 +226,8 @@ export class AdminFirmware {
       this.auto.set(auto.version);
       this.boxes.set(boxes);
     } catch {
-      this.toast.show({ th: 'โหลดข้อมูลเฟิร์มแวร์ไม่สำเร็จ', en: 'Could not load firmware' });
+      this.loadFailed.set(true);
+      this.toast.show({ th: 'โหลดข้อมูลเฟิร์มแวร์ไม่สำเร็จ — กด “ลองอีกครั้ง” ในรายการด้านล่าง', en: 'Could not load firmware — press “Retry” in the list below' });
     } finally {
       this.loading.set(false);
     }
@@ -254,7 +270,7 @@ export class AdminFirmware {
     try {
       this.auto.set((await this.api.setFirmwareAuto(version)).version);
     } catch (err) {
-      this.toast.show({ th: 'ตั้งค่าไม่สำเร็จ (' + (apiError(err).code ?? 'ERROR') + ')', en: 'Could not save (' + (apiError(err).code ?? 'ERROR') + ')' });
+      this.toast.show({ th: 'ตั้งค่าไม่สำเร็จ — รีเฟรชรายการแล้วลองอีกครั้ง' + (apiError(err).code ? ' (' + apiError(err).code + ')' : ''), en: 'Could not save — refresh the list and try again' + (apiError(err).code ? ' (' + apiError(err).code + ')' : '') });
     } finally {
       this.busy.set(false);
     }
@@ -271,7 +287,7 @@ export class AdminFirmware {
       await this.load();
       this.toast.show({ th: 'อัปโหลดแล้ว', en: 'Uploaded' });
     } catch (err) {
-      this.toast.show({ th: 'อัปโหลดไม่สำเร็จ (' + (apiError(err).code ?? 'ERROR') + ')', en: 'Upload failed (' + (apiError(err).code ?? 'ERROR') + ')' });
+      this.toast.show({ th: 'อัปโหลดไม่สำเร็จ — ตรวจไฟล์ (.bin) และเวอร์ชันที่ไม่ซ้ำ แล้วลองอีกครั้ง' + (apiError(err).code ? ' (' + apiError(err).code + ')' : ''), en: 'Upload failed — check the .bin file and a unique version, then try again' + (apiError(err).code ? ' (' + apiError(err).code + ')' : '') });
     } finally {
       this.busy.set(false);
     }

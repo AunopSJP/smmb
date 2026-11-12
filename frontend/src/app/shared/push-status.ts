@@ -197,7 +197,7 @@ export class PushStatus implements OnInit {
       const ok = (await this.push.isActive().catch(() => false)) && this.session.me()?.push.subscribed === true;
       this.deviceOk.set(ok);
       if (!ok) {
-        this.toast.show({ th: 'ยังเปิดแจ้งเตือนไม่สำเร็จ ลองอีกครั้ง', en: 'Notifications are not on yet — try again' });
+        this.toast.show({ th: 'ยังเปิดแจ้งเตือนไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Notifications are not on yet — check your connection and try again' });
         return;
       }
       const r = await this.push.sendTest().catch(() => null);

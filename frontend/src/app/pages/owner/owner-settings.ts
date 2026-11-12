@@ -11,6 +11,7 @@ import { BoxPicker } from '../../shared/box-picker';
 import { MapPin, type LatLng } from '../../shared/map-pin';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
+import { MyDataLink } from '../../shared/my-data-link';
 import { LoadError } from '../../shared/state-view';
 import { PushStatus } from '../../shared/push-status';
 import { AccountActions } from '../auth/auth-account';
@@ -21,7 +22,7 @@ import { bkkClock } from '../../core/time';
 
 @Component({
   selector: 'app-owner-settings',
-  imports: [RouterLink, PageHeader, Icon, AccountActions, PushStatus, MapPin, ProfileExtras, BoxPicker, LoadError],
+  imports: [RouterLink, PageHeader, Icon, AccountActions, PushStatus, MapPin, ProfileExtras, BoxPicker, LoadError, MyDataLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
@@ -70,6 +71,7 @@ import { bkkClock } from '../../core/time';
             </span>
             <app-icon name="chevronRight" [size]="20" />
           </a>
+        <app-my-data-link />
           <a class="row" [routerLink]="url('H13-d')">
             <span class="icon-bubble"><app-icon name="settings" [size]="22" /></span>
             <span class="grow">
@@ -286,6 +288,7 @@ import { bkkClock } from '../../core/time';
           <span class="chip" [class.ok]="pushOn()" [class.warn]="!pushOn()">{{ pushOn() ? i18n.t({ th: 'เปิด', en: 'On' }) : i18n.t({ th: 'ปิด', en: 'Off' }) }}</span>
           <app-icon name="chevronRight" [size]="18" />
         </a>
+        <app-my-data-link />
       </nav>
 
       <!-- 5) บัญชี -->
@@ -618,7 +621,7 @@ export class OwnerSettings {
       const b = this.box();
       if (b && accept) await this.open(b.id);
     } catch {
-      this.toast.show({ th: 'ทำรายการไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t do that — try again' });
+      this.toast.show({ th: 'ทำรายการไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t do that — check your connection and try again' });
     } finally {
       this.deciding.set(null);
       await this.loadRequests();
@@ -640,7 +643,7 @@ export class OwnerSettings {
       this.toast.show({ th: 'บันทึกข้อมูลแล้ว', en: 'Saved' });
       this.showExtras.set(false);
     } catch {
-      this.toast.show({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t save — check your connection and try again' });
     } finally {
       this.savingExtras.set(false);
     }
@@ -693,7 +696,7 @@ export class OwnerSettings {
       await this.open(b.id);
       this.toast.show({ th: 'บันทึกที่อยู่แล้ว', en: 'Address saved' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t save — check your connection and try again' });
     } finally {
       this.savingAddr.set(false);
     }
@@ -715,7 +718,7 @@ export class OwnerSettings {
       await this.open(b.id);
       this.toast.show({ th: 'บันทึกย่านแล้ว', en: 'Area saved' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t save — check your connection and try again' });
     }
   }
 
@@ -730,7 +733,7 @@ export class OwnerSettings {
       this.boxes.update((list) => list.map((x) => (x.id === b.id ? { ...x, name: this.draft().trim() } : x)));
       this.toast.show({ th: 'เปลี่ยนชื่อตู้แล้ว', en: 'Renamed' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t save — check your connection and try again' });
     }
   }
 

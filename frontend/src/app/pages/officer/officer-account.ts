@@ -6,13 +6,14 @@ import { Session } from '../../core/session';
 import { AccountActions } from '../auth/auth-account';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
+import { MyDataLink } from '../../shared/my-data-link';
 import { PageHeader } from '../../shared/page-header';
 import { PushStatus } from '../../shared/push-status';
 
 /** O13 บัญชีเจ้าหน้าที่ — ใช้ session, ข้อมูลโซน และ Web Push จริง */
 @Component({
   selector: 'app-officer-account',
-  imports: [RouterLink, PageHeader, Icon, AccountActions, PushStatus],
+  imports: [RouterLink, PageHeader, Icon, AccountActions, PushStatus, MyDataLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="caption()" [title]="i18n.t({ th: 'ตั้งค่า', en: 'Settings' })" />
@@ -60,6 +61,7 @@ import { PushStatus } from '../../shared/push-status';
           </span>
           <app-icon name="chevronRight" [size]="18" />
         </a>
+        <app-my-data-link />
         <a class="row" [routerLink]="url('O13-b')">
           <span class="icon-bubble"><app-icon name="settings" [size]="20" /></span>
           <span class="grow">

@@ -7,6 +7,7 @@ import { Session } from '../../core/session';
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
+import { MyDataLink } from '../../shared/my-data-link';
 import { PushStatus } from '../../shared/push-status';
 
 interface Row {
@@ -30,7 +31,7 @@ const ACCOUNT: Row[] = [
 /** L11 ตั้งค่า (หัวหน้า) — ตามแคนวาสดีไซน์: รวมทางเข้าข้อมูลหน่วยงาน/ประวัติ/แจ้งเตือน/บัญชีไว้ที่เดียว · ใช้หน้าเดิมทั้งหมด */
 @Component({
   selector: 'app-head-settings',
-  imports: [RouterLink, PageHeader, Icon, PushStatus],
+  imports: [RouterLink, PageHeader, Icon, PushStatus, MyDataLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="session.me()?.agency?.name ?? ''" [title]="i18n.t({ th: 'ตั้งค่า', en: 'Settings' })" />
@@ -72,6 +73,7 @@ const ACCOUNT: Row[] = [
           </span>
           <app-icon name="chevronRight" [size]="18" />
         </a>
+        <app-my-data-link />
       </nav>
       <h2 class="section-title">{{ i18n.t({ th: 'บัญชี', en: 'Account' }) }}</h2>
       <nav class="list">

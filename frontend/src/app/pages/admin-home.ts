@@ -586,6 +586,18 @@ interface Segment {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
+    /* จอแคบ (โหมดละเอียดโชว์ปุ่มลัดบนมือถือ): คอลัมน์เดียว + ข้อความขึ้นบรรทัดใหม่ได้ ไม่ถูกตัดด้วย … */
+    @media (max-width: 480px) {
+      .quick-actions {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .quick strong,
+      .quick small {
+        overflow: visible;
+        text-overflow: clip;
+        white-space: normal;
+      }
+    }
     .kpi-value.warn {
       color: var(--warn);
     }
@@ -625,7 +637,8 @@ interface Segment {
     .panel.flush {
       padding: 0;
       gap: 0;
-      overflow: hidden;
+      overflow-x: auto;
+      overflow-y: hidden;
     }
     .panel header {
       display: flex;
@@ -1089,7 +1102,7 @@ export class AdminHome implements OnInit {
       this.editingSupport.set(false);
       this.toast.show({ th: 'บันทึกช่องทางติดต่อแล้ว', en: 'Contact saved' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t save — check your connection and try again' });
     }
   }
 

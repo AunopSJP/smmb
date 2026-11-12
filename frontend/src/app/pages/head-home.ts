@@ -9,7 +9,7 @@ import { liveRefresh } from '../core/live-refresh';
 import { screenUrl } from '../screens/registry';
 import { Icon } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
-import { LoadError } from '../shared/state-view';
+import { EmptyState, LoadError } from '../shared/state-view';
 
 /** api.md §8.1 GET /agency/today */
 interface Today {
@@ -42,7 +42,7 @@ interface RecentLog {
 /** L04 หน้าหลักหัวหน้า — ภาพรวมทีมวันนี้ (ตัวกรองโซนของฉัน/ทุกโซน) · ใช้ API จริง · 3 โหมดตามแคนวาส */
 @Component({
   selector: 'app-head-home',
-  imports: [RouterLink, PageHeader, Icon, LoadError],
+  imports: [RouterLink, PageHeader, Icon, LoadError, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'หัวหน้าหน่วยงาน', en: 'Agency head' })" [title]="api.agency()?.name ?? ''" [bell]="url('L09')" />
@@ -197,9 +197,9 @@ interface RecentLog {
             </span>
           </a>
         } @empty {
-          <a class="row" [routerLink]="url('L06')">
-            <span class="grow muted">{{ i18n.t({ th: 'ยังไม่มีโซน — แตะเพื่อสร้าง', en: 'No zones yet — tap to create' }) }}</span>
-          </a>
+          <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีโซน', en: 'No zones yet' })" [hint]="i18n.t({ th: 'สร้างโซนแรกเพื่อให้เจ้าหน้าที่เริ่มตรวจ', en: 'Create the first zone so officers can start checking' })">
+            <a class="btn secondary" [routerLink]="url('L06')">{{ i18n.t({ th: 'สร้างโซน', en: 'Create a zone' }) }}</a>
+          </app-empty-state>
         }
       </nav>
 

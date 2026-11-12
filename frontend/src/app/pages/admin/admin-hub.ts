@@ -5,6 +5,7 @@ import { I18n, type Tr } from '../../core/i18n';
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
+import { MyDataLink } from '../../shared/my-data-link';
 import { LoadError } from '../../shared/state-view';
 
 interface HubItem {
@@ -35,7 +36,7 @@ const SETTINGS: HubItem[] = [
 
 @Component({
   selector: 'app-admin-hub',
-  imports: [RouterLink, PageHeader, Icon, LoadError],
+  imports: [RouterLink, PageHeader, Icon, LoadError, MyDataLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'ระบบ', en: 'System' })" />
@@ -73,6 +74,7 @@ const SETTINGS: HubItem[] = [
           <span class="grow"><strong>{{ i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' }) }}</strong><span class="muted small block">{{ i18n.t({ th: 'ชนิดที่รับ · ส่งทดสอบ', en: 'What to receive · send a test' }) }}</span></span>
           <app-icon name="chevronRight" [size]="18" />
         </a>
+        <app-my-data-link />
         <a class="row" routerLink="/settings/display">
           <span class="icon-bubble"><app-icon name="settings" [size]="20" /></span>
           <span class="grow"><strong>{{ i18n.t({ th: 'โหมดการแสดงผล', en: 'Display mode' }) }}</strong><span class="muted small block">{{ i18n.t({ th: 'ง่าย · ปกติ · ละเอียด', en: 'Easy · normal · detailed' }) }}</span></span>

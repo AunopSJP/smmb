@@ -419,7 +419,7 @@ export class AuthActivate implements OnInit {
         // ยังไม่มีบทบาทเจ้าของบ้าน / ยังไม่ล็อกอิน
         this.message.set({ th: 'บัญชีนี้ยังไม่ใช่เจ้าของบ้าน — เพิ่มบทบาทเจ้าของบ้านก่อน', en: 'This account isn’t a homeowner yet — add the homeowner role first' });
       } else {
-        this.message.set({ th: 'ผูกตู้ไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t bind the box — try again' });
+        this.message.set({ th: 'ผูกตู้ไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วกดลองอีกครั้ง ถ้ายังไม่ได้ให้แจ้งช่าง', en: 'Couldn’t link the box — check your connection and retry; if it keeps failing, ask a technician' });
       }
     } finally {
       this.busy.set(false);

@@ -7,7 +7,7 @@ import { I18n, type Tr } from '../../core/i18n';
 import { Toast } from '../../core/toast';
 import { Confirm } from '../../shared/confirm-dialog';
 import { HousesMap, type HouseMapPoint } from '../../shared/houses-map';
-import { EmptyState, LoadError } from '../../shared/state-view';
+import { EmptyState, LoadError, LoadingRows } from '../../shared/state-view';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
 import { liveRefresh } from '../../core/live-refresh';
@@ -21,14 +21,15 @@ const ZONE_ERROR: Record<string, Tr> = {
   ZONE_AREA_INVALID: { th: 'ต้องใส่จังหวัดและเขต/อำเภอคู่กัน (หรือเว้นว่างทั้งหมด)', en: 'Province and district are required together (or leave all blank)' },
   WINDOWS_INVALID: { th: 'เวลาตรวจไม่ถูกต้อง (ไม่ทับกัน · เริ่มก่อนจบ · ไม่ข้ามเที่ยงคืน · ไม่เกิน 4 ช่วง)', en: 'Invalid patrol hours (no overlap · start before end · no midnight crossing · max 4)' },
   ZONE_NAME_TAKEN: { th: 'มีโซนชื่อนี้แล้ว', en: 'A zone with this name exists' },
-  HOUSE_NOT_FOUND: { th: 'มีบ้านที่ยังไม่ผูกตู้ / ไม่พบ', en: 'A house is not bound / not found' },
+  HOUSE_NOT_FOUND: { th: 'เพิ่มไม่ได้ เพราะมีบ้านที่ไม่พบหรือยังไม่ผูกตู้ — ค้นบ้านใหม่แล้วเลือกอีกครั้ง', en: 'Can’t add: a house was not found or has no mailbox yet — search again and re-select' },
+  OFFICER_NOT_MEMBER: { th: 'เพิ่มไม่ได้ เพราะมีคนที่ไม่ได้เป็นสมาชิกของหน่วยงาน — โหลดรายชื่อใหม่แล้วเลือกอีกครั้ง', en: 'Can’t add: someone is not a member of this agency — reload the list and re-select' },
 };
 
 // ── L06 · โซน ───────────────────────────────────────────────
 
 @Component({
   selector: 'app-head-zones',
-  imports: [RouterLink, PageHeader],
+  imports: [RouterLink, PageHeader, EmptyState, LoadingRows],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [title]="i18n.t({ th: 'โซน', en: 'Zones' })" [bell]="url('L09')" />
@@ -74,9 +75,13 @@ const ZONE_ERROR: Record<string, Tr> = {
         </a>
       } @empty {
         @if (zonesFailed()) {
-          <p class="muted"><span class="danger-text">{{ i18n.t({ th: 'โหลดรายการโซนไม่สำเร็จ', en: 'Couldn’t load zones' }) }}</span> <button type="button" class="see-all" (click)="ngOnInit()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button></p>
+          <app-empty-state kind="error" [title]="i18n.t({ th: 'โหลดรายการโซนไม่สำเร็จ', en: 'Couldn’t load zones' })" (retry)="ngOnInit()" />
+        } @else if (loading()) {
+          <app-loading-rows [rows]="2" [label]="i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' })" />
         } @else {
-          <p class="muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ยังไม่มีโซน — สร้างโซนแรก', en: 'No zones yet — create the first one' }) }}</p>
+          <app-empty-state [title]="i18n.t({ th: 'ยังไม่มีโซน', en: 'No zones yet' })" [hint]="i18n.t({ th: 'โซนคือกลุ่มบ้านที่เจ้าหน้าที่ดูแล — สร้างโซนแรกเพื่อเริ่ม', en: 'A zone is a group of houses your officers cover — create the first one to begin' })">
+            <a class="btn" [routerLink]="url('L06')">{{ i18n.t({ th: 'สร้างโซน', en: 'Create a zone' }) }}</a>
+          </app-empty-state>
         }
       }
     </div>
@@ -398,14 +403,13 @@ export class HeadZones implements OnInit {
                 <input class="check" type="checkbox" [checked]="inOfficers(m.id)" (change)="toggleOfficer(m.id, $any($event.target).checked, $event)" [attr.aria-label]="m.display_name" />
               </label>
             } @empty {
-              <p class="muted small">
-                @if (memberQ().trim()) {
-                  {{ i18n.t({ th: 'ไม่พบชื่อที่ค้น — ลองพิมพ์ชื่อหรือเลขประจำตัวบางส่วน', en: 'No match — try part of the name or staff no.' }) }}
-                } @else {
-                  {{ i18n.t({ th: 'ยังไม่มีสมาชิกที่ใช้งานได้ — ให้เจ้าหน้าที่สมัครด้วยรหัสกลุ่ม แล้วอนุมัติที่หน้า', en: 'No active members yet — officers sign up with the group code, then you approve them on' }) }}
-                  <a [routerLink]="url('L05')">{{ i18n.t({ th: 'สมาชิก', en: 'Members' }) }}</a>
-                }
-              </p>
+              @if (memberQ().trim()) {
+                <app-empty-state kind="search" compact [hint]="i18n.t({ th: 'ลองพิมพ์ชื่อหรือเลขประจำตัวบางส่วน', en: 'Try part of the name or staff no.' })" />
+              } @else {
+                <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีสมาชิกที่ใช้งานได้', en: 'No active members yet' })" [hint]="i18n.t({ th: 'ให้เจ้าหน้าที่สมัครด้วยรหัสกลุ่ม แล้วอนุมัติที่หน้าสมาชิก', en: 'Officers sign up with the group code, then you approve them on the Members page' })">
+                  <a class="btn secondary" [routerLink]="url('L05')">{{ i18n.t({ th: 'สมาชิก', en: 'Members' }) }}</a>
+                </app-empty-state>
+              }
             }
           </div>
           <p class="muted small easy-hide">{{ i18n.t({ th: 'คนที่ยังไม่ได้อนุมัติจะไม่อยู่ในรายการ · หัวหน้าตรวจตู้ได้เฉพาะโซนที่ใส่ตัวเองไว้ · การเปลี่ยนแปลงบันทึกทันที', en: 'Members not yet approved are not listed · heads can only inspect zones they are in · changes save immediately' }) }}</p>
@@ -624,7 +628,7 @@ export class HeadZoneEdit {
       }
     } catch (err) {
       const e = apiError(err);
-      this.error.set(ZONE_ERROR[e.code ?? ''] ?? { th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save' });
+      this.error.set(ZONE_ERROR[e.code ?? ''] ?? { th: 'บันทึกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t save — check your connection and try again' });
     } finally {
       this.busy.set(false);
     }
@@ -806,7 +810,7 @@ export class HeadZoneEdit {
         this.houseIds = null;
         await this.load(z.id).catch(() => undefined);
         const e = apiError(err);
-        this.toast.show(ZONE_ERROR[e.code ?? ''] ?? { th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save — try again' });
+        this.toast.show(ZONE_ERROR[e.code ?? ''] ?? { th: 'บันทึกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t save — check your connection and try again' });
       } finally {
         if (this.houseIds === null) this.savingHouses.set(false);
       }
@@ -867,7 +871,7 @@ export class HeadZoneEdit {
       } catch {
         this.officerIds = null;
         await this.load(z.id).catch(() => undefined);
-        this.toast.show({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t save — try again' });
+        this.toast.show({ th: 'บันทึกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t save — check your connection and try again' });
       } finally {
         if (this.officerIds === null) this.savingOfficers.set(false);
       }
@@ -911,7 +915,7 @@ export class HeadZoneEdit {
       await this.api.removeZone(z.id);
       void this.router.navigateByUrl(screenUrl('L06'));
     } catch {
-      this.toast.show({ th: 'ลบไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t delete' });
+      this.toast.show({ th: 'ลบไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t delete — check your connection and try again' });
     }
   }
 }

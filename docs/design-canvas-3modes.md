@@ -57,6 +57,7 @@ attribute ที่ root: `<html data-mode="easy|default|advanced" data-theme da
 | Shared | Notifications | `H14`/`L09`/`D12` `shared/notification-list.ts` |
 | | NotifSettings | `/settings/notifications` (ทุกบทบาท) |
 | | ModePicker | `/settings/display` (ทุกบทบาท) · H13-d/O13-b ใช้หน้าเดียวกัน |
+| | MyData (ข้อมูลของฉัน) | `/settings/my-data` (ทุกบทบาท · `pages/my-data.ts`) — เครื่องที่ล็อกอิน · ส่งออก · ลบบัญชี 3 ขั้น · ซ่อนลิงก์จน backend ทำ F-002 |
 | | ErrOffline · ErrNoAccess · ErrSession | `/error/offline` · `/error/not-found` · `/error/session` |
 
 ## สถานะ
@@ -68,4 +69,4 @@ attribute ที่ root: `<html data-mode="easy|default|advanced" data-theme da
 - [x] หน้า error 3 หน้า — `/error/offline` · `/error/session` · `/error/not-found` (+ ดัก `offline` event)
 - [ ] Officer box detail (OffBoxDetail) — ยังไม่มีหน้าแยก
 - [ ] OwnTechRequest timeline + OwnTechDone confirm — รอ API ยืนยันผลงานช่าง
-- [ ] รายการอุปกรณ์/เครื่องที่เข้าสู่ระบบ — รอ API device list
+- [~] รายการเครื่องที่เข้าสู่ระบบ + ส่งออก + ลบบัญชี — หน้าเว็บเสร็จแล้ว (`/settings/my-data` 2026-11-12) · **รอ backend ทำ F-002** (`/me/sessions` · `/me/export` · `/me/delete-preview` · `DELETE /me`) ก่อนใช้งานจริง

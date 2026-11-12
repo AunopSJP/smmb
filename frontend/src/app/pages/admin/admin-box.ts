@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, signal, type OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { ApiConfig, apiError } from '../../core/api';
-import { AdminApi, type BeepPattern, type AdminBoxDetail, type BoxConfigOverride, type FirmwareInfo } from '../../core/admin-api';
+import { ApiConfig } from '../../core/api';
+import { AdminApi, type AdminBoxDetail, type BoxConfigOverride } from '../../core/admin-api';
 import { I18n, type Tr } from '../../core/i18n';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
@@ -12,11 +12,14 @@ import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { QrImage } from '../../shared/qr-image';
 import { EmptyState } from '../../shared/state-view';
+import { AdminBoxDiagnostics } from './admin-box-diagnostics';
+import { AdminBoxFirmware } from './admin-box-firmware';
+import { AdminBoxReports } from './admin-box-reports';
 import { LOW_BATTERY_PCT, boxBadge, seenText, SLOT_LABEL } from './admin-box-shared';
 
 @Component({
   selector: 'app-admin-box',
-  imports: [RouterLink, PageHeader, QrImage, BoxTest, BoxSetupQr, Icon, EmptyState],
+  imports: [RouterLink, PageHeader, QrImage, BoxTest, BoxSetupQr, Icon, EmptyState, AdminBoxFirmware, AdminBoxDiagnostics, AdminBoxReports],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="id() ?? ''" [title]="i18n.t({ th: 'ตู้ ', en: 'Mailbox ' }) + (box()?.house_no ?? id() ?? '')" [back]="url('D03')" />
@@ -258,167 +261,14 @@ import { LOW_BATTERY_PCT, boxBadge, seenText, SLOT_LABEL } from './admin-box-sha
         </div>
         }
         @if (tab() === 'firmware') {
-        <div class="easy-hide">
-        <h2 class="section-title">{{ i18n.t({ th: 'อัปเดตเฟิร์มแวร์', en: 'Firmware update' }) }}</h2>
-        <section class="card stack">
-          <div class="fw-now">
-            <span class="muted">{{ i18n.t({ th: 'ตู้รันเวอร์ชัน', en: 'Box is running' }) }}</span>
-            <strong class="fw-ver">{{ b.fw ?? '—' }}</strong>
-          </div>
-          @if (b.fw_target && b.fw_stuck) {
-            <div class="info-box" role="alert">
-              <strong class="warn-text">{{ i18n.t({ th: 'ตู้โหลดไฟล์ ' + b.fw_target + ' ไปแล้ว แต่ยังรายงานเป็น ' + (b.fw ?? '—'), en: 'The box downloaded ' + b.fw_target + ' but still reports ' + (b.fw ?? '—') }) }}</strong>
-              <p class="small">{{ i18n.t({ th: 'มักเกิดจากชื่อเวอร์ชันที่ตั้งตอนอัปโหลดไม่ตรงกับเลขที่ฝังในไฟล์ (FW_VERSION) หรือบอร์ดลงไฟล์ไม่สำเร็จ · ให้อัปโหลดไฟล์ด้วยชื่อที่ตรงกับเลขในไฟล์ แล้วกดอัปเดตใหม่ หรือกด "ลองอีกครั้ง" เพื่อให้ตู้โหลดอีกครั้ง', en: 'Usually the version name given at upload differs from the number built into the file (FW_VERSION), or the board could not install it · upload the file under the matching name and update again, or press "Retry" to let the box download once more' }) }}</p>
-              <button type="button" class="btn secondary fw-act" (click)="setTarget(b.fw_target)">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Retry' }) }}</button>
-            </div>
-          }
-          @if (b.fw_target) {
-            <div class="fw-pending">
-              <span>{{ i18n.t({ th: 'รอตู้อัปเดตเป็น', en: 'Waiting for the box to update to' }) }} <strong>{{ b.fw_target }}</strong></span>
-              <button type="button" class="btn secondary fw-act" (click)="setTarget(null)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
-            </div>
-          }
-        </section>
-
-        <section class="card stack fw-auto">
-          <strong>{{ i18n.t({ th: 'อัปเดตอัตโนมัติทุกตู้', en: 'Automatic update for every box' }) }}</strong>
-          @if (fwAuto(); as v) {
-            <p class="row">
-              <span class="chip ok">{{ i18n.t({ th: 'เปิดอยู่', en: 'On' }) }}</span>
-              <span>{{ i18n.t({ th: 'ตู้ที่ออนไลน์จะอัปเดตเป็น ', en: 'Online boxes update to ' }) }}<strong>{{ v }}</strong></span>
-            </p>
-            <button type="button" class="btn secondary fw-act" [disabled]="fwAutoBusy()" (click)="setAuto(null)">{{ i18n.t({ th: 'ปิดอัตโนมัติ', en: 'Turn off' }) }}</button>
-          } @else {
-            <p class="muted small">{{ i18n.t({ th: 'ปิดอยู่ · ตู้อัปเดตเมื่อแอดมินกดเท่านั้น', en: 'Off · boxes update only when an admin taps' }) }}</p>
-          }
-          @if (firmware()[0]; as latest) {
-            @if (fwAuto() !== latest.version) {
-              <button type="button" class="btn fw-act" [disabled]="fwAutoBusy()" (click)="setAuto(latest.version)">
-                {{ i18n.t({ th: 'บังคับทุกตู้ใช้ล่าสุด (' + latest.version + ')', en: 'Make every box use the latest (' + latest.version + ')' }) }}
-              </button>
-            }
-          }
-          <p class="muted small">{{ i18n.t({ th: 'ตู้จะโหลดเองเมื่อออนไลน์ · รอถ้ามีงานตรวจค้างอยู่ · ตู้ที่โหลดแล้วยังติดเวอร์ชันเดิมจะขึ้น "อัปเดตค้าง" ไม่วนซ้ำ · ถ้าไฟล์เสียจะกระทบทุกตู้ ทดสอบกับตู้เดียวก่อนเสมอ', en: 'Boxes download it when online · they wait if an inspection is open · a box that downloaded it but still runs the old version is flagged "update stuck", not retried in a loop · a bad file affects every box — test on one box first' }) }}</p>
-        </section>
-
-        <div class="list">
-          @for (f of firmware(); track f.version) {
-            <div class="row">
-              <span class="grow">
-                <strong>{{ f.version }}</strong>
-                <span class="muted small block">{{ (f.size / 1024).toFixed(0) }} KB · {{ fwDate(f.uploaded_at) }}</span>
-              </span>
-              @if (f.version === b.fw) {
-                <span class="chip ok">{{ i18n.t({ th: 'ตู้รันอยู่', en: 'Running' }) }}</span>
-              } @else if (f.version === b.fw_target) {
-                <span class="chip warn">{{ i18n.t({ th: 'รอตู้อัปเดต', en: 'Pending' }) }}</span>
-              } @else {
-                <button type="button" class="btn fw-act" (click)="setTarget(f.version)">{{ i18n.t({ th: 'อัปเดตตู้นี้', en: 'Update box' }) }}</button>
-                <button type="button" class="btn secondary fw-act" [attr.aria-label]="i18n.t({ th: 'ลบ ', en: 'Delete ' }) + f.version" (click)="removeFirmware(f.version)">
-                  {{ i18n.t({ th: 'ลบ', en: 'Delete' }) }}
-                </button>
-              }
-            </div>
-          } @empty {
-            @if (fwLoadError(); as err) {
-              <app-empty-state kind="error" compact [hint]="i18n.t({ th: 'โหลดรายการเฟิร์มแวร์ไม่สำเร็จ (' + err + ') — ไม่ใช่ว่ายังไม่มีไฟล์', en: 'Could not load the firmware list (' + err + ') — this does not mean there are no files' })" (retry)="reloadFirmware()" />
-            } @else {
-              <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีเฟิร์มแวร์ที่อัปโหลดไว้', en: 'No firmware uploaded yet' })" />
-            }
-          }
-        </div>
-
-        <section class="card stack">
-          <strong>{{ i18n.t({ th: 'อัปโหลดเวอร์ชันใหม่', en: 'Upload a new version' }) }}</strong>
-          <label class="field">
-            <span>{{ i18n.t({ th: 'ชื่อเวอร์ชัน', en: 'Version name' }) }}</span>
-            <input type="text" maxlength="32" [placeholder]="fwSuggest()" [value]="fwVersion()" (input)="fwVersion.set($any($event.target).value)" />
-            <small>{{ i18n.t({ th: 'ต้องตรงกับ FW_VERSION ในไฟล์ที่คอมไพล์ (เว้นว่าง = ใช้ที่แนะนำ)', en: 'Must match FW_VERSION compiled into the file (empty = use the suggestion)' }) }}</small>
-          </label>
-          <label class="fw-drop" [class.has-file]="fwFile()">
-            <input type="file" accept=".bin" (change)="fwFile.set($any($event.target).files?.[0] ?? null)" />
-            <span>{{ fwFile() ? fwFile()!.name + ' · ' + (fwFile()!.size / 1024).toFixed(0) + ' KB' : i18n.t({ th: 'แตะเพื่อเลือกไฟล์ firmware.bin', en: 'Tap to choose firmware.bin' }) }}</span>
-          </label>
-          <button type="button" class="btn" [disabled]="uploadingFw() || !fwFile() || !(fwVersion().trim() || fwSuggest())" (click)="uploadFirmware()">
-            {{ uploadingFw() ? i18n.t({ th: 'กำลังอัปโหลด…', en: 'Uploading…' }) : i18n.t({ th: 'อัปโหลด', en: 'Upload' }) }}
-          </button>
-        </section>
-
-        </div>
+        <app-admin-box-firmware class="easy-hide" [box]="b" (changed)="reload()" />
         }
         @if (tab() === 'test') {
         <div class="easy-hide">
         <h2 class="section-title">{{ i18n.t({ th: 'ทดสอบปลุกตู้', en: 'Wake test' }) }}</h2>
         <app-box-test [boxId]="b.id" (finished)="reload()" />
 
-        <h2 class="section-title">{{ i18n.t({ th: 'ทดสอบเสียง Buzzer', en: 'Buzzer test' }) }}</h2>
-        <section class="card stack">
-          <p class="muted small">{{ i18n.t({ th: 'กดแล้วตู้ที่ออนไลน์จะส่งเสียงตามรูปแบบนั้นทันที (ต้องยืนอยู่ใกล้ตู้) · ใช้ตรวจสอบว่าลำโพง/ขาต่อทำงาน และให้ช่างรู้จักความหมายของเสียงแต่ละแบบ', en: 'The online box plays that pattern right away (stand near it) · checks the buzzer wiring and teaches what each sound means' }) }}</p>
-          <div class="beeps">
-            @for (p of beepPatterns; track p.v) {
-              <button type="button" class="beep" [class.on]="b.buzzer.pattern === p.v && b.buzzer.status === 'pending'" [disabled]="beepBusy()" (click)="testBeep(p.v)">
-                <strong>{{ i18n.t(p.label) }}</strong>
-                <span class="muted small">{{ i18n.t(p.sound) }}</span>
-              </button>
-            }
-          </div>
-          @switch (b.buzzer.status) {
-            @case ('pending') {
-              <p class="status warn" role="status">{{ i18n.t({ th: 'ส่งคำสั่งแล้ว รอตู้รับ… (ตู้ต้องออนไลน์ · หมดอายุใน 2 นาที)', en: 'Sent — waiting for the box… (it must be online · expires in 2 min)' }) }}</p>
-            }
-            @case ('done') {
-              <p class="status ok" role="status">{{ i18n.t({ th: 'ตู้ส่งเสียง "', en: 'The box played “' }) }}{{ i18n.t(beepName(b.buzzer.pattern)) }}{{ i18n.t({ th: '" แล้ว · ', en: '” · ' }) }}{{ i18n.t(seen(b.buzzer.done_at)) }}</p>
-              <p class="muted small">{{ i18n.t({ th: 'ไม่ได้ยินเสียง? ตรวจสอบสายลำโพง/Buzzer ที่ขา GPIO ของบอร์ด และกระแสไฟ (ดูรูปแบบเสียงในคู่มือ §2.5)', en: 'No sound? Check the buzzer wiring on the board and the power supply (patterns: protocol §2.5)' }) }}</p>
-            }
-            @case ('expired') {
-              <p class="status danger" role="alert">{{ i18n.t({ th: 'ตู้ไม่รับคำสั่งภายใน 2 นาที — ตู้ออนไลน์อยู่ไหม? หรือยังเป็นเฟิร์มแวร์เก่า (ต้อง 0.2.8 ขึ้นไป)', en: 'The box did not take it within 2 min — is it online? Or it runs old firmware (needs 0.2.8+)' }) }}</p>
-            }
-          }
-        </section>
-
-        <h2 class="section-title">{{ i18n.t({ th: 'สถานะบอร์ดและกล้อง', en: 'Board and camera status' }) }}</h2>
-        <section class="card">
-          @if (b.camera_diagnostics; as camera) {
-            @switch (camera.state) {
-              @case ('started') {
-                <p class="status warn">{{ i18n.t({ th: 'เริ่มทดสอบกล้องแล้ว', en: 'Camera test started' }) }}</p>
-              }
-              @case ('ready') {
-                <p class="status ok">{{ i18n.t({ th: 'กล้องเริ่มทำงานแล้ว รอผลอ่าน QR', en: 'Camera initialized; waiting for QR scan' }) }}</p>
-              }
-              @case ('scan_result') {
-                @if (camera.read_ok) {
-                  <p class="status ok">{{ i18n.t({ th: 'กล้องอ่าน QR ได้', en: 'Camera read a QR code' }) }}</p>
-                } @else if ((camera.frames ?? 0) > 0) {
-                  <p class="status warn">{{ i18n.t({ th: 'กล้องรับภาพได้ แต่ยังไม่พบ QR', en: 'Camera captured frames but found no QR code' }) }}</p>
-                } @else {
-                  <p class="status danger">{{ i18n.t({ th: 'ยังไม่ได้ภาพจากกล้อง', en: 'No camera frames were captured' }) }}</p>
-                }
-              }
-              @case ('error') {
-                <p class="status danger">{{ i18n.t({ th: 'เปิดกล้องไม่สำเร็จ', en: 'Camera initialization failed' }) }}</p>
-              }
-            }
-            <dl class="kv small">
-              <dt>{{ i18n.t({ th: 'รายงานล่าสุด', en: 'Latest report' }) }}</dt><dd>{{ i18n.t(seen(camera.at)) }}</dd>
-              @if (camera.width !== null && camera.height !== null) {
-                <dt>{{ i18n.t({ th: 'ความละเอียด', en: 'Resolution' }) }}</dt><dd>{{ camera.width }} × {{ camera.height }}</dd>
-              }
-              @if (camera.frames !== null) {
-                <dt>{{ i18n.t({ th: 'จำนวนภาพที่อ่าน', en: 'Frames captured' }) }}</dt><dd>{{ camera.frames }}</dd>
-              }
-              @if (camera.qr_shapes !== null) {
-                <dt>{{ i18n.t({ th: 'ภาพที่พบรูปทรง QR', en: 'Frames with a QR shape' }) }}</dt><dd>{{ camera.qr_shapes }}</dd>
-              }
-              @if (camera.read_ms !== null) {
-                <dt>{{ i18n.t({ th: 'เวลาอ่าน', en: 'Scan time' }) }}</dt><dd>{{ camera.read_ms }} {{ i18n.t({ th: 'มิลลิวินาที', en: 'ms' }) }}</dd>
-              }
-            </dl>
-          } @else {
-            <p class="muted small">{{ i18n.t({ th: 'ยังไม่มีรายงานทดสอบกล้อง · กด “ทดสอบปลุกตู้” ด้านบน', en: 'No camera test report yet · run the wake test above' }) }}</p>
-          }
-        </section>
-
+        <app-admin-box-diagnostics [box]="b" (changed)="reload()" />
         </div>
         }
         @if (tab() === 'qr') {
@@ -491,28 +341,7 @@ import { LOW_BATTERY_PCT, boxBadge, seenText, SLOT_LABEL } from './admin-box-sha
 
         }
         @if (tab() === 'overview') {
-        <h2 class="section-title easy-hide">{{ i18n.t({ th: 'รายงานจากตู้ล่าสุด', en: 'Latest box reports' }) }}</h2>
-        <div class="list easy-hide">
-          @for (r of b.reports.slice(0, 8); track $index) {
-            <div class="row">
-              <span class="grow">
-                <strong>{{ i18n.t({ th: 'รายงานจากตู้', en: 'Report from the box' }) }}</strong>
-                <span class="muted small block">{{ reportLine(r.body) }}</span>
-              </span>
-              <span class="muted small">{{ i18n.t(seen(r.at)) }}</span>
-            </div>
-          } @empty {
-            <p class="row muted">{{ i18n.t({ th: 'ตู้ยังไม่เคยส่งรายงาน (ยังไม่เปิดเครื่อง / ยังไม่ต่อ Wi-Fi)', en: 'No reports yet (not powered on / no Wi-Fi yet)' }) }}</p>
-          }
-        </div>
-        @if (b.auth_failures.length) {
-          <h2 class="section-title easy-hide">{{ i18n.t({ th: 'คำขอที่ลายเซ็นไม่ผ่าน', en: 'Rejected box requests' }) }}</h2>
-          <div class="list easy-hide">
-            @for (a of b.auth_failures; track $index) {
-              <div class="row"><span class="grow"><strong>{{ a.reason }}</strong></span><span class="muted small">{{ i18n.t(seen(a.at)) }}</span></div>
-            }
-          </div>
-        }
+        <app-admin-box-reports [box]="b" />
         }
         @if (tab() === 'danger') {
         <a class="btn secondary" [routerLink]="url('T01')" [queryParams]="{ id: b.id, from: 'D04' }">{{ i18n.t({ th: 'เปิดเช็กลิสต์ติดตั้ง (ช่าง)', en: 'Open install checklist' }) }}</a>
@@ -546,276 +375,7 @@ import { LOW_BATTERY_PCT, boxBadge, seenText, SLOT_LABEL } from './admin-box-sha
       <p class="muted">{{ notFound() ? i18n.t({ th: 'ไม่พบตู้นี้', en: 'Mailbox not found' }) : i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
     }
   `,
-  styles: `
-    .effects {
-      margin: 0;
-      padding-inline-start: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      font-size: 0.9375rem;
-    }
-    .effects li.off {
-      opacity: 0.45;
-      text-decoration: line-through;
-    }
-    .check {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      cursor: pointer;
-    }
-    .check input {
-      margin-block-start: 4px;
-    }
-    .checklist {
-      margin: 0;
-      padding-inline-start: 22px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .done {
-      border-color: var(--ok);
-      border-width: 2px;
-    }
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    /* แถบสรุป */
-    .kpis {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-      margin-block-start: 8px;
-    }
-    @media (min-width: 900px) {
-      .kpis {
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-      }
-    }
-    .kpi {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 2px;
-      padding: 12px 14px;
-      background: var(--surface);
-      border: 1px solid var(--line-strong, var(--line));
-      border-radius: 10px;
-      color: inherit;
-      font: inherit;
-      text-align: start;
-      min-inline-size: 0;
-    }
-    .kpi.click {
-      cursor: pointer;
-    }
-    @media (hover: hover) {
-      .kpi.click:hover {
-        border-color: var(--text);
-      }
-    }
-    .kpi-label {
-      font-size: 0.8125rem;
-      font-weight: 600;
-      color: var(--text-muted);
-    }
-    .kpi-value {
-      font-size: 1.375rem;
-      font-weight: 700;
-      line-height: 1.3;
-      overflow-wrap: break-word;
-    }
-    .kpi-value.warn {
-      color: var(--warn);
-    }
-    .kpi-value.danger {
-      color: var(--sos);
-    }
-    .kpi-hint {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-    }
-    /* โหมดง่าย (AdmBoxDetail_E): สรุปใหญ่ + ปุ่มหลัก */
-    .easy-box {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 8px;
-      margin-block-start: 8px;
-    }
-    .easy-house {
-      font-size: 1.5rem;
-      line-height: 1.35;
-    }
-    .easy-meta {
-      font-size: 1rem;
-      color: var(--text-muted);
-    }
-    .easy-actions {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: 10px;
-    }
-    .beeps {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-      gap: 10px;
-    }
-    .beep {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 2px;
-      padding: 12px 14px;
-      border: 1px solid var(--line-strong, var(--line));
-      border-radius: var(--radius-sm);
-      background: var(--surface);
-      color: inherit;
-      font: inherit;
-      text-align: start;
-      cursor: pointer;
-      transition: border-color 0.12s, background 0.12s;
-    }
-    @media (hover: hover) {
-      .beep:hover:not([disabled]) {
-        border-color: var(--brand-text);
-        background: var(--brand-lighter);
-      }
-    }
-    .beep.on {
-      border-color: var(--brand-text);
-      background: var(--brand-light);
-    }
-    .beep[disabled] {
-      opacity: 0.6;
-      cursor: wait;
-    }
-    .tabs + .info-box {
-      margin-block-end: 14px;
-    }
-    .stack.grow {
-      max-inline-size: 980px;
-    }
-    /* ตั้งค่าเฉพาะตู้ (details) — ให้ช่องแต่ละช่องมีระยะห่างเหมือนการ์ดอื่น */
-    .override {
-      margin: 12px 0;
-    }
-    .override > summary {
-      cursor: pointer;
-      font-weight: 700;
-      padding: 8px 0;
-    }
-    .override[open] {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .override[open] > summary {
-      padding-block-end: 0;
-    }
-    .fw-now {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .fw-ver {
-      font-size: 1.5rem;
-    }
-    .fw-auto .row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .fw-pending {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 10px 12px;
-      border-radius: var(--radius-sm);
-      background: var(--warn-bg);
-      color: var(--warn);
-    }
-    .btn.fw-act {
-      inline-size: auto;
-      min-block-size: 44px;
-      padding: 6px 14px;
-      font-size: 0.9375rem;
-      flex: none;
-    }
-    .fw-drop {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-block-size: 64px;
-      padding: 12px;
-      border: 2px dashed color-mix(in srgb, var(--text-muted) 55%, transparent);
-      border-radius: var(--radius-sm);
-      color: var(--text-muted);
-      text-align: center;
-      cursor: pointer;
-      word-break: break-all;
-    }
-    .fw-drop.has-file {
-      border-style: solid;
-      border-color: var(--ok);
-      color: var(--text);
-    }
-    .fw-drop input {
-      position: absolute;
-      inline-size: 1px;
-      block-size: 1px;
-      opacity: 0;
-    }
-    .fw-drop:focus-within {
-      outline: 2px solid var(--brand);
-      outline-offset: 1px;
-    }
-    .grow {
-      flex: 1;
-      min-inline-size: 0;
-    }
-    .block {
-      display: block;
-    }
-    .qr-grid {
-      display: grid;
-      /* มือถือ 2 ใบต่อแถว · จอกว้างขึ้นเรื่อย ๆ ตามพื้นที่ (QR ไม่ใหญ่เต็มจอ) */
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
-      gap: 8px;
-      min-inline-size: 0;
-      > * {
-        min-inline-size: 0;
-      }
-      figure {
-        margin: 0;
-        padding: 8px;
-        text-align: center;
-        max-inline-size: 240px;
-      }
-      app-qr-image {
-        background: var(--qr-bg);
-      }
-    }
-    .secret {
-      word-break: break-all;
-    }
-    code {
-      font-size: 0.8125rem;
-      word-break: break-all;
-    }
-    @media print {
-      .qr-grid {
-        grid-template-columns: repeat(3, 5cm);
-      }
-    }
-  `,
+  styleUrl: './admin-box.scss',
 })
 export class AdminBox implements OnInit {
   protected readonly lowPct = LOW_BATTERY_PCT;
@@ -857,50 +417,9 @@ export class AdminBox implements OnInit {
   /** ผลหลังกด "คืนตู้เป็นตู้ใหม่" → ขึ้นเช็กลิสต์ให้ไปทำต่อหน้างาน */
   protected readonly returned = signal<{ wifi_reset: boolean; ap_name: string } | null>(null);
   protected readonly resetBusy = signal(false);
-  protected readonly beepBusy = signal(false);
-  /** รูปแบบเสียง (ตรงกับโปรโตคอล §2.5 และข้อความในแอปเจ้าหน้าที่) */
-  protected readonly beepPatterns: { v: BeepPattern; label: Tr; sound: Tr }[] = [
-    { v: 'ready', label: { th: 'พร้อม / ได้งาน', en: 'Ready' }, sound: { th: 'สั้น 1 ครั้ง', en: 'short ×1' } },
-    { v: 'pass', label: { th: 'ผ่าน', en: 'Pass' }, sound: { th: 'สั้น 2 ครั้ง', en: 'short ×2' } },
-    { v: 'retry', label: { th: 'ลองอีกครั้ง', en: 'Retry' }, sound: { th: 'ยาว 1 ครั้ง', en: 'long ×1' } },
-    { v: 'fail', label: { th: 'ไม่ผ่าน', en: 'Fail' }, sound: { th: 'ยาว 3 ครั้ง', en: 'long ×3' } },
-    { v: 'error', label: { th: 'ผิดพลาด', en: 'Error' }, sound: { th: 'ยาว 1 + สั้น 2', en: 'long ×1 + short ×2' } },
-    { v: 'wifi', label: { th: 'รับคำสั่ง Wi-Fi', en: 'Wi-Fi command' }, sound: { th: 'สั้น 3 ถี่ ๆ', en: 'short ×3 fast' } },
-  ];
-  protected beepName(p: BeepPattern | null): Tr {
-    return this.beepPatterns.find((x) => x.v === p)?.label ?? { th: '', en: '' };
-  }
-
-  protected async testBeep(pattern: BeepPattern): Promise<void> {
-    const id = this.id();
-    if (!id || this.beepBusy()) return;
-    this.beepBusy.set(true);
-    try {
-      await this.api.requestBeep(id, pattern);
-      await this.reload();
-    } catch {
-      this.toast.show({ th: 'สั่งทดสอบเสียงไม่สำเร็จ ลองอีกครั้ง', en: 'Could not start the buzzer test — try again' });
-    } finally {
-      this.beepBusy.set(false);
-    }
-  }
   protected readonly unbinding = signal(false);
   protected readonly serviceReason = signal('');
   protected readonly serviceBusy = signal(false);
-  protected readonly firmware = signal<FirmwareInfo[]>([]);
-  /** เวอร์ชันที่ตั้งให้ทุกตู้อัปเดตอัตโนมัติ (null = ปิด) */
-  protected readonly fwAuto = signal<string | null>(null);
-  protected readonly fwAutoBusy = signal(false);
-  protected readonly fwVersion = signal('');
-  protected readonly fwFile = signal<File | null>(null);
-  protected readonly uploadingFw = signal(false);
-  /** โหลดรายการไม่ได้ (รหัสสถานะ) — แยกจาก "ยังไม่มีไฟล์" */
-  protected readonly fwLoadError = signal<string | null>(null);
-  /** ชื่อเวอร์ชันที่แนะนำ = เลขท้ายของเวอร์ชันล่าสุด + 1 (x.y.z → x.y.z+1) */
-  protected readonly fwSuggest = computed(() => {
-    const m = /^(.*?)(\d+)$/.exec(this.firmware()[0]?.version ?? '');
-    return m ? `${m[1]}${Number(m[2]) + 1}` : '';
-  });
   /** QR ที่ใช้งานอยู่ตอนนี้ (สถานะ active เท่านั้น — QR เปิดใช้ตู้ที่ใช้แล้วย้ายไปรายการประวัติ) */
   protected readonly activeQr = computed(() => (this.box()?.qr ?? []).filter((q) => q.status === 'active'));
   /** เวอร์ชัน QR เปิดใช้ตู้ล่าสุด (มีจริงในข้อมูลตู้) */
@@ -923,7 +442,6 @@ export class AdminBox implements OnInit {
 
   ngOnInit(): void {
     void this.reload();
-    void this.loadFirmware();
   }
 
   async reload(): Promise<void> {
@@ -942,52 +460,8 @@ export class AdminBox implements OnInit {
     }
   }
 
-  protected reloadFirmware(): void {
-    void this.loadFirmware();
-  }
-
-  private async loadFirmware(): Promise<void> {
-    try {
-      this.firmware.set(await this.api.firmwareList());
-      this.fwLoadError.set(null);
-      void this.api.firmwareAuto().then((r) => this.fwAuto.set(r.version)).catch(() => undefined); // ไม่ให้กระทบรายการเวอร์ชัน
-    } catch (e) {
-      // ไม่กระทบหน้าอื่น แต่ต้องบอกว่าโหลดไม่ได้ ไม่ใช่ปล่อยให้ดูเหมือนยังไม่มีไฟล์
-      const a = apiError(e);
-      this.fwLoadError.set(a.code ?? (a.status ? `HTTP ${a.status}` : 'network'));
-    }
-  }
-
   protected fwDate(iso: string): string {
     return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
-  }
-
-  protected async uploadFirmware(): Promise<void> {
-    const file = this.fwFile();
-    const version = this.fwVersion().trim() || this.fwSuggest();
-    if (!file || !version || this.uploadingFw()) return;
-    this.uploadingFw.set(true);
-    try {
-      await this.api.uploadFirmware(version, file);
-      this.fwFile.set(null);
-      this.fwVersion.set('');
-      await this.loadFirmware();
-      this.toast.show({ th: 'อัปโหลดแล้ว', en: 'Uploaded' });
-    } catch (e) {
-      const a = apiError(e);
-      const why = a.code ?? (a.status ? `HTTP ${a.status}` : 'network');
-      this.toast.show(
-        a.status === 409
-          ? { th: 'มีเวอร์ชันนี้แล้ว · ใช้ชื่อเวอร์ชันใหม่', en: 'That version already exists · use a new version name' }
-          : a.status === 413
-            ? { th: 'ไฟล์ใหญ่เกินที่เซิร์ฟเวอร์รับ (413) — ตัวกลาง (nginx/gateway) จำกัดขนาด แจ้งผู้ดูแลเซิร์ฟเวอร์', en: 'The file is larger than the server accepts (413) — a proxy limits the size; tell the server admin' }
-            : a.status === 0
-              ? { th: 'ส่งไฟล์ไม่ถึงเซิร์ฟเวอร์ (เครือข่าย/ตัวกลางตัดการเชื่อมต่อ)', en: 'The file never reached the server (network or a proxy cut it off)' }
-              : { th: `อัปโหลดไม่สำเร็จ (${why}) · ต้องเป็นไฟล์ firmware.bin ของ ESP32 ไม่เกิน 1.9 MB และชื่อเวอร์ชันไม่มีช่องว่าง`, en: `Upload failed (${why}) · it must be an ESP32 firmware.bin up to 1.9 MB, and the version name must have no spaces` },
-      );
-    } finally {
-      this.uploadingFw.set(false);
-    }
   }
 
   private fillOverride(o: Partial<BoxConfigOverride>): void {
@@ -1030,7 +504,7 @@ export class AdminBox implements OnInit {
       await this.reload();
       this.toast.show({ th: 'บันทึกแล้ว · ตู้ได้ค่าใหม่ทันทีที่ติดต่อ', en: 'Saved · the box picks it up at its next contact' });
     } catch {
-      this.toast.show({ th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Could not save' });
+      this.toast.show({ th: 'บันทึกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Could not save — check your connection and try again' });
     } finally {
       this.savingOverride.set(false);
     }
@@ -1090,7 +564,7 @@ export class AdminBox implements OnInit {
       await this.reload();
       this.toast.show({ th: 'ส่งคำสั่งแล้ว · รอตู้ออนไลน์เพื่อรับ', en: 'Request sent · waiting for the box to be online' });
     } catch {
-      this.toast.show({ th: 'สั่งไม่สำเร็จ ลองอีกครั้ง', en: 'Could not send — try again' });
+      this.toast.show({ th: 'สั่งไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Could not send — check your connection and try again' });
     } finally {
       this.resetBusy.set(false);
     }
@@ -1105,7 +579,7 @@ export class AdminBox implements OnInit {
       await this.reload();
       this.toast.show({ th: 'ยกเลิกคำสั่งแล้ว', en: 'Request cancelled' });
     } catch {
-      this.toast.show({ th: 'ยกเลิกไม่สำเร็จ ลองอีกครั้ง', en: 'Could not cancel — try again' });
+      this.toast.show({ th: 'ยกเลิกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Could not cancel — check your connection and try again' });
     } finally {
       this.resetBusy.set(false);
     }
@@ -1134,70 +608,9 @@ export class AdminBox implements OnInit {
       await this.reload();
       this.toast.show(active ? { th: 'เปิดบริการแล้ว', en: 'Switched on' } : { th: 'ปิดบริการแล้ว · แจ้งเจ้าของบ้านแล้ว', en: 'Switched off · the owner was notified' });
     } catch {
-      this.toast.show({ th: 'ทำรายการไม่สำเร็จ ลองอีกครั้ง', en: 'Could not change it' });
+      this.toast.show({ th: 'ทำรายการไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Could not change it — check your connection and try again' });
     } finally {
       this.serviceBusy.set(false);
-    }
-  }
-
-  protected async removeFirmware(version: string): Promise<void> {
-    const ok = await this.confirm.ask({
-      title: { th: `ลบไฟล์เฟิร์มแวร์ ${version} ใช่ไหม?`, en: `Delete firmware ${version}?` },
-      body: {
-        th: 'ตู้ที่รันเวอร์ชันนี้อยู่ไม่กระทบ แต่จะสั่งอัปเดตเป็นเวอร์ชันนี้อีกไม่ได้จนกว่าจะอัปโหลดใหม่',
-        en: 'Boxes already running it are not affected, but it can’t be sent again until uploaded again.',
-      },
-      confirm: { th: 'ลบไฟล์นี้', en: 'Delete it' },
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      await this.api.deleteFirmware(version);
-      await this.loadFirmware();
-      this.toast.show({ th: 'ลบแล้ว', en: 'Deleted' });
-    } catch {
-      this.toast.show({ th: 'ลบไม่สำเร็จ · อาจมีตู้รอโหลดเวอร์ชันนี้อยู่ ให้ยกเลิกงานอัปเดตของตู้นั้นก่อน', en: 'Could not delete · a box may be waiting for it — cancel that update first' });
-    }
-  }
-
-  protected async setAuto(version: string | null): Promise<void> {
-    if (this.fwAutoBusy()) return;
-    if (
-      version &&
-      !(await this.confirm.ask({
-        title: { th: `ให้ตู้ทุกใบที่ออนไลน์อัปเดตเป็น ${version} ใช่ไหม?`, en: `Make every online box update to ${version}?` },
-        body: {
-          th: 'ถ้าไฟล์มีปัญหาจะกระทบทุกตู้ ควรทดสอบกับตู้เดียวก่อน',
-          en: 'A bad file affects every box — test on one box first.',
-        },
-        confirm: { th: 'เปิดอัปเดตอัตโนมัติ', en: 'Turn on auto-update' },
-      }))
-    )
-      return;
-    this.fwAutoBusy.set(true);
-    try {
-      this.fwAuto.set((await this.api.setFirmwareAuto(version)).version);
-      this.toast.show(version
-        ? { th: `เปิดอัปเดตอัตโนมัติเป็น ${version} แล้ว`, en: `Automatic update to ${version} is on` }
-        : { th: 'ปิดอัปเดตอัตโนมัติแล้ว', en: 'Automatic update is off' });
-    } catch {
-      this.toast.show({ th: 'ตั้งไม่สำเร็จ ลองอีกครั้ง', en: 'Could not change the setting' });
-    } finally {
-      this.fwAutoBusy.set(false);
-    }
-  }
-
-  protected async setTarget(version: string | null): Promise<void> {
-    const id = this.id();
-    if (!id) return;
-    try {
-      await this.api.setFirmwareTarget(id, version);
-      await this.reload();
-      this.toast.show(version
-        ? { th: `สั่ง ${id} อัปเดตเป็น ${version} แล้ว`, en: `${id} will update to ${version}` }
-        : { th: 'ยกเลิกการอัปเดตแล้ว', en: 'Update cancelled' });
-    } catch {
-      this.toast.show({ th: 'สั่งไม่สำเร็จ ลองอีกครั้ง', en: 'Could not send the update' });
     }
   }
 
@@ -1206,24 +619,13 @@ export class AdminBox implements OnInit {
     return w.length ? w.map((x) => x.join('–')).join(' · ') : this.i18n.t({ th: 'ยังไม่อยู่ในโซนไหน', en: 'not in any zone' });
   }
 
-  protected reportLine(body: Record<string, unknown>): string {
-    const parts: string[] = [];
-    const battery = body['battery_pct'];
-    if (typeof battery === 'number' || typeof battery === 'string') parts.push(`${battery}%`);
-    const rssi = body['rssi'];
-    if (typeof rssi === 'number' || typeof rssi === 'string') parts.push(this.i18n.t({ th: `สัญญาณ ${rssi}`, en: `signal ${rssi}` }));
-    const fw = body['fw'];
-    if (typeof fw === 'string' || typeof fw === 'number') parts.push(this.i18n.t({ th: `เฟิร์มแวร์ ${fw}`, en: `firmware ${fw}` }));
-    return parts.join(' · ');
-  }
-
   protected async reveal(): Promise<void> {
     const id = this.id();
     if (!id) return;
     try {
       this.secret.set((await this.api.revealSecret(id)).device_secret);
     } catch {
-      this.toast.show({ th: 'เปิดดูไม่สำเร็จ', en: 'Couldn’t load it' });
+      this.toast.show({ th: 'เปิดดูไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วกดอีกครั้ง', en: 'Couldn’t load it — check your connection and tap again' });
     }
   }
 

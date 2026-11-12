@@ -1,0 +1,182 @@
+.effects {
+  margin: 0;
+  padding-inline-start: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9375rem;
+}
+.effects li.off {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+.check input {
+  margin-block-start: 4px;
+}
+.checklist {
+  margin: 0;
+  padding-inline-start: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.done {
+  border-color: var(--ok);
+  border-width: 2px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+/* แถบสรุป */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-block-start: 8px;
+}
+@media (min-width: 900px) {
+  .kpis {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+.kpi {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: 10px;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  min-inline-size: 0;
+}
+.kpi.click {
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .kpi.click:hover {
+    border-color: var(--text);
+  }
+}
+.kpi-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.kpi-value {
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: break-word;
+}
+.kpi-value.warn {
+  color: var(--warn);
+}
+.kpi-value.danger {
+  color: var(--sos);
+}
+.kpi-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+/* โหมดง่าย (AdmBoxDetail_E): สรุปใหญ่ + ปุ่มหลัก */
+.easy-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-block-start: 8px;
+}
+.easy-house {
+  font-size: 1.5rem;
+  line-height: 1.35;
+}
+.easy-meta {
+  font-size: 1rem;
+  color: var(--text-muted);
+}
+.easy-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+.tabs + .info-box {
+  margin-block-end: 14px;
+}
+.stack.grow {
+  max-inline-size: 980px;
+}
+/* ตั้งค่าเฉพาะตู้ (details) — ให้ช่องแต่ละช่องมีระยะห่างเหมือนการ์ดอื่น */
+.override {
+  margin: 4px 0 8px;
+}
+.override > summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding: 4px 0 8px;
+}
+.override[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.override .field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.override .field > span {
+  font-weight: 600;
+}
+.override[open] > summary {
+  padding-block-end: 0;
+}
+.grow {
+  flex: 1;
+  min-inline-size: 0;
+}
+.block {
+  display: block;
+}
+.qr-grid {
+  display: grid;
+  /* มือถือ 2 ใบต่อแถว · จอกว้างขึ้นเรื่อย ๆ ตามพื้นที่ (QR ไม่ใหญ่เต็มจอ) */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+  gap: 8px;
+  min-inline-size: 0;
+  > * {
+    min-inline-size: 0;
+  }
+  figure {
+    margin: 0;
+    padding: 8px;
+    text-align: center;
+    max-inline-size: 240px;
+  }
+  app-qr-image {
+    background: var(--qr-bg);
+  }
+}
+.secret {
+  word-break: break-all;
+}
+code {
+  font-size: 0.8125rem;
+  word-break: break-all;
+}
+@media print {
+  .qr-grid {
+    grid-template-columns: repeat(3, 5cm);
+  }
+}

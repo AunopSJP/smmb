@@ -5,6 +5,7 @@ import { hhmm, InspectionApi, type MyLog } from '../../core/inspection-api';
 import { Session } from '../../core/session';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
+import { EmptyState, LoadingRows } from '../../shared/state-view';
 
 /** ผลที่ถือว่าผ่าน — ที่เหลือคือมีปัญหา (ตรงกับหน้าประวัติของหัวหน้า) */
 const OK = new Set(['ok', 'pass', 'passed']);
@@ -33,7 +34,7 @@ const bkkDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/B
 /** O15 ประวัติการสแกนของฉัน (ตามแคนวาสดีไซน์) — ข้อมูลจริง `GET /officer/logs` · เห็นเฉพาะของตัวเอง · บันทึกทุกครั้งแม้ไม่ผ่าน */
 @Component({
   selector: 'app-officer-history',
-  imports: [PageHeader, Icon],
+  imports: [PageHeader, Icon, EmptyState, LoadingRows],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="session.me()?.agency?.name ?? ''" [title]="i18n.t({ th: 'ประวัติ', en: 'History' })" />
@@ -48,6 +49,17 @@ const bkkDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/B
           {{ i18n.t({ th: 'ไม่ผ่าน', en: 'Problems' }) }}{{ problemCount() ? ' ' + problemCount() : '' }}
         </button>
       </div>
+      @if (!rows().length) {
+        @if (loading()) {
+          <app-loading-rows [rows]="3" [label]="i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' })" />
+        } @else if (error()) {
+          <app-empty-state kind="error" (retry)="retryLoad()" />
+        } @else if (logs().length) {
+          <app-empty-state kind="search" [hint]="i18n.t({ th: 'ลองเลือก “ทั้งหมด” เพื่อดูทุกรายการ', en: 'Try “All” to see every entry' })" />
+        } @else {
+          <app-empty-state kind="first" [title]="i18n.t({ th: 'ยังไม่มีประวัติการสแกน', en: 'No scans yet' })" [hint]="i18n.t({ th: 'ตรวจตู้ครั้งแรกแล้วจะแสดงที่นี่', en: 'Your first inspection will show up here' })" />
+        }
+      } @else {
       <ul class="list">
         @for (l of rows(); track l.id) {
           @let ok = isOk(l);
@@ -60,15 +72,14 @@ const bkkDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/B
             </span>
             <span class="chip" [class.ok]="ok" [class.danger]="!ok">{{ i18n.t(resultText(l)) }}</span>
           </li>
-        } @empty {
-          <li class="row muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ยังไม่มีประวัติ', en: 'No history yet' }) }}</li>
         }
       </ul>
+      }
       @if (more()) {
         <button type="button" class="btn secondary" [disabled]="loading()" (click)="loadMore()">{{ i18n.t({ th: 'ดูเพิ่ม', en: 'Show more' }) }}</button>
       }
-      @if (error()) {
-        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดประวัติไม่สำเร็จ ลองอีกครั้ง', en: 'Could not load — try again' }) }}</p>
+      @if (error() && rows().length) {
+        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดหน้าถัดไปไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วกด “ดูเพิ่ม” อีกครั้ง', en: 'Couldn’t load more — check your connection and tap “Show more” again' }) }}</p>
       }
       <p class="muted small easy-hide">{{ i18n.t({ th: 'ทุกการสแกนและพิมพ์รหัสถูกบันทึก แม้ไม่ผ่าน · หัวหน้าเห็นประวัติเดียวกันนี้ · ลบหรือแก้ไม่ได้', en: 'Every scan and typed code is logged, even failures · your head sees the same log · it cannot be edited' }) }}</p>
     </div>
@@ -125,6 +136,10 @@ export class OfficerHistory {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  protected retryLoad(): void {
+    void this.load();
   }
 
   protected loadMore(): void {

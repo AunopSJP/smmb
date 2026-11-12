@@ -128,7 +128,7 @@ const KIND_DEFAULTS: Record<EmptyKind, { icon: IconName; title: Tr; hint: Tr }> 
   imports: [Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="empty" [class.compact]="compact()" [class.error]="kind() === 'error'" [attr.role]="kind() === 'error' ? 'alert' : 'status'">
+    <div class="empty" [class.compact]="compact()" [class.error]="kind() === 'error'" [attr.role]="kind() === 'error' ? 'alert' : kind() === 'cleared' ? 'status' : null">
       <span class="ico" aria-hidden="true"><app-icon [name]="icon() ?? d().icon" [size]="compact() ? 24 : 30" /></span>
       <strong>{{ title() || i18n.t(d().title) }}</strong>
       @if (hint() || i18n.t(d().hint)) {

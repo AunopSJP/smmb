@@ -15,11 +15,12 @@ import { liveRefresh } from '../../core/live-refresh';
 // หัวหน้า: L05 สมาชิก (คำขอรอยืนยันอยู่บนสุด) · L05-b รายละเอียดสมาชิก — ใช้ API จริง (api.md §8.2)
 
 const MEMBER_ERROR: Record<string, Tr> = {
-  CANNOT_CHANGE_SELF: { th: 'ทำกับบัญชีตัวเองไม่ได้', en: 'You can’t do this to yourself' },
-  LAST_HEAD: { th: 'ต้องมีหัวหน้าอย่างน้อย 1 คน', en: 'At least one head is required' },
-  RESET_NEEDS_ADMIN: { th: 'คนนี้เป็นเจ้าของบ้าน/หัวหน้าด้วย — ให้ผู้ดูแลระบบรีเซ็ต', en: 'This person is also an owner/head — ask the admin to reset' },
-  MEMBER_STATE_INVALID: { th: 'สถานะสมาชิกเปลี่ยนไปแล้ว โหลดหน้าใหม่', en: 'The member changed — reload' },
-  MEMBER_NOT_PENDING: { th: 'คำขอนี้ถูกจัดการไปแล้ว', en: 'This request was already handled' },
+  CANNOT_CHANGE_SELF: { th: 'ทำกับบัญชีตัวเองไม่ได้ — ให้หัวหน้าอีกคนหรือผู้ดูแลระบบทำให้', en: 'You can’t do this to your own account — ask another head or the admin' },
+  LAST_HEAD: { th: 'ถอดไม่ได้ เพราะต้องมีหัวหน้าอย่างน้อย 1 คน — ตั้งหัวหน้าคนใหม่ก่อน แล้วค่อยถอด', en: 'Can’t remove: at least one head is required — appoint another head first' },
+  RESET_NEEDS_ADMIN: { th: 'รีเซ็ตเองไม่ได้ เพราะคนนี้เป็นเจ้าของบ้าน/หัวหน้าด้วย — ติดต่อผู้ดูแลระบบให้รีเซ็ต', en: 'You can’t reset this: the person is also an owner/head — contact the admin' },
+  MEMBER_STATE_INVALID: { th: 'ทำไม่ได้ เพราะสถานะสมาชิกเปลี่ยนไปแล้ว — โหลดหน้าใหม่แล้วดูสถานะล่าสุด', en: 'Not possible: the member’s status changed — reload to see the latest' },
+  RATE_LIMITED: { th: 'ทำบ่อยเกินไป — รอ 1 นาทีแล้วลองอีกครั้ง', en: 'Too many requests — wait a minute and try again' },
+  MEMBER_NOT_PENDING: { th: 'คำขอนี้ถูกจัดการไปแล้ว (อาจเป็นหัวหน้าอีกคน) — โหลดหน้าใหม่เพื่อดูผล', en: 'This request was already handled (maybe by another head) — reload to see the result' },
 };
 
 const ago = (iso: string | null, lang: 'th' | 'en'): string => {
@@ -211,7 +212,7 @@ export class HeadMembers implements OnInit {
       this.toast.show(ok ? { th: 'อนุมัติ ' + m.display_name + ' แล้ว — ใส่เข้าโซนต่อได้', en: 'Approved ' + m.display_name + ' — add them to a zone' } : { th: 'ปฏิเสธแล้ว', en: 'Declined' });
       await this.load();
     } catch (err) {
-      this.toast.show(MEMBER_ERROR[apiError(err).code ?? ''] ?? { th: 'ทำรายการไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t do it — try again' });
+      this.toast.show(MEMBER_ERROR[apiError(err).code ?? ''] ?? { th: 'ทำรายการไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t do it — check your connection and try again' });
     } finally {
       this.busy.set(false);
     }
@@ -386,7 +387,7 @@ export class HeadMember {
       } else this.toast.show({ th: 'บันทึกแล้ว', en: 'Saved' });
       await this.load(m.id);
     } catch (err) {
-      this.toast.show(MEMBER_ERROR[apiError(err).code ?? ''] ?? { th: 'ทำรายการไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t do it — try again' });
+      this.toast.show(MEMBER_ERROR[apiError(err).code ?? ''] ?? { th: 'ทำรายการไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t do it — check your connection and try again' });
     } finally {
       this.busy.set(false);
     }

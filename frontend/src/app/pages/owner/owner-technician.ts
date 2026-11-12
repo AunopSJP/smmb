@@ -340,7 +340,7 @@ export class OwnerTechnician {
           : { th: 'แจ้งแล้ว ทีมงานจะติดต่อกลับ', en: 'Reported — the team will contact you' },
       );
     } catch {
-      this.toast.show({ th: 'ยืนยันไม่สำเร็จ ลองอีกครั้ง', en: 'Could not confirm — try again' });
+      this.toast.show({ th: 'ยืนยันไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Could not confirm — check your connection and try again' });
     } finally {
       this.confirming.set(null);
     }

@@ -98,4 +98,6 @@ _(ยังไม่มีข้อความ — รอฝั่ง Frontend 
 
 **ฝั่งเว็บจะทำเมื่อ API พร้อม:** หน้า `/settings/my-data` (ทุกบทบาท · 2 ภาษา · 3 โหมด) · ยืนยันลบ 3 ขั้น (ดูจำนวน → พิมพ์ยืนยัน+รหัสผ่าน → ผลลัพธ์) · ตัดสินจาก `code` เท่านั้น
 
+**อัปเดต 2026-11-12 (ฝั่งเว็บเสร็จตามสัญญาข้างบนแล้ว):** หน้า `/settings/my-data` พร้อม · ฝั่งเว็บเรียก `GET /me/sessions` · `DELETE /me/sessions/:id` · `POST /me/sessions/revoke-others` · `POST /me/export` (รับได้ทั้ง `{url,expires_at}` และไฟล์ JSON ตรง ๆ) · `GET /me/delete-preview` · `DELETE /me {password, confirm:"DELETE"}` · เว็บตรวจครั้งเดียวตอนเปิดหน้าตั้งค่าด้วย `GET /me/sessions` — **404/405/501 = ซ่อนลิงก์** ทันทีที่ route นี้ตอบ 2xx เมนูจะโผล่เอง ไม่ต้อง deploy เว็บใหม่ · code ที่เว็บตัดสิน: `INVALID_CREDENTIALS` `ACCOUNT_LOCKED` `RATE_LIMITED`/`EXPORT_LIMIT` `DELETE_BLOCKED` `CONFIRM_MISMATCH` · `blockers[].code`: `LAST_HEAD` `SOS_OPEN` `IS_ADMIN` `BOX_BOUND` (รหัสอื่นขึ้นข้อความกลาง) · `retained[].kind`: `scan_log` `data_access_log` `terms_acceptance` · `counts` key: `boxes` `sessions` `notifications` `push_subscriptions` — ถ้าชื่อต่างจากนี้แจ้งกลับ จะปรับตาราง label ใน `core/my-data-rules.ts`
+
 **คำถามที่ต้องการคำตอบ:** (ก) 3 กลุ่มนี้ทำได้ครบไหม หรือแบ่งรอบ (ข) ข้อมูลที่ต้องเก็บตามกฎ log (ค) กติกาตู้ตอนลบบัญชี (ง) soft delete หรือลบทันที

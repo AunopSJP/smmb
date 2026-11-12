@@ -9,6 +9,7 @@ import { screenUrl } from '../screens/registry';
 import { Icon } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
 import { PushStatus } from '../shared/push-status';
+import { EmptyState } from '../shared/state-view';
 
 interface Option {
   type: string;
@@ -22,7 +23,7 @@ interface Option {
  */
 @Component({
   selector: 'app-notif-settings',
-  imports: [RouterLink, Icon, PageHeader, PushStatus],
+  imports: [RouterLink, Icon, PageHeader, PushStatus, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t(roleLabel())" [title]="i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' })" [back]="back()" />
@@ -45,7 +46,11 @@ interface Option {
               }
             </div>
           } @empty {
-            <p class="muted small">{{ i18n.t({ th: 'ยังไม่มีข้อมูลเครื่อง (เข้าสู่ระบบจากเบราว์เซอร์อื่นอีกครั้ง)', en: 'No device records yet (sign in from another browser to add one).' }) }}</p>
+            @if (devicesFailed()) {
+              <app-empty-state kind="error" compact (retry)="loadDevices()" />
+            } @else if (devicesLoaded()) {
+              <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีข้อมูลเครื่อง', en: 'No device records yet' })" [hint]="i18n.t({ th: 'เข้าสู่ระบบจากเบราว์เซอร์อื่นอีกครั้งเพื่อเพิ่ม', en: 'Sign in from another browser to add one' })" />
+            }
           }
         </div>
       </section>
@@ -109,10 +114,21 @@ export class NotifSettings {
   protected readonly display = inject(DisplaySettings);
   protected readonly devices = signal<{ id: string; label: string; current: boolean; first_seen_at: string; last_seen_at: string }[]>([]);
 
+  protected readonly devicesLoaded = signal(false);
+  protected readonly devicesFailed = signal(false);
+
   constructor() {
+    this.loadDevices();
+  }
+
+  protected loadDevices(): void {
+    this.devicesFailed.set(false);
     void firstValueFrom(this.http.get<{ data: { id: string; label: string; current: boolean; first_seen_at: string; last_seen_at: string }[] }>('/api/v1/me/devices'))
-      .then((r) => this.devices.set(r.data))
-      .catch(() => undefined);
+      .then((r) => {
+        this.devices.set(r.data);
+        this.devicesLoaded.set(true);
+      })
+      .catch(() => this.devicesFailed.set(true));
   }
 
   protected day(iso: string): string {

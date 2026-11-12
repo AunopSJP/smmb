@@ -11,7 +11,7 @@ import { Session } from '../../core/session';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
-import { LoadError } from '../../shared/state-view';
+import { EmptyState, LoadError } from '../../shared/state-view';
 import { Toast } from '../../core/toast';
 import { liveRefresh } from '../../core/live-refresh';
 
@@ -25,7 +25,7 @@ const go = (router: Router, code: string, id?: string) =>
 
 @Component({
   selector: 'app-officer-sos-list',
-  imports: [RouterLink, PageHeader, Icon, LoadError],
+  imports: [RouterLink, PageHeader, Icon, LoadError, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [title]="'SOS'" [back]="from() === 'L04' ? url('L04') : undefined" [bell]="url('O14')" />
@@ -73,8 +73,8 @@ const go = (router: Router, code: string, id?: string) =>
       }
       @if (view() === 'closed' && !display.easyMode()) {
       <h2 class="section-title">{{ i18n.t({ th: 'ย้อนหลัง 30 วัน', en: 'Last 30 days' }) }}</h2>
-      @if (!closed().length) {
-        <p class="muted small">{{ i18n.t({ th: 'ยังไม่มี', en: 'None yet' }) }}</p>
+      @if (!closed().length && !failed()) {
+        <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มี SOS ย้อนหลัง', en: 'No past SOS yet' })" [hint]="i18n.t({ th: 'เหตุที่ปิดแล้วใน 30 วันจะแสดงที่นี่', en: 'Closed alerts from the last 30 days appear here' })" />
       }
       <ul class="list">
         @for (h of closed(); track h.id) {

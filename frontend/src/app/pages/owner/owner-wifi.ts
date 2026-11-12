@@ -6,19 +6,24 @@ import { DisplaySettings } from '../../core/display-settings';
 import { I18n, type Tr } from '../../core/i18n';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
+import { EmptyState, LoadingRows } from '../../shared/state-view';
 import { bkkClock } from '../../core/time';
 
 @Component({
   selector: 'app-owner-wifi',
-  imports: [RouterLink, PageHeader],
+  imports: [RouterLink, PageHeader, EmptyState, LoadingRows],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="box() ? i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + (box()!.house_no ?? '') + (display.advancedMode() ? ' · ' + box()!.id + ' · ' + box()!.name : multi() ? ' · ' + box()!.name : '') : i18n.t({ th: 'ตั้งค่า', en: 'Settings' })" [title]="i18n.t({ th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' })" [back]="url('H13')" />
     <div class="stack grow">
       @if (!loaded()) {
-        <p class="muted">{{ i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
+        <app-loading-rows [rows]="2" [label]="i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' })" />
+      } @else if (loadFailed()) {
+        <app-empty-state kind="error" (retry)="retry()" />
       } @else if (!box()) {
-        <div class="card">{{ i18n.t({ th: 'ยังไม่มีตู้ที่ผูกกับบัญชีนี้', en: 'No mailbox is linked to this account yet' }) }}</div>
+        <app-empty-state [title]="i18n.t({ th: 'ยังไม่มีตู้ที่ผูกกับบัญชีนี้', en: 'No mailbox is linked to this account yet' })" [hint]="i18n.t({ th: 'ผูกตู้ก่อน แล้วจึงเปลี่ยน Wi-Fi ได้', en: 'Link a mailbox first, then you can change its Wi-Fi' })">
+          <a class="btn" [routerLink]="url('A07')" [queryParams]="{ from: 'H13' }">{{ i18n.t({ th: 'ผูกตู้', en: 'Link a mailbox' }) }}</a>
+        </app-empty-state>
       } @else {
         @let w = box()!.wifi_reset;
         @let boxOffline = box()!.status === 'offline';
@@ -187,8 +192,20 @@ export class OwnerWifi {
     void this.load();
   }
 
+  protected readonly loadFailed = signal(false);
+
+  protected retry(): void {
+    this.loaded.set(false);
+    void this.load();
+  }
+
   private async load(): Promise<void> {
-    const boxes = await this.api.boxes().catch(() => []);
+    const boxes = await this.api.boxes().catch(() => null);
+    this.loadFailed.set(boxes === null);
+    if (boxes === null) {
+      this.loaded.set(true);
+      return;
+    }
     this.multi.set(boxes.length > 1);
     const wanted = this.route.snapshot.queryParamMap.get('box');
     const id = boxes.find((b) => b.id === wanted)?.id ?? boxes[0]?.id;
@@ -237,7 +254,7 @@ export class OwnerWifi {
       this.confirming.set(false);
       await this.refresh(b.id);
     } catch {
-      this.toast.show({ th: 'สั่งไม่สำเร็จ ลองอีกครั้ง', en: 'Could not send the command — try again' });
+      this.toast.show({ th: 'สั่งไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Could not send the command — check your connection and try again' });
     } finally {
       this.busy.set(false);
     }
@@ -251,7 +268,7 @@ export class OwnerWifi {
       await this.api.cancelWifiReset(b.id);
       await this.refresh(b.id);
     } catch {
-      this.toast.show({ th: 'ยกเลิกไม่สำเร็จ', en: 'Could not cancel' });
+      this.toast.show({ th: 'ยกเลิกไม่สำเร็จ — รีเฟรชหน้าเพื่อดูสถานะล่าสุด', en: 'Could not cancel — refresh to see the latest status' });
     } finally {
       this.busy.set(false);
     }

@@ -104,11 +104,12 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
       } @else if (loadFailed()) {
         <app-load-error (retry)="ngOnInit()" />
       } @else {
-        <app-empty-state
-          icon="bell"
-          [title]="onlyUnread() ? i18n.t({ th: 'อ่านครบทุกรายการแล้ว', en: 'You are all caught up' }) : i18n.t({ th: 'ยังไม่มีการแจ้งเตือน', en: 'No notifications yet' })"
-          [hint]="i18n.t({ th: 'การตรวจ ของมาส่ง และ SOS จะแสดงที่นี่', en: 'Patrol checks, deliveries and SOS will show up here' })"
-        />
+        @if (onlyUnread() && items().length) {
+          <!-- cleared: เคยมีแจ้งเตือน แต่อ่านครบแล้ว -->
+          <app-empty-state kind="cleared" icon="bell" [title]="i18n.t({ th: 'อ่านครบทุกรายการแล้ว', en: 'You are all caught up' })" />
+        } @else {
+          <app-empty-state icon="bell" [title]="i18n.t({ th: 'ยังไม่มีการแจ้งเตือน', en: 'No notifications yet' })" [hint]="i18n.t({ th: 'การตรวจ ของมาส่ง และ SOS จะแสดงที่นี่', en: 'Patrol checks, deliveries and SOS will show up here' })" />
+        }
       }
     }
   `,

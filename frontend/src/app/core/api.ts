@@ -59,7 +59,7 @@ export const apiInterceptor: HttpInterceptorFn = (req, next) => {
   return next(req.clone({ url: inject(ApiConfig).apiBase() + req.url, withCredentials: true, setHeaders: { 'X-Device-Id': deviceId() } })).pipe(
     tap({
       error: (err: unknown) => {
-        if (err instanceof HttpErrorResponse && err.status === 401 && !req.url.startsWith('/api/v1/auth/')) {
+        if (isSessionExpiry(err, req.url)) {
           // session หมดอายุ/ถูกเพิกถอนกลางหน้า — ให้ App ล้าง Me แล้วพาไปล็อกอินพร้อม next
           const path = router.url;
           if (!path.startsWith('/auth/signin')) {
@@ -88,6 +88,16 @@ export function apiError(err: unknown): ApiError {
     return { status: err.status, code: typeof body['code'] === 'string' ? body['code'] : null, body };
   }
   return { status: 0, code: null, body: {} };
+}
+
+/**
+ * 401 ที่แปลว่า "session หมดอายุ" (ให้เด้งไปล็อกอิน) — ไม่รวม 401 ของ /auth/* และ 401 `INVALID_CREDENTIALS`
+ * (ยืนยันรหัสผ่านซ้ำผิด เช่น ลบบัญชี/เปลี่ยนรหัส: ผู้ใช้ยังล็อกอินอยู่ ต้องอยู่หน้าเดิมแล้วเห็นข้อความ · ตัดสินจาก code ตามกฎข้อ 10)
+ */
+export function isSessionExpiry(err: unknown, url: string): boolean {
+  if (!(err instanceof HttpErrorResponse) || err.status !== 401 || url.startsWith('/api/v1/auth/')) return false;
+  const code = err.error && typeof err.error === 'object' ? (err.error as { code?: unknown }).code : null;
+  return code !== 'INVALID_CREDENTIALS';
 }
 
 /** เน็ตหลุด / server ไม่ตอบ (status 0) */

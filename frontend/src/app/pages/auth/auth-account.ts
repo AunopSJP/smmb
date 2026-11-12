@@ -35,11 +35,17 @@ const backTo = (code: string | undefined, fallback: string) => {
 };
 
 const ADD_ROLE_ERROR: Record<string, Tr> = {
-  ROLE_EXISTS: { th: 'บัญชีนี้มีบทบาทนี้อยู่แล้ว หรือมีคำขอค้างอยู่', en: 'This account already has this role or a pending request' },
-  ADMIN_ROLE_EXCLUSIVE: { th: 'บัญชีผู้ดูแลระบบเพิ่มบทบาทอื่นไม่ได้', en: 'Admin accounts cannot have other roles' },
+  ROLE_EXISTS: { th: 'เพิ่มไม่ได้ เพราะบัญชีนี้มีบทบาทนี้อยู่แล้วหรือมีคำขอค้างอยู่ — กลับไปหน้าหลักเพื่อใช้บทบาทนั้น หรือรอผลอนุมัติ', en: 'Can’t add it: this account already has this role or a pending request — go back home to use it, or wait for approval' },
+  ADMIN_ROLE_EXCLUSIVE: { th: 'เพิ่มไม่ได้ เพราะบัญชีผู้ดูแลระบบมีบทบาทอื่นร่วมไม่ได้ — สมัครด้วยเบอร์อื่นแทน', en: 'Can’t add it: admin accounts cannot hold other roles — sign up with a different phone number' },
   GROUP_CODE_INVALID: { th: 'รหัสกลุ่มไม่ถูกต้อง — ตรวจสอบกับหัวหน้าอีกครั้ง', en: 'Group code not found — check it with your head' },
-  INVALID: { th: 'กรอกข้อมูลให้ครบ', en: 'Please fill in the form' },
+  INVALID: { th: 'ข้อมูลยังไม่ครบหรือไม่ถูกต้อง — ตรวจช่องที่ขึ้นสีแดงแล้วลองอีกครั้ง', en: 'Some details are missing or invalid — check the red fields and try again' },
+  NETWORK: { th: 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Could not reach the server — check your internet and try again' },
+  SERVER: { th: 'เซิร์ฟเวอร์ขัดข้อง — ลองอีกครั้งภายหลัง', en: 'The server is having trouble — try again later' },
 };
+
+/** แปลง error เป็นคีย์ใน ADD_ROLE_ERROR (ตัดสินจาก code/สถานะ ไม่ดูข้อความ) */
+const addRoleErrorKey = (e: { code: string | null; status: number | null }): string =>
+  e.code && ADD_ROLE_ERROR[e.code] ? e.code : e.status === 0 ? 'NETWORK' : (e.status ?? 0) >= 500 ? 'SERVER' : 'INVALID';
 
 // ── ส่วน "บัญชี" ในหน้าตั้งค่า/บัญชีของแต่ละบทบาท ───────────────────
 
@@ -240,7 +246,7 @@ export class AuthChangePassword {
             ? { th: `รหัส${this.forced() ? 'ชั่วคราว' : 'ปัจจุบัน'}ไม่ถูกต้อง · ผิด 5 ครั้งจะถูกพักบัญชี`, en: `Wrong ${this.forced() ? 'temporary' : 'current'} password · 5 wrong tries locks the account` }
             : e.status === 400
               ? { th: 'รหัสใหม่ต้องยาว 8–128 ตัว', en: 'The new password must be 8–128 characters' }
-              : { th: 'เปลี่ยนรหัสไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t change it — try again' },
+              : { th: 'เปลี่ยนรหัสไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง ถ้ายังไม่ได้ให้แจ้งหัวหน้าหรือผู้ดูแลระบบ', en: 'Couldn’t change it — check your connection and try again; if it keeps failing, tell your head or the admin' },
       );
       return;
     }
@@ -333,8 +339,7 @@ export class AuthAddOwner {
       this.realSession.use('owner');
       void this.router.navigate([screenUrl('A07')], { queryParams: { from: this.from() ?? 'O13' }, replaceUrl: true });
     } catch (err) {
-      const { code } = apiError(err);
-      this.errorCode.set(code && ADD_ROLE_ERROR[code] ? code : 'INVALID');
+      this.errorCode.set(addRoleErrorKey(apiError(err)));
     } finally {
       this.busy.set(false);
     }
@@ -426,8 +431,7 @@ export class AuthJoinAgency {
       await this.realSession.refresh();
       void this.router.navigateByUrl(screenUrl('A11'), { replaceUrl: true });
     } catch (err) {
-      const { code } = apiError(err);
-      this.errorCode.set(code && ADD_ROLE_ERROR[code] ? code : 'INVALID');
+      this.errorCode.set(addRoleErrorKey(apiError(err)));
     } finally {
       this.busy.set(false);
     }

@@ -174,7 +174,7 @@ export class UserPlan {
       this.plans.set(plans);
       this.history.set(history);
     } catch {
-      if (request === this.requestSequence) this.toast.show({ th: 'โหลดประวัติแพ็กไม่สำเร็จ', en: 'Could not load plan history' });
+      if (request === this.requestSequence) this.toast.show({ th: 'โหลดประวัติแพ็กไม่สำเร็จ — เลือกผู้ใช้ใหม่หรือรีเฟรชหน้า', en: 'Could not load plan history — pick the user again or refresh' });
     }
   }
 
@@ -503,7 +503,7 @@ export class AdminPlans implements OnInit {
       await this.load();
       this.toast.show({ th: 'ตั้งเป็นแพ็กเริ่มต้นแล้ว', en: 'Now the default plan' });
     } catch {
-      this.toast.show({ th: 'ตั้งแพ็กเริ่มต้นไม่สำเร็จ', en: 'Could not set the default plan' });
+      this.toast.show({ th: 'ตั้งแพ็กเริ่มต้นไม่สำเร็จ — รีเฟรชหน้าแล้วลองอีกครั้ง', en: 'Could not set the default plan — refresh and try again' });
     } finally {
       this.busy.set(null);
     }
@@ -516,7 +516,7 @@ export class AdminPlans implements OnInit {
       await this.load();
       this.toast.show(active ? { th: 'เปิดให้เลือกแล้ว', en: 'Offered again' } : { th: 'ปิดให้เลือกแล้ว', en: 'No longer offered' });
     } catch {
-      this.toast.show({ th: 'เปลี่ยนสถานะแพ็กไม่สำเร็จ', en: 'Could not change the plan status' });
+      this.toast.show({ th: 'เปลี่ยนสถานะแพ็กไม่สำเร็จ — รีเฟรชหน้าแล้วลองอีกครั้ง', en: 'Could not change the plan status — refresh and try again' });
     } finally {
       this.busy.set(null);
     }

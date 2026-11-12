@@ -8,7 +8,7 @@ import { Session } from '../../core/session';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
-import { LoadingRows } from '../../shared/state-view';
+import { EmptyState, LoadingRows } from '../../shared/state-view';
 import { liveRefresh } from '../../core/live-refresh';
 
 /** รีเฟรชหน้าสรุปทุกกี่วินาที (เพื่อนในโซนตรวจบ้านไป / ถึงเวลาตรวจ) */
@@ -34,7 +34,7 @@ const toMinutes = (hhmm: string): number | null => {
 /** O01 หน้าสรุปเจ้าหน้าที่ (api.md §6.1) · O01-d นอกเวลาตรวจ · O01-e ตรวจครบแล้ว — ข้อมูลจริง */
 @Component({
   selector: 'app-officer-home',
-  imports: [RouterLink, PageHeader, Icon, LoadingRows],
+  imports: [RouterLink, PageHeader, Icon, LoadingRows, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="caption()" [title]="session.me()?.display_name ?? ''" [bell]="url('O14')" />
@@ -185,9 +185,7 @@ const toMinutes = (hhmm: string): number | null => {
           <span class="muted small"> · {{ pending() ? pending() : s.houses_total }}</span>
         </h2>
         @if (!s.houses.length) {
-          <p class="card muted small easy-hide">
-            {{ i18n.t({ th: 'ยังไม่มีบ้านในโซนของคุณ — หัวหน้าเป็นคนใส่บ้านและเจ้าหน้าที่เข้าโซน', en: 'No houses in your zone yet — your head assigns houses and officers' }) }}
-          </p>
+          <app-empty-state class="easy-hide" [title]="i18n.t({ th: 'ยังไม่มีบ้านในโซนของคุณ', en: 'No houses in your zone yet' })" [hint]="i18n.t({ th: 'หัวหน้าเป็นคนใส่บ้านและเจ้าหน้าที่เข้าโซน — ติดต่อหัวหน้าของคุณ', en: 'Your head assigns houses and officers — contact your head' })" />
         } @else {
           <ul class="list easy-hide">
             @for (h of orderedHouses(); track h.box_id) {
@@ -232,7 +230,7 @@ const toMinutes = (hhmm: string): number | null => {
                 {{ l.method === 'code' ? i18n.t({ th: 'พิมพ์รหัส', en: 'typed code' }) : i18n.t({ th: 'สแกน QR', en: 'QR scan' }) }}
               </div>
             } @empty {
-              <span class="muted">{{ i18n.t({ th: 'ยังไม่มีบันทึก', en: 'No log yet' }) }}</span>
+              <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีบันทึกการสแกน', en: 'No scan log yet' })" [hint]="i18n.t({ th: 'สแกนหรือพิมพ์รหัสที่ตู้แล้วจะแสดงที่นี่', en: 'Scans and typed codes will show here' })" />
             }
           </div>
         </section>

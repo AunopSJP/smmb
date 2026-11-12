@@ -79,7 +79,7 @@
   --brand-dark: #e8a0a5;
   --brand-light: #2a2b2f;
   --brand-lighter: #222327;
-  --sos: #e05a60;
+  --sos: #e8686e;
   /* พื้นปุ่มโหมดมืด: เข้มพอให้ตัวอักษรขาวผ่าน AA (≥4.5) แต่ยังแยกจากพื้นหลัง ≥3:1 */
   --action-bg: #b03b44;
   --action-fg: #fff;
@@ -148,16 +148,24 @@
     --text-scale-min: 0.93;
     --text-scale-max: 1.22;
   }
-  :root[data-text-size='large'] { --text-scale-user: 1.1; }
-  :root[data-text-size='xlarge'] { --text-scale-user: 1.22; }
+  :root[data-text-size='large'] {
+    --text-scale-user: 1.1;
+  }
+  :root[data-text-size='xlarge'] {
+    --text-scale-user: 1.22;
+  }
 }
 @media (min-width: 1024px) {
   :root {
     --text-scale-min: 0.91;
     --text-scale-max: 1.12;
   }
-  :root[data-text-size='large'] { --text-scale-user: 1.06; }
-  :root[data-text-size='xlarge'] { --text-scale-user: 1.12; }
+  :root[data-text-size='large'] {
+    --text-scale-user: 1.06;
+  }
+  :root[data-text-size='xlarge'] {
+    --text-scale-user: 1.12;
+  }
 }
 
 /* ตามแคนวาสดีไซน์ UX/UI (2026-11-06): โหมดง่าย = การ์ดมน-ใหญ่ ตัวหนา ปุ่มสูง · โหมดละเอียด = แน่นขึ้น ตัวเลข/รหัสใช้ฟอนต์ mono */
@@ -241,10 +249,10 @@
     font-size: 1.5rem;
   }
 }
-/* โหมดละเอียดย่อตัวอักษรเฉพาะจอคอม — มือถือต้องอ่านได้ ไม่ควรเล็กกว่าโหมดปกติ */
+/* โหมดละเอียดบนจอคอม: เคยย่อ 0.96 แต่ทำให้ข้อความเล็ก 0.75rem ต่ำกว่า 12px — คงขนาดเท่าโหมดปกติ (ความละเอียดได้จากข้อมูลที่แสดงมากกว่า ไม่ใช่ตัวเล็กลง) */
 @media (min-width: 1024px) {
   :root[data-mode='advanced'] {
-    --text-scale-mode: 0.96;
+    --text-scale-mode: 1;
   }
 }
 .mono {
@@ -271,10 +279,18 @@
   overflow: hidden;
   overflow-wrap: break-word;
 }
-.clamp-1 { -webkit-line-clamp: 1; }
-.clamp-2 { -webkit-line-clamp: 2; }
-.clamp-3 { -webkit-line-clamp: 3; }
-.clamp-4 { -webkit-line-clamp: 4; }
+.clamp-1 {
+  -webkit-line-clamp: 1;
+}
+.clamp-2 {
+  -webkit-line-clamp: 2;
+}
+.clamp-3 {
+  -webkit-line-clamp: 3;
+}
+.clamp-4 {
+  -webkit-line-clamp: 4;
+}
 /* ลิงก์ข้อความขนาดเล็ก — ขยายพื้นที่แตะขั้นต่ำ ~32px (WCAG 2.5.8) โดยหน้าตาไม่เปลี่ยน */
 .see-all,
 .tap {
@@ -334,7 +350,6 @@ textarea {
     padding-block-end: calc(120px + env(safe-area-inset-bottom)) !important;
   }
 }
-
 
 /* โหมดเห็นรายละเอียด: .adv-only (รหัส/เวอร์ชัน/ข้อมูลเทคนิค) เห็นเฉพาะโหมดละเอียด · โหมดอื่นซ่อน */
 /* หน้าที่เป็นแดชบอร์ดบนจอคอม: บนมือถือซ่อนส่วนละเอียด ยกเว้นโหมดละเอียด (ตามแคนวาสที่ออกแบบสำหรับมือถือ) */
@@ -1054,7 +1069,10 @@ input[type='radio'] {
   border-radius: 50%;
   background: var(--surface);
   cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
 }
 input[type='radio']::before {
   content: '';
@@ -1627,10 +1645,18 @@ fieldset {
 }
 
 // ═══ ความกว้างเนื้อหาตามชนิดจอ (สวย/อ่านง่าย ไม่แคบหรือกว้างเกิน) ═══════════════════
-.frame { --content-w: min(100%, 720px); }
-.frame[data-area='auth'] { --content-w: min(100%, 440px); }
-.frame[data-area='head'] { --content-w: min(100%, 820px); }
-.frame[data-area='admin'] { --content-w: min(100%, 1360px); }
+.frame {
+  --content-w: min(100%, 720px);
+}
+.frame[data-area='auth'] {
+  --content-w: min(100%, 440px);
+}
+.frame[data-area='head'] {
+  --content-w: min(100%, 820px);
+}
+.frame[data-area='admin'] {
+  --content-w: min(100%, 1360px);
+}
 @media (min-width: 1024px) {
   .frame[data-area='owner'],
   .frame[data-area='officer'],
@@ -1825,16 +1851,27 @@ fieldset {
       border-color: var(--brand);
       box-shadow: var(--focus, 0 0 0 3px rgb(154 47 54 / 18%));
     }
-    input {
+    /* ต้องเฉพาะเจาะจงกว่ากฎ "ช่องกรอก" ของ .admin-layout (ไม่งั้นช่องข้างในมีขอบ/มุมโค้งซ้อนกล่องห่ออีกชั้น) —
+       โฟกัสแสดงที่กล่องห่อด้วย :focus-within ด้านบนแล้ว */
+    input[type='search'] {
       flex: 1;
       min-inline-size: 0;
       padding: 8px 0;
       border: 0;
+      border-radius: 0;
+      box-shadow: none;
       background: transparent;
       color: var(--text);
       font: inherit;
       font-size: 0.875rem;
       outline: none;
+      &:hover,
+      &:focus,
+      &:focus-visible {
+        border: 0;
+        box-shadow: none;
+        outline: none;
+      }
     }
     .clear {
       flex: none;
@@ -2290,4 +2327,134 @@ fieldset {
   min-inline-size: 56px;
   color: var(--text-muted);
   font-weight: 600;
+}
+
+/* ลดการเคลื่อนไหว (WCAG 2.3.3): ทุก transition หยุด · animation ที่วนไม่จบมี guard ของตัวเอง (spinner ช้าลง · skeleton/สแกนหยุด) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── แอดมิน · D04 รายละเอียดตู้: จังหวะ/ระยะห่าง (รอบ UX 2026-11-12)
+   ก่อนหน้านี้การ์ด หัวข้อ และแท็บแปะติดกัน (ช่องว่าง 0–8px) และ QR ที่ใช้แล้วขยายเต็มความกว้างการ์ด
+   ใช้ตัวเลือกจาก host `app-admin-box` เพื่อให้ครอบ component ย่อย (เฟิร์มแวร์/ทดสอบ/รายงาน) ด้วย ── */
+.admin-layout app-admin-box {
+  display: block;
+  padding-block-end: 32px;
+
+  .kpis {
+    gap: 14px;
+    margin-block: 12px 28px;
+  }
+  .kpi {
+    gap: 6px;
+    padding: 16px 18px;
+    border-radius: 14px;
+  }
+  .kpi-value {
+    font-size: 1.5rem;
+  }
+  .kpi-hint {
+    line-height: 1.45;
+  }
+  .tabs {
+    margin-block-end: 8px;
+  }
+  .section-title {
+    margin-block: 32px 12px;
+    font-size: 1.0625rem;
+    line-height: 1.4;
+  }
+  .card {
+    padding: 20px 24px;
+    border-radius: 16px;
+  }
+  .card.stack,
+  .stack {
+    gap: 16px;
+  }
+  .card + .card,
+  .card + .list,
+  .list + .card {
+    margin-block-start: 16px;
+  }
+  .kv {
+    row-gap: 14px;
+    column-gap: 24px;
+  }
+  .list .row {
+    padding: 14px 20px;
+    gap: 14px;
+  }
+  .card p + p {
+    margin-block-start: 8px;
+  }
+  .info-box {
+    padding: 16px 20px;
+    line-height: 1.55;
+  }
+  /* QR: พอดีกับหน้าเว็บ ไม่ใหญ่เต็มการ์ด (สแกนจากจอได้ที่ ~170px · ใหญ่กว่านี้ให้พิมพ์) */
+  .qr-grid {
+    grid-template-columns: repeat(auto-fill, minmax(176px, 208px));
+    gap: 16px;
+    margin-block-end: 20px;
+  }
+  .qr-grid figure.card {
+    padding: 14px 14px 16px;
+  }
+  .past-qr {
+    margin-block-start: 24px;
+  }
+  .past-qr summary {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-block-end: 4px;
+  }
+  .past-qr app-qr-image {
+    display: block;
+    inline-size: 168px;
+    max-inline-size: 100%;
+    margin-block-start: 12px;
+    border: 1px solid var(--line-strong, var(--line));
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  @media (max-width: 599px) {
+    .card {
+      padding: 16px 18px;
+    }
+    .section-title {
+      margin-block: 28px 10px;
+    }
+    .qr-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+}
+
+/* D04 · ฟอร์ม "ตั้งค่าเฉพาะตู้นี้": ชื่อช่องห่างจากช่องกรอก และแต่ละช่องห่างกัน */
+.admin-layout app-admin-box .override[open] {
+  gap: 22px;
+}
+.admin-layout app-admin-box .override .field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* ใช้ margin แทน gap ของ <details> — Chromium ไม่ใช้ flex gap กับเนื้อหาใน details */
+  margin: 0 0 20px;
+}
+.admin-layout app-admin-box .override .field > span {
+  font-weight: 600;
+}
+.admin-layout app-admin-box .override > p {
+  margin: 0 0 18px;
+}
+.admin-layout app-admin-box .override > summary {
+  margin-block-end: 8px;
 }

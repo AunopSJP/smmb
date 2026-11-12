@@ -533,7 +533,7 @@ export class AdminBoxes implements OnInit {
       this.toast.show({ th: 'ลงทะเบียนตู้แล้ว', en: 'Boxes registered' });
       await this.load();
     } catch {
-      this.toast.show({ th: 'สร้างไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t create — try again' });
+      this.toast.show({ th: 'สร้างไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t create — check your connection and try again' });
     } finally {
       this.busy.set(false);
     }
