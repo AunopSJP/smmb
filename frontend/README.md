@@ -57,3 +57,16 @@ Angular CLI does not come with an end-to-end testing framework by default. You c
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+
+## Browser E2E (Playwright)
+
+```bash
+npm run e2e:web
+```
+
+คำสั่งเดียวจบ: ลบ `backend/.mockdb-e2e` → build + เปิด backend mock (พอร์ต 3211, PGlite 54339) → เปิด `ng serve` (พอร์ต 4211) → รัน 9 เทสต์ที่ viewport 375x812 → ปิด server เอง
+- ไม่ชนพอร์ตงาน dev (3000/3100/3111/4200/4201) · ลบได้เฉพาะ `.mockdb-e2e`
+- เส้นหลัก 5 ไฟล์ (`owner` `officer` `rider` `sos` `admin`) + `regressions` · ตู้จำลอง = `backend/scripts/box-sim.mjs` เป็น child process
+- ครั้งแรกต้องมีเบราว์เซอร์: `npx playwright install chromium`
+- ตอนเขียนเทสต์ใหม่: เปิด server ค้างเอง แล้ว `E2E_REUSE=1 npx playwright test <ชื่อไฟล์>` (ไม่ล้างฐาน)
+- ยังไม่ได้ใส่ใน CI (W-07)

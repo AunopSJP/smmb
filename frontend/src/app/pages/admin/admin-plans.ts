@@ -200,6 +200,7 @@ export class UserPlan {
   }
 
   protected async save(): Promise<void> {
+    if (this.saving()) return;
     const endsAt = this.ends();
     if (endsAt && endsAt <= todayInBangkok()) {
       this.error.set(PLAN_ERROR.BAD_END);

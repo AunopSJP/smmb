@@ -95,7 +95,7 @@ const ZONE_ERROR: Record<string, Tr> = {
     }
     .add {
       inline-size: auto;
-      min-block-size: 40px;
+      min-block-size: 44px;
       padding: 6px 14px;
       font-size: 0.875rem;
     }

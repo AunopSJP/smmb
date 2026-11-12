@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signa
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { OwnerApi, type BoxAddress, type BoxDetail, type BoxSummary, type PlanInfo, type ZoneRequest, type TechnicianRequest } from '../../core/owner-api';
 import { Session } from '../../core/session';
+import { SelectedBox } from '../../core/selected-box';
 import { Toast } from '../../core/toast';
 import { DisplaySettings, type TextSize, type Theme, type UiMode } from '../../core/display-settings';
 import { I18n, type Lang, type Tr } from '../../core/i18n';
@@ -16,6 +17,7 @@ import { AccountActions } from '../auth/auth-account';
 import { extrasFromProfile, extrasPayload, extrasValid, ProfileExtras } from '../../shared/profile-extras';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { bkkClock } from '../../core/time';
 
 // ── H13 · ตั้งค่าตู้ ───────────────────────────────────────────
 
@@ -404,7 +406,7 @@ import { firstValueFrom } from 'rxjs';
     }
     .name-input {
       inline-size: 100%;
-      min-block-size: 40px;
+      min-block-size: 44px;
       padding: 6px 10px;
       border-radius: var(--radius-sm);
       border: 1.5px solid var(--line);
@@ -445,6 +447,7 @@ export class OwnerSettings {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(Toast);
+  private readonly remembered = inject(SelectedBox);
   protected readonly boxes = signal<BoxSummary[]>([]);
   protected readonly box = signal<BoxDetail | null>(null);
   protected readonly renaming = signal(false);
@@ -519,7 +522,8 @@ export class OwnerSettings {
       this.boxes.set(b);
       this.loaded.set(true);
       this.failed.set(false);
-      const wanted = this.route.snapshot.queryParamMap.get('box');
+      // ?box= → ตู้ที่เลือกไว้ล่าสุด (กลับจากหน้าลูก / มาจากแท็บล่าง) → ตู้แรก
+      const wanted = this.route.snapshot.queryParamMap.get('box') ?? this.remembered.id();
       const initial = b.find((x) => x.id === wanted) ?? b[0];
       if (initial) await this.open(initial.id);
     } catch {
@@ -534,6 +538,7 @@ export class OwnerSettings {
       const detail = await this.api.box(id);
       if (seq !== this.openSeq) return;
       this.box.set(detail);
+      this.remembered.id.set(detail.id);
       this.failed.set(false);
     } catch {
       if (seq === this.openSeq) this.failed.set(true);
@@ -566,7 +571,7 @@ export class OwnerSettings {
 
   /** เวลาแบบมีวินาที (โหมดละเอียด) */
   protected exact(iso: string): string {
-    return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
+    return bkkClock(iso);
   }
 
   /**
@@ -744,7 +749,7 @@ export class OwnerSettings {
   imports: [RouterLink, PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="box() ? i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + (box()!.house_no ?? '') + (display.advancedMode() ? ' · ' + box()!.id + ' · ' + box()!.name : '') : i18n.t({ th: 'ตั้งค่า', en: 'Settings' })" [title]="i18n.t({ th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' })" [back]="url('H13')" />
+    <app-page-header [caption]="box() ? i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + (box()!.house_no ?? '') + (display.advancedMode() ? ' · ' + box()!.id + ' · ' + box()!.name : multi() ? ' · ' + box()!.name : '') : i18n.t({ th: 'ตั้งค่า', en: 'Settings' })" [title]="i18n.t({ th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' })" [back]="url('H13')" />
     <div class="stack grow">
       @if (!loaded()) {
         <p class="muted">{{ i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
@@ -752,6 +757,13 @@ export class OwnerSettings {
         <div class="card">{{ i18n.t({ th: 'ยังไม่มีตู้ที่ผูกกับบัญชีนี้', en: 'No mailbox is linked to this account yet' }) }}</div>
       } @else {
         @let w = box()!.wifi_reset;
+        @let boxOffline = box()!.status === 'offline';
+        @if (boxOffline && (w.status === 'idle' || w.status === 'pending')) {
+          <div class="card status warn">
+            <strong>{{ i18n.t({ th: 'ตอนนี้ตู้ไม่ออนไลน์ — คำสั่งยังไปไม่ถึงตู้', en: 'The mailbox is offline — it cannot get the command yet' }) }}</strong>
+            <small>{{ i18n.t({ th: 'ตู้จะรับคำสั่งเมื่อกลับมาออนไลน์ (ค้างไว้ได้สูงสุด 24 ชม.) ลองตรวจไฟของตู้ แผงโซลาร์ และ Wi-Fi เดิมก่อน ถ้าตู้เปิดอยู่แต่ต่อ Wi-Fi เดิมไม่ได้ ให้แจ้งช่างแทน', en: 'It will get the command once it is back online (kept for up to 24 h). Check the box power, the solar panel and the old Wi-Fi first. If it is powered but cannot join the old Wi-Fi, ask a technician instead.' }) }}</small>
+          </div>
+        }
         @if (w.status === 'pending') {
           <div class="card status">
             <strong>{{ i18n.t({ th: 'รอตู้รับคำสั่ง…', en: 'Waiting for the mailbox…' }) }}</strong>
@@ -760,6 +772,7 @@ export class OwnerSettings {
         } @else if (w.status === 'done') {
           <div class="card status ok">
             <strong>{{ i18n.t({ th: 'ตู้เข้าโหมดตั้ง Wi-Fi แล้ว', en: 'The mailbox is in setup mode' }) }}</strong>
+            <small>{{ i18n.t({ th: 'ทำตามขั้นตอนด้านล่าง ตั้งเสร็จแล้วตู้จะกลับมาออนไลน์เอง — ดูสถานะที่หน้าหลัก', en: 'Follow the steps below. Once it is set the mailbox comes back online by itself — check the status on Home.' }) }}</small>
           </div>
         } @else if (w.status === 'expired') {
           <div class="card status warn">
@@ -779,7 +792,7 @@ export class OwnerSettings {
           </section>
         }
 
-        @if (w.status === 'pending' || w.status === 'done') {
+        @if (w.status === 'done' || (w.status === 'pending' && !boxOffline)) {
           <!-- OwnWifi_E: 3 ขั้นสั้น -->
           <ol class="card steps easy-only easy-steps">
             <li><span class="num">1</span><span><strong>{{ i18n.t({ th: 'ต่อมือถือกับ Wi-Fi', en: 'Join Wi-Fi on your phone' }) }}</strong><small class="mono">{{ w.ap_name }}</small></span></li>
@@ -797,7 +810,7 @@ export class OwnerSettings {
               </li>
             }
           </ol>
-        } @else {
+        } @else if (w.status !== 'pending') {
           <div class="card">
             <p>{{ i18n.t({ th: 'กดปุ่มด้านล่าง ตู้จะตัดการเชื่อมต่อ Wi-Fi เดิมแล้วปล่อย Wi-Fi ของตัวเองให้ตั้งค่าใหม่ — ไม่ต้องเปิดตู้หรือกดปุ่มที่ตัวตู้', en: 'Press the button below. The mailbox drops its current Wi-Fi and opens its own Wi-Fi so you can set a new one — no need to open the box or press anything on it.' }) }}</p>
             <p class="muted">{{ i18n.t({ th: 'ระหว่างนี้ตู้จะออฟไลน์ (ตรวจตู้/ส่งของไม่ได้) ถ้าไม่ตั้ง Wi-Fi ใหม่ใน 10 นาที ตู้จะกลับไปใช้ Wi-Fi เดิมเอง', en: 'The mailbox is offline meanwhile (no patrol checks or deliveries). If no new Wi-Fi is set within 10 minutes it goes back to the old one.' }) }}</p>
@@ -899,6 +912,8 @@ export class OwnerWifi {
   private readonly toast = inject(Toast);
   protected readonly box = signal<BoxDetail | null>(null);
   protected readonly loaded = signal(false);
+  /** เจ้าของมีหลายตู้ — หัวหน้าต้องบอกชื่อตู้ (บ้านเลขที่อาจซ้ำกัน) */
+  protected readonly multi = signal(false);
   protected readonly confirming = signal(false);
   protected readonly busy = signal(false);
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -910,6 +925,7 @@ export class OwnerWifi {
 
   private async load(): Promise<void> {
     const boxes = await this.api.boxes().catch(() => []);
+    this.multi.set(boxes.length > 1);
     const wanted = this.route.snapshot.queryParamMap.get('box');
     const id = boxes.find((b) => b.id === wanted)?.id ?? boxes[0]?.id;
     if (id) await this.refresh(id);
@@ -936,7 +952,7 @@ export class OwnerWifi {
 
   /** เวลาแบบมีวินาที (โหมดละเอียด) */
   protected exact(iso: string): string {
-    return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
+    return bkkClock(iso);
   }
 
   protected steps(apName: string): { title: Tr; sub: Tr }[] {
@@ -990,8 +1006,8 @@ export class OwnerWifi {
       @if (boxes().length > 1) {
         <label class="card field">
           <span>{{ i18n.t({ th: 'เลือกตู้', en: 'Mailbox' }) }}</span>
-          <select [value]="boxId()" (change)="selectBox($event)">
-            @for (box of boxes(); track box.id) { <option [value]="box.id">{{ box.house_no }} · {{ box.name }}</option> }
+          <select (change)="selectBox($event)">
+            @for (box of boxes(); track box.id) { <option [value]="box.id" [selected]="box.id === boxId()">{{ box.house_no }} · {{ box.name }}</option> }
           </select>
         </label>
       }
@@ -1060,7 +1076,7 @@ export class OwnerWifi {
             <span class="done-ic"><app-icon name="check" [size]="26" /></span>
             <div>
               <strong>{{ i18n.t({ th: 'ช่างทำเสร็จแล้ว', en: 'The technician has finished' }) }}</strong>
-              <span class="muted small block">{{ dateTime(done.scheduled_at || done.created_at) }} · {{ reasonLabel(done.reason) }}</span>
+              <span class="muted small block">{{ done.scheduled_at ? i18n.t({ th: 'นัด ', en: 'Appointment ' }) + dateTime(done.scheduled_at) : i18n.t({ th: 'ส่งเมื่อ ', en: 'Sent ' }) + dateTime(done.created_at) }} · {{ reasonLabel(done.reason) }}</span>
               @if (done.admin_note) { <span class="small block">{{ done.admin_note }}</span> }
               <span class="muted small block">{{ i18n.t({ th: 'งานนี้ใช้ได้ปกติไหม?', en: 'Did this fix work?' }) }}</span>
               @if (done.owner_result === 'ok') {
@@ -1265,7 +1281,7 @@ export class OwnerTechnician {
   }
 
   protected exact(iso: string): string {
-    return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
+    return bkkClock(iso);
   }
 
   protected selectBox(event: Event): void {

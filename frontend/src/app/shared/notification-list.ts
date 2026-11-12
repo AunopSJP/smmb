@@ -161,6 +161,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
     }
     .read-all {
       display: inline-flex;
+      min-block-size: 44px;
       align-items: center;
       gap: 6px;
       padding: 8px 12px;

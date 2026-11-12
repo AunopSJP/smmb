@@ -247,20 +247,27 @@
 .tap {
   display: inline-flex;
   align-items: center;
-  min-block-size: 32px;
+  min-block-size: 44px;
   padding-block: 4px;
 }
 /* แผนที่ Leaflet: ปุ่มซูมใหญ่พอแตะ + เครดิตอ่านออก (ค่าเริ่มต้นเล็ก/จางเกินไป) */
 .leaflet-control-zoom a {
-  inline-size: 40px !important;
-  block-size: 40px !important;
-  line-height: 40px !important;
+  inline-size: 44px !important;
+  block-size: 44px !important;
+  line-height: 44px !important;
+  /* ปุ่มของ Leaflet พื้นขาวเสมอ — ตัวอักษรต้องเข้มทั้งธีมมืด (เดิมรับสีลิงก์ธีมมืด = ต่าง 2.1:1) */
+  background-color: #fff !important;
+  color: #333 !important;
   font-size: 1.125rem !important;
 }
 .leaflet-control-attribution {
   font-size: 0.75rem !important;
   background: rgb(255 255 255 / 88%) !important;
   color: #333 !important;
+}
+.leaflet-control-attribution a {
+  color: #1a4b8c !important;
+  text-decoration: underline;
 }
 .sr-only {
   position: absolute;
@@ -286,10 +293,12 @@ textarea {
 }
 /* เผื่อที่ให้เลื่อนช่องกรอก/ปุ่มหลักขึ้นมาเหนือคีย์บอร์ดเมื่อเปิดใช้งาน
    — ต้องเผื่อถาวรบนจอสัมผัส ไม่ผูกกับ :focus เพราะเมื่อผู้ใช้แตะปุ่ม ช่องกรอกจะ blur
-   แล้วพื้นที่หาย → หน้าเลื่อนกลับ/ปุ่มขยับใต้มือ ทำให้คลิกครั้งแรกไม่ติด */
+   แล้วพื้นที่หาย → หน้าเลื่อนกลับ/ปุ่มขยับใต้มือ ทำให้คลิกครั้งแรกไม่ติด
+   ⚠️ เว้นที่ใน <main> (เฉพาะหน้าที่มีฟอร์ม) ไม่ใช่ที่ body — body padding ทำให้ทุกหน้า
+   (แม้ไม่มีฟอร์ม) เลื่อนได้เกินท้ายจริง 120px และเกิดแถบว่างหลังแถบแท็บ/ท้ายหน้า */
 @media (max-width: 1023px) {
-  body {
-    padding-block-end: calc(120px + env(safe-area-inset-bottom));
+  main:has(form) {
+    padding-block-end: calc(120px + env(safe-area-inset-bottom)) !important;
   }
 }
 
@@ -689,6 +698,31 @@ app-area-shell main > :not(router-outlet) {
     color: var(--ib-fg);
     font-weight: 700;
     box-shadow: none;
+  }
+}
+
+/* กรอบโฟกัสคีย์บอร์ด: เห็นชัดทั้งธีมสว่างและมืด (ค่าเริ่มต้นของเบราว์เซอร์เป็นเส้นบางสีเทาอ่อน — รอบ 8) */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--brand-text);
+  outline-offset: 2px;
+}
+
+/* พื้นที่แตะอย่างน้อย 44px บนมือถือ/แท็บเล็ต (WCAG 2.5.8 · รอบ 8) */
+@media (max-width: 1023px), (pointer: coarse) {
+  .btn,
+  .segmented button,
+  .segmented.chips button {
+    min-block-size: 44px;
+  }
+
+  /* ลิงก์/ปุ่มข้อความในประโยค: ขยายพื้นที่แตะด้วย pseudo-element โดยไม่ขยับข้อความ */
+  .link {
+    position: relative;
+  }
+  .link::after {
+    content: '';
+    position: absolute;
+    inset: -10px -8px;
   }
 }
 
@@ -1558,6 +1592,12 @@ fieldset {
   }
   .frame[data-area='head'] {
     --content-w: 1000px;
+  }
+}
+/* หัวหน้าบนคอม: เนื้อหา 2 คอลัมน์ (L04) ต้องกว้างขึ้น — ต่ำกว่า 1280px คงเดิม */
+@media (min-width: 1280px) {
+  .frame[data-area='head'] {
+    --content-w: 1200px;
   }
 }
 

@@ -669,6 +669,11 @@ const MOCK_SCREENS = new Set<string>();
       main {
         padding: 12px 20px calc(28px + env(safe-area-inset-bottom));
       }
+      /* ปุ่มธีมลอย (fixed) ทับบรรทัดสุดท้ายของแอดมิน — เว้นที่ให้พ้นปุ่มทั้งจอมี/ไม่มีแท็บ
+         (ต้องชนะกฎกลาง main:has(form) ของหน้าฟอร์มด้วย) */
+      .admin-layout main:not(.full) {
+        padding-block-end: calc(140px + env(safe-area-inset-bottom)) !important;
+      }
     }
   `,
 })

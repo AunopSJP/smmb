@@ -93,6 +93,8 @@ interface RecentLog {
         }
       </div>
 
+      <div class="cols">
+      <div class="col">
       <div class="segmented easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'ขอบเขตโซน', en: 'Zone scope' })">
         <button type="button" [attr.aria-pressed]="!zoneId() && filter() === 'mine'" (click)="zoneId.set(''); filter.set('mine')">{{ i18n.t({ th: 'โซนของฉัน', en: 'My zones' }) }}</button>
         <button type="button" [attr.aria-pressed]="!zoneId() && filter() === 'all'" (click)="zoneId.set(''); filter.set('all')">{{ i18n.t({ th: 'ทุกโซน', en: 'All zones' }) }}</button>
@@ -162,6 +164,8 @@ interface RecentLog {
         {{ i18n.t({ th: 'สแกนตรวจตู้เอง', en: 'Inspect a box myself' }) }}
       </a>
 
+      </div>
+      <div class="col">
       <div class="sec easy-hide">
         <h2 class="section-title">{{ i18n.t({ th: 'โซนวันนี้', en: 'Zones today' }) }}</h2>
         @if (windowsText()) {
@@ -212,9 +216,30 @@ interface RecentLog {
           }
         </ul>
       }
+      </div>
+      </div>
     </div>
   `,
   styles: `
+    /* ≥1280px (คอม): ซ้าย = ตัวเลข/ตัวกรอง/ปุ่ม · ขวา = โซนวันนี้/บันทึกล่าสุด · ต่ำกว่านั้นเรียงเหมือนเดิม (display: contents) */
+    .cols,
+    .col {
+      display: contents;
+    }
+    @media (min-width: 1280px) {
+      .cols {
+        display: grid;
+        grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+        gap: 24px;
+        align-items: start;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-inline-size: 0;
+      }
+    }
     .stats3 {
       display: grid;
       grid-template-columns: repeat(3, 1fr);

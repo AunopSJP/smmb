@@ -1,6 +1,7 @@
 ﻿import { ChangeDetectionStrategy, Component, computed, effect, inject, Injectable, input, signal, untracked } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AppReset } from '../../core/app-reset';
+import { SelectedBox } from '../../core/selected-box';
 import { DisplaySettings } from '../../core/display-settings';
 import { I18n, type Tr } from '../../core/i18n';
 import { hhmm } from '../../core/inspection-api';
@@ -9,6 +10,7 @@ import { screenUrl } from '../../screens/registry';
 import { BoxPicker } from '../../shared/box-picker';
 import { Icon, type IconName } from '../../shared/icon';
 import { PrivatePhoto } from '../../shared/private-photo';
+import { bkkClock } from '../../core/time';
 import { PageHeader } from '../../shared/page-header';
 import { EmptyState, LoadError, LoadingRows } from '../../shared/state-view';
 
@@ -39,6 +41,7 @@ const rangeOf = (days: number | null): { from?: string } => (days === null ? {} 
 @Injectable({ providedIn: 'root' })
 export class OwnerHistoryStore {
   private readonly api = inject(OwnerApi);
+  private readonly remembered = inject(SelectedBox);
   readonly boxes = signal<BoxSummary[]>([]);
   readonly boxId = signal<string | null>(null);
   readonly events = signal<BoxEvent[]>([]);
@@ -50,6 +53,8 @@ export class OwnerHistoryStore {
   readonly selection = signal<Range>('7d');
   readonly customFrom = signal('');
   readonly customTo = signal('');
+  /** ชนิดเหตุการณ์ที่กรองอยู่ — เก็บที่นี่เพื่อให้ย้อนกลับจากหน้ารายละเอียดแล้วตัวกรองยังอยู่ */
+  readonly typeFilter = signal<'all' | BoxEvent['type'] | 'photo'>('all');
   private page = 1;
 
   constructor() {
@@ -65,6 +70,7 @@ export class OwnerHistoryStore {
       this.selection.set('7d');
       this.customFrom.set('');
       this.customTo.set('');
+      this.typeFilter.set('all');
       this.range.set({});
       this.page = 1;
     });
@@ -79,8 +85,11 @@ export class OwnerHistoryStore {
     this.loadFailed.set(false);
     try {
       if (!this.boxes().length) this.boxes.set(await this.api.boxes());
-      const id = boxId ?? this.boxId() ?? this.boxes()[0]?.id ?? null;
+      // ?box= / ตัวเลือกบนหน้านี้ → ตู้ที่เลือกไว้จากหน้าอื่น → ตู้แรก (ต้องเป็นตู้ของบัญชีนี้)
+      const want = boxId ?? this.remembered.id() ?? this.boxId();
+      const id = this.boxes().find((x) => x.id === want)?.id ?? (boxId ? boxId : (this.boxes()[0]?.id ?? null));
       this.boxId.set(id);
+      if (id) this.remembered.id.set(id);
       this.page = 1;
       if (!id) {
         this.events.set([]);
@@ -122,8 +131,7 @@ const dateTime = (iso: string, lang: 'th' | 'en') =>
   new Date(iso).toLocaleString(lang === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' });
 
 /** เวลาแบบมีวินาที (โหมดละเอียด) */
-const clockSec = (iso: string) =>
-  new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
+const clockSec = bkkClock;
 
 // ── H12 · ประวัติ ──────────────────────────────────────────────
 
@@ -298,7 +306,7 @@ export class OwnerHistory {
   });
   /** รายการที่เซิร์ฟเวอร์กรองตามช่วงมาให้แล้ว */
   protected readonly display = inject(DisplaySettings);
-  protected readonly typeFilter = signal<'all' | BoxEvent['type'] | 'photo'>('all');
+  protected readonly typeFilter = this.store.typeFilter;
   protected readonly types: { v: 'all' | BoxEvent['type'] | 'photo'; label: Tr }[] = [
     { v: 'all', label: { th: 'ทั้งหมด', en: 'All' } },
     { v: 'inspected', label: { th: 'เจ้าหน้าที่ตรวจ', en: 'Officer checks' } },

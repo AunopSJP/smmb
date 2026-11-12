@@ -228,7 +228,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
     }
     .count input {
       inline-size: 64px;
-      min-block-size: 40px;
+      min-block-size: 44px;
       padding: 4px 8px;
       border-radius: var(--radius-sm);
       border: 1.5px solid var(--line);
@@ -369,7 +369,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       justify-content: space-between;
       gap: 12px;
       cursor: pointer;
-      min-block-size: 40px;
+      min-block-size: 44px;
     }
     .past-qr .row.past {
       align-items: flex-start;
@@ -1298,7 +1298,7 @@ export class AdminBoxes implements OnInit {
     }
     .btn.fw-act {
       inline-size: auto;
-      min-block-size: 40px;
+      min-block-size: 44px;
       padding: 6px 14px;
       font-size: 0.9375rem;
       flex: none;

@@ -1032,7 +1032,7 @@ export class AdminHome implements OnInit {
     this.overview.set(overview);
     this.failed.set(!overview);
     const now = new Date();
-    this.asOf.set(now.toLocaleTimeString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { hour: '2-digit', minute: '2-digit' }));
+    this.asOf.set(now.toLocaleTimeString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' }));
     this.asOfIso.set(now.toISOString());
     this.loaded.set(true);
     // รายละเอียดรองโหลดต่อเบื้องหลัง — ไม่บล็อกหน้าจอ
@@ -1095,7 +1095,7 @@ export class AdminHome implements OnInit {
       items.push({ key: a.id, tone: 'warn', title: { th: 'หน่วยงานใหม่ · ' + a.name, en: 'New agency · ' + a.name }, sub: { th: 'รออนุมัติ', en: 'Waiting for approval' }, path: screenUrl('D02') });
     }
     if (this.technicianRequests() > 0) {
-      items.push({ key: 'technician-requests', tone: 'warn', title: { th: 'มีคำขอช่างใหม่', en: 'New technician requests' }, sub: { th: `${this.technicianRequests()} รายการรอจัดการ`, en: `${this.technicianRequests()} requests waiting` }, path: screenUrl('D15') });
+      items.push({ key: 'technician-requests', tone: 'warn', title: { th: 'มีคำขอช่างใหม่', en: 'New technician requests' }, sub: { th: `${this.technicianRequests()} รายการรอจัดการ`, en: `${this.technicianRequests()} ${this.technicianRequests() === 1 ? 'request' : 'requests'} waiting` }, path: screenUrl('D15') });
     }
     return items;
   });

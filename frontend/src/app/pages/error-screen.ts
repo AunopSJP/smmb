@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { I18n, type Tr } from '../core/i18n';
 import { screenUrl } from '../screens/registry';
 import { Icon, type IconName } from '../shared/icon';
+import { CallButtons } from './owner/call-buttons';
 
 type Kind = 'offline' | 'not-found' | 'session';
 
@@ -41,7 +42,7 @@ const COPY: Record<Kind, Copy> = {
 /** หน้า error ตามแคนวาส: ErrOffline · ErrNoAccess · ErrSession */
 @Component({
   selector: 'app-error-screen',
-  imports: [RouterLink, Icon],
+  imports: [RouterLink, Icon, CallButtons],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="wrap">
@@ -53,6 +54,8 @@ const COPY: Record<Kind, Copy> = {
       }
 
       @if (kind() === 'offline') {
+        <!-- ฉุกเฉินต้องโทรได้ทันที แม้ไม่มีอินเทอร์เน็ต (tel: ไม่ใช้เน็ต) -->
+        <app-call-buttons class="calls-wide" />
         <button type="button" class="btn" (click)="retry()">{{ i18n.t(copy().action) }}</button>
       } @else if (kind() === 'session') {
         <a class="btn" [routerLink]="signin">{{ i18n.t(copy().action) }}</a>
@@ -73,6 +76,7 @@ const COPY: Record<Kind, Copy> = {
     .note { padding: 12px 14px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--line); }
     .btn { inline-size: 100%; }
     .muted { margin-block-start: 6px; }
+    .calls-wide { inline-size: 100%; }
     .tech { inline-size: 100%; text-align: start; }
   `,
 })

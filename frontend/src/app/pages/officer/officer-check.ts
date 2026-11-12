@@ -272,7 +272,7 @@ const CAMERA_NOTE: Record<string, Tr> = {
     .back-link {
       display: inline-flex;
       align-items: center;
-      min-block-size: 36px;
+      min-block-size: 44px;
       padding-block: 6px;
       gap: 4px;
       color: var(--brand-text);

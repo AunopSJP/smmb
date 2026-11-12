@@ -172,6 +172,17 @@ const RESULT_TEXT: Record<string, Tr> = {
     </div>
   `,
   styles: `
+    /* ≥1280px (คอม): รายการเรียง 2 คอลัมน์ ลดการเลื่อน — ต่ำกว่านั้นเป็นแถวเดียวเหมือนเดิม */
+    @media (min-width: 1280px) {
+      ul.list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 16px;
+      }
+      ul.list > .row.muted {
+        grid-column: 1 / -1;
+      }
+    }
     ul {
       list-style: none;
       margin: 0;

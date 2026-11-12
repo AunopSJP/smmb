@@ -14,6 +14,7 @@ import { LoadingRows } from '../shared/state-view';
 import { Toast } from '../core/toast';
 import { Session } from '../core/session';
 import { liveRefresh } from '../core/live-refresh';
+import { SelectedBox } from '../core/selected-box';
 import { CallButtons } from './owner/call-buttons';
 
 /** ต้องกดค้างกี่วินาทีถึงส่ง SOS (กันกดโดนโดยไม่ตั้งใจ ✅) */
@@ -365,7 +366,7 @@ const REFRESH_MS = 10_000;
 
       @if (confirmSos()) {
         <!-- โหมดง่าย: แตะ 1 ครั้ง → ยืนยันอีกครั้ง (ไม่ต้องกดค้าง เหมาะกับผู้ที่มือไม่มั่นคง) -->
-        <div class="hold confirm" role="alertdialog" aria-modal="true" aria-labelledby="sos-confirm-title">
+        <div class="hold confirm" role="alertdialog" aria-modal="true" aria-labelledby="sos-confirm-title" (keydown.escape)="cancelSos()" (keydown.tab)="trapConfirm($event)">
           <h2 id="sos-confirm-title">{{ i18n.t({ th: 'ส่ง SOS เลยไหม', en: 'Send SOS now?' }) }}</h2>
           <p class="small">{{ i18n.t({ th: 'เจ้าหน้าที่จะได้รับแจ้งทันที กดยืนยันเพื่อส่ง', en: 'Officers are alerted right away. Confirm to send.' }) }}</p>
           <button type="button" id="sos-confirm-send" class="btn sos" [disabled]="sending()" (click)="sendConfirmed()">
@@ -494,6 +495,7 @@ export class OwnerHome implements OnDestroy {
   protected readonly boxes = signal<BoxSummary[]>([]);
   /** ตู้ที่กำลังดูจริง (ไม่พึ่ง input ?box= อย่างเดียว — กันสถานะค้างหลังสลับตู้) */
   private readonly selected = signal<string | null>(null);
+  private readonly remembered = inject(SelectedBox);
   /** คำขอที่เก่ากว่าห้ามเขียนทับคำขอใหม่ (สลับตู้เร็ว ๆ / รีเฟรชอัตโนมัติทับกัน) */
   private loadSeq = 0;
   protected readonly noBox = signal(false);
@@ -518,7 +520,8 @@ export class OwnerHome implements OnDestroy {
 
   constructor() {
     // อ่าน ?box= จาก snapshot ก่อน (constructor ยังไม่เห็น input ที่ผูกจาก router)
-    const initial = this.route.snapshot.queryParamMap.get('box');
+    // ไม่มี ?box= (มาจากแท็บล่าง) → ใช้ตู้ที่เลือกไว้ล่าสุด · ถ้าไม่อยู่ในบัญชี load() จะถอยไปตู้แรก
+    const initial = this.route.snapshot.queryParamMap.get('box') ?? this.remembered.id();
     if (initial) this.selected.set(initial);
     // ลิงก์/ปุ่มย้อนกลับเปลี่ยน ?box= ระหว่างอยู่หน้านี้ → โหลดตู้ใหม่ให้ตรง
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
@@ -545,11 +548,13 @@ export class OwnerHome implements OnDestroy {
           return;
         }
         this.boxes.set(boxes);
-        id ??= boxes[0].id;
+        // id ที่จำไว้ไม่ใช่ตู้ของบัญชีนี้แล้ว (ตู้ถูกถอด) → ตู้แรก
+        if (!id || (!this.route.snapshot.queryParamMap.get('box') && !boxes.some((x) => x.id === id))) id = boxes[0].id;
       }
       const detail = await this.api.box(id);
       if (seq !== this.loadSeq) return;
       this.selected.set(detail.id);
+      this.remembered.id.set(detail.id);
       this.b.set(detail);
       this.error.set(false);
     } catch {
@@ -719,6 +724,24 @@ export class OwnerHome implements OnDestroy {
   private openSosConfirm(): void {
     this.confirmSos.set(true);
     setTimeout(() => document.getElementById('sos-confirm-send')?.focus(), 0);
+  }
+
+  /** กล่องยืนยัน SOS: กัก Tab ไว้ในกล่อง (Shift+Tab จากปุ่มแรก → ปุ่มสุดท้าย) */
+  protected trapConfirm(event: Event): void {
+    const e = event as KeyboardEvent;
+    const root = (e.currentTarget as HTMLElement | null) ?? null;
+    if (!root) return;
+    const items = Array.from(root.querySelectorAll<HTMLElement>('button, [href], input, select, textarea')).filter((el) => !el.hasAttribute('disabled'));
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   }
 
   protected cancelSos(): void {

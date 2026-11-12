@@ -57,6 +57,8 @@ export class App {
       const next = (e as CustomEvent<{ next?: string }>).detail?.next;
       void router.navigateByUrl(next ? `/auth/signin?next=${encodeURIComponent(next)}` : '/auth/signin', { replaceUrl: true });
     };
+    // โหลดหน้า "ไม่มีอินเทอร์เน็ต" (พร้อมปุ่มโทร 191/1669) ล่วงหน้า — เน็ตหลุดแล้วโหลดชิ้นนี้ไม่ได้ จะเด้งไปหน้า error ของเบราว์เซอร์
+    void import('./pages/error-screen').catch(() => undefined);
     win?.addEventListener('offline', onOffline);
     win?.addEventListener('online', onOnline);
     win?.addEventListener('smmb:session-expired', onExpired);

@@ -41,6 +41,8 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
         <strong>{{ i18n.t({ th: '🔕 เครื่องนี้ยังไม่ได้รับแจ้งเตือน', en: '🔕 This device is not getting notifications' }) }}</strong>
         @if (required()) {
           <small>{{ i18n.t({ th: 'เจ้าหน้าที่ต้องเปิดไว้ จึงจะใช้งานและรับ SOS ได้', en: 'Officers must keep this on — otherwise the app is locked and you will miss SOS alerts' }) }}</small>
+        } @else if (deviceLabel() === 'admin') {
+          <small class="easy-hide">{{ i18n.t({ th: 'จะไม่รู้เมื่อตู้มีปัญหา มีคำขอช่าง หรือมีเคส QR ที่ต้องดูแล จนกว่าจะเปิด', en: 'You will not know about mailbox problems, technician requests or QR cases until you turn it on' }) }}</small>
         } @else {
           <small class="easy-hide">{{ i18n.t({ th: 'จะไม่รู้เมื่อมีเจ้าหน้าที่มาตรวจ ของมาส่ง หรือ SOS จนกว่าจะเปิด', en: 'You will not know about patrol checks, deliveries or SOS until you turn it on' }) }}</small>
         }

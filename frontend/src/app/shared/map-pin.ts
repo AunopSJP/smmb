@@ -73,7 +73,7 @@ export const directionsUrl = (p: LatLng) => `https://www.google.com/maps/dir/?ap
     }
     .bar .btn {
       inline-size: auto;
-      min-block-size: 40px;
+      min-block-size: 44px;
       padding: 6px 14px;
     }
     :host ::ng-deep .pin {

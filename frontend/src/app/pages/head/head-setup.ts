@@ -243,10 +243,13 @@ export class HeadSignup {
         <section class="card">
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'เหตุผล', en: 'Reason' }) }}</dt>
-            <dd>{{ req()?.reject_reason || '-' }}</dd>
+            <dd>{{ req()?.reject_reason || i18n.t({ th: 'ผู้ดูแลระบบไม่ได้ระบุเหตุผล', en: 'The admin did not give a reason' }) }}</dd>
           </dl>
         </section>
         <app-contact-card [label]="{ th: 'ติดต่อผู้ดูแลระบบ', en: 'Contact the admin' }" [contact]="support()" />
+        @if (!support()) {
+          <p class="muted small">{{ i18n.t({ th: 'ถ้าสงสัยเรื่องเหตุผลหรืออยากให้ตรวจใหม่ ให้ติดต่อผู้ดูแลระบบทางช่องทางที่ได้รับตอนสมัคร — ออกจากระบบแล้วกลับมาดูใหม่ได้ภายหลัง', en: 'If you have questions or want a second look, contact the admin through the channel you were given when you applied. You can sign out and check again later.' }) }}</p>
+        }
         <div class="stack push-end">
           <button type="button" class="btn secondary" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
         </div>

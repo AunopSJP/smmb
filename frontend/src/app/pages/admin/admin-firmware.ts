@@ -121,7 +121,7 @@ const kb = (n: number) => (n >= 1_048_576 ? (n / 1_048_576).toFixed(1) + ' MB' :
     }
     .pick {
       inline-size: auto;
-      min-block-size: 40px;
+      min-block-size: 44px;
       padding: 6px 14px;
     }
     .easy-fw {

@@ -216,6 +216,9 @@
   font-weight: 700;
   font-size: 0.875rem;
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
 }
 .grow {
   flex: 1;

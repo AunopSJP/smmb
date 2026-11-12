@@ -21,7 +21,12 @@ import { screenUrl } from '../../screens/registry';
           }
         </div>
       </div>
-      @if (error()) { <p class="danger-text small" role="alert">{{ i18n.t({ th: 'โหลดหรือบันทึกคำขอไม่สำเร็จ ลองอีกครั้ง', en: 'Could not load or save requests. Try again.' }) }}</p> }
+      @if (error()) {
+        <section class="panel" role="alert">
+          <p class="danger-text small">{{ i18n.t({ th: 'โหลดหรือบันทึกคำขอไม่สำเร็จ', en: 'Could not load or save requests.' }) }}</p>
+          <button type="button" class="btn secondary" (click)="load()">{{ i18n.t({ th: 'ลองใหม่', en: 'Try again' }) }}</button>
+        </section>
+      }
       <div class="reqs">
         @for (request of visible(); track request.id) {
           <article class="panel request">
@@ -54,6 +59,10 @@ import { screenUrl } from '../../screens/registry';
                 @if (scheduleValue(request.id)) {
                   <button type="button" class="btn secondary" [disabled]="saving() === request.id" (click)="schedule(request)">{{ i18n.t({ th: 'เลื่อนนัดและแจ้งเจ้าของ', en: 'Reschedule and notify owner' }) }}</button>
                 }
+                <label class="field">
+                  <span>{{ i18n.t({ th: 'ข้อความถึงเจ้าของ (ถ้ามี)', en: 'Message to owner (optional)' }) }}</span>
+                  <input maxlength="500" [value]="noteValue(request.id)" (input)="setNote(request.id, $event)" />
+                </label>
                 <button type="button" class="btn secondary" [disabled]="saving() === request.id" (click)="cancel(request)">{{ i18n.t({ th: 'ยกเลิกนัด', en: 'Cancel appointment' }) }}</button>
                 <button type="button" class="btn secondary" [disabled]="saving() === request.id" (click)="complete(request)">{{ i18n.t({ th: 'ปิดงานช่าง', en: 'Complete request' }) }}</button>
               } @else if (request.admin_note) {
@@ -62,7 +71,12 @@ import { screenUrl } from '../../screens/registry';
             </div>
           </article>
         } @empty {
-          <section class="panel"><p class="muted">{{ i18n.t({ th: 'ไม่มีคำขอช่างในสถานะนี้', en: 'No requests in this status' }) }}</p></section>
+          @if (!error()) {
+            <section class="panel">
+              <p class="muted">{{ i18n.t({ th: 'ไม่มีคำขอช่างในสถานะนี้', en: 'No requests in this status' }) }}</p>
+              <p class="muted small easy-hide">{{ i18n.t({ th: 'คำขอใหม่จากเจ้าของบ้านจะขึ้นที่แท็บ "รอจัดการ" · เปลี่ยนแท็บด้านบนเพื่อดูสถานะอื่น', en: 'New owner requests appear under “Open” · switch tabs above to see other statuses' }) }}</p>
+            </section>
+          }
         }
       </div>
     </div>
@@ -76,7 +90,7 @@ import { screenUrl } from '../../screens/registry';
     .rhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-block-end: 4px; }
     .request-note { margin: 8px 0; white-space: pre-wrap; overflow-wrap: break-word; }
     .field { display: grid; gap: 6px; margin: 10px 0; }
-    .field input { min-inline-size: 0; min-block-size: 40px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
+    .field input { min-inline-size: 0; min-block-size: 44px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
     .segmented { flex-wrap: wrap; }
     .call { inline-size: auto; align-self: flex-start; margin-block: 6px; }
   `,
@@ -151,6 +165,12 @@ export class AdminTechnicianRequests implements OnInit {
   }
 
   protected async complete(request: AdminTechnicianRequest): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: { th: 'ปิดงานช่าง?', en: 'Complete this request?' },
+      body: { th: 'เจ้าของบ้านจะได้รับแจ้งว่าช่างทำเสร็จแล้วและต้องยืนยันว่าใช้งานได้ปกติ · ปิดแล้วเปิดกลับไม่ได้', en: 'The owner will be told the work is done and asked to confirm it works. It cannot be reopened.' },
+      confirm: { th: 'ปิดงาน', en: 'Complete' },
+    });
+    if (!ok) return;
     await this.update(request, { status: 'done', ...(this.noteValue(request.id).trim() ? { note: this.noteValue(request.id).trim() } : {}) });
   }
 

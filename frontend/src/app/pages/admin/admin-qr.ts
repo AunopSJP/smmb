@@ -209,7 +209,10 @@ export class QrPrintSheet {
             <span class="go desktop-only">{{ i18n.t({ th: 'จัดการ', en: 'Open' }) }}</span>
           </a>
         } @empty {
-          <p class="row muted">{{ loadFailed() ? i18n.t({ th: 'โหลดรายการ QR ไม่สำเร็จ — รีเฟรชหน้า', en: 'Could not load QR cases — refresh the page' }) : loaded() ? i18n.t({ th: 'QR ทุกใบปกติ ไม่มีเคสที่ต้องจัดการ', en: 'Every QR is fine — no cases to handle' }) : i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
+          <p class="row muted">{{ loadFailed() ? i18n.t({ th: 'โหลดรายการ QR ไม่สำเร็จ', en: 'Could not load QR cases' }) : loaded() ? i18n.t({ th: 'QR ทุกใบปกติ ไม่มีเคสที่ต้องจัดการ', en: 'Every QR is fine — no cases to handle' }) : i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
+          @if (loadFailed()) {
+            <button type="button" class="btn secondary" (click)="retry()">{{ i18n.t({ th: 'ลองใหม่', en: 'Try again' }) }}</button>
+          }
         }
       </div>
       @if (closed().length) {
@@ -350,6 +353,11 @@ export class AdminQr {
       clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisible);
     });
+  }
+
+  protected retry(): void {
+    this.loadFailed.set(false);
+    void this.state.refresh().then(() => this.loaded.set(true)).catch(() => this.loadFailed.set(true));
   }
 
   protected toggle(h: AdminQrHealth): void {
@@ -553,6 +561,9 @@ const REISSUE_STEPS: FlowStep[] = [
         } @else {
           <strong>{{ i18n.t({ th: loadError() ? 'โหลดเคสไม่ได้' : 'ไม่พบเคส QR นี้', en: loadError() ? 'Could not load the case' : 'QR case not found' }) }}</strong>
           <p class="muted">{{ i18n.t({ th: 'เคสอาจปิดไปแล้ว หรือลิงก์ไม่ถูกต้อง', en: 'It may be closed already, or the link is wrong' }) }}</p>
+          @if (loadError()) {
+            <button type="button" class="btn" (click)="retry()">{{ i18n.t({ th: 'ลองใหม่', en: 'Try again' }) }}</button>
+          }
           <a class="btn secondary" [routerLink]="url('D05')">{{ i18n.t({ th: 'กลับรายการ QR', en: 'Back to QR list' }) }}</a>
         }
       </section>
@@ -789,6 +800,11 @@ export class AdminQrCase {
     inject(DestroyRef).onDestroy(() => clearInterval(timer));
   }
 
+  protected retry(): void {
+    const id = this.id();
+    if (id) void this.load(id);
+  }
+
   private async load(id: string): Promise<void> {
     this.loading.set(true);
     this.loadError.set(false);
@@ -850,6 +866,14 @@ export class AdminQrCase {
 
   /** เริ่มแก้: swap = แจ้งเจ้าของ · reissue = บันทึกเคสแล้วออก QR ในขั้นถัดไป */
   protected async start(c: AdminQrIssue): Promise<void> {
+    if (this.fixPick() === 'swap') {
+      const ok = await this.confirm.ask({
+        title: { th: 'แจ้งเจ้าของบ้าน?', en: 'Notify the owner?' },
+        body: { th: 'ระบบจะส่งแจ้งเตือนให้เจ้าของบ้านนำ QR สำรองไปติดแทนใบหน้าตู้', en: 'The owner will be notified to put the backup QR up in place of the front one.' },
+        confirm: { th: 'แจ้งเจ้าของบ้าน', en: 'Notify owner' },
+      });
+      if (!ok) return;
+    }
     await this.run(async () => {
       if (this.fixPick() === 'swap') {
         await this.state.requestBackupSwap(c.id);
@@ -886,6 +910,12 @@ export class AdminQrCase {
   }
 
   protected async dispatch(c: AdminQrIssue): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: { th: 'ส่งช่างไปติด QR?', en: 'Send a technician?' },
+      body: { th: 'ระบบจะแจ้งช่างให้ไปติด QR ใหม่ที่ตู้นี้', en: 'A technician will be notified to put the new QRs up at this box.' },
+      confirm: { th: 'ส่งช่าง', en: 'Send technician' },
+    });
+    if (!ok) return;
     await this.run(async () => {
       await this.state.dispatchTechnician(c.id);
       this.toast.show({ th: 'ส่งช่างแล้ว', en: 'Technician dispatched' });
@@ -913,6 +943,12 @@ export class AdminQrCase {
   }
 
   protected async close(c: AdminQrIssue): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: { th: 'ปิดเคสนี้?', en: 'Close this case?' },
+      body: { th: 'ปิดแล้วเปิดกลับมาไม่ได้ — ใช้เมื่อ QR ใหม่ติดครบเรียบร้อยแล้ว', en: 'A closed case cannot be reopened — close it only once the new QRs are in place.' },
+      confirm: { th: 'ปิดเคส', en: 'Close case' },
+    });
+    if (!ok) return;
     await this.run(async () => {
       await this.state.resolve(c.id);
       this.toast.show({ th: 'ปิดเคสแล้ว', en: 'Case closed' });

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
+import { bkkClock } from '../../core/time';
 import { Router, RouterLink } from '@angular/router';
 import { DisplaySettings } from '../../core/display-settings';
 import { I18n } from '../../core/i18n';
@@ -305,7 +306,7 @@ export class SosWaiting {
   protected readonly toCall = computed(() => Math.max(0, STAGE_CALL_AT - this.elapsed()));
 
   protected exact(iso: string): string {
-    return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
+    return bkkClock(iso);
   }
 
   constructor() {
@@ -554,7 +555,7 @@ export class SosAccepted {
   protected readonly linkOk = signal(true);
 
   protected exact(iso: string): string {
-    return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
+    return bkkClock(iso);
   }
 
   protected acceptedWithin(): string {
@@ -656,7 +657,7 @@ export class SosClosed implements OnInit {
   protected readonly failed = signal(false);
 
   protected exact(iso: string): string {
-    return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
+    return bkkClock(iso);
   }
 
   protected readonly toAccept = computed(() => {
