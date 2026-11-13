@@ -27,6 +27,17 @@ void linkBeep(const char *pattern)
     linkHooks.beep(pattern);
 }
 
+void linkBeepErrorQuiet()
+{
+  static const uint32_t QUIET_MS = 10UL * 60 * 1000;
+  static uint32_t last = 0;
+  const uint32_t now = millis();
+  if (last && now - last < QUIET_MS)
+    return;
+  last = now ? now : 1;
+  linkBeep("error");
+}
+
 bool linkBooted() { return booted; }
 
 const char *linkResetReason()
@@ -131,7 +142,7 @@ static void onAuthFailed(const LinkResponse &r)
   JsonDocument doc;
   deserializeJson(doc, r.body);
   Serial.printf("[auth] 401 reason=%s — check box_id / device_secret / URL\n", (const char *)(doc["reason"] | "?"));
-  linkBeep("error");
+  linkBeepErrorQuiet(); // วนซ้ำทุก 30 วิถ้ารหัสผิด → ไม่ร้องรัว
 }
 
 // ── events ─────────────────────────────────────────────────────────────
@@ -280,7 +291,7 @@ bool linkBoot()
   if (r.status != 200)
   {
     if (r.status != 401)
-      linkBeep("error");
+      linkBeepErrorQuiet();
     return false;
   }
   JsonDocument res;
@@ -438,7 +449,15 @@ static void runJob(JsonObjectConst job)
     doc["flash"] = flash;
     String body;
     serializeJson(doc, body);
-    const LinkResponse r = linkRequest("POST", "/v1/box/jobs/" + jobId + "/result", body);
+    LinkResponse r = linkRequest("POST", "/v1/box/jobs/" + jobId + "/result", body);
+    // เน็ตสะดุด/เซิร์ฟเวอร์ตอบ 5xx → ส่งซ้ำอีก 2 ครั้ง (backend ตอบผลเดิมถ้า job+attempt ซ้ำ จึงไม่นับซ้ำ)
+    // 401/4xx ไม่ลองซ้ำ · ไม่เก็บไว้ส่งทีหลัง (ไม่มีโหมดออฟไลน์) · รอรวม ≤ ~3 วิ ซึ่ง job ถูกขยายอายุหลัง ready แล้ว
+    for (uint8_t retry = 0; retry < 2 && (r.status <= 0 || r.status >= 500); retry++)
+    {
+      Serial.printf("[job] result POST failed (%d) — retry %u/2\n", r.status, (unsigned)(retry + 1));
+      delay(1000);
+      r = linkRequest("POST", "/v1/box/jobs/" + jobId + "/result", body);
+    }
     if (r.status != 200)
     {
       // ส่งผลไม่ได้ → ทิ้ง ไม่เก็บไว้ส่งทีหลัง (ไม่มีโหมดออฟไลน์)

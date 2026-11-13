@@ -12,6 +12,20 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "backend", "run", "dev:mock"],
       "port": 3000
+    },
+    {
+      "name": "e2e-backend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["frontend/e2e/scripts/start-backend.mjs"],
+      "port": 3211,
+      "autoPort": false
+    },
+    {
+      "name": "e2e-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "start", "--", "--port", "4211", "--proxy-config", "e2e/proxy.e2e.json"],
+      "port": 4211,
+      "autoPort": false
     }
   ]
 }

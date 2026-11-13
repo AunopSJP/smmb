@@ -145,11 +145,13 @@
 - **หลักฐาน:** `.github/workflows/project-guardian.yml` · `backend/src/rate-limit/rate-limit.guard.ts` (log warn แล้วปล่อยผ่าน)
 - **งาน:** monitor ภายนอกยิง `/smmb-api/api/health` ทุก 1 นาที → แจ้งเตือน (อีเมล/webhook) เมื่อ ≠200 · แยกเตือนเมื่อ `redis=down`
 - **DoD:** ตัด Redis ชั่วคราวใน dev แล้วได้แจ้งเตือนจริง 1 ครั้ง (บันทึกเวลา)
+- **สถานะ 13 พ.ย. 2026 (เขียนแล้ว ยังไม่ได้พิสูจน์):** เพิ่ม `.github/workflows/health-monitor.yml` (cron 5 นาที · เตือนเมื่อ ≠200 / `redis=down` / `degraded` → workflow แดง + webhook ถ้าตั้ง `ALERT_WEBHOOK_URL`) · ต้องตั้ง repo variable `HEALTH_URL` หลังตัดสินโดเมน (W-04) · ยังค้าง DoD (ซ้อมตัด Redis) · หมายเหตุ: GitHub cron ไม่แม่นและหยุดได้ถ้า repo เงียบ 60 วัน — ถ้าต้องการ 1 นาที ใช้ UptimeRobot ภายนอกแทน
 
 ### W-07 🟠 P1 — CI ไม่รัน e2e
 
 - **งาน:** เพิ่ม job `e2e` ใน `.github/workflows/` พร้อม `services: postgres:17`, `redis:7` · ตั้ง `DB_POOL_MAX=1` ตามข้อจำกัด mock · รัน `npm run migrate && npm run seed:dev && npm run test:e2e`
 - **DoD:** PR แรกที่รันแล้ว e2e เขียว · ถ้าล้มเห็น log ชัด
+- **สถานะ 13 พ.ย. 2026 (เขียนแล้ว ยังไม่เคยรันบน GitHub):** เพิ่ม `.github/workflows/e2e.yml` 2 job — `backend-e2e` (postgres:17 + redis:7 → migrate → seed:dev → test:e2e) และ `web-e2e` (Playwright chromium · backend mock เปิดโดย `playwright.config.ts`) · อัปโหลด trace เมื่อล้ม · ค้าง DoD จนกว่าจะ push แล้วเห็นเขียวจริง
 
 ### W-08 🟠 P1 — frontend ไม่มี lint
 

@@ -1,26 +1,62 @@
 #include "buzzer.h"
 
 #include <Arduino.h>
+#include <driver/rtc_io.h>
 #include <string.h>
 
 #include "board.h"
 
-// ใช้ PWM (LEDC) — ดังทั้ง buzzer แบบ passive และ active
+// BUZZER_ACTIVE: เปิด/ปิดขา (MOSFET → ไซเรน) · ไม่งั้นใช้ PWM (LEDC) สำหรับ buzzer แบบ passive
 static const int CH = 7;
 static const int SHORT_MS = 120, LONG_MS = 600, GAP_MS = 120;
 
 void buzzerInit()
 {
+#if BUZZER_ACTIVE
+  rtc_gpio_hold_dis((gpio_num_t)PIN_BUZZER); // ปลดล็อกจากตอนหลับลึก
+  pinMode(PIN_BUZZER, OUTPUT);
+  digitalWrite(PIN_BUZZER, LOW);
+#else
+  rtc_gpio_hold_dis((gpio_num_t)PIN_BUZZER);
+  pinMode(PIN_BUZZER, OUTPUT);
+  digitalWrite(PIN_BUZZER, LOW); // ให้ MOSFET ดับทันทีตอนบูต ก่อนผูก PWM
   ledcSetup(CH, BUZZER_FREQ_HZ, 8);
   ledcAttachPin(PIN_BUZZER, CH);
   ledcWrite(CH, 0);
+#endif
+}
+
+void buzzerOff()
+{
+#if BUZZER_ACTIVE
+  digitalWrite(PIN_BUZZER, LOW);
+#else
+  ledcWrite(CH, 0);
+#endif
+}
+
+void buzzerHoldOffForSleep()
+{
+  buzzerOff();
+#if !BUZZER_ACTIVE
+  ledcDetachPin(PIN_BUZZER);
+  pinMode(PIN_BUZZER, OUTPUT);
+  digitalWrite(PIN_BUZZER, LOW);
+#endif
+  {
+    rtc_gpio_hold_en((gpio_num_t)PIN_BUZZER); // ขาลอยตอนหลับ → MOSFET อาจติด ไซเรนดังทั้งคืน
+  }
 }
 
 static void tone(int ms)
 {
+#if BUZZER_ACTIVE
+  digitalWrite(PIN_BUZZER, HIGH);
+#else
   ledcWriteTone(CH, BUZZER_FREQ_HZ);
+#endif
   delay(ms);
-  ledcWrite(CH, 0);
+  buzzerOff();
   delay(GAP_MS);
 }
 

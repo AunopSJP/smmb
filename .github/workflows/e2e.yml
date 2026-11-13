@@ -1,0 +1,87 @@
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-e2e:
+    name: Backend e2e (Postgres จริง)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: smmb
+          POSTGRES_PASSWORD: smmb_ci_only
+          POSTGRES_DB: smmb_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U smmb -d smmb_ci"
+          --health-interval 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 3s --health-retries 20
+    env:
+      # ค่าทดสอบเฉพาะ CI — ห้ามใช้ซ้ำกับ production
+      NODE_ENV: test
+      DB_POOL_MAX: '1'
+      DATABASE_URL: postgres://smmb:smmb_ci_only@127.0.0.1:5432/smmb_ci
+      REDIS_URL: redis://127.0.0.1:6379
+      PUBLIC_BASE_URL: http://localhost:4200
+      QR_ALLOWED_HOSTS: localhost
+      BOX_MASTER_KEY: ci-only-master-key-0000000000000000
+      QR_SIGNING_KEY: ci-only-qr-signing-key-00000000000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - name: migrate + seed
+        working-directory: backend
+        run: |
+          npm run migrate
+          npm run seed:dev
+      - name: test:e2e
+        working-directory: backend
+        run: npm run test:e2e
+
+  web-e2e:
+    name: Web e2e (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+      - name: ติดตั้งเบราว์เซอร์
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: e2e:web (backend mock + ng serve เปิดเองจาก playwright.config)
+        working-directory: frontend
+        run: npm run e2e:web
+      - name: อัปโหลด trace เมื่อล้ม
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 7

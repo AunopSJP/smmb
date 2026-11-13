@@ -160,6 +160,10 @@ static void handleRoot()
   }
   h += "<p class=muted>เฟิร์มแวร์ " FW_VERSION " · ถ้าเชื่อมต่อไม่สำเร็จ ให้กลับมาเปิดหน้านี้ใหม่</p>";
   h += "<script>function togglePw(){var p=document.getElementById('pass'),b=document.getElementById('pwbtn');if(p.type==='password'){p.type='text';b.textContent='ซ่อน'}else{p.type='password';b.textContent='แสดง'}}</script>";
+  // QR ตั้งค่าตู้จากแอปช่าง (D04/T01): http://192.168.4.1/#box=..&secret=..&url=..
+  // อ่านจาก fragment ฝั่งเบราว์เซอร์ (ไม่ถูกส่งมาที่บอร์ด) → กรอกช่องให้ แล้วลบออกจากแถบที่อยู่ทันที
+  if (!deviceLocked)
+    h += R"JS(<script>(function(){var s=location.hash.slice(1);if(!s)return;var q={};s.split('&').forEach(function(kv){var i=kv.indexOf('=');if(i>0)try{q[kv.slice(0,i)]=decodeURIComponent(kv.slice(i+1))}catch(e){}});history.replaceState(null,'',location.pathname);var n=0;['url','box','secret'].forEach(function(k){var el=document.getElementById(k);if(el&&q[k]){el.value=q[k];n++}});if(!n)return;var d=document.querySelector('details');if(d)d.open=true;var f=document.querySelector('form');var m=document.createElement('div');m.className='ok';m.textContent='กรอกค่าอุปกรณ์จาก QR ตั้งค่าตู้แล้ว ('+(q.box||'')+') — เลือก Wi-Fi บ้านแล้วกดเชื่อมต่อ';f.parentNode.insertBefore(m,f)})()</script>)JS";
   h += "</div></body></html>";
   server.sendHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
   server.send(200, "text/html; charset=utf-8", h);
@@ -311,8 +315,4 @@ bool runSetupPortal(unsigned long timeoutMs)
   WiFi.softAPdisconnect(true);
   WiFi.mode(WIFI_STA);
   return done;
-}
-
-static void()
-{
 }

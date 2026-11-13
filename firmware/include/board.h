@@ -1,10 +1,14 @@
 #pragma once
 // ขาและค่าคงที่ของบอร์ด ESP32-CAM (AI-Thinker) — แก้ที่นี่ที่เดียวถ้าต่อวงจรต่างไป
 
-#define FW_VERSION "0.2.14"
+#define FW_VERSION "0.2.15"
 
-// Buzzer (ผู้ใช้ต่อที่ GPIO13 · 2026-10-28)
+// เสียง: GPIO13 (ผู้ใช้ต่อ 2026-10-28)
+// วงจร 2026-10-29: GPIO13 → TRIG ของ DUAL MOSFET OUT → ตัวส่งเสียง LTE-5061
+// LTE-5061 มีเสียง+ไฟกระพริบในตัว → MOSFET แค่จ่าย/ตัดไฟ
+// BUZZER_ACTIVE 1 = เปิด/ปิดขาตรง ๆ (วงจรนี้) · 0 = PWM ความถี่ BUZZER_FREQ_HZ (buzzer แบบ passive ที่ต่อตรง)
 #define PIN_BUZZER 13
+#define BUZZER_ACTIVE 1
 #define BUZZER_FREQ_HZ 2700
 
 // ไฟแฟลชบนบอร์ด (LED ขาว) — ใช้เป็นไฟส่องกล้องตอนมืด (flash_when_dark)

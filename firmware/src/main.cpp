@@ -193,7 +193,7 @@ static void sleepUntilNextEvent()
   Serial.printf("[sleep] deep sleep %u s\n", s);
   Serial.flush();
   cameraStop();
-  ledcWrite(7, 0);
+  buzzerHoldOffForSleep();
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
   // ไฟแฟลช GPIO4 ลอยตอนหลับ → ล็อกให้ดับ
@@ -501,11 +501,11 @@ static void waitWithCli(unsigned long ms)
 // ── setup / loop ───────────────────────────────────────────────────────
 void setup()
 {
+  buzzerInit(); // ตั้งขา 13 ให้ LOW เร็วที่สุด — ช่วงรีเซ็ตขาลอย ไซเรนอาจดังแว้บ
   Serial.begin(115200);
   rtc_gpio_hold_dis((gpio_num_t)PIN_FLASH_LED);
   pinMode(PIN_FLASH_LED, OUTPUT);
   digitalWrite(PIN_FLASH_LED, LOW);
-  buzzerInit();
   linkRtc.wakeCount++;
   delay(200);
   Serial.printf("\n\nSMMB box firmware %s · reset %s · type 'help'\n", FW_VERSION, linkResetReason());
@@ -542,7 +542,7 @@ void setup()
 
   if (!wifiConnect())
   {
-    beepError();
+    linkBeepErrorQuiet();
     if (fromSleep)
     {
       // ตื่นมาแล้วต่อไม่ได้ → หลับแล้วลองรอบถัดไป
@@ -581,7 +581,7 @@ void loop()
   }
   if (WiFi.status() != WL_CONNECTED && !wifiConnect())
   {
-    beepError();
+    linkBeepErrorQuiet(); // Wi-Fi บ้านล่มทั้งคืน → ไม่ร้องทุกครึ่งนาที
     waitWithCli(RETRY_IN_WINDOW_MS);
     return;
   }

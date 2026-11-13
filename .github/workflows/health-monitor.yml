@@ -1,0 +1,41 @@
+name: Health Monitor
+
+# เฝ้า production ทุก 5 นาที (GitHub cron ถี่สุดที่เชื่อถือได้) — ล้ม = workflow แดง → GitHub ส่งอีเมลหาคนที่ push ล่าสุด/เจ้าของ repo
+# ตั้ง repository variable ก่อน: HEALTH_URL = https://<โดเมนจริง>/smmb-api/api/health  (ยังไม่ตั้ง = ข้าม · รอ W-04)
+# ต้องการแจ้ง webhook/LINE-ไม่ใช้ → เพิ่ม secret ALERT_WEBHOOK_URL (Slack/Discord/Teams รับ JSON {"text": ...})
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: ตรวจ /api/health
+        env:
+          HEALTH_URL: ${{ vars.HEALTH_URL }}
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+        run: |
+          if [ -z "$HEALTH_URL" ]; then echo "HEALTH_URL ไม่ได้ตั้ง — ข้าม"; exit 0; fi
+          code=$(curl -s -o body.json -w '%{http_code}' --max-time 20 "$HEALTH_URL" || echo 000)
+          echo "HTTP $code"; cat body.json 2>/dev/null || true; echo
+          problem=""
+          if [ "$code" != "200" ]; then problem="health ตอบ HTTP $code (postgres/redis ล่ม หรือเซิร์ฟเวอร์ไม่ตอบ)"
+          elif grep -q '"redis":"down"' body.json; then problem="redis=down (rate limit fail-open)"
+          elif grep -q '"status":"degraded"' body.json; then problem="status=degraded (push/VAPID ไม่พร้อม)"
+          fi
+          if [ -n "$problem" ]; then
+            echo "::error::SMMB: $problem"
+            if [ -n "$ALERT_WEBHOOK_URL" ]; then
+              curl -s --max-time 15 -H 'Content-Type: application/json' \
+                -d "{\"text\":\"SMMB ALERT: $problem\"}" "$ALERT_WEBHOOK_URL" || true
+            fi
+            exit 1
+          fi
+          echo "ok"

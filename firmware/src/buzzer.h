@@ -1,6 +1,8 @@
 #pragma once
 // เสียงบอกสถานะ (ตู้ไม่มีไฟสถานะ) — ตรงกับคู่มือ §9 และข้อความในแอปเจ้าหน้าที่/ช่าง
 void buzzerInit();
+void buzzerOff();
+void buzzerHoldOffForSleep(); // ปิดเสียงและล็อกขาไว้ตลอดช่วงหลับลึก
 void beepReady();     // สั้น 1 : ออนไลน์ / ได้งาน กล้องพร้อม
 void beepPass();      // สั้น 2
 void beepRetry();     // ยาว 1

@@ -91,6 +91,9 @@ void linkBegin(const LinkHooks &hooks, const char *fwVersion);
 bool linkBoot();
 /** ส่ง boot สำเร็จแล้วในรอบไฟนี้ */
 bool linkBooted();
+/** เสียง error ของ "ปัญหาเชื่อมต่อที่วนซ้ำเอง" (Wi-Fi หลุด / boot ไม่ผ่าน / 401) — ร้องครั้งแรกแล้วเว้น 10 นาที
+ *  ไม่ใช้กับ error ระหว่างงานตรวจ (เจ้าหน้าที่ยืนอยู่หน้าตู้ ต้องได้ยินทุกครั้ง) */
+void linkBeepErrorQuiet();
 /** POST /v1/box/report (รายงานรายวัน + ดึง config) · true = สำเร็จ (ตัวนับใน linkRtc ถูกล้าง) */
 bool linkReport();
 
