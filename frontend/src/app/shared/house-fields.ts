@@ -29,7 +29,7 @@ export const emptyHouseProfile = (): HouseProfileForm => ({
 });
 
 /** ผู้ติดต่อฉุกเฉินต้องกรอกครบคู่ หรือไม่กรอกเลย */
-const emergencyOk = (p: HouseProfileForm) => {
+export const emergencyOk = (p: HouseProfileForm) => {
   const name = p.emergency_name.trim();
   const phone = p.emergency_phone.trim();
   return (!name && !phone) || (!!name && !!normalizePhone(phone));
@@ -38,6 +38,16 @@ const emergencyOk = (p: HouseProfileForm) => {
 /** ที่อยู่บังคับ (แขวง/ตำบล เขต/อำเภอ จังหวัด) · หมุดและผู้ติดต่อฉุกเฉินไม่บังคับ */
 export function houseProfileValid(p: HouseProfileForm): boolean {
   return !!(p.address_line.trim() && p.subdistrict.trim() && p.district.trim() && p.province.trim()) && emergencyOk(p) && extrasValid(p.extras, 'owner');
+}
+
+/** ขั้น "ที่อยู่บ้าน" ของฟอร์มสมัคร: บ้านเลขที่ + ที่อยู่ + แขวง/เขต/จังหวัด + รหัสไปรษณีย์ (5 หลัก) */
+export function addressStepValid(houseNo: string, p: HouseProfileForm): boolean {
+  return !!(houseNo.trim() && p.address_line.trim() && p.subdistrict.trim() && p.district.trim() && p.province.trim() && /^[0-9]{5}$/.test(p.extras.postal_code.trim()));
+}
+
+/** ขั้น "รายละเอียดบ้าน": ประเภทบ้าน + จำนวนผู้อยู่ + ผู้ติดต่อฉุกเฉินครบคู่/ว่างคู่ + อีเมล (ถ้ากรอก) ถูกรูปแบบ */
+export function detailsStepValid(p: HouseProfileForm): boolean {
+  return emergencyOk(p) && extrasValid(p.extras, 'owner');
 }
 
 /** แปลงเป็นฟิลด์ของ API (ค่าว่าง = ไม่ส่ง) */

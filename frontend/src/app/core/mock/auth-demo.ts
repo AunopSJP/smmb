@@ -51,7 +51,8 @@ export function normalizePhone(raw: string): string | null {
     .replace(/[^\d+]/g, '');
   if (d.startsWith('+66')) d = '0' + d.slice(3);
   else if (d.startsWith('66') && d.length === 11) d = '0' + d.slice(2);
-  return /^0\d{9}$/.test(d) ? d : null;
+  // ไม่รับ 00… (รหัสโทรระหว่างประเทศ · สงวนเป็นเบอร์แทนที่ของบัญชีที่ลบ) — ตรงกับ backend
+  return /^0[1-9]\d{8}$/.test(d) ? d : null;
 }
 
 export const normalizeGroupCode = (raw: string) => raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -124,6 +125,8 @@ export class AuthDemo {
       this.ownerHouse.set(null);
       this.ownerHouseForm.set(null);
       this.ownerStep.set(1);
+      this.addOwnerHouseForm.set(null);
+      this.addOwnerStep.set(1);
       this.boxName.set('ตู้หน้าบ้าน');
       this.fails.clear();
     });
@@ -135,8 +138,11 @@ export class AuthDemo {
   readonly ownerHouse = signal<string | null>(null);
   /** ร่างข้อมูลบ้านของฟอร์มสมัครเจ้าของบ้าน — กลับจากหน้าข้อตกลงแล้วต้องไม่หาย */
   readonly ownerHouseForm = signal<HouseProfileForm | null>(null);
-  /** ขั้นตอนสมัครเจ้าของบ้านที่ค้างไว้ (1–3) */
+  /** ขั้นตอนสมัครเจ้าของบ้านที่ค้างไว้ (1–4) */
   readonly ownerStep = signal(1);
+  /** ร่างข้อมูลบ้าน + ขั้นของหน้า "เพิ่มบทบาทเจ้าของบ้าน" (A15 · 1–3) — กลับจากหน้าข้อตกลงแล้วต้องไม่หาย */
+  readonly addOwnerHouseForm = signal<HouseProfileForm | null>(null);
+  readonly addOwnerStep = signal(1);
   readonly boxName = signal('ตู้หน้าบ้าน');
 
   account(phone: string): DemoAccount | undefined {

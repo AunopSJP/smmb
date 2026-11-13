@@ -283,9 +283,12 @@ export class AdminBoxService {
     reason: string,
     adminId: string,
     resetWifi = false,
+    /** ตั้งค่า = เจ้าของยกเลิกเอง: ต้องเป็นตู้ของคนนี้ ไม่งั้น 404 · ไม่แจ้งเจ้าของ (เขาทำเอง) แต่แจ้งแอดมินแทน */
+    byOwner?: string,
   ): Promise<{ box_id: string; qr: ReissuedQr; wifi_reset: boolean; ap_name: string }> {
     const out = await withTx(this.pool, async (db) => {
       const box = await this.load(db, boxId);
+      if (byOwner !== undefined && box.owner_user_id !== byOwner) throw new NotFoundException();
       if (!box.owner_user_id) throw new ConflictException({ code: 'BOX_NOT_BOUND', message: 'this box has no owner' });
       const sos = await db.query(`SELECT 1 FROM app.sos_case_tb WHERE box_id = $1 AND status IN ('open','accepted')`, [boxId]);
       if (sos.rowCount) throw new ConflictException({ code: 'SOS_OPEN', message: 'close the open SOS of this box first' });
@@ -318,15 +321,40 @@ export class AdminBoxService {
       const qr = await this.issueQr(db, boxId, 'activate');
       await db.query(
         `INSERT INTO app.data_access_log_tb (actor_user_id, subject_kind, subject_id, fields) VALUES ($1, 'box', $2, $3)`,
-        [adminId, boxId, ['box_unbound', ...(resetWifi ? ['wifi_reset_requested'] : []), `reason:${reason.slice(0, 200)}`]],
+        [adminId, boxId, ['box_unbound', ...(byOwner !== undefined ? ['by_owner'] : []), ...(resetWifi ? ['wifi_reset_requested'] : []), `reason:${reason.slice(0, 200)}`]],
       );
       return { qr, owner: box.owner_user_id, name: box.name };
     });
-    await this.notifications
-      .notify([out.owner], { type: 'box_unbound', data: { box_id: boxId, box_name: out.name }, link: '/home', tag: `unbound-${boxId}` })
-      .catch(() => undefined);
+    if (byOwner === undefined) {
+      await this.notifications
+        .notify([out.owner], { type: 'box_unbound', data: { box_id: boxId, box_name: out.name }, link: '/home', tag: `unbound-${boxId}` })
+        .catch(() => undefined);
+    } else {
+      // เจ้าของปล่อยตู้เอง — แอดมินต้องรู้ (ช่างอาจต้องไปรีเซ็ต Wi-Fi/ออก QR ให้เจ้าของใหม่)
+      const { rows } = await this.pool.query<{ user_id: string }>(
+        `SELECT r.user_id FROM app.user_role_tb r JOIN app.user_tb u ON u.user_id = r.user_id
+         WHERE r.role = 'admin' AND r.status = 'active' AND u.status = 'active' AND u.deleted_date IS NULL`,
+      );
+      await this.notifications
+        .notify(rows.map((r) => r.user_id), {
+          type: 'box_released',
+          data: { box_id: boxId, box_name: out.name, wifi_reset: resetWifi },
+          link: `/admin/boxes/detail?id=${encodeURIComponent(boxId)}`,
+          tag: `released-${boxId}`,
+        })
+        .catch(() => undefined);
+    }
     if (resetWifi) this.hub.wake(boxId);
     return { box_id: boxId, qr: out.qr, wifi_reset: resetWifi, ap_name: setupApName(boxId) };
+  }
+
+  /**
+   * เจ้าของยกเลิกการผูกตู้เอง (ขายบ้าน/ย้ายออก/ลบบัญชี) — ใช้ตรรกะเดียวกับแอดมิน (ล้างข้อมูลบ้าน ถอดจากโซน ปิดงานช่างค้าง ออก QR เปิดใช้ใบใหม่)
+   * ต่างกัน: ไม่คืน QR ใหม่ให้เจ้าของ (เป็นของเจ้าของคนใหม่/ช่าง) · `resetWifi` ค่าเริ่มต้น = ลืม Wi-Fi เพื่อไม่ให้เจ้าของใหม่ใช้ Wi-Fi บ้านเดิม
+   */
+  async releaseByOwner(ownerId: string, boxId: string, resetWifi: boolean): Promise<{ box_id: string; wifi_reset: boolean }> {
+    const r = await this.unbind(boxId, 'เจ้าของยกเลิกการผูกเอง', ownerId, resetWifi, ownerId);
+    return { box_id: r.box_id, wifi_reset: r.wifi_reset };
   }
 
   /** ทดสอบเสียง buzzer — ตู้ที่ออนไลน์รับทันที (ปลุก long-poll) · ไม่รับใน 2 นาที = หมดอายุ */

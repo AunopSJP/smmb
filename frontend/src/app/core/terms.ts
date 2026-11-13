@@ -1,4 +1,4 @@
-// สร้างจาก docs/terms-2026-11-06.md ด้วย docs/scripts/gen-terms.mjs — ห้ามแก้ไฟล์นี้ตรง ๆ
+// สร้างจาก docs/terms-2026-11-13.md ด้วย docs/scripts/gen-terms.mjs — ห้ามแก้ไฟล์นี้ตรง ๆ
 // ของจริงหน้า A13 อ่านจาก GET /api/v1/terms/current (ฉบับเดียวกัน)
 
 export interface TermsPart {
@@ -7,12 +7,12 @@ export interface TermsPart {
   sections: { title: string; items: string[] }[];
 }
 
-export const TERMS_VERSION = '2026-11-06';
+export const TERMS_VERSION = '2026-11-13';
 
 export const TERMS: { th: TermsPart; en: TermsPart } = {
   "th": {
-    "title": "ข้อตกลงการใช้งาน Smart Mailbox",
-    "intro": "ฉบับวันที่ 6 พฤศจิกายน 2026 · ใช้กับทุกคนที่มีบัญชี (เจ้าของบ้าน เจ้าหน้าที่ หัวหน้าหน่วยงาน แอดมิน)",
+    "title": "ข้อตกลงการใช้งาน Smart Mailbox (ฉบับร่างสำหรับเดโม)",
+    "intro": "⚠️ ฉบับ Mock สำหรับทดสอบ/เดโมเท่านั้น ยังไม่ใช่ข้อตกลงจริงและยังไม่ผ่านการตรวจโดยผู้เชี่ยวชาญกฎหมายหรือ PDPA · ฉบับวันที่ 13 พฤศจิกายน 2026 · ใช้กับทุกคนที่มีบัญชี (เจ้าของบ้าน เจ้าหน้าที่ หัวหน้าหน่วยงาน แอดมิน)",
     "sections": [
       {
         "title": "1. SOS ไม่ได้แทนการโทร 191 / 1669",
@@ -36,20 +36,21 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
           "1 เบอร์โทร = 1 บัญชี มีได้หลายบทบาท (เช่น เจ้าของบ้านที่เป็นเจ้าหน้าที่ด้วย) · บัญชีแอดมินมีบทบาทอื่นร่วมไม่ได้",
           "เก็บรหัสผ่านไว้เอง ห้ามให้คนอื่นใช้บัญชี · ระบบไม่มี OTP และไม่ส่ง SMS",
           "ลืมรหัส: เจ้าหน้าที่ขอให้หัวหน้ารีเซ็ต · คนอื่นติดต่อผู้ดูแลระบบ · รหัสชั่วคราวต้องเปลี่ยนก่อนใช้งาน",
-          "ใส่รหัสผิด 5 ครั้งใน 15 นาที บัญชีถูกพักการเข้าสู่ระบบ 15 นาที"
+          "ใส่รหัสผิด 5 ครั้งใน 15 นาที บัญชีถูกพักการเข้าสู่ระบบ 15 นาที",
+          "ดูเครื่องที่ล็อกอินอยู่และสั่งออกจากระบบทีละเครื่องได้เอง ที่เมนู \"ข้อมูลของฉัน\""
         ]
       },
       {
         "title": "4. สิ่งที่ระบบบันทึก",
         "items": [
           "ทุกการสแกนหรือพิมพ์รหัส แม้ไม่ผ่าน: ใคร · ตู้ไหน · QR ใบไหน · สแกนหรือพิมพ์ · ผล · เวลา",
-          "การแจ้งส่งของ (ไม่เก็บว่าไรเดอร์เป็นใคร) · SOS · การยอมรับข้อตกลง · การที่แอดมินเปิดดูข้อมูลส่วนบุคคล",
+          "การแจ้งส่งของ (ไม่เก็บว่าไรเดอร์เป็นใคร) · SOS · การยอมรับข้อตกลง · การที่แอดมินเปิดดูข้อมูลส่วนบุคคล · การที่คุณส่งออกข้อมูลของตัวเอง",
           "บันทึกเหล่านี้แก้ไขหรือลบไม่ได้ และเก็บไว้ 1 ปี",
           "ข้อมูลบ้านที่เจ้าของบ้านกรอก: ที่อยู่ · หมุดตำแหน่งบ้าน (ถ้าปัก) · ผู้ติดต่อฉุกเฉิน (ถ้ากรอก)",
           "ข้อมูลเพิ่มเติมตอนสมัคร (ไม่บังคับ): คำนำหน้า อีเมล ประเภทบ้าน จำนวนผู้อยู่อาศัย ผู้ที่ต้องดูแลเป็นพิเศษ (เช่น ผู้สูงอายุ เด็กเล็ก ผู้ป่วยติดเตียง) และจุดสังเกตหน้าบ้าน — เก็บเพื่อให้เจ้าหน้าที่ช่วยได้ตรงจุดตอนเกิดเหตุ ระบบไม่เก็บเลขบัตรประชาชน",
           "ข้อมูลเจ้าหน้าที่และหน่วยงานตอนสมัคร: ยศ/ตำแหน่ง รหัสประจำตัว ที่อยู่ เบอร์โทร อีเมล และหมุดตำแหน่งหน่วยงาน",
           "รูปถ่ายเจ้าหน้าที่จากกล้องของตู้ ถ่ายอัตโนมัติ 1 รูปหลังสแกน QR ประจำตัวผ่าน (ไม่แจ้งเวลาที่ถ่าย) เพื่อยืนยันว่ามาตรวจด้วยตัวเอง — เก็บ 30 วันแล้วลบ ไม่ใช้เทียบหรือจดจำใบหน้า",
-          "เครื่องที่ใช้เข้าสู่ระบบ (รหัสเครื่องแบบเข้ารหัส และชนิดเบราว์เซอร์) — เจ้าหน้าที่เข้าจากเครื่องใหม่ หัวหน้าจะได้รับแจ้ง"
+          "เครื่องที่ใช้เข้าสู่ระบบ (รหัสเครื่องแบบเข้ารหัส ชนิดเบราว์เซอร์ และที่อยู่เครือข่ายแบบย่อ) — เจ้าหน้าที่เข้าจากเครื่องใหม่ หัวหน้าจะได้รับแจ้ง"
         ]
       },
       {
@@ -75,7 +76,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
         "title": "7. หน้าที่ของเจ้าของบ้าน",
         "items": [
           "เก็บ QR สำรองและ QR เปิดใช้ตู้ไว้ในตู้ · แจ้งเมื่อ QR หน้าตู้เสียหรือหาย",
-          "ขายบ้านหรือย้ายออก ให้แจ้งผู้ดูแลเพื่อยกเลิกการผูกตู้"
+          "ขายบ้านหรือย้ายออก ให้กด \"ยกเลิกการผูกตู้นี้\" ในหน้าตั้งค่า (ตู้จะลืม Wi-Fi บ้านคุณ และข้อมูลบ้านกับการอยู่ในโซนจะถูกล้าง) หรือแจ้งผู้ดูแลให้ทำให้"
         ]
       },
       {
@@ -88,18 +89,23 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
         ]
       },
       {
-        "title": "9. การเปลี่ยนข้อตกลงและการยกเลิก",
+        "title": "9. ข้อมูลของคุณ การลบบัญชี และการเปลี่ยนข้อตกลง",
         "items": [
+          "ส่งออกข้อมูลของตัวเองเป็นไฟล์ได้ที่เมนู \"ข้อมูลของฉัน\" วันละไม่เกิน 3 ครั้ง · ไฟล์มีเฉพาะข้อมูลของคุณ ไม่มีข้อมูลของคนอื่น",
+          "ลบบัญชีได้เองที่เมนู \"ข้อมูลของฉัน\" โดยยืนยันด้วยรหัสผ่าน · บัญชีจะถูกพักไว้ 7 วัน ระหว่างนี้เข้าสู่ระบบไม่ได้ และผู้ดูแลระบบกู้คืนให้ได้ถ้าคุณขอ",
+          "ครบ 7 วัน ระบบซ่อนตัวตนถาวร: ชื่อ เบอร์โทร รหัสผ่าน ที่อยู่ หมุดตำแหน่ง ผู้ติดต่อฉุกเฉิน ข้อมูลเพิ่มเติม การแจ้งเตือน เครื่องที่เคยเข้า และรูปยืนยันตัวเจ้าหน้าที่ จะถูกลบหรือแทนที่ และกู้คืนไม่ได้อีก · เบอร์เดิมสมัครใหม่ได้",
+          "บันทึกที่แก้ไขหรือลบไม่ได้ (การสแกน การเปิดดูข้อมูล การยอมรับข้อตกลง) ยังคงอยู่ตามระยะเวลาเก็บ แต่จะไม่ระบุตัวตนของคุณอีก",
+          "ลบบัญชีไม่ได้ถ้ายังมีตู้ที่ผูกอยู่ (ให้ยกเลิกการผูกตู้ก่อน) · เป็นหัวหน้าคนเดียวของหน่วยงาน · มี SOS ที่ยังเปิดอยู่ · หรือเป็นบัญชีแอดมิน",
           "เมื่อข้อตกลงเปลี่ยน ต้องกดยอมรับฉบับใหม่ก่อนใช้งานต่อ · ไม่ยอมรับ = ใช้งานต่อไม่ได้",
-          "ขอปิดบัญชีได้ทางผู้ดูแลระบบ · ผู้ดูแลปิดบัญชีที่ใช้งานผิดข้อตกลงได้",
+          "ผู้ดูแลปิดบัญชีที่ใช้งานผิดข้อตกลงได้",
           "ติดต่อผู้ดูแลระบบได้ทางช่องทางที่แสดงในแอป"
         ]
       }
     ]
   },
   "en": {
-    "title": "Smart Mailbox terms of use",
-    "intro": "Version of 6 November 2026 · applies to everyone with an account (homeowners, officers, agency heads, admins)",
+    "title": "Smart Mailbox terms of use (demo draft)",
+    "intro": "⚠️ Mock version for testing and demos only — not the real terms and not reviewed by legal or PDPA experts · Version of 13 November 2026 · applies to everyone with an account (homeowners, officers, agency heads, admins)",
     "sections": [
       {
         "title": "1. SOS does not replace calling 191 / 1669",
@@ -123,20 +129,21 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
           "One phone number = one account, which can hold several roles (e.g. a homeowner who is also an officer) · admin accounts cannot hold other roles",
           "Keep your password to yourself and do not let others use your account · there is no OTP and no SMS",
           "Forgot it? Officers ask their head to reset it · everyone else contacts the admin · a temporary password must be changed before use",
-          "5 wrong passwords within 15 minutes pause sign-in for 15 minutes"
+          "5 wrong passwords within 15 minutes pause sign-in for 15 minutes",
+          "You can see the devices signed in to your account and sign any of them out yourself, under \"My data\""
         ]
       },
       {
         "title": "4. What the system records",
         "items": [
           "Every scan or typed code, even failures: who · which box · which QR · scanned or typed · result · time",
-          "Delivery reports (riders are not identified) · SOS · terms acceptance · every time an admin views personal data",
+          "Delivery reports (riders are not identified) · SOS · terms acceptance · every time an admin views personal data · every time you export your own data",
           "These records cannot be edited or deleted and are kept for 1 year",
           "House details the homeowner enters: address · house pin (if set) · emergency contact (if given)",
           "Optional sign-up details: title, email, house type, number of residents, people who need extra care (e.g. elderly, small children, bedridden) and a landmark near the house — kept so officers can help properly in an emergency. National ID numbers are not collected",
           "Officer and agency sign-up details: rank/position, staff number, address, phone, email and the agency pin",
           "A photo of the officer taken automatically by the box camera once the badge QR passes (the exact moment is not shown), to show they came in person — kept 30 days then deleted, never used for face matching",
-          "Devices used to sign in (a hashed device code and browser type) — when an officer signs in on a new device, their head is notified"
+          "Devices used to sign in (a hashed device code, browser type and a shortened network address) — when an officer signs in on a new device, their head is notified"
         ]
       },
       {
@@ -162,7 +169,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
         "title": "7. Homeowner duties",
         "items": [
           "Keep the backup QR and the activation QR inside the box · report a damaged or missing front QR",
-          "If you sell or leave the house, tell the admin so the box can be unbound"
+          "If you sell or leave the house, tap \"Unlink this mailbox\" in Settings (the box forgets your Wi-Fi, and your house details and zone coverage are cleared) or ask the admin to do it"
         ]
       },
       {
@@ -175,10 +182,15 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
         ]
       },
       {
-        "title": "9. Changes and closing an account",
+        "title": "9. Your data, deleting your account, and changes to these terms",
         "items": [
+          "You can export your own data as a file under \"My data\", up to 3 times a day · the file holds only your data, never anyone else's",
+          "You can delete your account yourself under \"My data\", confirmed with your password · the account is put on hold for 7 days, during which you cannot sign in and an admin can restore it if you ask",
+          "After 7 days your identity is permanently scrubbed: your name, phone, password, address, pin, emergency contact, extra details, notifications, signed-in devices and officer confirmation photos are deleted or replaced and cannot be restored · the same phone number can sign up again",
+          "Records that cannot be edited or deleted (scans, data access, terms acceptance) stay for their retention period but no longer identify you",
+          "You cannot delete your account while you still have a linked mailbox (unlink it first), are the only head of an agency, have an SOS still open, or hold an admin account",
           "When these terms change you must accept the new version before continuing · not accepting means you cannot continue",
-          "You can ask the admin to close your account · the admin may close accounts that break these terms",
+          "The admin may close accounts that break these terms",
           "Contact the admin through the channel shown in the app"
         ]
       }

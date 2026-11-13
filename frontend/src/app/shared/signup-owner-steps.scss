@@ -1,0 +1,40 @@
+:host {
+  display: grid;
+  gap: 14px;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block-start: 6px;
+}
+/* ช่องกรอกจำนวนคน: ปุ่ม − / + ขนาดแตะสบาย (≥44px) คั่นช่องตัวเลข */
+.stepper {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+  gap: 8px;
+  align-items: stretch;
+  input {
+    text-align: center;
+    font-size: 1.125rem;
+    font-weight: 700;
+    min-inline-size: 0;
+  }
+}
+.step-btn {
+  min-block-size: 48px;
+  border: 1.5px solid var(--line-strong, color-mix(in srgb, var(--text-muted) 40%, transparent));
+  border-radius: var(--radius-sm, 10px);
+  background: var(--surface);
+  color: var(--brand-dark);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+.err {
+  color: var(--sos);
+}

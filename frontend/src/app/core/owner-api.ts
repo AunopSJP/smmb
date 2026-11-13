@@ -140,6 +140,10 @@ export class OwnerApi {
   box(id: string): Promise<BoxDetail> {
     return firstValueFrom(this.http.get<BoxDetail>(`/api/v1/boxes/${encodeURIComponent(id)}`));
   }
+  /** เจ้าของยกเลิกการผูกตู้เอง (ขายบ้าน/ย้ายออก) — มี SOS ค้าง → 409 SOS_OPEN */
+  releaseBox(id: string, resetWifi = true): Promise<{ box_id: string; wifi_reset: boolean }> {
+    return firstValueFrom(this.http.post<{ box_id: string; wifi_reset: boolean }>(`/api/v1/boxes/${encodeURIComponent(id)}/unbind`, { reset_wifi: resetWifi }));
+  }
   requestWifiReset(id: string): Promise<WifiReset> {
     return firstValueFrom(this.http.post<WifiReset>(`/api/v1/boxes/${encodeURIComponent(id)}/wifi-reset`, {}));
   }

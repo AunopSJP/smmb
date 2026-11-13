@@ -101,18 +101,23 @@ export class MapPin {
   private map: Leaflet.Map | null = null;
   private marker: Leaflet.Marker | null = null;
   private resize: ResizeObserver | null = null;
+  /** ออกจากหน้า/ขั้นไปแล้ว — กันตัวจับเวลา/การโหลด Leaflet ที่ค้างอยู่ไปแตะแผนที่ที่ถูกลบ */
+  private destroyed = false;
 
   constructor() {
     void this.init();
     effect(() => this.sync(this.value()));
     inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
       this.resize?.disconnect();
       this.map?.remove();
+      this.map = null;
     });
   }
 
   private async init(): Promise<void> {
     const L = (await import('leaflet')).default ?? (await import('leaflet'));
+    if (this.destroyed) return; // ผู้ใช้เปลี่ยนขั้นก่อนโหลดเสร็จ — ไม่สร้างแผนที่ค้างไว้
     this.L = L;
     const start = this.value() ?? DEFAULT_CENTER;
     const map = L.map(this.host().nativeElement, { zoomControl: true, attributionControl: true }).setView([start.lat, start.lng], this.value() ? 17 : 11);
@@ -126,7 +131,9 @@ export class MapPin {
       if (this.host().nativeElement.clientWidth > 0) this.map?.invalidateSize();
     });
     this.resize.observe(this.host().nativeElement);
-    setTimeout(() => map.invalidateSize(), 200);
+    setTimeout(() => {
+      if (!this.destroyed) map.invalidateSize();
+    }, 200);
   }
 
   private sync(v: LatLng | null): void {

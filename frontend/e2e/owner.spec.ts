@@ -14,15 +14,28 @@ test('เจ้าของบ้านสมัคร ผูกตู้ ตั
   await page.getByLabel('รหัสผ่าน').fill('pass1234');
   await next().click();
 
+  // ขั้น 2 · ที่อยู่บ้าน
+  await expect(page.getByText('ขั้น 2 จาก 4')).toBeVisible();
   await page.getByLabel('บ้านเลขที่', { exact: true }).fill('12/3');
   await page.getByLabel('ที่อยู่ (ซอย').fill('ซอยทดสอบ 1');
   await page.getByLabel('แขวง / ตำบล').fill('บางนา');
   await page.getByLabel('เขต / อำเภอ').fill('บางนา');
   await page.getByLabel('จังหวัด').fill('กรุงเทพมหานคร');
-  await page.getByLabel('ประเภทบ้าน').selectOption({ index: 1 });
   await page.getByLabel('รหัสไปรษณีย์').fill('10260');
-  await page.getByLabel('จำนวนผู้อยู่อาศัย').fill('3');
   await next().click();
+
+  // ขั้น 3 · รายละเอียดบ้าน (ประเภทบ้านเป็นตัวเลือกแบบปุ่ม · จำนวนคนมีปุ่ม + / −)
+  await expect(page.getByText('ขั้น 3 จาก 4')).toBeVisible();
+  await page.getByLabel('บ้านเดี่ยว').check();
+  const people = page.getByLabel('จำนวนผู้อยู่อาศัย (คน)');
+  await page.getByRole('button', { name: 'เพิ่มจำนวนผู้อยู่อาศัย' }).click();
+  await page.getByRole('button', { name: 'เพิ่มจำนวนผู้อยู่อาศัย' }).click();
+  await expect(people).toHaveValue('2');
+  await next().click();
+
+  // ขั้น 4 · ตรวจและยืนยัน
+  await expect(page.getByText('ขั้น 4 จาก 4')).toBeVisible();
+  await expect(page.getByText('12/3 ซอยทดสอบ 1 บางนา บางนา กรุงเทพมหานคร 10260')).toBeVisible();
 
   await page.locator('.terms input[type=checkbox]').check();
   await page.getByRole('button', { name: 'สมัครและไปผูกตู้' }).click();

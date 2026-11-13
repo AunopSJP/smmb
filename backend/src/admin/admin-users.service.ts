@@ -18,6 +18,8 @@ export interface AdminUserRow {
   roles: { role: Role; level: number; status: 'active' | 'disabled' }[];
   agency: { id: string; name: string; status: string; is_head: boolean } | null;
   created_at: string;
+  /** มีค่าเฉพาะบัญชีที่ผู้ใช้ขอลบและยังอยู่ในช่วงพัก (กู้ได้) — เรียกด้วย `?deleted=pending` */
+  deleted_at: string | null;
 }
 
 export interface AdminUserDetail extends AdminUserRow {
@@ -44,6 +46,7 @@ type UserRowDb = {
   created_date: Date;
   roles: AdminUserRow['roles'];
   agency: AdminUserRow['agency'];
+  deleted_date?: Date | null;
 };
 
 const toRow = (r: UserRowDb): AdminUserRow => ({
@@ -55,6 +58,7 @@ const toRow = (r: UserRowDb): AdminUserRow => ({
   roles: r.roles,
   agency: r.agency,
   created_at: r.created_date.toISOString(),
+  deleted_at: r.deleted_date ? r.deleted_date.toISOString() : null,
 });
 
 // docs/api.md §9.3
@@ -67,13 +71,13 @@ export class AdminUsersService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(q: { role?: Role | 'head'; status?: string; q?: string; page: number; perPage: number }): Promise<Page<AdminUserRow>> {
+  async list(q: { role?: Role | 'head'; status?: string; q?: string; deleted?: 'pending'; page: number; perPage: number }): Promise<Page<AdminUserRow>> {
     // ค้นด้วยเบอร์: ตัดขีด/ช่องว่างออกก่อน (เก็บแบบไม่มีขีด)
     const phoneQ = q.q?.replace(/[\s\-.()]/g, '') || null;
     const { rows } = await this.pool.query<UserRowDb & { total: string }>(
-      `SELECT ${USER_SELECT}, count(*) OVER () AS total
+      `SELECT ${USER_SELECT}, u.deleted_date, count(*) OVER () AS total
        FROM app.user_tb u
-       WHERE u.deleted_date IS NULL
+       WHERE (CASE WHEN $7::boolean THEN u.deleted_date IS NOT NULL AND u.anonymized_date IS NULL ELSE u.deleted_date IS NULL END)
          AND ($1::text IS NULL OR u.status = $1)
          AND ($2::text IS NULL
               OR ($2 = 'head' AND EXISTS (SELECT 1 FROM app.agency_member_tb m WHERE m.user_id = u.user_id AND m.is_head))
@@ -82,7 +86,7 @@ export class AdminUsersService {
               OR ($4::text <> '' AND u.phone LIKE $4))
        ORDER BY u.created_date DESC, u.user_id
        LIMIT $5 OFFSET $6`,
-      [q.status ?? null, q.role ?? null, q.q ? likeContains(q.q) : null, phoneQ ? likeContains(phoneQ) : '', q.perPage, (q.page - 1) * q.perPage],
+      [q.status ?? null, q.role ?? null, q.q ? likeContains(q.q) : null, phoneQ ? likeContains(phoneQ) : '', q.perPage, (q.page - 1) * q.perPage, q.deleted === 'pending'],
     );
     return { data: rows.map(toRow), page: q.page, per_page: q.perPage, total: Number(rows[0]?.total ?? 0) };
   }

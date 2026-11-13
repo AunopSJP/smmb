@@ -172,6 +172,8 @@ export interface AdminUser {
   roles: { role: 'admin' | 'owner' | 'officer'; level: number; status: 'active' | 'disabled' }[];
   agency: { id: string; name: string; status: string; is_head: boolean } | null;
   created_at: string;
+  /** มีค่าเฉพาะบัญชีที่ผู้ใช้ขอลบและยังอยู่ในช่วงพัก (เรียกด้วย `deleted=pending`) */
+  deleted_at?: string | null;
 }
 
 export interface Paged<T> {
@@ -390,7 +392,10 @@ export class AdminApi {
   createPlan(input: { code: string; name_th: string; name_en: string; price_note?: string }): Promise<AdminPlan> {
     return this.post('/api/v1/admin/plans', input);
   }
-  updatePlan(code: string, input: { is_default?: boolean; is_active?: boolean }): Promise<AdminPlan> {
+  updatePlan(
+    code: string,
+    input: { is_default?: boolean; is_active?: boolean; name_th?: string; name_en?: string; price_note?: string | null },
+  ): Promise<AdminPlan> {
     return firstValueFrom(this.http.patch<AdminPlan>(`/api/v1/admin/plans/${encodeURIComponent(code)}`, input));
   }
   userPlans(id: string): Promise<AdminUserPlan[]> {
@@ -415,11 +420,16 @@ export class AdminApi {
   }
 
   // ผู้ใช้ §9.3
-  users(q = '', role?: string, page = 1): Promise<Paged<AdminUser>> {
+  users(q = '', role?: string, page = 1, deleted?: 'pending'): Promise<Paged<AdminUser>> {
     const p = new URLSearchParams({ per_page: '100', page: String(page) });
     if (q) p.set('q', q);
     if (role) p.set('role', role);
+    if (deleted) p.set('deleted', deleted);
     return this.get(`/api/v1/admin/users?${p}`);
+  }
+  /** กู้บัญชีที่ผู้ใช้ขอลบ (ภายในช่วงพัก 7 วัน) — เลยช่วงแล้ว 409 NOT_RESTORABLE */
+  restoreUser(id: string): Promise<{ ok: true }> {
+    return this.post(`/api/v1/admin/users/${id}/restore`);
   }
   setUserStatus(id: string, status: 'active' | 'disabled'): Promise<unknown> {
     return firstValueFrom(this.http.patch(`/api/v1/admin/users/${id}`, { status }));

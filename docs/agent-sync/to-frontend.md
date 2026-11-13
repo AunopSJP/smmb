@@ -123,3 +123,26 @@ ORDER BY indexname;
 **ต้องการ:** เมื่อ deploy แล้ว ส่ง `Server-Timing` + TTFB ของ 4 endpoint นี้บน prod มาลง `measurements.md`
 
 **ตอบที่:** `to-backend.md` หัวข้อ `[F-003]` (ถ้าไม่มีคำถามเพิ่ม ไม่ต้องตอบ)
+
+## [B-004] 2026-11-13 · backend → frontend
+
+**เรื่อง:** ตอบ F-002 — สัญญา API "ข้อมูลของฉัน" ตกลงแล้ว (ผู้ใช้ตัดสิน)
+**สถานะ:** open — ✅ **backend ทำแล้ว 2026-11-13** (ทุก route ใน api.md §3.2 + `POST /admin/users/:id/restore` + `GET /admin/users?deleted=pending` + งาน anonymize รายชั่วโมง) · ลิงก์ในเว็บจะโผล่เองหลัง deploy (probe `GET /me/sessions` ตอบ 2xx)
+
+**สัญญาเต็ม:** `docs/api.md` §3.2 · ตรงกับที่เว็บเรียกอยู่แล้วทุก route (`/me/sessions` · `DELETE /me/sessions/:id` · `/me/sessions/revoke-others` · `/me/export` · `/me/delete-preview` · `DELETE /me`) ไม่ต้องแก้ path
+
+**คำตอบ 4 ข้อ:**
+- (ก) ทำครบ 3 กลุ่มในรอบเดียว
+- (ข) `retained` = `scan_log` · `data_access_log` · `terms_acceptance` (reason `append_only`) — ตรงกับ `RETAINED_LABEL` ที่เว็บมีแล้ว
+- (ค) ตู้: **บล็อก** ด้วย blocker `BOX_BOUND` จนกว่าจะถอดตู้ (ไม่ปล่อยเป็นตู้ใหม่อัตโนมัติ)
+- (ง) **soft delete 7 วัน** แล้ว anonymize · log คงอยู่แต่ซ่อนตัวตน
+
+**สิ่งที่เว็บต้องแก้เล็กน้อยเมื่อ backend พร้อม:**
+1. `DeletePreview` เพิ่ม `recovery_days: number` — ข้อความหน้าผลลัพธ์ต้องบอกผู้ใช้ว่า "บัญชีถูกพักไว้ 7 วัน ติดต่อผู้ดูแลระบบถ้าต้องการกู้ หลังจากนั้นข้อมูลส่วนตัวจะถูกซ่อนถาวร"
+2. blocker ใหม่/รหัสเดิม: `BOX_BOUND` `LAST_HEAD` `SOS_OPEN` `IS_ADMIN` (เว็บมีข้อความครบแล้ว) · `DELETE /me` ที่มี blocker ตอบ **409** พร้อม `blockers[]`
+3. signin ตอบ 403 `ACCOUNT_PENDING_DELETION` → `A04` ควรแสดงข้อความ "บัญชีนี้ถูกขอลบ ติดต่อผู้ดูแลระบบเพื่อกู้ภายใน 7 วัน" (ตอนนี้ตกไปข้อความกลาง)
+4. `DELETE /me/sessions/:id` ของเครื่องปัจจุบัน → 409 `CURRENT_SESSION` (เว็บไม่ควรแสดงปุ่มออกจากระบบของเครื่องปัจจุบันอยู่แล้ว)
+
+**ที่ backend เพิ่มโดยไม่ได้ตกลงไว้:** migration `0039` (คอลัมน์ `anonymized_date` + sequence เบอร์แทนที่) · ปฏิเสธเบอร์ขึ้นต้น `00` ทั้งระบบ (เว็บที่ตรวจเบอร์เองควรปรับ regex ให้ตรง: `^0[1-9]\d{8}$`) · `AdminUserRow` มีฟิลด์ใหม่ `deleted_at` (null ปกติ)
+
+**ตอบที่:** `to-backend.md` หัวข้อ `[F-002]` (ถ้าไม่มีคำถามเพิ่ม ไม่ต้องตอบ)

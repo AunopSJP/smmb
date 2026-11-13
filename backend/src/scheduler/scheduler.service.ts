@@ -5,6 +5,8 @@ import { PG_POOL } from '../db/db.module.js';
 import { minutesIntoWindow, SILENT_AFTER_MS, WINDOW_GRACE_MIN } from '../box/box-config.js';
 import { BoxConfigService } from '../box/box-config.service.js';
 import { PLAN_EXPIRING_DAYS } from '../auth/me.service.js';
+import { DELETE_RECOVERY_DAYS } from '../auth/my-data.service.js';
+import { withTx } from '../db/tx.js';
 import { NotificationService } from '../push/notification.service.js';
 
 const TICK_MS = 60_000;
@@ -67,6 +69,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         this.lastHourly = now.getTime();
         await this.safely('silent', () => this.watchSilent(now));
         await this.safely('cleanup', () => this.cleanup());
+        await this.safely('anonymize', () => this.anonymizeDeleted());
         await this.safely('plans', () => this.watchPlans());
       }
       if (bangkokHour(now) >= HEALTH_HOUR && this.lastHealthDay !== bangkokDay(now)) {
@@ -227,6 +230,62 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     } finally {
       client.release();
     }
+  }
+
+  // ── ลบบัญชีโดยผู้ใช้เอง (api.md §3.2) ───────────────────────────────────
+
+  /**
+   * บัญชีที่ผู้ใช้ขอลบและพักครบ DELETE_RECOVERY_DAYS วัน → ซ่อนตัวตนถาวร
+   * แทนที่ชื่อ/เบอร์/รหัสผ่าน/ข้อมูลส่วนตัว · ลบแจ้งเตือน เครื่อง session push รูปยืนยันตัว (ใบหน้า) การอยู่โซน
+   * แถว log (scan/data access/terms/SOS/การตรวจ) คงอยู่ตามกฎข้อ 6 แต่ชี้ไปยังตัวตนที่ซ่อนแล้ว
+   * ทำซ้ำได้ไม่เสียหาย (ข้ามแถวที่ anonymized_date มีค่า) · ทีละไม่เกิน 100 บัญชีต่อรอบ
+   */
+  async anonymizeDeleted(): Promise<number> {
+    const { rows } = await this.pool.query<{ user_id: string }>(
+      `SELECT user_id FROM app.user_tb
+       WHERE deleted_date IS NOT NULL AND anonymized_date IS NULL
+         AND deleted_date <= now() - make_interval(days => $1::int)
+       ORDER BY deleted_date LIMIT 100`,
+      [DELETE_RECOVERY_DAYS],
+    );
+    let done = 0;
+    for (const { user_id: userId } of rows) {
+      const ok = await withTx(this.pool, async (db) => {
+        // แอดมินอาจกู้ระหว่างรอ → ตรวจซ้ำหลังล็อกแถว
+        const locked = await db.query(
+          `SELECT 1 FROM app.user_tb WHERE user_id = $1 AND deleted_date IS NOT NULL AND anonymized_date IS NULL FOR UPDATE`,
+          [userId],
+        );
+        if (!locked.rowCount) return false;
+        await db.query(`SET LOCAL app.allow_log_purge = 'on'`);
+        await db.query(
+          `UPDATE app.user_tb SET
+             name = 'ผู้ใช้ที่ลบแล้ว', display_name = 'ผู้ใช้ที่ลบแล้ว', house_no = NULL, area = NULL,
+             address_line = NULL, subdistrict = NULL, district = NULL, province = NULL, house_lat = NULL, house_lng = NULL,
+             emergency_name = NULL, emergency_phone = NULL, prefs = '{}'::jsonb, profile = '{}'::jsonb,
+             phone = '00' || lpad(nextval('app.anon_phone_seq')::text, 8, '0'),
+             password_hash = '!deleted', must_change_password = false, status = 'disabled',
+             token_version = token_version + 1, anonymized_date = now()
+           WHERE user_id = $1`,
+          [userId],
+        );
+        await db.query(`DELETE FROM app.notification_tb WHERE user_id = $1`, [userId]);
+        await db.query(`DELETE FROM app.user_device_tb WHERE user_id = $1`, [userId]);
+        await db.query(`DELETE FROM app.session_tb WHERE user_id = $1`, [userId]);
+        await db.query(`DELETE FROM app.push_subscription_tb WHERE user_id = $1`, [userId]);
+        await db.query(`DELETE FROM app.inspection_photo_tb WHERE user_id = $1`, [userId]);
+        await db.query(`DELETE FROM app.zone_officer_tb WHERE user_id = $1`, [userId]);
+        await db.query(`UPDATE app.user_role_tb SET status = 'disabled' WHERE user_id = $1`, [userId]);
+        await db.query(
+          `UPDATE app.agency_member_tb SET status = 'disabled', is_head = false, "position" = NULL, staff_no = NULL WHERE user_id = $1`,
+          [userId],
+        );
+        return true;
+      });
+      if (ok) done++;
+    }
+    if (done) this.logger.log(`anonymized ${done} deleted account(s)`);
+    return done;
   }
 
   private async adminIds(): Promise<string[]> {

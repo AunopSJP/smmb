@@ -7,6 +7,7 @@ import { PrefsSync } from './core/prefs-sync';
 import { PageTitle } from './core/page-title';
 import { Session } from './core/session';
 import { startFieldA11y } from './core/field-a11y';
+import { installArrowNav } from './core/arrow-nav';
 
 @Component({
   imports: [RouterOutlet],
@@ -62,10 +63,12 @@ export class App {
     };
     // โหลดหน้า "ไม่มีอินเทอร์เน็ต" (พร้อมปุ่มโทร 191/1669) ล่วงหน้า — เน็ตหลุดแล้วโหลดชิ้นนี้ไม่ได้ จะเด้งไปหน้า error ของเบราว์เซอร์
     void import('./pages/error-screen').catch(() => undefined);
+    const removeArrowNav = win?.document ? installArrowNav(win.document) : undefined;
     win?.addEventListener('offline', onOffline);
     win?.addEventListener('online', onOnline);
     win?.addEventListener('smmb:session-expired', onExpired);
     inject(DestroyRef).onDestroy(() => {
+      removeArrowNav?.();
       win?.removeEventListener('offline', onOffline);
       win?.removeEventListener('online', onOnline);
       win?.removeEventListener('smmb:session-expired', onExpired);

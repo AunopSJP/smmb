@@ -10,5 +10,6 @@ export function normalizePhone(input: unknown): string | null {
     .replace(/[\s\-.()​-‍﻿]/g, ''); // ช่องว่าง ขีด จุด วงเล็บ + zero-width
   if (digits.startsWith('+66')) digits = '0' + digits.slice(3);
   else if (/^66\d{9}$/.test(digits)) digits = '0' + digits.slice(2);
-  return /^0\d{9}$/.test(digits) ? digits : null;
+  // 00 = รหัสโทรระหว่างประเทศ ไม่ใช่เบอร์มือถือ · และเป็นรูปแบบเบอร์แทนที่ตอน anonymize บัญชีที่ลบ (migration 0039)
+  return /^0[1-9]\d{8}$/.test(digits) ? digits : null;
 }

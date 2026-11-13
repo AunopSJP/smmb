@@ -34,6 +34,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
   box_service_closed: { icon: 'alert', tone: 'warn' },
   box_service_opened: { icon: 'check', tone: 'ok' },
   box_unbound: { icon: 'info', tone: 'warn' },
+  box_released: { icon: 'info', tone: 'warn' },
   low_battery: { icon: 'alert', tone: 'warn' },
   qr_fake: { icon: 'scan', tone: 'danger' },
   member_pending: { icon: 'user', tone: '' },

@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { apiError } from '../../core/api';
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { I18n, type Tr } from '../../core/i18n';
 import { Session } from '../../core/session';
@@ -13,7 +13,8 @@ import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { PasswordField, TermsCheck } from './auth-parts';
-import { emptyHouseProfile, HouseFields, houseProfilePayload, houseProfileValid } from '../../shared/house-fields';
+import { addressStepValid, detailsStepValid, emptyHouseProfile, houseProfilePayload, houseProfileValid } from '../../shared/house-fields';
+import { SignupAddressStep, SignupDetailsStep, SignupHouseReview } from '../../shared/signup-owner-steps';
 
 // บัญชีที่มีอยู่แล้ว: A14 เปลี่ยนรหัสผ่าน · A15 เพิ่มบทบาทเจ้าของบ้าน · A16 ขอเข้าหน่วยงาน · ส่วน "บัญชี" + สลับบทบาท
 // ไม่มีใน wireframe — เพิ่มตาม api.md §2; actions ใช้ API จริง ส่วน state ของร่างฟอร์มเก็บในเครื่อง
@@ -263,38 +264,70 @@ export class AuthChangePassword {
   }
 }
 
-// ── A15 · เพิ่มบทบาทเจ้าของบ้าน ───────────────────────────────
+// ── A15 · เพิ่มบทบาทเจ้าของบ้าน (3 ขั้น: ที่อยู่ → รายละเอียดบ้าน → ตรวจและยืนยัน · ใช้ขั้นเดียวกับ A06) ──────────
 
 @Component({
   selector: 'app-auth-add-owner',
-  imports: [PageHeader, TermsCheck, HouseFields],
+  imports: [PageHeader, TermsCheck, SignupAddressStep, SignupDetailsStep, SignupHouseReview],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'บัญชีเดิม · ', en: 'Your account · ' }) + phone()" [title]="i18n.t({ th: 'เพิ่มบทบาทเจ้าของบ้าน', en: 'Add homeowner role' })" [back]="backUrl()" />
-    <form class="stack grow" (submit)="$event.preventDefault(); submit()">
-      <p class="info-box muted small easy-hide">{{ i18n.t({ th: 'ใช้บัญชีนี้ต่อ ไม่ต้องสมัครใหม่ · ได้แพ็กฟรีอัตโนมัติ · ขั้นต่อไปสแกน QR เปิดใช้ตู้', en: 'Keep this account, no new sign-up · free plan included · next you scan the activation QR' }) }}</p>
-      <p class="small easy-only">{{ i18n.t({ th: 'ใช้บัญชีเดิม · ได้แพ็กฟรี · ขั้นต่อไปสแกน QR เปิดใช้ตู้', en: 'Same account · free plan · next scan the activation QR' }) }}</p>
-      <label class="field" [class.invalid]="tried() && !f().house_no.trim()">
-        <span>{{ i18n.t({ th: 'บ้านเลขที่', en: 'House number' }) }}</span>
-        <input autocomplete="address-line1" [value]="f().house_no" (input)="set('house_no', $any($event.target).value)" />
-      </label>
-      <label class="field easy-hide">
-        <span>{{ i18n.t({ th: 'หมู่บ้าน / ย่าน (ไม่บังคับ)', en: 'Village / area (optional)' }) }}</span>
-        <input maxlength="100" autocomplete="address-level3" [placeholder]="i18n.t({ th: 'เช่น หมู่บ้านสุขใจ', en: 'e.g. Sukjai Village' })" [value]="f().area" (input)="set('area', $any($event.target).value)" />
-        <small>{{ i18n.t({ th: 'ช่วยให้เจ้าหน้าที่แยกบ้านเลขที่ซ้ำกันคนละหมู่บ้าน', en: 'Helps officers tell apart the same house number in different villages' }) }}</small>
-      </label>
-      <app-house-fields [(value)]="house" [tried]="tried()" />
-      
-      <app-terms-check from="A15" [returnTo]="from()" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="termsTried() && !f().terms" />
+    <app-page-header [caption]="i18n.t({ th: 'ขั้น ' + step() + ' จาก 3 · ', en: 'Step ' + step() + ' of 3 · ' }) + i18n.t(stepNames[step() - 1])" [title]="i18n.t({ th: 'เพิ่มบทบาทเจ้าของบ้าน', en: 'Add homeowner role' })" [back]="step() === 1 ? backUrl() : undefined" />
+    <span class="progress" role="progressbar" aria-valuemin="1" aria-valuemax="3" [attr.aria-label]="i18n.t({ th: 'ขั้นตอนการเพิ่มบทบาท', en: 'Add-role progress' })" [attr.aria-valuetext]="i18n.t({ th: 'ขั้นที่ ', en: 'Step ' }) + step() + i18n.t({ th: ' จาก 3', en: ' of 3' })" [attr.aria-valuenow]="step()"><span [style.width.%]="(step() / 3) * 100"></span></span>
+    <form class="stack grow" (submit)="$event.preventDefault(); step() < 3 ? next() : submit()">
+      @if (stepError(); as e) {
+        <p class="card err" role="alert" id="addrole-error">{{ i18n.t(e) }}</p>
+      }
+      @if (step() === 1) {
+        <p class="info-box muted small easy-hide">{{ i18n.t({ th: 'ใช้บัญชีนี้ต่อ ไม่ต้องสมัครใหม่ · ได้แพ็กฟรีอัตโนมัติ · ขั้นต่อไปสแกน QR เปิดใช้ตู้', en: 'Keep using this account — no new sign-up · you get the Free plan · next you scan the activation QR' }) }}</p>
+        <p class="small easy-only">{{ i18n.t({ th: 'ใช้บัญชีเดิม · ได้แพ็กฟรี · ขั้นต่อไปสแกน QR เปิดใช้ตู้', en: 'Same account · Free plan · next you scan the activation QR' }) }}</p>
+        <app-signup-address-step [houseNo]="f().house_no" (houseNoChange)="set('house_no', $event)" [(house)]="house" [tried]="tried()" />
+      }
+      @if (step() === 2) {
+        <app-signup-details-step [(house)]="house" [area]="f().area" (areaChange)="set('area', $event)" [tried]="tried()" />
+      }
+      @if (step() === 3) {
+        <section class="form-section review">
+          <h2 class="form-title">{{ i18n.t({ th: 'ตรวจข้อมูลก่อนเพิ่มบทบาท', en: 'Review before adding the role' }) }}</h2>
+          <app-signup-house-review [houseNo]="f().house_no" [house]="house()">
+            <dt>{{ i18n.t({ th: 'บัญชี', en: 'Account' }) }}</dt><dd>{{ phone() }}</dd>
+          </app-signup-house-review>
+          <div class="two">
+            <button type="button" class="btn secondary" (click)="step.set(1)">{{ i18n.t({ th: 'แก้ที่อยู่', en: 'Edit address' }) }}</button>
+            <button type="button" class="btn secondary" (click)="step.set(2)">{{ i18n.t({ th: 'แก้รายละเอียดบ้าน', en: 'Edit house details' }) }}</button>
+          </div>
+        </section>
+        <app-terms-check from="A15" [returnTo]="from()" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="termsTried() && !f().terms" />
+      }
       @if (errorCode(); as e) {
         <p class="danger-text small" role="alert">{{ i18n.t(errors[e]) }}</p>
       }
-      <button type="submit" class="btn push-end" [disabled]="busy()">{{ i18n.t({ th: 'เพิ่มบทบาทแล้วไปผูกตู้', en: 'Add role and bind my mailbox' }) }}</button>
+      @if (step() < 3) {
+        <button type="button" class="btn push-end" (click)="next()">{{ i18n.t({ th: 'ถัดไป', en: 'Next' }) }}</button>
+      } @else {
+        <button type="submit" class="btn push-end" [disabled]="busy()">{{ i18n.t({ th: 'เพิ่มบทบาทแล้วไปผูกตู้', en: 'Add role and bind my mailbox' }) }}</button>
+      }
+      @if (step() > 1) {
+        <button type="button" class="btn secondary" (click)="step.set(step() - 1)">{{ i18n.t({ th: 'ย้อนกลับ', en: 'Back' }) }}</button>
+      }
     </form>
   `,
   styles: `
     .grow {
       flex: 1;
+    }
+    .progress {
+      display: block;
+      block-size: 6px;
+      border-radius: 3px;
+      background: var(--line);
+      overflow: hidden;
+      margin-block: 4px;
+      span {
+        display: block;
+        block-size: 100%;
+        background: var(--brand);
+        transition: width 0.2s;
+      }
     }
   `,
 })
@@ -312,17 +345,51 @@ export class AuthAddOwner {
   protected readonly f = this.demo.forms.addOwner;
   protected readonly errorCode = signal<string | null>(null);
   protected readonly busy = signal(false);
-  protected readonly house = signal(emptyHouseProfile());
+  /** ขั้นและร่างข้อมูลบ้านเก็บไว้ใน AuthDemo — กลับจากหน้าข้อตกลงแล้วไม่หาย */
+  protected readonly step = this.demo.addOwnerStep;
+  protected readonly house = signal(this.demo.addOwnerHouseForm() ?? emptyHouseProfile());
+  protected readonly stepNames: Tr[] = [
+    { th: 'ที่อยู่บ้าน', en: 'Address' },
+    { th: 'รายละเอียดบ้าน', en: 'House details' },
+    { th: 'ตรวจและยืนยัน', en: 'Review' },
+  ];
   protected readonly tried = signal(false);
   /** กดบันทึกทั้งที่ยังไม่ติ๊กยอมรับ — ค่อยเตือน (ไม่ขึ้นแดงตั้งแต่พิมพ์บ้านเลขที่) */
   protected readonly termsTried = signal(false);
+  /** สรุปว่าขั้นนี้ยังขาดอะไร — แสดงเป็นข้อความ ไม่ใช่แค่ขอบแดง */
+  protected readonly stepError = computed<Tr | null>(() => {
+    if (!this.tried()) return null;
+    const f = this.f();
+    if (this.step() === 1) {
+      if (!f.house_no.trim()) return { th: 'กรอกบ้านเลขที่', en: 'Enter the house number' };
+      if (!addressStepValid(f.house_no, this.house())) return { th: 'กรอกที่อยู่ แขวง/ตำบล เขต/อำเภอ จังหวัด และรหัสไปรษณีย์ 5 หลักให้ครบ', en: 'Fill in the address, subdistrict, district, province and a 5-digit postal code' };
+    }
+    if (this.step() === 2 && !detailsStepValid(this.house())) {
+      return { th: 'เลือกประเภทบ้านและใส่จำนวนผู้อยู่อาศัย · ผู้ติดต่อฉุกเฉินต้องกรอกทั้งชื่อและเบอร์ (หรือเว้นว่างทั้งคู่) · อีเมลต้องถูกรูปแบบ', en: 'Pick the house type and the number of residents · an emergency contact needs both name and phone (or neither) · check the email format' };
+    }
+    return null;
+  });
+
+  constructor() {
+    effect(() => this.demo.addOwnerHouseForm.set(this.house()));
+  }
 
   protected set<K extends keyof SignupForm>(key: K, value: SignupForm[K]): void {
     this.f.update((f) => ({ ...f, [key]: value }));
     this.errorCode.set(null);
   }
 
-  /** ของจริง: POST /me/roles/owner { house_no, terms_version } → 201 Me (มี owner แล้ว) → A07 */
+  protected next(): void {
+    this.tried.set(true);
+    if (this.stepError()) {
+      setTimeout(() => document.getElementById('addrole-error')?.scrollIntoView({ block: 'center' }), 0);
+      return;
+    }
+    this.tried.set(false);
+    this.step.update((n) => n + 1);
+  }
+
+  /** ของจริง: POST /me/roles/owner { house_no, terms_version, ...ข้อมูลบ้าน } → 201 Me (มี owner แล้ว) → A07 */
   protected async submit(): Promise<void> {
     this.tried.set(true);
     this.termsTried.set(true);
@@ -337,6 +404,9 @@ export class AuthAddOwner {
       await firstValueFrom(this.http.post('/api/v1/me/roles/owner', { house_no: this.f().house_no.trim(), area: this.f().area.trim() || undefined, ...houseProfilePayload(this.house()), terms_version: terms.version }));
       await this.realSession.refresh();
       this.realSession.use('owner');
+      this.house.set(emptyHouseProfile());
+      this.demo.addOwnerHouseForm.set(null);
+      this.step.set(1);
       void this.router.navigate([screenUrl('A07')], { queryParams: { from: this.from() ?? 'O13' }, replaceUrl: true });
     } catch (err) {
       this.errorCode.set(addRoleErrorKey(apiError(err)));

@@ -27,6 +27,7 @@ import { AdminUsersService } from './admin-users.service.js';
 import { ADMIN_LOG_TYPES, AdminLogsService, type AdminLogType } from './admin-logs.service.js';
 import { TechnicianRequestService, type TechnicianRequestStatus } from '../box/technician-request.service.js';
 import { AdminOverviewService } from './admin-overview.service.js';
+import { MyDataService } from '../auth/my-data.service.js';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
@@ -53,7 +54,7 @@ class HeadInfo {
   @Transform(trim) @IsString() @Length(1, 100) name!: string;
   @Transform(({ value }) => normalizePhone(value) ?? value)
   @IsString()
-  @Matches(/^0\d{9}$/, { message: 'phone must be a Thai mobile number like 0812345678' })
+  @Matches(/^0[1-9]\d{8}$/, { message: 'phone must be a Thai mobile number like 0812345678' })
   phone!: string;
 }
 class CreateAgencyDto {
@@ -71,6 +72,8 @@ class ListUsersQuery {
   @IsOptional() @IsIn(['admin', 'owner', 'officer', 'head']) role?: Role | 'head';
   @IsOptional() @IsIn(['active', 'disabled']) status?: 'active' | 'disabled';
   @IsOptional() @IsString() @MaxLength(100) q?: string;
+  /** `pending` = บัญชีที่ผู้ใช้ขอลบและยังอยู่ในช่วงพัก 7 วัน (กู้ได้) */
+  @IsOptional() @IsIn(['pending']) deleted?: 'pending';
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page: number = 1;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) per_page: number = 20;
 }
@@ -115,6 +118,7 @@ export class AdminController {
     private readonly logs: AdminLogsService,
     private readonly technicianRequests: TechnicianRequestService,
     private readonly overview: AdminOverviewService,
+    private readonly myData: MyDataService,
   ) {}
 
   // ── §9.2 หน่วยงาน ──────────────────────────────────────────────────────
@@ -178,7 +182,7 @@ export class AdminController {
 
   @Get('users')
   listUsers(@Query() q: ListUsersQuery) {
-    return this.users.list({ role: q.role, status: q.status, q: q.q, page: q.page, perPage: q.per_page });
+    return this.users.list({ role: q.role, status: q.status, q: q.q, deleted: q.deleted, page: q.page, perPage: q.per_page });
   }
 
   @Get('users/:id')
@@ -210,5 +214,13 @@ export class AdminController {
   @Post('users/:id/reset-password')
   resetPassword(@Auth() auth: AuthContext, @Param() p: UserIdParam) {
     return this.users.resetPassword(auth.userId, p.id);
+  }
+
+  /** กู้บัญชีที่ผู้ใช้ขอลบ (ภายในช่วงพัก 7 วัน · ยังไม่ anonymize) — api.md §3.2 */
+  @RateLimit({ limit: 10, windowSec: 60 })
+  @HttpCode(HttpStatus.OK)
+  @Post('users/:id/restore')
+  restoreUser(@Auth() auth: AuthContext, @Param() p: UserIdParam) {
+    return this.myData.restore(auth.userId, p.id);
   }
 }

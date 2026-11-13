@@ -16,7 +16,7 @@ describe('normalizePhone', () => {
     expect(normalizePhone(input)).toBe(expected);
   });
 
-  it.each(['', '081234567', '08123456789', '1812345678', 'abc', '+1 812 345 678'])('rejects %s', (input) => {
+  it.each(['', '0012345678', '0000000001', '081234567', '08123456789', '1812345678', 'abc', '+1 812 345 678'])('rejects %s', (input) => {
     expect(normalizePhone(input)).toBeNull();
   });
 

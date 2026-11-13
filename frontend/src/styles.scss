@@ -1203,6 +1203,59 @@ fieldset {
   }
 }
 
+// ── กลุ่มช่องที่ไม่บังคับ พับไว้ ("เพิ่มภายหลังก็ได้") ───────────────────────
+/* กลุ่มที่พับได้ ("เพิ่มภายหลังก็ได้") */
+details.opt {
+  // หน้าตาการ์ดมาจาก .form-section (ใส่ class นั้นคู่กับ opt) — ที่นี่กำหนดแค่ส่วนพับ/ขยาย
+  &.invalid {
+    box-shadow: 0 0 0 2px var(--sos);
+  }
+  &[open] > summary {
+    margin-block-end: 12px;
+  }
+  > summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    min-block-size: 24px;
+    cursor: pointer;
+    list-style: none;
+    span:first-child {
+      flex: 1;
+      min-inline-size: 0;
+    }
+    &::-webkit-details-marker {
+      display: none;
+    }
+    &::after {
+      content: '+';
+      margin-inline-start: auto;
+      font-size: 1.25rem;
+      line-height: 1;
+      color: var(--brand-text);
+    }
+  }
+  &[open] > summary::after {
+    content: '−';
+  }
+  .done {
+    color: var(--ok);
+    font-weight: 700;
+  }
+}
+.opt-body {
+  display: grid;
+  gap: 12px;
+  padding-block: 4px 14px;
+}
+.opt-tag {
+  margin-inline-start: 8px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
 // ── ตัวเลือกแบบเม็ดยา (ติ๊กได้หลายข้อ) ───────────────────────────
 .chip-toggle {
   display: inline-flex;
@@ -1277,6 +1330,10 @@ fieldset {
   }
   &.invalid > span:first-child {
     color: var(--sos);
+  }
+  /* ไม่พึ่งสีอย่างเดียว (WCAG 1.4.1) — ขอบหนา 2px + เครื่องหมายหน้าป้ายชื่อ · ผู้ใช้โปรแกรมอ่านจอได้ aria-invalid จาก field-a11y */
+  &.invalid > span:first-child::before {
+    content: '⚠ ';
   }
 }
 /* กล่องสรุปข้อผิดพลาดของฟอร์ม (เช่น "กรอกบ้านเลขที่") */

@@ -7,9 +7,17 @@ import { DisplaySettings } from '../core/display-settings';
 import { I18n, type Tr } from '../core/i18n';
 import { isBrave, PushBlockedError, PushNotifications, type DiagStep, type PushBlocker, type PushServerStatus } from '../core/push-notifications';
 import { Session } from '../core/session';
+import { isSnoozed, PUSH_NUDGE_KEY, PUSH_NUDGE_SNOOZE_HOURS, snoozeUntil } from '../core/snooze';
 import { Toast } from '../core/toast';
 import { screenUrl } from '../screens/registry';
 
+const readStored = (): string | null => {
+  try {
+    return localStorage.getItem(PUSH_NUDGE_KEY);
+  } catch {
+    return null;
+  }
+};
 const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
 
 /**
@@ -36,9 +44,14 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
         </div>
         <button type="button" class="btn secondary easy-only" [disabled]="busy()" (click)="test()">{{ i18n.t({ th: 'ส่งข้อความทดสอบ', en: 'Send a test' }) }}</button>
       </div>
-    } @else {
+    } @else if (!snoozed()) {
       <div class="card status warn">
-        <strong>{{ i18n.t({ th: '🔕 เครื่องนี้ยังไม่ได้รับแจ้งเตือน', en: '🔕 This device is not getting notifications' }) }}</strong>
+        <div class="warn-head">
+          <strong class="grow">{{ i18n.t({ th: '🔕 เครื่องนี้ยังไม่ได้รับแจ้งเตือน', en: '🔕 This device is not getting notifications' }) }}</strong>
+          @if (dismissible() && !required()) {
+            <button type="button" class="x" (click)="snooze()" [attr.aria-label]="i18n.t({ th: 'ปิดไว้ก่อน จะเตือนอีกครั้งใน ', en: 'Dismiss for now — reminds again in ' }) + hours + i18n.t({ th: ' ชั่วโมง', en: ' hours' })">✕</button>
+          }
+        </div>
         @if (required()) {
           <small>{{ i18n.t({ th: 'เจ้าหน้าที่ต้องเปิดไว้ จึงจะใช้งานและรับ SOS ได้', en: 'Officers must keep this on — otherwise the app is locked and you will miss SOS alerts' }) }}</small>
         } @else if (deviceLabel() === 'admin') {
@@ -64,7 +77,6 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
           @default {
             <button type="button" class="btn" [disabled]="busy()" (click)="turnOn()">{{ i18n.t({ th: 'เปิดแจ้งเตือน', en: 'Turn on notifications' }) }}</button>
             <small class="easy-hide">{{ i18n.t({ th: 'เบราว์เซอร์จะถามสิทธิ์ ให้กด "อนุญาต"', en: 'Your browser will ask — tap “Allow”' }) }}</small>
-            <button type="button" class="btn secondary easy-hide" [disabled]="busy() || diagBusy()" (click)="diagnose()">{{ i18n.t({ th: 'ตรวจแจ้งเตือน (ละเอียด)', en: 'Check notifications (detailed)' }) }}</button>
           }
         }
       </div>
@@ -117,6 +129,22 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
         box-shadow: none;
       }
     }
+    .warn-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .x {
+      flex: none;
+      min-inline-size: 44px;
+      min-block-size: 44px;
+      margin: -10px -10px 0 0;
+      border: 0;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 1.125rem;
+      cursor: pointer;
+    }
     .row-btns {
       display: flex;
       gap: 8px;
@@ -133,6 +161,11 @@ export class PushStatus implements OnInit {
   readonly deviceLabel = input<string>();
   /** เปิดอยู่แล้ว → ไม่แสดงอะไร (ใช้หน้าตั้งค่า ที่มีเมนู "การแจ้งเตือน" แยกอยู่แล้ว) */
   readonly compact = input(false);
+  /** การ์ดเตือน "ยังไม่ได้รับแจ้งเตือน" กดปิดไว้ก่อนได้ (กลับมาเตือนใหม่หลัง PUSH_NUDGE_SNOOZE_HOURS ชม.) — เจ้าหน้าที่/หัวหน้า (required) ปิดไม่ได้ */
+  readonly dismissible = input(false);
+  protected readonly hours = PUSH_NUDGE_SNOOZE_HOURS;
+  private readonly snoozedUntilStored = signal(readStored());
+  protected readonly snoozed = computed(() => this.dismissible() && !this.required() && isSnoozed(this.snoozedUntilStored()));
   private readonly push = inject(PushNotifications);
   private readonly session = inject(Session);
   private readonly toast = inject(Toast);
@@ -207,6 +240,16 @@ export class PushStatus implements OnInit {
           : { th: 'เปิดแจ้งเตือนแล้ว แต่ส่งทดสอบไม่สำเร็จ — กด "ส่งทดสอบ" ในหน้าการแจ้งเตือน', en: 'Notifications are on, but the test failed — tap “Send a test” on the notifications page' },
       );
     });
+  }
+
+  protected snooze(): void {
+    const until = String(snoozeUntil());
+    try {
+      localStorage.setItem(PUSH_NUDGE_KEY, until);
+    } catch {
+      // เก็บไม่ได้ (โหมดส่วนตัว) — ปิดได้เฉพาะรอบนี้
+    }
+    this.snoozedUntilStored.set(until);
   }
 
   protected async diagnose(): Promise<void> {

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Inject, Patch, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Inject, Param, Patch, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import pg from 'pg';
 import { PG_POOL } from '../db/db.module.js';
@@ -9,6 +9,7 @@ import {
   AcceptTermsDto,
   AddOwnerRoleDto,
   ChangePasswordDto,
+  DeleteAccountDto,
   JoinAgencyDto,
   SigninDto,
   SignupAgencyDto,
@@ -18,6 +19,7 @@ import {
 } from './auth.dto.js';
 import { AuthService, type ClientMeta } from './auth.service.js';
 import { MeService, type Me, type PlanInfo } from './me.service.js';
+import { MyDataService, type DeletePreview, type MySession } from './my-data.service.js';
 import { SessionService, type AuthContext } from './session.service.js';
 import { TermsService, type CurrentTerms } from './terms.service.js';
 
@@ -114,6 +116,8 @@ export class MeController {
     private readonly auth: AuthService,
     private readonly me: MeService,
     private readonly terms: TermsService,
+    private readonly myData: MyDataService,
+    private readonly sessions: SessionService,
     @Inject(PG_POOL) private readonly pool: pg.Pool,
   ) {}
 
@@ -127,6 +131,60 @@ export class MeController {
   @Get('devices')
   devices(@Auth() auth: AuthContext, @Headers('x-device-id') deviceId?: string) {
     return this.me.devices(auth.userId, deviceId);
+  }
+
+  // ── ข้อมูลของฉัน (api.md §3.2) ──────────────────────────────────────────
+
+  /** เครื่องที่ล็อกอินอยู่ (session ที่ยังใช้ได้) */
+  @AllowDuringSetup()
+  @Get('sessions')
+  mySessions(@Auth() auth: AuthContext): Promise<{ items: MySession[] }> {
+    return this.myData.listSessions(auth.userId, auth.sessionId);
+  }
+
+  /** เตะทุกเครื่องยกเว้นเครื่องนี้ (ต้องมาก่อน `sessions/:id` ไม่งั้น `revoke-others` ถูกอ่านเป็น :id) */
+  @AllowDuringSetup()
+  @RateLimit({ limit: 10, windowSec: 60 })
+  @HttpCode(HttpStatus.OK)
+  @Post('sessions/revoke-others')
+  revokeOtherSessions(@Auth() auth: AuthContext): Promise<{ revoked: number }> {
+    return this.myData.revokeOthers(auth.userId, auth.sessionId);
+  }
+
+  @AllowDuringSetup()
+  @RateLimit({ limit: 30, windowSec: 60 })
+  @Delete('sessions/:id')
+  revokeSession(@Auth() auth: AuthContext, @Param('id') id: string): Promise<{ ok: true }> {
+    return this.myData.revokeSession(auth.userId, auth.sessionId, id);
+  }
+
+  /** ส่งออกข้อมูลของตัวเองเป็นไฟล์ JSON (จำกัด 3 ครั้ง/วัน/ผู้ใช้ ที่ service) */
+  @AllowDuringSetup()
+  @RateLimit({ limit: 10, windowSec: 60 })
+  @HttpCode(HttpStatus.OK)
+  @Post('export')
+  async exportMine(@Auth() auth: AuthContext, @Res({ passthrough: true }) res: Response): Promise<Record<string, unknown>> {
+    const data = await this.myData.exportData(auth.userId);
+    const day = new Date().toISOString().slice(0, 10).replaceAll('-', '');
+    res.setHeader('Content-Disposition', `attachment; filename="smmb-my-data-${day}.json"`);
+    res.setHeader('Cache-Control', 'no-store');
+    return data;
+  }
+
+  @AllowDuringSetup()
+  @Get('delete-preview')
+  deletePreview(@Auth() auth: AuthContext): Promise<DeletePreview> {
+    return this.myData.deletePreview(auth.userId);
+  }
+
+  /** ลบบัญชี: ซ่อนตัวตน + พัก 7 วัน (แอดมินกู้ได้) · สำเร็จแล้วออกจากระบบทุกเครื่อง */
+  @RateLimit({ limit: 5, windowSec: 3600 })
+  @HttpCode(HttpStatus.OK)
+  @Delete()
+  async deleteMe(@Auth() auth: AuthContext, @Body() dto: DeleteAccountDto, @Res({ passthrough: true }) res: Response) {
+    const out = await this.myData.deleteAccount(auth.userId, dto.password);
+    this.sessions.clearCookie(res);
+    return out;
   }
 
   /** แพ็กเกจปัจจุบันของบัญชีเจ้าของบ้าน (หน้าตั้งค่าตู้ H13) */

@@ -5,6 +5,7 @@ import { Auth, RequireRole } from '../auth/auth.decorators.js';
 import type { AuthContext } from '../auth/session.service.js';
 import { IsCalendarDate } from '../common/validators.js';
 import { RateLimit } from '../rate-limit/rate-limit.guard.js';
+import { AdminBoxService } from './admin-box.service.js';
 import { OwnerBoxService } from './owner-box.service.js';
 import { QrIssueService } from './qr-issue.service.js';
 import { TechnicianRequestService, type TechnicianRequestReason } from './technician-request.service.js';
@@ -32,6 +33,11 @@ class EventsQuery {
 
 class TechnicianRequestIdParam extends BoxIdParam {
   @IsUUID() id!: string;
+}
+
+class ReleaseBoxDto {
+  /** สั่งตู้ลืม Wi-Fi ด้วย (ค่าเริ่มต้น true — ส่งมอบตู้ให้เจ้าของใหม่) · ตู้ต้องออนไลน์ถึงจะรับคำสั่ง หมดอายุ 24 ชม. */
+  @IsOptional() @IsBoolean() reset_wifi?: boolean;
 }
 
 class UpdateBoxDto {
@@ -66,6 +72,7 @@ export class OwnerBoxController {
     private readonly boxes: OwnerBoxService,
     private readonly technicianRequests: TechnicianRequestService,
     private readonly qrIssues: QrIssueService,
+    private readonly adminBoxes: AdminBoxService,
   ) {}
 
   @Post('activate')
@@ -98,6 +105,14 @@ export class OwnerBoxController {
     if (Object.values(body).every((v) => v === undefined)) throw new BadRequestException('send at least one field');
     if (body.clear_location && body.lat !== undefined) throw new BadRequestException('clear_location and lat/lng are exclusive');
     return this.boxes.update(auth.userId, p.box_id, body);
+  }
+
+  /** เจ้าของยกเลิกการผูกตู้เอง (api.md §4.x) — มี SOS ค้างอยู่ → 409 SOS_OPEN · ไม่ใช่ตู้ของตัวเอง → 404 */
+  @RateLimit({ limit: 5, windowSec: 60 })
+  @Post(':box_id/unbind')
+  @HttpCode(HttpStatus.OK)
+  release(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Body() body: ReleaseBoxDto) {
+    return this.adminBoxes.releaseByOwner(auth.userId, p.box_id, body.reset_wifi ?? true);
   }
 
   /** เจ้าของกด "เปลี่ยน Wi-Fi" → ตู้รับคำสั่งแล้วตัด Wi-Fi เก่า กลับโหมดปล่อย Wi-Fi (api.md §4.4) */

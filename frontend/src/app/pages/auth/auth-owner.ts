@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { apiError } from '../../core/api';
 import { I18n, type Tr } from '../../core/i18n';
+import { bindPhone } from '../../core/phone-input';
 import { AuthDemo, normalizePhone, PASSWORD_MIN, type SignupForm } from '../../core/mock/auth-demo';
 import { Session } from '../../core/session';
 import { QrScanner } from '../../shared/qr-scanner';
@@ -13,7 +14,8 @@ import { PageHeader } from '../../shared/page-header';
 import { Steps, type Step } from '../../shared/steps';
 import { ContactCard } from '../../shared/contact-card';
 import { PasswordField, TermsCheck } from './auth-parts';
-import { emptyHouseProfile, HouseFields, houseProfilePayload, houseProfileValid } from '../../shared/house-fields';
+import { addressStepValid, detailsStepValid, emptyHouseProfile, houseProfilePayload, houseProfileValid } from '../../shared/house-fields';
+import { SignupAddressStep, SignupDetailsStep, SignupHouseReview } from '../../shared/signup-owner-steps';
 import { TERMS_VERSION } from '../../core/terms';
 
 // เจ้าของบ้าน: A06 สมัคร → A07 สแกน QR เปิดใช้ตู้ → A08 ตั้งชื่อตู้ → A09 เสร็จ (api.md §2, §4.1) — ใช้ API จริง
@@ -38,12 +40,12 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
 
 @Component({
   selector: 'app-auth-signup-owner',
-  imports: [RouterLink, PageHeader, PasswordField, TermsCheck, HouseFields],
+  imports: [RouterLink, PageHeader, PasswordField, TermsCheck, SignupAddressStep, SignupDetailsStep, SignupHouseReview],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'ขั้น ' + step() + ' จาก 3', en: 'Step ' + step() + ' of 3' })" [title]="i18n.t({ th: 'สมัครเจ้าของบ้าน', en: 'Homeowner sign-up' })" [back]="step() === 1 ? url('A05') : undefined" />
-    <span class="progress" role="progressbar" aria-valuemin="1" aria-valuemax="3" [attr.aria-valuenow]="step()"><span [style.width.%]="(step() / 3) * 100"></span></span>
-    <form class="stack grow" (submit)="$event.preventDefault(); step() < 3 ? next() : submit()">
+    <app-page-header [caption]="i18n.t({ th: 'ขั้น ' + step() + ' จาก 4 · ', en: 'Step ' + step() + ' of 4 · ' }) + i18n.t(stepNames[step() - 1])" [title]="i18n.t({ th: 'สมัครเจ้าของบ้าน', en: 'Homeowner sign-up' })" [back]="step() === 1 ? url('A05') : undefined" />
+    <span class="progress" role="progressbar" aria-valuemin="1" aria-valuemax="4" [attr.aria-label]="i18n.t({ th: 'ขั้นตอนการสมัคร', en: 'Signup progress' })" [attr.aria-valuetext]="i18n.t({ th: 'ขั้นที่ ', en: 'Step ' }) + step() + i18n.t({ th: ' จาก 4', en: ' of 4' })" [attr.aria-valuenow]="step()"><span [style.width.%]="(step() / 4) * 100"></span></span>
+    <form class="stack grow" (submit)="$event.preventDefault(); step() < 4 ? next() : submit()">
       @if (stepError(); as e) {
         <p class="card err" role="alert" id="signup-error">{{ i18n.t(e) }}</p>
       }
@@ -56,7 +58,7 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
       </label>
       <label class="field" [class.invalid]="tried() && !phoneOk()">
         <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
-        <input type="tel" inputmode="tel" autocomplete="tel" [value]="f().phone" (input)="set('phone', $any($event.target).value)" />
+        <input type="tel" inputmode="numeric" autocomplete="tel" [value]="f().phone" (input)="set('phone', bindPhone($any($event.target)))" />
         <small class="easy-hide">{{ i18n.t({ th: 'ใช้เข้าสู่ระบบ · เจ้าหน้าที่เห็นเฉพาะตอนคุณกด SOS', en: 'Used to sign in · officers see it only during your SOS' }) }}</small>
       </label>
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
@@ -65,25 +67,24 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
       </section>
       }
       @if (step() === 2) {
-      <section class="form-section">
-        <h2 class="form-title">{{ i18n.t({ th: 'บ้านของคุณ', en: 'Your house' }) }}</h2>
-      <label class="field" [class.invalid]="tried() && !f().house_no.trim()">
-        <span>{{ i18n.t({ th: 'บ้านเลขที่', en: 'House number' }) }}</span>
-        <input autocomplete="address-line1" [value]="f().house_no" (input)="set('house_no', $any($event.target).value)" />
-      </label>
-      <label class="field easy-hide">
-        <span>{{ i18n.t({ th: 'หมู่บ้าน / ย่าน (ไม่บังคับ)', en: 'Village / area (optional)' }) }}</span>
-        <input maxlength="100" autocomplete="address-level3" [placeholder]="i18n.t({ th: 'เช่น หมู่บ้านสุขใจ', en: 'e.g. Sukjai Village' })" [value]="f().area" (input)="set('area', $any($event.target).value)" />
-        <small>{{ i18n.t({ th: 'ช่วยให้เจ้าหน้าที่แยกบ้านเลขที่ซ้ำกันคนละหมู่บ้าน', en: 'Helps officers tell apart the same house number in different villages' }) }}</small>
-      </label>
-      </section>
-      <app-house-fields [(value)]="house" [tried]="tried()" />
-      <p class="small easy-only">{{ i18n.t({ th: 'ปักหมุดบ้านช่วยให้เจ้าหน้าที่มาถึงเร็วขึ้นตอน SOS', en: 'Pinning your house helps officers reach you faster during SOS' }) }}</p>
-      
+      <app-signup-address-step [houseNo]="f().house_no" (houseNoChange)="set('house_no', $event)" [(house)]="house" [tried]="tried()" />
       }
       @if (step() === 3) {
+      <app-signup-details-step [(house)]="house" [area]="f().area" (areaChange)="set('area', $event)" [tried]="tried()" />
+      }
+      @if (step() === 4) {
+      <section class="form-section review">
+        <h2 class="form-title">{{ i18n.t({ th: 'ตรวจข้อมูลก่อนสมัคร', en: 'Review before you sign up' }) }}</h2>
+        <app-signup-house-review [houseNo]="f().house_no" [house]="house()">
+          <dt>{{ i18n.t({ th: 'ชื่อ', en: 'Name' }) }}</dt><dd>{{ f().name }}</dd>
+          <dt>{{ i18n.t({ th: 'เบอร์โทร', en: 'Phone' }) }}</dt><dd>{{ f().phone }}</dd>
+        </app-signup-house-review>
+        <div class="two">
+          <button type="button" class="btn secondary" (click)="step.set(1)">{{ i18n.t({ th: 'แก้ข้อมูลบัญชี', en: 'Edit account' }) }}</button>
+          <button type="button" class="btn secondary" (click)="step.set(2)">{{ i18n.t({ th: 'แก้ข้อมูลบ้าน', en: 'Edit house' }) }}</button>
+        </div>
+      </section>
       <app-terms-check from="A06" [checked]="f().terms" (checkedChange)="set('terms', $event)" [showError]="termsTried() && !f().terms" />
-      
       }
 
       @if (error(); as e) {
@@ -97,7 +98,7 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
           }
         </p>
       }
-      @if (step() < 3) {
+      @if (step() < 4) {
         <button type="button" class="btn push-end" (click)="next()">{{ i18n.t({ th: 'ถัดไป', en: 'Next' }) }}</button>
       } @else {
         <button type="submit" class="btn push-end" [disabled]="busy()">{{ i18n.t({ th: 'สมัครและไปผูกตู้', en: 'Sign up and add my mailbox' }) }}</button>
@@ -132,6 +133,7 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
   `,
 })
 export class AuthSignupOwner implements OnInit {
+  protected readonly bindPhone = bindPhone;
   protected readonly i18n = inject(I18n);
   private readonly demo = inject(AuthDemo);
   private readonly session = inject(Session);
@@ -149,6 +151,12 @@ export class AuthSignupOwner implements OnInit {
   protected readonly termsTried = signal(false);
   /** ขั้นของฟอร์ม 1 บัญชี · 2 บ้าน · 3 ข้อตกลง (ตามแคนวาสดีไซน์) — จำไว้ใน AuthDemo เพื่อกลับจากข้อตกลงแล้วไม่เริ่มใหม่ */
   protected readonly step = this.demo.ownerStep;
+  protected readonly stepNames: Tr[] = [
+    { th: 'บัญชี', en: 'Account' },
+    { th: 'ที่อยู่บ้าน', en: 'Address' },
+    { th: 'รายละเอียดบ้าน', en: 'House details' },
+    { th: 'ตรวจและยืนยัน', en: 'Review' },
+  ];
   /** ที่อยู่ + หมุด + ผู้ติดต่อฉุกเฉิน (✅ 2026-11-04) — เก็บร่างใน AuthDemo */
   protected readonly house = signal(this.demo.ownerHouseForm() ?? emptyHouseProfile());
   /** สรุปว่าขั้นนี้ยังขาดอะไร — แสดงเป็นข้อความ ไม่ใช่แค่ขอบแดง */
@@ -162,7 +170,10 @@ export class AuthSignupOwner implements OnInit {
     }
     if (this.step() === 2) {
       if (!f.house_no.trim()) return { th: 'กรอกบ้านเลขที่', en: 'Enter the house number' };
-      if (!houseProfileValid(this.house())) return { th: 'กรอกที่อยู่บ้าน ประเภทบ้าน รหัสไปรษณีย์ และจำนวนผู้อยู่อาศัยให้ครบ (ช่องที่มีขอบแดง)', en: 'Fill in the home address, house type, postal code and number of residents (red fields)' };
+      if (!addressStepValid(f.house_no, this.house())) return { th: 'กรอกที่อยู่ แขวง/ตำบล เขต/อำเภอ จังหวัด และรหัสไปรษณีย์ 5 หลักให้ครบ', en: 'Fill in the address, subdistrict, district, province and a 5-digit postal code' };
+    }
+    if (this.step() === 3) {
+      if (!detailsStepValid(this.house())) return { th: 'เลือกประเภทบ้านและใส่จำนวนผู้อยู่อาศัย · ผู้ติดต่อฉุกเฉินต้องกรอกทั้งชื่อและเบอร์ (หรือเว้นว่างทั้งคู่) · อีเมลต้องถูกรูปแบบ', en: 'Pick the house type and the number of residents · an emergency contact needs both name and phone (or neither) · check the email format' };
     }
     return null;
   });
@@ -181,7 +192,7 @@ export class AuthSignupOwner implements OnInit {
 
   ngOnInit(): void {
     // A06-b: กลับมาขั้น 3 (ข้อตกลง) ได้เฉพาะเมื่อมีร่างจริงอยู่แล้ว — ห้ามเติมข้อมูลตัวอย่างแทนผู้ใช้
-    if (this.state() === 'no-terms' && this.filled()) this.step.set(3);
+    if (this.state() === 'no-terms' && this.filled()) this.step.set(4);
   }
 
   protected set<K extends keyof SignupForm>(key: K, value: SignupForm[K]): void {

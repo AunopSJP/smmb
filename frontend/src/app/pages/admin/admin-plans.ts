@@ -252,6 +252,31 @@ export class UserPlan {
       <p class="muted small easy-only">{{ i18n.t({ th: 'ช่วงทดลองมีแค่แพ็กเกจฟรี · SOS และการตรวจตู้ใช้ได้ทุกแพ็ก · ไม่มีการชำระเงิน', en: 'The trial has only the free plan · SOS and inspections work on every plan · no payments' }) }}</p>
       <div class="plans easy-hide">
         @for (p of plans(); track p.code) {
+          @if (editingCode() === p.code) {
+            <form class="plan-card stack edit" (submit)="$event.preventDefault(); saveEdit(p.code)">
+              <strong>{{ i18n.t({ th: 'แก้ไขแพ็กเกจ', en: 'Edit plan' }) }} · <span class="mono">{{ p.code }}</span></strong>
+              <label class="field">
+                <span>{{ i18n.t({ th: 'ชื่อ (ไทย)', en: 'Name (Thai)' }) }}</span>
+                <input maxlength="80" [value]="nameTh()" (input)="nameTh.set($any($event.target).value)" />
+              </label>
+              <label class="field">
+                <span>{{ i18n.t({ th: 'ชื่อ (อังกฤษ)', en: 'Name (English)' }) }}</span>
+                <input maxlength="80" [value]="nameEn()" (input)="nameEn.set($any($event.target).value)" />
+              </label>
+              <label class="field">
+                <span>{{ i18n.t({ th: 'ข้อความราคา (แสดงผลเท่านั้น · เว้นว่างเพื่อล้าง)', en: 'Price note (display only · leave empty to clear)' }) }}</span>
+                <input maxlength="200" [value]="price()" (input)="price.set($any($event.target).value)" />
+              </label>
+              <p class="muted small">{{ i18n.t({ th: 'รหัสแพ็กแก้ไม่ได้ · การแก้ชื่อมีผลกับทุกคนที่ใช้แพ็กนี้ทันที', en: 'The code cannot change · renaming applies to everyone on this plan right away' }) }}</p>
+              @if (error(); as e) {
+                <p class="danger-text small" role="alert">{{ i18n.t(e) }}</p>
+              }
+              <div class="two">
+                <button type="button" class="btn secondary" [disabled]="busy() !== null" (click)="cancelEdit()">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
+                <button type="submit" class="btn" [disabled]="busy() !== null">{{ busy() === p.code ? i18n.t({ th: 'กำลังบันทึก…', en: 'Saving…' }) : i18n.t({ th: 'บันทึก', en: 'Save' }) }}</button>
+              </div>
+            </form>
+          } @else {
           <article class="plan-card" [class.default]="p.is_default">
             <header>
               <strong>{{ i18n.t(name(p)) }}</strong>
@@ -268,6 +293,7 @@ export class UserPlan {
             }
             <p class="owners"><b>{{ p.owners_count }}</b> {{ i18n.t({ th: 'เจ้าของบ้าน', en: 'owners' }) }}</p>
             <div class="actions">
+              <button type="button" class="mini" [disabled]="busy() !== null" (click)="startEdit(p)">{{ i18n.t({ th: 'แก้ไข', en: 'Edit' }) }}</button>
               @if (!p.is_default && p.is_active) {
                 <button type="button" class="mini" [disabled]="busy() !== null" (click)="setDefault(p.code)">{{ i18n.t({ th: 'ตั้งเป็นเริ่มต้น', en: 'Make default' }) }}</button>
               }
@@ -278,6 +304,7 @@ export class UserPlan {
               }
             </div>
           </article>
+          }
         }
       </div>
       <p class="muted small easy-hide">
@@ -438,6 +465,8 @@ export class AdminPlans implements OnInit {
   protected readonly loadFailed = signal(false);
   protected readonly busy = signal<string | null>(null);
   protected readonly adding = signal(false);
+  /** รหัสแพ็กที่กำลังแก้ไขอยู่ (null = ไม่ได้แก้) */
+  protected readonly editingCode = signal<string | null>(null);
   protected readonly code = signal('');
   protected readonly nameTh = signal('');
   protected readonly nameEn = signal('');
@@ -470,7 +499,44 @@ export class AdminPlans implements OnInit {
     return entries.length ? entries.map(([k, v]) => `${k}=${v}`).join(', ') : '—';
   }
 
+  protected startEdit(plan: AdminPlan): void {
+    this.adding.set(false);
+    this.nameTh.set(plan.name_th);
+    this.nameEn.set(plan.name_en);
+    this.price.set(plan.price_note ?? '');
+    this.error.set(null);
+    this.editingCode.set(plan.code);
+  }
+
+  protected cancelEdit(): void {
+    this.editingCode.set(null);
+    this.error.set(null);
+  }
+
+  protected async saveEdit(code: string): Promise<void> {
+    if (this.busy() !== null) return;
+    const nameTh = this.nameTh().trim();
+    const nameEn = this.nameEn().trim();
+    if (!nameTh || !nameEn) {
+      this.error.set(PLAN_ERROR.NAME_REQUIRED);
+      return;
+    }
+    this.busy.set(code);
+    this.error.set(null);
+    try {
+      await this.api.updatePlan(code, { name_th: nameTh, name_en: nameEn, price_note: this.price().trim() || null });
+      this.editingCode.set(null);
+      await this.load();
+      this.toast.show({ th: 'บันทึกรายละเอียดแพ็กเกจแล้ว', en: 'Plan details saved' });
+    } catch (err) {
+      this.error.set(apiError(err).code === 'PLAN_NAME_REQUIRED' ? PLAN_ERROR.NAME_REQUIRED : { th: 'บันทึกไม่สำเร็จ ลองอีกครั้ง', en: 'Could not save. Try again.' });
+    } finally {
+      this.busy.set(null);
+    }
+  }
+
   protected startAdd(): void {
+    this.editingCode.set(null);
     this.code.set('');
     this.nameTh.set('');
     this.nameEn.set('');

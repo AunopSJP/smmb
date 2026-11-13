@@ -9,6 +9,7 @@ import { AuthController, MeController, TermsController } from './auth.controller
 import { AuthGuard } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
 import { MeService } from './me.service.js';
+import { MyDataService } from './my-data.service.js';
 import { PasswordService } from './password.service.js';
 import { RolesGuard } from './roles.guard.js';
 import { SessionService } from './session.service.js';
@@ -29,10 +30,11 @@ import { TermsService } from './terms.service.js';
     AccessService,
     AuthService,
     MeService,
+    MyDataService,
     PasswordService,
     SessionService,
     TermsService,
   ],
-  exports: [AccessService, AccountService, MeService, PasswordService, SessionService, COUNTER_STORE],
+  exports: [AccessService, AccountService, MeService, MyDataService, PasswordService, SessionService, COUNTER_STORE],
 })
 export class AuthModule {}

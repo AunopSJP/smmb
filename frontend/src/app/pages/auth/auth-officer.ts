@@ -6,6 +6,7 @@ import { apiError } from '../../core/api';
 import { I18n } from '../../core/i18n';
 import { Session } from '../../core/session';
 import { PushBlockedError, PushNotifications } from '../../core/push-notifications';
+import { bindPhone } from '../../core/phone-input';
 import { AuthDemo, normalizePhone, PASSWORD_MIN, ROLE_HOME, type FormKey, type SignupForm } from '../../core/mock/auth-demo';
 import { DemoSession, type DemoRole } from '../../core/mock/demo-session';
 import { Toast } from '../../core/toast';
@@ -28,7 +29,7 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'ขั้น ' + step() + ' จาก 2', en: 'Step ' + step() + ' of 2' })" [title]="i18n.t({ th: 'สมัครเจ้าหน้าที่', en: 'Officer sign-up' })" [back]="step() === 1 ? url('A05') : undefined" />
-    <span class="progress" role="progressbar" aria-valuemin="1" aria-valuemax="2" [attr.aria-valuenow]="step()"><span [style.width.%]="(step() / 2) * 100"></span></span>
+    <span class="progress" role="progressbar" aria-valuemin="1" aria-valuemax="2" [attr.aria-label]="i18n.t({ th: 'ขั้นตอนการสมัคร', en: 'Signup progress' })" [attr.aria-valuetext]="i18n.t({ th: 'ขั้นที่ ', en: 'Step ' }) + step() + i18n.t({ th: ' จาก 2', en: ' of 2' })" [attr.aria-valuenow]="step()"><span [style.width.%]="(step() / 2) * 100"></span></span>
     <form class="stack grow" (submit)="$event.preventDefault(); step() < 2 ? next() : submit()">
       @if (step() === 1) {
       <label class="field" [class.invalid]="errorCode() === 'GROUP_CODE_INVALID'">
@@ -40,18 +41,20 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
         <span>{{ i18n.t({ th: 'ชื่อ - นามสกุล (ยศ)', en: 'Full name (with rank)' }) }}</span>
         <input autocomplete="name" [value]="f().name" (input)="set('name', $any($event.target).value)" />
       </label>
-      <div class="two-col">
-        <label class="field" [class.invalid]="tried() && !f().position.trim()">
-          <span>{{ i18n.t({ th: 'ตำแหน่ง / ยศ', en: 'Position / rank' }) }}</span>
-          <input maxlength="100" [placeholder]="i18n.t({ th: 'เช่น ผบ.หมู่ / หัวหน้าเวร', en: 'e.g. Sergeant / shift lead' })" [value]="f().position" (input)="set('position', $any($event.target).value)" />
-        </label>
-        <label class="field easy-hide">
-          <span>{{ i18n.t({ th: 'เลขประจำตัว (ไม่บังคับ)', en: 'Staff no. (optional)' }) }}</span>
-          <input maxlength="50" autocomplete="off" [value]="f().staff_no" (input)="set('staff_no', $any($event.target).value)" />
-        </label>
-      </div>
-      <div class="easy-hide"><app-profile-extras kind="officer" [(value)]="extras" [tried]="tried()" /></div>
-      <section class="form-section easy-hide" [class.invalid]="tried() && !emergencyOk()">
+      <label class="field" [class.invalid]="tried() && !f().position.trim()">
+        <span>{{ i18n.t({ th: 'ตำแหน่ง / ยศ', en: 'Position / rank' }) }}</span>
+        <input maxlength="100" [placeholder]="i18n.t({ th: 'เช่น ผบ.หมู่ / หัวหน้าเวร', en: 'e.g. Sergeant / shift lead' })" [value]="f().position" (input)="set('position', $any($event.target).value)" />
+      </label>
+      <details class="opt form-section easy-hide" [class.invalid]="tried() && !emergencyOk()" [open]="optOpen() || hasOpt() || (tried() && !emergencyOk())" (toggle)="optOpen.set($any($event.target).open)">
+        <summary class="form-title">
+          <span>{{ i18n.t({ th: 'เลขประจำตัว และผู้ติดต่อฉุกเฉิน', en: 'Staff number and emergency contact' }) }}</span>
+          <span class="opt-tag">{{ i18n.t({ th: 'ไม่บังคับ · เพิ่มทีหลังได้', en: 'optional · add later' }) }}</span>
+        </summary>
+        <div class="opt-body">
+          <label class="field">
+            <span>{{ i18n.t({ th: 'เลขประจำตัว (ไม่บังคับ)', en: 'Staff no. (optional)' }) }}</span>
+            <input maxlength="50" autocomplete="off" [value]="f().staff_no" (input)="set('staff_no', $any($event.target).value)" />
+          </label>
         <h2 class="form-title">{{ i18n.t({ th: 'ผู้ติดต่อฉุกเฉินของคุณ (ไม่บังคับ)', en: 'Your emergency contact (optional)' }) }}</h2>
         <div class="two-col">
           <label class="field">
@@ -64,14 +67,16 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
           </label>
         </div>
         <p class="form-hint">{{ i18n.t({ th: 'กรอกทั้งชื่อและเบอร์ หรือเว้นว่างทั้งคู่ · หัวหน้าหน่วยงานเห็นเพื่อใช้ตอนเกิดเหตุกับคุณ', en: 'Fill in both, or leave both empty · your agency head can see it for emergencies involving you' }) }}</p>
-      </section>
+        </div>
+      </details>
+      <div class="easy-hide"><app-profile-extras kind="officer" [(value)]="extras" [tried]="tried()" /></div>
       <p class="small easy-only">{{ i18n.t({ th: 'หัวหน้าต้องอนุมัติก่อน จึงจะเริ่มตรวจได้', en: 'Your head must approve before you can start inspections' }) }}</p>
       
       }
       @if (step() === 2) {
       <label class="field" [class.invalid]="tried() && !phoneOk()">
         <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
-        <input type="tel" inputmode="tel" autocomplete="tel" [value]="f().phone" (input)="set('phone', $any($event.target).value)" />
+        <input type="tel" inputmode="numeric" autocomplete="tel" [value]="f().phone" (input)="set('phone', bindPhone($any($event.target)))" />
       </label>
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
       <p class="small easy-only">{{ i18n.t({ th: 'หลังสมัครต้องเปิดแจ้งเตือนก่อนใช้งาน เพื่อรับ SOS', en: 'After signing up, notifications must be on before you can work, so you get SOS alerts' }) }}</p>
@@ -125,6 +130,9 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
   `,
 })
 export class AuthSignupOfficer {
+  protected readonly bindPhone = bindPhone;
+  protected readonly optOpen = signal(false);
+  protected readonly hasOpt = computed(() => !!(this.f().staff_no.trim() || this.emName().trim() || this.emPhone().trim()));
   protected readonly i18n = inject(I18n);
   private readonly demo = inject(AuthDemo);
   private readonly session = inject(Session);

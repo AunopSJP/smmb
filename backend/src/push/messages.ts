@@ -34,6 +34,7 @@ export const NOTIFICATION_TYPES = [
   'box_service_closed',
   'box_service_opened',
   'box_unbound',
+  'box_released',
   'zone_join_request',
   'zone_join_accepted',
   'zone_join_rejected',
@@ -168,6 +169,10 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
   box_unbound: {
     th: (d) => ({ title: 'ยกเลิกการผูกตู้แล้ว', body: `${box(d, 'th')} ถูกยกเลิกการผูกกับบัญชีของคุณ (เช่น ขายบ้าน/ย้ายออก) · ถ้าไม่ได้ขอ ติดต่อผู้ดูแล` }),
     en: (d) => ({ title: 'Mailbox unlinked', body: `${box(d, 'en')} was unlinked from your account (e.g. house sold / moved) · if you did not ask for this, contact the admin` }),
+  },
+  box_released: {
+    th: (d) => ({ title: 'เจ้าของยกเลิกการผูกตู้เอง', body: `${box(d, 'th')} ถูกยกเลิกการผูกโดยเจ้าของบ้าน${d.wifi_reset ? ' · สั่งตู้ลืม Wi-Fi แล้ว (ตู้ต้องออนไลน์ถึงจะรับ)' : ''} · ตู้พร้อมให้เจ้าของใหม่สแกน QR เปิดใช้ตู้` }),
+    en: (d) => ({ title: 'Owner released a mailbox', body: `${box(d, 'en')} was unlinked by its owner${d.wifi_reset ? ' · Wi-Fi reset requested (box must be online to take it)' : ''} · ready for a new owner to scan the activation QR` }),
   },
   box_service_opened: {
     th: (d) => ({ title: '✅ ตู้กลับมาให้บริการแล้ว', body: `${box(d, 'th')} เปิดบริการอีกครั้ง` }),

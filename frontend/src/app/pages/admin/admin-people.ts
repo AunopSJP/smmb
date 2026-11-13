@@ -297,6 +297,9 @@ export class AdminAgencies implements OnInit {
 
 // ── D09 · ผู้ใช้ ──────────────────────────────────────────
 
+/** ช่วงพักก่อนซ่อนตัวตนถาวร (วัน) — ตรงกับ DELETE_RECOVERY_DAYS ของ backend · ใช้แสดงวันสุดท้ายที่กู้ได้เท่านั้น */
+const DELETE_RECOVERY_DAYS = 7;
+
 const ROLE_LABEL: Record<string, Tr> = {
   admin: { th: 'แอดมิน', en: 'Admin' },
   owner: { th: 'เจ้าของบ้าน', en: 'Owner' },
@@ -321,8 +324,9 @@ const ROLE_LABEL: Record<string, Tr> = {
         </form>
         <div class="segmented chips easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'กรองตามบทบาท', en: 'Filter by role' })">
           @for (f of roleFilters; track f.v) {
-            <button type="button" [attr.aria-pressed]="roleFilter() === f.v" (click)="roleFilter.set(f.v)">{{ i18n.t(f.label) }} <span class="n">{{ roleCounts()[f.v] }}</span></button>
+            <button type="button" [attr.aria-pressed]="roleFilter() === f.v && !pendingDelete()" (click)="roleFilter.set(f.v); setPending(false)">{{ i18n.t(f.label) }} @if (!pendingDelete()) { <span class="n">{{ roleCounts()[f.v] }}</span> }</button>
           }
+          <button type="button" [attr.aria-pressed]="pendingDelete()" (click)="setPending(true)">{{ i18n.t({ th: 'รอลบ', en: 'Pending deletion' }) }} @if (pendingDelete()) { <span class="n">{{ total() }}</span> }</button>
         </div>
       </div>
 
@@ -358,6 +362,14 @@ const ROLE_LABEL: Record<string, Tr> = {
           @if (error(); as e) {
             <p class="danger-text small" role="alert">{{ i18n.t(e) }}</p>
           }
+          @if (u.deleted_at) {
+            <div class="info-box">
+              <strong>{{ i18n.t({ th: 'ผู้ใช้ขอลบบัญชีนี้', en: 'The user asked to delete this account' }) }}</strong>
+              <span class="small block">{{ i18n.t({ th: 'ขอเมื่อ ', en: 'Requested ' }) }}{{ dayText(u.deleted_at) }} · {{ i18n.t({ th: 'กู้ได้ถึง ', en: 'restorable until ' }) }}{{ restoreUntil(u.deleted_at) }}</span>
+              <span class="muted small block">{{ i18n.t({ th: 'หลังจากนั้นระบบจะซ่อนตัวตนถาวร (ชื่อ เบอร์ ข้อมูลส่วนตัว) และกู้ไม่ได้อีก · บันทึกการสแกนและการเข้าถึงข้อมูลยังคงอยู่', en: 'After that the identity is permanently scrubbed (name, phone, personal data) and cannot be restored · scan and access logs are kept' }) }}</span>
+            </div>
+            <button type="button" class="btn" [disabled]="busy()" (click)="restore(u)">{{ i18n.t({ th: 'กู้บัญชีนี้', en: 'Restore this account' }) }}</button>
+          } @else {
           <div class="two easy-hide">
             <button type="button" class="btn secondary" [disabled]="busy()" (click)="reset(u)">{{ i18n.t({ th: 'รีเซ็ตรหัส', en: 'Reset password' }) }}</button>
             @if (u.status === 'active') {
@@ -366,8 +378,9 @@ const ROLE_LABEL: Record<string, Tr> = {
               <button type="button" class="btn" [disabled]="busy()" (click)="setStatus(u, 'active')">{{ i18n.t({ th: 'เปิดบัญชี', en: 'Enable' }) }}</button>
             }
           </div>
+          }
         </section>
-        @if (badges(u).includes('owner')) {
+        @if (badges(u).includes('owner') && !u.deleted_at) {
           <app-user-plan [userId]="u.id" />
         }
       } @else {
@@ -387,7 +400,13 @@ const ROLE_LABEL: Record<string, Tr> = {
           <button type="button" class="row ucols" [class.on]="u.id === selectedId()" (click)="select(u.id)">
             <strong class="name">{{ u.name }}</strong>
             <span class="info small"><span class="muted">{{ u.phone }}</span> · {{ roles(u) }}</span>
-            <span class="st"><span class="chip" [class.ok]="u.status === 'active'" [class.danger]="u.status === 'disabled'">{{ u.status === 'active' ? i18n.t({ th: 'ใช้งาน', en: 'Active' }) : i18n.t({ th: 'ปิด', en: 'Off' }) }}</span></span>
+            <span class="st">
+              @if (u.deleted_at) {
+                <span class="chip warn">{{ i18n.t({ th: 'รอลบ', en: 'Pending deletion' }) }}</span>
+              } @else {
+                <span class="chip" [class.ok]="u.status === 'active'" [class.danger]="u.status === 'disabled'">{{ u.status === 'active' ? i18n.t({ th: 'ใช้งาน', en: 'Active' }) : i18n.t({ th: 'ปิด', en: 'Off' }) }}</span>
+              }
+            </span>
           </button>
         } @empty {
           @if (usersFailed()) {
@@ -592,13 +611,24 @@ export class AdminUsers implements OnInit {
   protected readonly temp = signal<string | null>(null);
   protected readonly error = signal<Tr | null>(null);
   protected readonly busy = signal(false);
+  /** แสดงเฉพาะบัญชีที่ผู้ใช้ขอลบและยังอยู่ในช่วงพัก (กู้ได้) */
+  protected readonly pendingDelete = signal(false);
 
   async ngOnInit(): Promise<void> {
     await this.search();
   }
 
+  protected setPending(on: boolean): void {
+    if (this.pendingDelete() === on) return;
+    this.pendingDelete.set(on);
+    this.selectedId.set(null);
+    this.temp.set(null);
+    this.error.set(null);
+    void this.search();
+  }
+
   protected async search(): Promise<void> {
-    const r = await this.api.users(this.q().trim(), undefined, 1).catch(() => null);
+    const r = await this.api.users(this.q().trim(), undefined, 1, this.pendingDelete() ? 'pending' : undefined).catch(() => null);
     if (r) {
       this.users.set(r.data);
       this.total.set(r.total);
@@ -614,7 +644,7 @@ export class AdminUsers implements OnInit {
     if (this.loadingMore() || this.users().length >= this.total()) return;
     this.loadingMore.set(true);
     try {
-      const r = await this.api.users(this.q().trim(), undefined, this.page + 1);
+      const r = await this.api.users(this.q().trim(), undefined, this.page + 1, this.pendingDelete() ? 'pending' : undefined);
       this.users.update((list) => [...list, ...r.data]);
       this.total.set(r.total);
       this.page += 1;
@@ -664,6 +694,46 @@ export class AdminUsers implements OnInit {
     } catch (err) {
       const e = apiError(err);
       this.error.set(e.code === 'CANNOT_CHANGE_SELF' ? { th: 'รีเซ็ตรหัสตัวเองไม่ได้ — ใช้เปลี่ยนรหัสผ่าน', en: 'Can’t reset yourself — use change password' } : { th: 'รีเซ็ตไม่สำเร็จ', en: 'Couldn’t reset' });
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** วันที่ (เวลาไทย) ของเวลาที่ API ส่งมา */
+  protected dayText(iso: string): string {
+    return new Date(iso).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Bangkok' });
+  }
+
+  /** วันสุดท้ายที่กู้ได้ = วันที่ขอลบ + ช่วงพัก (ค่าเดียวกับ DELETE_RECOVERY_DAYS ฝั่ง backend · ฝั่ง server ตัดสินจริง) */
+  protected restoreUntil(deletedIso: string): string {
+    return this.dayText(new Date(new Date(deletedIso).getTime() + DELETE_RECOVERY_DAYS * 86_400_000).toISOString());
+  }
+
+  /** POST /admin/users/:id/restore — กู้บัญชีที่ผู้ใช้ขอลบ (ยังไม่ครบ 7 วัน) */
+  protected async restore(u: AdminUser): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: { th: `กู้บัญชี ${u.display_name || u.phone}?`, en: `Restore ${u.display_name || u.phone}?` },
+      body: {
+        th: 'ผู้ใช้จะล็อกอินได้อีกครั้งด้วยรหัสผ่านเดิม · เครื่องที่เคยล็อกอินไว้ยังถูกออกจากระบบอยู่ ต้องล็อกอินใหม่ · ควรยืนยันกับเจ้าของบัญชีก่อนว่าต้องการกู้จริง',
+        en: 'The user can sign in again with their old password · devices that were signed out stay signed out · confirm with the account owner first',
+      },
+      confirm: { th: 'กู้บัญชี', en: 'Restore' },
+    });
+    if (!ok) return;
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      await this.api.restoreUser(u.id);
+      this.toast.show({ th: 'กู้บัญชีแล้ว', en: 'Account restored' });
+      this.selectedId.set(null);
+      await this.search();
+    } catch (err) {
+      const code = apiError(err).code;
+      this.error.set(
+        code === 'NOT_RESTORABLE'
+          ? { th: 'เลยช่วงกู้คืนแล้ว — ข้อมูลส่วนตัวถูกซ่อนถาวรแล้ว กู้ไม่ได้', en: 'The recovery period has ended — personal data is permanently scrubbed' }
+          : { th: 'กู้บัญชีไม่สำเร็จ ลองรีเฟรชรายการแล้วลองอีกครั้ง', en: 'Could not restore. Refresh the list and try again.' },
+      );
     } finally {
       this.busy.set(false);
     }

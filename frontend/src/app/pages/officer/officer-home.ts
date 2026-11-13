@@ -153,7 +153,7 @@ const toMinutes = (hhmm: string): number | null => {
               <strong>{{ s.houses_checked }}</strong>
               <span class="muted">/ {{ s.houses_total }} {{ i18n.t({ th: 'หลัง ตรวจแล้ว', en: 'houses checked' }) }}</span>
             </p>
-            <span class="bar" role="progressbar" [attr.aria-valuenow]="s.houses_checked" [attr.aria-valuemax]="s.houses_total">
+            <span class="bar" role="progressbar" aria-valuemin="0" [attr.aria-label]="i18n.t({ th: 'บ้านที่ตรวจแล้ว', en: 'Houses checked' })" [attr.aria-valuenow]="s.houses_checked" [attr.aria-valuemax]="s.houses_total">
               <span [style.width.%]="percent()"></span>
             </span>
             <div class="adv-only timeline">

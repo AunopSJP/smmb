@@ -9,7 +9,7 @@ const phone = ({ value }: { value: unknown }) => normalizePhone(value) ?? value;
 const upper = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.replace(/[\s-]/g, '').toUpperCase() : value;
 
-const PHONE_RE = /^0\d{9}$/;
+const PHONE_RE = /^0[1-9]\d{8}$/; // ไม่รับ 00… (รหัสโทรระหว่างประเทศ · รูปแบบเบอร์แทนที่ของบัญชีที่ลบ)
 const HOUSE_TYPES = ['house', 'townhome', 'village', 'condo', 'shop', 'other'] as const;
 const CARE_TAGS = ['elderly', 'children', 'disabled', 'bedridden', 'pregnant', 'pets'] as const;
 const TITLES = ['mr', 'mrs', 'ms', 'other'] as const;
@@ -124,6 +124,12 @@ export class SigninDto {
   // ไม่ตรวจรูปแบบละเอียด — เบอร์ผิดรูปแบบตอบเหมือนรหัสผิด (ไม่บอกว่าเบอร์ไหนมีบัญชี)
   @Transform(phone) @IsString() @Length(1, 30) phone!: string;
   @IsString() @Length(1, 128) password!: string;
+}
+
+/** ลบบัญชี (api.md §3.2) — ต้องพิมพ์ยืนยัน + รหัสผ่านปัจจุบัน */
+export class DeleteAccountDto {
+  @IsString() @Length(1, 128) password!: string;
+  @IsIn(['DELETE']) confirm!: 'DELETE';
 }
 
 export class ChangePasswordDto {

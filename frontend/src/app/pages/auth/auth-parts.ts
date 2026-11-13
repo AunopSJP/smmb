@@ -110,15 +110,5 @@ export class TermsCheck {
   readonly showError = input(false);
 }
 
-/** แถบบอกว่าหน้านี้ไม่สร้างบัญชีจริง */
-@Component({
-  selector: 'app-mock-note',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<p class="demo-tools">{{ i18n.t({ th: 'ต้นแบบ — ยังไม่สร้างบัญชีจริง (รอตัดสินใจเรื่องฐานข้อมูล)', en: 'Prototype — no real account is created yet' }) }}</p>`,
-})
-export class MockNote {
-  protected readonly i18n = inject(I18n);
-}
-
 /** เวลาตอนนี้ HH:mm (เวลาไทย) */
 export const nowHHmm = () => new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });

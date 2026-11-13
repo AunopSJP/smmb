@@ -232,8 +232,9 @@ export class AuthService {
   // ── ล็อกอิน / เปลี่ยนรหัส ──────────────────────────────────────────────
 
   async signin(dto: SigninDto, meta: ClientMeta): Promise<SessionResult> {
-    const { rows } = await this.pool.query<{ user_id: string; password_hash: string; status: string }>(
-      `SELECT user_id, password_hash, status FROM app.user_tb WHERE phone = $1 AND deleted_date IS NULL`,
+    // รวมบัญชีที่ผู้ใช้ขอลบ (พัก 7 วัน) ด้วย — เพื่อบอกเหตุเฉพาะคนที่รู้รหัสถูก · หลัง anonymize เบอร์ถูกแทนที่แล้วจึงหาไม่เจอ
+    const { rows } = await this.pool.query<{ user_id: string; password_hash: string; status: string; deleted_date: Date | null }>(
+      `SELECT user_id, password_hash, status, deleted_date FROM app.user_tb WHERE phone = $1`,
       [dto.phone],
     );
     const user = rows[0];
@@ -247,6 +248,9 @@ export class AuthService {
     if (!user || !ok) {
       if (user) await this.recordFail(user.user_id);
       throw invalidCredentials();
+    }
+    if (user.deleted_date) {
+      throw new AppError(HttpStatus.FORBIDDEN, 'ACCOUNT_PENDING_DELETION', 'account is scheduled for deletion — contact an admin to restore it');
     }
     // บอกว่าบัญชีถูกปิดเฉพาะคนที่รู้รหัสถูก
     if (user.status === 'disabled') {
@@ -298,7 +302,11 @@ export class AuthService {
   }
 
   /** สำเร็จ = เตะทุก session รวมเครื่องนี้ (api.md §2) */
-  async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+  /**
+   * ยืนยันรหัสผ่านปัจจุบันก่อนทำรายการอันตราย (เปลี่ยนรหัส · ลบบัญชี) — ใช้ตัวนับล็อกเดียวกับล็อกอิน
+   * ผิด → 401 INVALID_CREDENTIALS (เว็บไม่ตีเป็น session หมดอายุ) · ผิดซ้ำจนล็อก → 401 ACCOUNT_LOCKED
+   */
+  async assertCurrentPassword(userId: string, password: string): Promise<void> {
     if ((await this.failCount(userId)) >= LOCK_MAX_FAILS) {
       throw new AppError(HttpStatus.UNAUTHORIZED, 'ACCOUNT_LOCKED', 'too many failed attempts, try again later');
     }
@@ -306,11 +314,15 @@ export class AuthService {
       `SELECT password_hash FROM app.user_tb WHERE user_id = $1`,
       [userId],
     );
-    if (!(await this.passwords.verify(rows[0]?.password_hash ?? null, dto.current_password))) {
+    if (!(await this.passwords.verify(rows[0]?.password_hash ?? null, password))) {
       await this.recordFail(userId);
       throw invalidCredentials();
     }
     await this.resetFails(userId);
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+    await this.assertCurrentPassword(userId, dto.current_password);
     const hash = await this.passwords.hash(dto.new_password);
     await withTx(this.pool, async (db) => {
       await db.query(

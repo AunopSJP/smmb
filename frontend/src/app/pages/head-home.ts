@@ -60,7 +60,7 @@ interface RecentLog {
         <section class="hero">
           <p class="hero-n">{{ checked() }} <small>{{ i18n.t({ th: 'จาก ' + total() + ' ตู้', en: 'of ' + total() }) }}</small></p>
           <p class="hero-label">{{ i18n.t({ th: 'ตรวจแล้ววันนี้', en: 'Checked today' }) }}</p>
-          <span class="hero-bar" role="progressbar" [attr.aria-valuenow]="checked()" [attr.aria-valuemax]="total()"><span [style.width.%]="pctTotal()"></span></span>
+          <span class="hero-bar" role="progressbar" aria-valuemin="0" [attr.aria-label]="i18n.t({ th: 'ตรวจแล้ววันนี้', en: 'Checked today' })" [attr.aria-valuenow]="checked()" [attr.aria-valuemax]="total()"><span [style.width.%]="pctTotal()"></span></span>
         </section>
 
         <a class="big" [class.warn]="offline() > 0" [routerLink]="url('L06')">
@@ -180,7 +180,7 @@ interface RecentLog {
                 <strong>{{ z.name }}</strong>
                 <span class="muted small">{{ z.houses_checked }} / {{ z.houses_total }}</span>
               </span>
-              <span class="bar" role="progressbar" [attr.aria-valuenow]="z.houses_checked" [attr.aria-valuemax]="z.houses_total"><span [style.width.%]="pct(z)"></span></span>
+              <span class="bar" role="progressbar" aria-valuemin="0" [attr.aria-label]="i18n.t({ th: 'บ้านที่ตรวจแล้วในโซน', en: 'Houses checked in zone' })" [attr.aria-valuenow]="z.houses_checked" [attr.aria-valuemax]="z.houses_total"><span [style.width.%]="pct(z)"></span></span>
               <span class="muted small block">
                 @if (z.officers.length) {
                   {{ i18n.t({ th: 'เจ้าหน้าที่ ', en: 'Officers ' }) }}{{ z.officers.length }}{{ i18n.t({ th: ' คน', en: '' }) }}{{ z.houses_offline ? ' · ' + i18n.t({ th: 'ออฟไลน์ ', en: 'offline ' }) + z.houses_offline + i18n.t({ th: ' ตู้', en: '' }) : '' }}

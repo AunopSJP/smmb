@@ -31,7 +31,7 @@ const BLOCKER_TEXT: Record<string, Tr> = {
   LAST_HEAD: { th: 'คุณเป็นหัวหน้าคนเดียวของหน่วยงาน — ตั้งหัวหน้าคนอื่นก่อน แล้วค่อยลบ', en: 'You are the only head of your agency — appoint another head first' },
   SOS_OPEN: { th: 'มี SOS ที่ยังเปิดอยู่ — รอให้ปิดเคสก่อน แล้วค่อยลบ', en: 'An SOS is still open — wait until it is closed' },
   IS_ADMIN: { th: 'บัญชีผู้ดูแลระบบลบเองไม่ได้ — ติดต่อผู้ดูแลระบบคนอื่น', en: 'Admin accounts can’t be deleted here — contact another admin' },
-  BOX_BOUND: { th: 'ยังมีตู้ที่ผูกอยู่ — คืนตู้ก่อน แล้วค่อยลบ', en: 'You still have a linked mailbox — return it first' },
+  BOX_BOUND: { th: 'ยังมีตู้ที่ผูกอยู่ — ไปที่ ตั้งค่า › ตู้ของฉัน › "ยกเลิกการผูกตู้นี้" แล้วค่อยลบบัญชี', en: 'You still have a linked mailbox — go to Settings › My mailbox › "Unlink this mailbox", then delete your account' },
 };
 export function blockerText(code: string): Tr {
   return BLOCKER_TEXT[code] ?? { th: 'ตอนนี้ลบบัญชีไม่ได้ — ติดต่อผู้ดูแลระบบเพื่อขอความช่วยเหลือ', en: 'The account can’t be deleted right now — contact the admin for help' };

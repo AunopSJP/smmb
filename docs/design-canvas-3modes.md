@@ -67,6 +67,6 @@ attribute ที่ root: `<html data-mode="easy|default|advanced" data-theme da
 - [x] ปรับเนื้อหา/เลย์เอาต์ 3 โหมดครบทุกหน้า (2026-11-09)
 - [x] หน้า NotifSettings แยกทุกบทบาท — `/settings/notifications`
 - [x] หน้า error 3 หน้า — `/error/offline` · `/error/session` · `/error/not-found` (+ ดัก `offline` event)
-- [ ] Officer box detail (OffBoxDetail) — ยังไม่มีหน้าแยก
-- [ ] OwnTechRequest timeline + OwnTechDone confirm — รอ API ยืนยันผลงานช่าง
-- [~] รายการเครื่องที่เข้าสู่ระบบ + ส่งออก + ลบบัญชี — หน้าเว็บเสร็จแล้ว (`/settings/my-data` 2026-11-12) · **รอ backend ทำ F-002** (`/me/sessions` · `/me/export` · `/me/delete-preview` · `DELETE /me`) ก่อนใช้งานจริง
+- [x] Officer box detail (OffBoxDetail) — `O16` `/officer/box/:id` (`pages/officer/officer-box-detail.ts` · ลิงก์จากรายการบ้านที่ O01) · `GET /officer/boxes/:box_id`
+- [x] OwnTechRequest timeline + OwnTechDone confirm — ทำแล้ว: `POST /boxes/:box_id/technician-requests/:id/confirm` + ปุ่ม "ใช้งานได้ปกติ / ยังมีปัญหา" ใน `pages/owner/owner-technician.ts` (เอกสาร "รอ API" ล้าสมัย)
+- [x] รายการเครื่องที่เข้าสู่ระบบ + ส่งออก + ลบบัญชี — **backend พร้อมแล้ว 2026-11-13** (api.md §3.2 · B-004 · migration 0039) · หน้าเว็บเสร็จแล้ว — เหลือแก้ข้อความเล็กน้อยฝั่งเว็บตาม B-004 (`/settings/my-data` 2026-11-12) · **รอ backend ทำ F-002** (`/me/sessions` · `/me/export` · `/me/delete-preview` · `DELETE /me`) ก่อนใช้งานจริง

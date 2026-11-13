@@ -41,6 +41,8 @@ const PUBLIC = new Set([
   'POST /api/v1/public/deliveries',
   // กุญแจสาธารณะของ VAPID — เบราว์เซอร์ต้องใช้ตอนขอสิทธิ์แจ้งเตือนก่อนล็อกอิน (หน้า A03) · ไม่ใช่ความลับ
   'GET /api/v1/me/push/vapid-key',
+  // พร็อกซีกระเบื้องแผนที่ (@Public ทั้ง controller) — ไม่มีข้อมูลผู้ใช้ · หน้าสมัครใช้ก่อนล็อกอิน
+  'GET /api/v1/map-tiles/:z/:x/:y',
 ]);
 
 const isPublic = (r: { method: string; path: string }) =>
@@ -129,7 +131,7 @@ describe('Route security (e2e)', () => {
 
     // body ที่ผ่านการตรวจรูปแบบ (ไม่งั้นได้ 400 ก่อนถึงการตรวจสิทธิ์ ซึ่งไม่ได้แปลว่ารั่ว)
     const bodyFor = (path: string): object =>
-      path.endsWith('/technician-requests') ? { reason: 'repair' } : path.endsWith('/qr/reissue') ? { slots: [1], request_id: '00000000-0000-0000-0000-000000000000' } : { name: 'x' };
+      path.endsWith('/technician-requests') ? { reason: 'repair' } : path.endsWith('/confirm') ? { result: 'ok' } : path.endsWith('/unbind') ? {} : path.endsWith('/qr/reissue') ? { slots: [1], request_id: '00000000-0000-0000-0000-000000000000' } : { name: 'x' };
     const leaks: string[] = [];
     const mine = allRoutes(app).filter((r) => r.path.startsWith('/api/v1/boxes/:box_id'));
     expect(mine.length).toBeGreaterThan(5);

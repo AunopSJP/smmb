@@ -30,10 +30,13 @@ test('ช่องบังคับที่ว่างต้องมีข�
   await phone.fill('0911111111'); // ช่องนี้กรอกแล้ว ใช้เทียบกับขอบปกติ
   await page.getByRole('button', { name: 'ถัดไป' }).click();
 
-  const bad = rgb(await border(name));
-  expect(await border(name)).not.toBe(before);
-  expect(bad[0]).toBeGreaterThan(bad[1] + 40); // เป็นโทนแดง/เตือน
-  expect(bad[0]).toBeGreaterThan(bad[2] + 40);
+  // ขอบเปลี่ยนสีแบบมี transition — รอให้สีนิ่งก่อนวัด (เดิมวัดทันที สุ่มล้มเมื่อเครื่องช้า)
+  await expect(async () => {
+    const bad = rgb(await border(name));
+    expect(await border(name)).not.toBe(before);
+    expect(bad[0]).toBeGreaterThan(bad[1] + 40); // เป็นโทนแดง/เตือน
+    expect(bad[0]).toBeGreaterThan(bad[2] + 40);
+  }).toPass({ timeout: 3_000 });
   expect(await border(phone)).toBe(before); // ช่องที่ครบแล้วต้องไม่ขึ้นเตือน
   await expect(page.locator('#signup-error, [role=alert]').first()).toBeVisible();
 });
@@ -50,5 +53,5 @@ test('ปุ่มหลักของฟอร์มกดครั้งเ�
   await btn.scrollIntoViewIfNeeded();
   const b = (await btn.boundingBox())!;
   await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2); // คลิกจริงที่พิกัดเดิมครั้งเดียว ไม่ retry
-  await expect(page.getByText('ขั้น 2 จาก 3')).toBeVisible({ timeout: 3_000 });
+  await expect(page.getByText('ขั้น 2 จาก 4')).toBeVisible({ timeout: 3_000 });
 });

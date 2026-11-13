@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { OwnerApi, type BoxAddress, type BoxDetail, type BoxSummary, type PlanInfo, type ZoneRequest } from '../../core/owner-api';
+import { apiError } from '../../core/api';
+import { Confirm } from '../../shared/confirm-dialog';
 import { Session } from '../../core/session';
 import { SelectedBox } from '../../core/selected-box';
 import { Toast } from '../../core/toast';
@@ -35,7 +37,7 @@ import { bkkClock } from '../../core/time';
         <app-load-error (retry)="retry()" />
       }
       <!-- 1) เรื่องที่ต้องทำก่อน -->
-      <app-push-status class="easy-hide" [compact]="true" />
+      <app-push-status class="easy-hide" [compact]="true" [dismissible]="true" />
       @for (r of zoneRequests(); track r.id) {
         <section class="card stack request" role="status">
           <strong>{{ i18n.t({ th: 'หน่วยงานขอดูแลบ้านของคุณ', en: 'An agency asks to cover your house' }) }}</strong>
@@ -147,6 +149,10 @@ import { bkkClock } from '../../core/time';
             </dd>
           </dl>
         </section>
+        <div class="release easy-hide">
+          <button type="button" class="link danger-text" [disabled]="releasing()" (click)="release(b)">{{ i18n.t({ th: 'ยกเลิกการผูกตู้นี้', en: 'Unlink this mailbox' }) }}</button>
+          <span class="muted small block">{{ i18n.t({ th: 'ใช้เมื่อขายบ้านหรือย้ายออก · ต้องทำก่อนลบบัญชี', en: 'For when you sell or move out · needed before deleting your account' }) }}</span>
+        </div>
         <a class="btn secondary easy-hide" [routerLink]="url('A07')" [queryParams]="{ from: 'H13' }">{{ i18n.t({ th: '+ ผูกตู้เพิ่ม', en: '+ Link another mailbox' }) }}</a>
 
         @if (display.advancedMode()) {
@@ -459,6 +465,8 @@ export class OwnerSettings {
   private readonly remembered = inject(SelectedBox);
   protected readonly boxes = signal<BoxSummary[]>([]);
   protected readonly box = signal<BoxDetail | null>(null);
+  private readonly confirm = inject(Confirm);
+  protected readonly releasing = signal(false);
   protected readonly renaming = signal(false);
   protected readonly draft = signal('');
   /** ส่ง ?box= ต่อให้หน้าลูก (Wi-Fi/ช่าง) — null = ไม่มีตู้ */
@@ -734,6 +742,39 @@ export class OwnerSettings {
       this.toast.show({ th: 'เปลี่ยนชื่อตู้แล้ว', en: 'Renamed' });
     } catch {
       this.toast.show({ th: 'บันทึกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t save — check your connection and try again' });
+    }
+  }
+
+  /** POST /boxes/:box_id/unbind — เจ้าของปล่อยตู้เอง (ขายบ้าน/ย้ายออก) · ค่าเริ่มต้นสั่งตู้ลืม Wi-Fi ด้วย */
+  protected async release(b: BoxDetail): Promise<void> {
+    if (this.releasing()) return;
+    const ok = await this.confirm.ask({
+      title: { th: `ยกเลิกการผูก “${b.name}”?`, en: `Unlink “${b.name}”?` },
+      body: {
+        th: 'ตู้จะไม่ใช่ของคุณอีก · ข้อมูลบ้านและการอยู่ในโซนจะถูกล้าง · ตู้จะลืม Wi-Fi บ้านคุณ (ถ้าตู้ออนไลน์อยู่) · ประวัติเก่ายังอยู่ · จะผูกตู้นี้ใหม่ต้องติดต่อผู้ดูแลเพื่อขอ QR เปิดใช้ตู้ใบใหม่',
+        en: 'The mailbox stops being yours · house details and zone coverage are cleared · the box forgets your Wi-Fi (if it is online) · history stays · to link it again you need a new activation QR from the admin',
+      },
+      confirm: { th: 'ยกเลิกการผูกตู้', en: 'Unlink mailbox' },
+      danger: true,
+    });
+    if (!ok) return;
+    this.releasing.set(true);
+    try {
+      await this.api.releaseBox(b.id);
+      this.box.set(null);
+      this.remembered.id.set(null);
+      this.boxes.update((list) => list.filter((x) => x.id !== b.id));
+      await this.session.refresh().catch(() => undefined);
+      await this.loadBoxes();
+      this.toast.show({ th: 'ยกเลิกการผูกตู้แล้ว', en: 'Mailbox unlinked' });
+    } catch (err) {
+      this.toast.show(
+        apiError(err).code === 'SOS_OPEN'
+          ? { th: 'ตอนนี้มี SOS ที่ยังเปิดอยู่ — ให้ปิดเรื่องก่อนจึงจะยกเลิกการผูกตู้ได้', en: 'An SOS is still open — close it before unlinking' }
+          : { th: 'ยกเลิกการผูกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Could not unlink — check your connection and try again' },
+      );
+    } finally {
+      this.releasing.set(false);
     }
   }
 

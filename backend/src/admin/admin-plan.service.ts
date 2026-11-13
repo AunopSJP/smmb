@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import pg from 'pg';
+import { AuditService } from '../common/audit.service.js';
 import { PG_POOL } from '../db/db.module.js';
 import { withTx } from '../db/tx.js';
 
@@ -34,7 +35,10 @@ interface PlanRow extends Omit<AdminPlanDto, 'owners_count'> {
 
 @Injectable()
 export class AdminPlanService {
-  constructor(@Inject(PG_POOL) private readonly pool: pg.Pool) {}
+  constructor(
+    @Inject(PG_POOL) private readonly pool: pg.Pool,
+    private readonly audit: AuditService,
+  ) {}
 
   async list(): Promise<AdminPlanDto[]> {
     const { rows } = await this.pool.query<PlanRow>(
@@ -69,7 +73,11 @@ export class AdminPlanService {
     return plan;
   }
 
-  async update(code: string, input: { is_default?: boolean; is_active?: boolean }): Promise<AdminPlanDto> {
+  async update(
+    code: string,
+    input: { is_default?: boolean; is_active?: boolean; name_th?: string; name_en?: string; price_note?: string | null },
+    adminId?: string,
+  ): Promise<AdminPlanDto> {
     await withTx(this.pool, async (db) => {
       await db.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [DEFAULT_PLAN_LOCK]);
       const { rows } = await db.query<{ is_active: boolean; is_default: boolean }>(
@@ -92,7 +100,25 @@ export class AdminPlanService {
       } else if (input.is_default === false && current.is_default) {
         throw new ConflictException({ code: 'PLAN_DEFAULT_REQUIRED' });
       }
+      // รายละเอียด (ชื่อ/ราคา) — อยู่ใน transaction เดียวกัน ถ้าเปลี่ยนสถานะไม่ผ่านจะไม่บันทึกอะไรเลย
+      if ((input.name_th !== undefined && !input.name_th.trim()) || (input.name_en !== undefined && !input.name_en.trim())) {
+        throw new ConflictException({ code: 'PLAN_NAME_REQUIRED' });
+      }
+      const sets: string[] = [];
+      const args: unknown[] = [code];
+      const set = (column: string, value: unknown): void => {
+        args.push(value);
+        sets.push(`${column} = $${args.length}`);
+      };
+      if (input.name_th !== undefined) set('name_th', input.name_th.trim());
+      if (input.name_en !== undefined) set('name_en', input.name_en.trim());
+      if (input.price_note !== undefined) set('price_note', input.price_note?.trim() || null);
+      if (sets.length) await db.query(`UPDATE app.plan_tb SET ${sets.join(', ')} WHERE plan_code = $1`, args);
     });
+    if (adminId) {
+      const fields = Object.keys(input).filter((k) => (input as Record<string, unknown>)[k] !== undefined);
+      await this.audit.log(adminId, 'plan.update', 'plan', code, { fields });
+    }
     const plan = (await this.list()).find((item) => item.code === code);
     if (!plan) throw new NotFoundException();
     return plan;

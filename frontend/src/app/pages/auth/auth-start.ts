@@ -4,6 +4,7 @@ import { PushBlockedError, PushNotifications } from '../../core/push-notificatio
 import { I18n, type Tr } from '../../core/i18n';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { bindPhone } from '../../core/phone-input';
 import { normalizePhone, type DemoAccountRole } from '../../core/mock/auth-demo';
 import { ROLE_HOME, Session } from '../../core/session';
 import { Toast } from '../../core/toast';
@@ -331,7 +332,7 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
         }
         <label class="field">
           <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
-          <input type="tel" inputmode="tel" autocomplete="tel" [value]="phone()" (input)="phone.set($any($event.target).value)" />
+          <input type="tel" inputmode="numeric" autocomplete="tel" [value]="phone()" (input)="phone.set(bindPhone($any($event.target)))" />
         </label>
         <app-password-field [(value)]="password" [invalid]="!!error()" />
         <p class="small easy-hide">
@@ -383,6 +384,7 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
   `,
 })
 export class AuthSignin implements OnInit {
+  protected readonly bindPhone = bindPhone;
   protected readonly i18n = inject(I18n);
   private readonly session = inject(Session);
   private readonly http = inject(HttpClient);

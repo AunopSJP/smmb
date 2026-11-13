@@ -90,7 +90,7 @@ const TITLES: { value: string; label: Tr }[] = [
   { value: 'other', label: { th: 'อื่น ๆ', en: 'Other' } },
 ];
 
-const HOUSE_TYPES: { value: string; label: Tr }[] = [
+export const HOUSE_TYPES: { value: string; label: Tr }[] = [
   { value: 'house', label: { th: 'บ้านเดี่ยว', en: 'Detached house' } },
   { value: 'townhome', label: { th: 'ทาวน์โฮม / ทาวน์เฮาส์', en: 'Townhome' } },
   { value: 'village', label: { th: 'บ้านในหมู่บ้านจัดสรร', en: 'Gated village house' } },
@@ -99,7 +99,7 @@ const HOUSE_TYPES: { value: string; label: Tr }[] = [
   { value: 'other', label: { th: 'อื่น ๆ', en: 'Other' } },
 ];
 
-const CARE: { value: string; label: Tr }[] = [
+export const CARE: { value: string; label: Tr }[] = [
   { value: 'elderly', label: { th: 'ผู้สูงอายุ', en: 'Elderly' } },
   { value: 'children', label: { th: 'เด็กเล็ก', en: 'Young children' } },
   { value: 'disabled', label: { th: 'ผู้พิการ', en: 'Person with disability' } },
@@ -158,7 +158,7 @@ export const careLabel = (v: string, i18n: I18n): string => {
       </label>
     </details>
 
-    @if (kind() === 'officer') {
+    @if (kind() === 'officer' && part() === 'all') {
       <section class="group form-section">
         <h2 class="form-title">{{ i18n.t({ th: 'ข้อมูลการปฏิบัติงาน', en: 'Duty details' }) }}</h2>
         <label class="field">
@@ -168,7 +168,7 @@ export const careLabel = (v: string, i18n: I18n): string => {
       </section>
     }
 
-    @if (kind() === 'owner') {
+    @if (kind() === 'owner' && part() === 'all') {
       <section class="group form-section">
         <h2 class="form-title">{{ i18n.t({ th: 'รายละเอียดบ้าน', en: 'House details' }) }}</h2>
         <div class="form-grid">
@@ -266,6 +266,8 @@ export const careLabel = (v: string, i18n: I18n): string => {
 export class ProfileExtras {
   protected readonly i18n = inject(I18n);
   readonly kind = input<ExtrasKind>('owner');
+  /** `personal` = แสดงเฉพาะกลุ่ม "ข้อมูลส่วนตัวเพิ่มเติม" (ฟอร์มสมัครที่แยกรายละเอียดบ้านเป็นขั้นของตัวเอง) */
+  readonly part = input<'all' | 'personal'>('all');
   readonly value = model.required<ExtrasForm>();
   readonly tried = input(false);
   protected readonly titles = TITLES;
