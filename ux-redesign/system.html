@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SMMB · ระบบดีไซน์ + สารบัญ 104 จอ</title>
+<style>
+  :root{
+    --ink:#12140f; --paper:#f4f0e6; --paper2:#ebe5d7; --muted:#5f6359; --rule:#c9c2b2;
+    --a:#0a5b43; --b:#b23a2e; --c:#0b57d0; --cream:#f4f0e6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--paper);color:var(--ink);font-size:16px;line-height:1.6;font-family:'Noto Sans Thai','Leelawadee UI','Tahoma',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  button,input{font:inherit;color:inherit}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .sr:focus{position:fixed;left:10px;top:10px;width:auto;height:auto;clip:auto;overflow:visible;background:#fff;color:#000;padding:9px 13px;z-index:99;border:2px solid #000}
+  :focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+
+  .nav{position:sticky;top:0;z-index:30;background:var(--ink);color:var(--cream);border-bottom:1px solid rgb(244 240 230 / 20%)}
+  .nav .wrap{display:flex;align-items:center;gap:16px;min-height:58px}
+  .nav .brand{font-weight:800;font-size:18px;white-space:nowrap}
+  .nav .brand span{font-size:11px;font-weight:500;opacity:.6;letter-spacing:.1em;margin-left:8px}
+  .nav nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+  .nav nav a{font-size:12.5px;padding:6px 10px;border:1px solid transparent;border-radius:3px;opacity:.8}
+  .nav nav a:hover{border-color:rgb(244 240 230 / 40%);opacity:1}
+  .nav .go{background:var(--cream);color:var(--ink);font-weight:700;opacity:1;padding:6px 12px;border-radius:3px;font-size:12.5px}
+
+  .hero{background:var(--ink);color:var(--cream);padding:44px 0 34px;border-bottom:1px solid rgb(244 240 230 / 18%)}
+  .eyebrow{font-size:11px;font-weight:800;letter-spacing:.16em;color:#bdb8aa;margin:0 0 12px}
+  .hero h1{font-size:clamp(30px,4.4vw,54px);line-height:1.18;letter-spacing:-.03em;margin:0;font-weight:800}
+  .hero p{max-width:720px;margin:14px 0 0;font-size:15px;line-height:1.7;color:#d8d2c3}
+  .hero .links{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+  .hero .links a{border:1px solid rgb(244 240 230 / 35%);padding:7px 11px;border-radius:3px;font-size:12.5px}
+  .hero .links a:hover{border-color:#fff;color:#fff}
+
+  section.pad{padding:48px 0 8px}
+  .sechead{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;border-bottom:2px solid var(--ink);padding-bottom:12px;margin-bottom:22px}
+  .sechead h2{font-size:clamp(22px,3vw,32px);margin:0;font-weight:800;letter-spacing:-.02em;line-height:1.2}
+  .sechead p{max-width:520px;margin:0;font-size:13.5px;color:var(--muted);line-height:1.6}
+  .sechead .num{font-size:11px;font-weight:800;letter-spacing:.14em;color:var(--muted);white-space:nowrap;padding-bottom:3px}
+
+  .themeToggle{display:inline-flex;border:1.5px solid var(--ink);background:#fff}
+  .themeToggle button{border:0;background:transparent;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer}
+  .themeToggle button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+
+  .tokgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+  .tok{border:1.5px solid var(--ink);background:#fbf8f0}
+  .tok h3{margin:0;padding:11px 13px;border-bottom:1.5px solid var(--ink);font-size:15px;display:flex;align-items:center;gap:8px;background:var(--paper2)}
+  .tok h3 span{width:10px;height:10px;border-radius:50%;background:var(--accent);border:1px solid var(--ink)}
+  .tok .swatches{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  .sw{border-bottom:1px solid var(--rule);border-right:1px solid var(--rule);padding:9px 11px;font-size:11px;line-height:1.45}
+  .sw:nth-child(even){border-right:0}
+  .sw i{display:block;height:34px;border:1px solid rgb(0 0 0 / 14%);margin-bottom:5px}
+  .sw b{display:block;font-size:11px}
+  .sw code{font-family:ui-monospace,Consolas,monospace;font-size:10px;color:var(--muted)}
+  .themeseam{grid-column:1/-1;padding:4px 10px;font-size:9.5px;font-weight:800;letter-spacing:.1em;background:var(--paper2);border-bottom:1px solid var(--rule);color:var(--muted)}
+  .tok .darkrow .sw{background:#171a15;color:#eee7d5;border-color:#33382f}
+  .tok .darkrow .sw code{color:#a9b0a0}
+  .tok .darkrow .sw i{border-color:rgb(255 255 255 / 18%)}
+  .tok .darkrow .themeseam{background:#171a15;color:#a9b0a0;border-color:#33382f}
+
+  .tablewrap{overflow-x:auto;border:1.5px solid var(--ink);background:#fbf8f0}
+  table{border-collapse:collapse;width:100%;min-width:680px}
+  th,td{padding:10px 12px;border-bottom:1px solid var(--rule);text-align:left;font-size:12.5px;vertical-align:middle}
+  thead th{background:var(--paper2);font-size:10.5px;letter-spacing:.07em;font-weight:800;border-bottom:2px solid var(--ink);white-space:nowrap}
+  tbody th{font-weight:700;background:#f6f2e8;border-right:1px solid var(--rule);white-space:nowrap}
+  tbody tr:last-child th,tbody tr:last-child td{border-bottom:0}
+  .ratio{font-family:ui-monospace,Consolas,monospace;font-weight:700;font-size:12px}
+  .pass{display:inline-block;margin-left:6px;font-size:9.5px;font-weight:800;padding:1px 4px;border:1px solid #1e6b4a;color:#15563a;background:#e6f2ec;vertical-align:1px}
+  .fail{display:inline-block;margin-left:6px;font-size:9.5px;font-weight:800;padding:1px 4px;border:1px solid #a32722;color:#8c1d18;background:#fbe9e7;vertical-align:1px}
+
+  .previews{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+  .preview{border:1.5px solid var(--ink);background:#0e100e;overflow:hidden}
+  .preview .ph{display:flex;justify-content:space-between;align-items:center;padding:8px 11px;color:#e9e4d6;font-size:11.5px;border-bottom:1px solid #3a3f34}
+  .preview .ph b{font-size:12.5px}
+  .preview .ph a{border-bottom:1px solid #8d9284;color:#e9e4d6}
+  .preview .shotwrap{height:392px;display:flex;justify-content:center;overflow:hidden;background:#0e100e}
+  .preview .shot{width:181px;height:392px;overflow:hidden;margin-top:6px}
+  .preview iframe{width:402px;height:872px;border:0;transform:scale(.45);transform-origin:top left;pointer-events:none}
+
+  .screenbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .screenbar input{min-width:220px;flex:1;border:1.5px solid var(--ink);background:#fff;padding:9px 11px;font-size:13px;border-radius:2px}
+  .screenbar .chip{border:1.5px solid var(--ink);background:#fff;border-radius:99px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;min-height:38px}
+  .screenbar .chip[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  .screengrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px}
+  .sc{border:1px solid var(--rule);background:#fbf8f0;padding:9px 10px;display:flex;flex-direction:column;gap:3px;min-height:96px}
+  .sc .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+  .sc .code{font-family:ui-monospace,Consolas,monospace;font-size:10px;border:1px solid var(--rule);background:#fff;padding:0 4px;white-space:nowrap}
+  .sc .role{font-size:9.5px;color:var(--muted);white-space:nowrap}
+  .sc strong{font-size:12.5px;line-height:1.35}
+  .sc small{font-size:10.5px;color:var(--muted);line-height:1.35}
+  .sc .try{display:flex;gap:5px;margin-top:auto;padding-top:4px}
+  .sc .try a{font-size:10px;font-weight:800;border:1px solid var(--ink);padding:1px 5px;border-radius:2px}
+  .sc .try a:hover{background:var(--ink);color:var(--paper)}
+  .sc.hide{display:none}
+
+  .specimens{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+  .spec{border:1.5px solid var(--ink);background:#fbf8f0;padding:13px;--spec-ink:#12140f;--spec-muted:#5f6359;--spec-line:#12140f;--spec-accent:#0a5b43;--spec-bg:#fffdf7;--spec-soft:#e9e3d5}
+  .spec h3{margin:0 0 9px;font-size:13px;letter-spacing:.03em}
+  .spec .st{border:1.5px solid var(--spec-line);border-left:7px solid var(--spec-accent);background:var(--spec-soft);padding:8px 9px;font-size:11px;line-height:1.45}
+  .spec .st b{display:block;font-size:12.5px}
+  .spec .row{display:flex;align-items:center;gap:8px;border-bottom:1px dashed var(--spec-line);padding:7px 0;font-size:11.5px}
+  .spec .row i{width:24px;height:24px;border:1.5px solid var(--spec-line);border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:10px;background:#fff}
+  .spec .btn{display:block;margin-top:9px;background:var(--spec-accent);color:#fff;text-align:center;padding:10px;font-weight:800;font-size:12px;border:1.5px solid var(--spec-line);border-radius:3px}
+  .spec .note{font-size:10px;color:var(--spec-muted);margin:8px 0 0;line-height:1.5}
+  .spec.b{--spec-accent:#b23a2e;--spec-bg:#fbf4e4;--spec-soft:#f7efdf;border-radius:2px;box-shadow:4px 4px 0 var(--spec-line)}
+  .spec.c{--spec-accent:#0b57d0;--spec-soft:#e8effb}
+  .spec.c .btn{border-radius:6px;min-height:38px}
+
+  .checklist{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1.5px solid var(--ink);background:#fbf8f0}
+  .check{padding:12px 14px;border-bottom:1px solid var(--rule);font-size:12.5px;line-height:1.55;display:flex;gap:9px}
+  .check:nth-child(odd){border-right:1px solid var(--rule)}
+  .check b{font-weight:800}
+  .check .tick{color:#15563a;font-weight:900}
+  .note{margin:13px 0 0;font-size:12px;color:var(--muted);line-height:1.65;padding-left:11px;border-left:3px solid var(--rule)}
+
+  footer{background:var(--ink);color:#d8d2c3;margin-top:52px;padding:30px 0 38px}
+  footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+  footer p{margin:0;max-width:720px;font-size:12.5px;line-height:1.7}
+  footer a{border-bottom:1px solid #8d9284;color:#e9e4d6}
+
+  @media (max-width:1000px){
+    .tokgrid,.previews,.specimens{grid-template-columns:1fr}
+    .tok .swatches{grid-template-columns:repeat(4,1fr)}
+  }
+  @media (max-width:700px){
+    .wrap{padding:0 16px}
+    .nav nav a:not(.go){display:none}
+    .sechead{flex-direction:column;align-items:flex-start;gap:8px}
+    .tok .swatches{grid-template-columns:1fr 1fr}
+    .checklist{grid-template-columns:1fr}
+    .check:nth-child(odd){border-right:0}
+    .preview .shotwrap{height:430px}
+    .preview .shot{width:198px;height:430px}
+    .preview iframe{transform:scale(.49)}
+    .hero h1{font-size:clamp(28px,8vw,40px)}
+  }
+</style>
+</head>
+<body>
+<a class="sr" href="#main">ข้ามไปเนื้อหา</a>
+<header class="nav">
+  <div class="wrap">
+    <div class="brand">SMMB <span>DESIGN SYSTEM · 3 DIRECTIONS</span></div>
+    <nav aria-label="สารบัญ">
+      <a href="index.html">ภาพรวม</a>
+      <a href="#tokens">Token</a>
+      <a href="#contrast">Contrast</a>
+      <a href="#dark">โหมดกลางคืน</a>
+      <a href="#screens">ทุก 104 จอ</a>
+      <a class="go" href="index.html#choose">เลือกแบบ</a>
+    </nav>
+  </div>
+</header>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">ภาคผนวก · ระบบดีไซน์</p>
+    <h1>ไม่ได้มีแค่หน้าจอสวย<br>แต่มี “กฎ” ที่ตรวจได้</h1>
+    <p>สีทุกคู่ผ่าน AA · ตัวอักษรทุกขนาดมีเหตุผล · ปุ่มทุกปุ่มมีเป้าสัมผัส · และทุก 104 หน้าจอเปิดตรวจได้จากที่นี่ — ใช้หน้านี้ตอนเคาะแบบและตอนส่งต่อให้ทีมพัฒนา</p>
+    <div class="links">
+      <a href="a-signs.html">A · ป้ายบอกทาง</a>
+      <a href="b-mailbox.html">B · ตู้จริง</a>
+      <a href="c-kiosk.html">C · ปุ่มเดียว</a>
+      <a href="#screens">สารบัญ 104 จอ ↓</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <section class="pad" id="tokens">
+    <div class="wrap">
+      <div class="sechead">
+        <div style="display:flex;gap:14px;align-items:flex-start"><span class="num">01 / 05</span><h2>Token สี<br>ที่ใช้จริงในโปรโตไทป์</h2></div>
+        <p>ค่าด้านล่างคือค่าที่ใช้ในไฟล์จริง ไม่ใช่ palette สวย ๆ ที่ไม่ถูกใช้ · แต่ละแบบมีชุดสว่างและกลางคืน</p>
+      </div>
+      <div class="tokgrid">
+        <article class="tok" style="--accent:#0a5b43" data-tok="a"><h3><span></span>A · ป้ายบอกทาง</h3><div class="swatches" id="tokA"></div></article>
+        <article class="tok" style="--accent:#b23a2e" data-tok="b"><h3><span></span>B · ตู้จริง</h3><div class="swatches" id="tokB"></div></article>
+        <article class="tok" style="--accent:#0b57d0" data-tok="c"><h3><span></span>C · ปุ่มเดียว</h3><div class="swatches" id="tokC"></div></article>
+      </div>
+      <p class="note">สีแดงใช้เฉพาะ SOS/ลบ · สีเขียวใช้เฉพาะ “สำเร็จ/ผ่าน” · สีน้ำเงินใช้เฉพาะ “สิ่งที่ต้องทำ/ลิงก์” — ไม่ใช้สีเพื่อความสวยเพียงอย่างเดียว</p>
+    </div>
+  </section>
+
+  <section class="pad" id="contrast">
+    <div class="wrap">
+      <div class="sechead">
+        <div style="display:flex;gap:14px;align-items:flex-start"><span class="num">02 / 05</span><h2>ตรวจ Contrast<br>แบบวัดได้</h2></div>
+        <p>คำนวณด้วยสูตร WCAG จากค่าสีจริง · เกณฑ์ AA ตัวอักษรปกติ ≥ 4.5:1 และตัวใหญ่ ≥ 3:1</p>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <div class="themeToggle" role="group" aria-label="โหมดสีของตาราง">
+          <button type="button" data-ctheme="light" aria-pressed="true">สว่าง</button>
+          <button type="button" data-ctheme="dark" aria-pressed="false">กลางคืน</button>
+        </div>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th scope="col">คู่สี</th><th scope="col">A · ป้ายบอกทาง</th><th scope="col">B · ตู้จริง</th><th scope="col">C · ปุ่มเดียว</th></tr></thead>
+          <tbody id="contrastBody"></tbody>
+        </table>
+      </div>
+      <p class="note">ตัวเลขคือ ratio ของคู่สีที่ระบุ · ป้าย “ผ่าน AA” หมายถึงใช้เป็นข้อความปกติได้ · ปุ่ม SOS/ปุ่มหลักใช้พื้นเข้มเพื่อให้ตัวอักษรขาวผ่านทั้งสองโหมด</p>
+    </div>
+  </section>
+
+  <section class="pad" id="dark">
+    <div class="wrap">
+      <div class="sechead">
+        <div style="display:flex;gap:14px;align-items:flex-start"><span class="num">03 / 05</span><h2>โหมดกลางคืน<br>ไม่ได้แค่กลับสี</h2></div>
+        <p>ทุกแบบมีโหมดกลางคืนที่ออกแบบแยก — เงาเปลี่ยนเป็นดำ, ปุ่มเข้มขึ้น, และ QR ยังต้องขาวจริงเพื่อให้กล้องอ่านได้</p>
+      </div>
+      <div class="previews">
+        <article class="preview">
+          <div class="ph"><b>A · กลางคืน</b><a href="a-signs.html?theme=dark#owner-home">เปิด →</a></div>
+          <div class="shotwrap"><div class="shot"><iframe src="a-signs.html?embed=1&theme=dark#owner-home" title="A โหมดกลางคืน" scrolling="no" tabindex="-1" style="pointer-events:none"></iframe></div></div>
+        </article>
+        <article class="preview">
+          <div class="ph"><b>B · กลางคืน</b><a href="b-mailbox.html?theme=dark#owner-home">เปิด →</a></div>
+          <div class="shotwrap"><div class="shot"><iframe src="b-mailbox.html?embed=1&theme=dark#owner-home" title="B โหมดกลางคืน" scrolling="no" tabindex="-1" style="pointer-events:none"></iframe></div></div>
+        </article>
+        <article class="preview">
+          <div class="ph"><b>C · กลางคืน</b><a href="c-kiosk.html?theme=dark#owner-home">เปิด →</a></div>
+          <div class="shotwrap"><div class="shot"><iframe src="c-kiosk.html?embed=1&theme=dark#owner-home" title="C โหมดกลางคืน" scrolling="no" tabindex="-1" style="pointer-events:none"></iframe></div></div>
+        </article>
+      </div>
+      <p class="note">สลับโหมดในโปรโตไทป์ได้ที่ปุ่ม “กลางคืน/สว่าง” มุมขวาบน · ค่าที่เลือกจำไว้ในเครื่อง</p>
+    </div>
+  </section>
+
+  <section class="pad" id="screens">
+    <div class="wrap">
+      <div class="sechead">
+        <div style="display:flex;gap:14px;align-items:flex-start"><span class="num">04 / 05</span><h2>สารบัญ 104 จอ<br>ครบ 99 รหัส</h2></div>
+        <p>ค้นหาหรือกรองตามบทบาท แล้วเปิดจอเดียวกันได้ทั้ง A/B/C · ทุกจอมีอยู่จริงในโปรโตไทป์ ไม่ใช่รายการที่ลิงก์ไปหน้าเปล่า</p>
+      </div>
+      <div class="screenbar">
+        <input id="q" type="search" placeholder="ค้นหา เช่น SOS, Wi-Fi, QR, ใบเสร็จ" aria-label="ค้นหาหน้าจอ">
+        <button class="chip" type="button" data-role="all" aria-pressed="true">ทั้งหมด 104</button>
+        <button class="chip" type="button" data-role="owner" aria-pressed="false">เจ้าของบ้าน</button>
+        <button class="chip" type="button" data-role="officer" aria-pressed="false">เจ้าหน้าที่</button>
+        <button class="chip" type="button" data-role="head" aria-pressed="false">หัวหน้า</button>
+        <button class="chip" type="button" data-role="admin" aria-pressed="false">แอดมิน/ช่าง</button>
+        <button class="chip" type="button" data-role="rider" aria-pressed="false">ไรเดอร์</button>
+        <button class="chip" type="button" data-role="auth" aria-pressed="false">เข้าสู่ระบบ</button>
+        <button class="chip" type="button" data-role="shared" aria-pressed="false">ใช้ร่วมกัน</button>
+      </div>
+      <div class="screengrid" id="sg"></div>
+      <p class="note" id="scount"></p>
+    </div>
+  </section>
+
+  <section class="pad" id="spec">
+    <div class="wrap">
+      <div class="sechead">
+        <div style="display:flex;gap:14px;align-items:flex-start"><span class="num">05 / 05</span><h2>ชิ้นส่วนหลัก<br>เทียบกันสามแบบ</h2></div>
+        <p>สถานะ / แถวรายการ / ปุ่มหลัก — สิ่งที่ผู้ใช้แตะมากที่สุด หน้าตาต่างกันตามแนวคิด แต่ขนาดและลำดับความสำคัญเท่ากัน</p>
+      </div>
+      <div class="specimens">
+        <article class="spec a">
+          <h3>A · ป้ายบอกทาง</h3>
+          <div class="st"><b>ตู้ทำงานปกติ</b>เจ้าหน้าที่ตรวจล่าสุด 09:12</div>
+          <div class="row"><i>✓</i><span>เจ้าหน้าที่มาตรวจ</span></div>
+          <div class="row"><i>□</i><span>มีของมาส่ง</span></div>
+          <div class="btn">ไปหน้าถัดไป →</div>
+          <p class="note">ตัวอักษร 17px · ปุ่ม 66px · ขอบ 2px</p>
+        </article>
+        <article class="spec b">
+          <h3>B · ตู้จริง</h3>
+          <div class="st"><b>ตู้ทำงานปกติ</b>เห็นสถานะจากรูปตู้และตราประทับ</div>
+          <div class="row"><i>✓</i><span>เจ้าหน้าที่มาตรวจ</span></div>
+          <div class="row"><i>□</i><span>มีของมาส่ง</span></div>
+          <div class="btn">ไปหน้าถัดไป →</div>
+          <p class="note">ปุ่มมีขอบล่าง 5px · การ์ดมีเงาแข็ง · แตะแล้วบุ๋ม</p>
+        </article>
+        <article class="spec c">
+          <h3>C · ปุ่มเดียว</h3>
+          <div class="st"><b>ตู้ทำงานปกติ</b>หนึ่งประโยคที่บอกว่าต้องทำอะไรต่อ</div>
+          <div class="row"><i>✓</i><span>เจ้าหน้าที่มาตรวจ</span></div>
+          <div class="row"><i>□</i><span>มีของมาส่ง</span></div>
+          <div class="btn">ไปหน้าถัดไป</div>
+          <p class="note">ปุ่มหลัก 74px · อยู่ตำแหน่งเดิมทุกจอ</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="pad">
+    <div class="wrap">
+      <div class="sechead">
+        <div style="display:flex;gap:14px;align-items:flex-start"><span class="num">✓</span><h2>Definition of done<br>ก่อนส่งให้พัฒนา</h2></div>
+        <p>ใช้เป็น checklist ตอนแปลงเป็น Angular — ถ้าข้อไหนไม่ผ่าน ไม่ถือว่าเสร็จ</p>
+      </div>
+      <div class="checklist">
+        <div class="check"><span class="tick">✓</span><span><b>ปุ่มหลักมีปุ่มเดียว</b> ในแต่ละจอ และอยู่ในตำแหน่งที่มองเห็นได้โดยไม่ต้องเลื่อนในโหมดง่าย</span></div>
+        <div class="check"><span class="tick">✓</span><span><b>เป้าสัมผัส ≥ 44px</b> ทุกปุ่ม/แถว และปุ่มหลัก 56–88px</span></div>
+        <div class="check"><span class="tick">✓</span><span><b>ข้อความเนื้อหา ≥ 17px</b> และบรรทัดยาวไม่เกิน 34 ตัวอักษรในโหมดง่าย</span></div>
+        <div class="check"><span class="tick">✓</span><span><b>คู่สีผ่าน AA</b> ทั้งโหมดสว่างและกลางคืน (ตารางด้านบน)</span></div>
+        <div class="check"><span class="tick">✓</span><span><b>มีทางออกทุกจอ</b> ย้อนกลับ/ยกเลิก/ปิด อย่างน้อยหนึ่งทาง และไม่ใช้ gesture ซ่อน</span></div>
+        <div class="check"><span class="tick">✓</span><span><b>สถานะไม่ใช้สีอย่างเดียว</b> มีคำ/ไอคอน/ป้ายกำกับเสมอ</span></div>
+        <div class="check"><span class="tick">✓</span><span><b>SOS ไม่แทน 191</b> ทุกเส้นทางต้องมีข้อความและปุ่มโทรเมื่อไม่มีเจ้าหน้าที่</span></div>
+        <div class="check"><span class="tick">✓</span><span><b>โหมดง่ายไม่ซ่อนข้อมูลความปลอดภัย</b> ซ่อนได้เฉพาะรายละเอียดรอง</span></div>
+        <div class="check"><span class="tick">✓</span><span><b>ทดสอบ 390 / 768 / 1440</b> ไม่มี horizontal overflow และ tabs ไม่ทับ content</span></div>
+        <div class="check"><span class="tick">✓</span><span><b>ทดสอบด้วยคีย์บอร์ด</b> โฟกัสมองเห็นทุกจุด และลำดับโฟกัสตรงกับลำดับอ่าน</span></div>
+        <div class="check"><span class="tick">✓</span><span><b>ไม่มีข้อมูลเทคนิคในโหมดง่าย</b> รหัส/เวลา/เวอร์ชันอยู่ในโหมดละเอียดเท่านั้น</span></div>
+        <div class="check"><span class="tick">✓</span><span><b>ข้อมูลตัวอย่างไม่หลุดเป็นข้อมูลจริง</b> และไม่มี PII จริงในโปรโตไทป์</span></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>หน้านี้เป็นภาคผนวกของข้อเสนอ <b>SMMB UX/UI 3 ทิศทาง</b> · ค่าสีและ contrast คำนวณจาก CSS จริงของโปรโตไทป์ · ตัวเลข 104 จอ = จำนวนหน้าจอที่กดได้ต่อ 1 ทิศทาง (312 จอรวม) และครอบ 99/99 รหัสใน <code>screens/registry.ts</code></p>
+    <p><a href="index.html">กลับหน้าภาพรวม</a> · <a href="a-signs.html">A</a> · <a href="b-mailbox.html">B</a> · <a href="c-kiosk.html">C</a></p>
+  </div>
+</footer>
+
+<script src="screens.js"></script>
+<script>
+(function(){
+  'use strict';
+  var S = window.SMMB;
+
+  var TOKENS = {
+    a: {
+      light: { bg:'#fcf9f1', ink:'#16211b', muted:'#5b645d', accent:'#0a5b43', sos:'#bc332b', action:'#0a5b43' },
+      dark:  { bg:'#131a15', ink:'#f2efe4', muted:'#a6b0a6', accent:'#5cc39a', sos:'#f27c72', action:'#1f7a5c' }
+    },
+    b: {
+      light: { bg:'#fbf4e4', ink:'#14242c', muted:'#5d635f', accent:'#1c6b4f', sos:'#b23a2e', action:'#185c43' },
+      dark:  { bg:'#17130d', ink:'#f6ecd8', muted:'#b3a894', accent:'#64c39a', sos:'#e8766a', action:'#185c43' }
+    },
+    c: {
+      light: { bg:'#fdfdfb', ink:'#101418', muted:'#59616a', accent:'#0b57d0', sos:'#b3261e', action:'#0b57d0' },
+      dark:  { bg:'#121417', ink:'#f2f3f4', muted:'#a8adb3', accent:'#8ab4f8', sos:'#f28b82', action:'#2f6fd0' }
+    }
+  };
+
+  function lum(hex){
+    var c = hex.replace('#','');
+    if (c.length === 3) c = c.split('').map(function(x){return x+x;}).join('');
+    var rgb = [0,1,2].map(function(i){ var v = parseInt(c.substr(i*2,2),16)/255; return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); });
+    return 0.2126*rgb[0] + 0.7152*rgb[1] + 0.0722*rgb[2];
+  }
+  function ratio(a,b){ var l1=lum(a), l2=lum(b); var hi=Math.max(l1,l2), lo=Math.min(l1,l2); return (hi+0.05)/(lo+0.05); }
+
+  function swatches(key, theme){
+    var t = TOKENS[key][theme];
+    var rows = [
+      ['พื้นหลัง', t.bg, 'bg'], ['ข้อความหลัก', t.ink, 'ink'], ['ข้อความรอง', t.muted, 'muted'],
+      ['สีเน้น', t.accent, 'accent'], ['SOS', t.sos, 'sos'], ['พื้นปุ่มหลัก', t.action, 'action']
+    ];
+    return rows.map(function(r){
+      return '<div class="sw"><i style="background:'+r[1]+'"></i><b>'+r[0]+'</b><code>'+r[1]+'</code></div>';
+    }).join('');
+  }
+
+  function paintTokens(){
+    ['a','b','c'].forEach(function(k){
+      var el = document.getElementById('tok' + k.toUpperCase());
+      if (el) el.innerHTML = '<div class="themeseam">โหมดสว่าง</div>' + swatches(k,'light') + '<div class="darkrow" style="display:contents"><div class="themeseam">โหมดกลางคืน</div>' + swatches(k,'dark') + '</div>';
+    });
+  }
+  paintTokens();
+
+  var ctheme = 'light';
+  function paintContrast(){
+    var rows = [
+      ['ข้อความหลักบนพื้น', function(t){ return ratio(t.ink,t.bg); }],
+      ['ข้อความรองบนพื้น', function(t){ return ratio(t.muted,t.bg); }],
+      ['สีเน้นบนพื้น', function(t){ return ratio(t.accent,t.bg); }],
+      ['SOS บนพื้น', function(t){ return ratio(t.sos,t.bg); }],
+      ['ตัวอักษรขาวบนปุ่มหลัก', function(t){ return ratio('#ffffff',t.action); }]
+    ];
+    var body = document.getElementById('contrastBody');
+    body.innerHTML = rows.map(function(r){
+      return '<tr><th scope="row">' + r[0] + '</th>' + ['a','b','c'].map(function(k){
+        var v = r[1](TOKENS[k][ctheme]);
+        var pass = v >= 4.5;
+        return '<td><span class="ratio">' + v.toFixed(1) + ':1</span><span class="' + (pass ? 'pass' : 'fail') + '">' + (pass ? 'ผ่าน AA' : 'ไม่ผ่าน') + '</span></td>';
+      }).join('') + '</tr>';
+    }).join('');
+  }
+  paintContrast();
+  document.querySelectorAll('[data-ctheme]').forEach(function(b){
+    b.addEventListener('click', function(){
+      ctheme = b.dataset.ctheme;
+      document.querySelectorAll('[data-ctheme]').forEach(function(x){ x.setAttribute('aria-pressed', String(x === b)); });
+      paintContrast();
+    });
+  });
+
+  /* สารบัญทุกจอ */
+  var roleLabel = { owner:'เจ้าของบ้าน', officer:'เจ้าหน้าที่', head:'หัวหน้า', admin:'แอดมิน/ช่าง', rider:'ไรเดอร์', auth:'เข้าสู่ระบบ', shared:'ใช้ร่วมกัน' };
+  var grid = document.getElementById('sg');
+  var q = document.getElementById('q');
+  var activeRole = 'all';
+  function renderScreens(){
+    var term = (q.value || '').trim().toLowerCase();
+    var list = S.SCREENS.filter(function(s){
+      if (activeRole !== 'all' && s.role !== activeRole) return false;
+      if (!term) return true;
+      return (s.title + ' ' + (s.sub || '') + ' ' + s.code + ' ' + s.id + ' ' + (s.group || '')).toLowerCase().indexOf(term) !== -1;
+    });
+    grid.innerHTML = list.map(function(s){
+      return '<article class="sc"><div class="top"><span class="code">' + s.code + '</span><span class="role">' + roleLabel[s.role] + '</span></div>' +
+        '<strong>' + s.title + '</strong><small>' + (s.group || '') + ' · ' + s.blocks.length + ' บล็อก</small>' +
+        '<div class="try"><a href="a-signs.html#' + s.id + '">A</a><a href="b-mailbox.html#' + s.id + '">B</a><a href="c-kiosk.html#' + s.id + '">C</a></div></article>';
+    }).join('');
+    document.getElementById('scount').textContent = 'แสดง ' + list.length + ' จาก ' + S.SCREENS.length + ' จอ · ครอบ 99/99 รหัส wireframe';
+  }
+  q.addEventListener('input', renderScreens);
+  document.querySelectorAll('[data-role]').forEach(function(b){
+    b.addEventListener('click', function(){
+      activeRole = b.dataset.role;
+      document.querySelectorAll('[data-role]').forEach(function(x){ x.setAttribute('aria-pressed', String(x === b)); });
+      renderScreens();
+    });
+  });
+  renderScreens();
+})();
+</script>
+</body>
+</html>

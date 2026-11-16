@@ -97,7 +97,9 @@ export class AuthLine {
             <rect x="14" y="40" width="212" height="26" rx="8" class="row hiRow" />
             <rect x="22" y="45" width="16" height="16" rx="4" class="ico hi" />
             <path d="M30 49v8M26 53h8" class="ico hi" />
-            <text x="46" y="58" class="tiny strongT">เพิ่มไปยังหน้าจอหลัก · Add to Home Screen</text>
+            <!-- B5: ข้อความยาวขึ้นบรรทัดใหม่ได้ในภาพ (เดิมถูกตัดเป็น "Add to Home Scr…") -->
+            <text x="46" y="53" class="tiny strongT">เพิ่มไปยังหน้าจอหลัก</text>
+            <text x="46" y="63" class="tiny strongT">Add to Home Screen</text>
             <rect x="14" y="72" width="212" height="22" rx="8" class="row" />
             <text x="26" y="87" class="tiny">ค้นหาในหน้า · Find on Page</text>
             <text x="120" y="111" text-anchor="middle" class="tiny muted">↓ เลื่อนลงหา · scroll down</text>
@@ -105,9 +107,8 @@ export class AuthLine {
         <li><span><strong>{{ i18n.t({ th: 'เปิดแอปจากไอคอน Smart Mailbox', en: 'Open Smart Mailbox from its icon' }) }}</strong><small>{{ i18n.t({ th: 'ที่หน้าจอโฮมของมือถือ', en: 'On your home screen' }) }}</small>
           <svg class="pic" viewBox="0 0 240 90" role="img" [attr.aria-label]="i18n.t({ th: 'ภาพ: ไอคอน Smart Mailbox บนหน้าจอโฮม', en: 'Picture: the Smart Mailbox icon on the home screen' })">
             <rect x="1" y="1" width="238" height="88" rx="14" class="screen" />
-            <rect x="24" y="14" width="40" height="40" rx="10" class="app" />
-            <rect x="36" y="26" width="16" height="12" rx="2" class="mail" />
-            <path d="M36 28l8 6 8-6" class="mailline" />
+            <!-- B5: ใช้ไอคอนแอปจริง (ไฟล์เดียวกับ manifest) ไม่ใช่รูปซองที่วาดขึ้นเอง -->
+            <image href="icons/icon-96x96.png" x="24" y="14" width="40" height="40" />
             <text x="44" y="68" text-anchor="middle" class="tiny strongT">Smart Mailbox</text>
             <rect x="100" y="14" width="40" height="40" rx="10" class="ghost" />
             <rect x="170" y="14" width="40" height="40" rx="10" class="ghost" />
@@ -131,7 +132,7 @@ export class AuthLine {
       flex: 1;
     }
     h1 {
-      font-size: 1.5rem;
+      font-size: var(--fs-xl);
     }
     .android {
       background: var(--brand-lighter);
@@ -176,7 +177,7 @@ export class AuthLine {
         stroke-dasharray: 4 4;
       }
       .tiny {
-        font-size: 11px;
+        font-size: var(--fs-xs);
         fill: var(--text);
       }
       .strongT {
@@ -335,15 +336,19 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
           <input type="tel" inputmode="numeric" autocomplete="tel" [value]="phone()" (input)="phone.set(bindPhone($any($event.target)))" />
         </label>
         <app-password-field [(value)]="password" [invalid]="!!error()" />
-        <p class="small easy-hide">
-          <span class="danger-text">{{ i18n.t({ th: 'ลืมรหัสผ่าน? ', en: 'Forgot it? ' }) }}</span>
-          {{ i18n.t({ th: 'เจ้าหน้าที่ขอให้หัวหน้ารีเซ็ต · ผู้ใช้อื่นติดต่อผู้ดูแลระบบ', en: 'Officers ask their head · everyone else contacts the admin' }) }}
-          @if (support(); as contact) {
-            : <strong>{{ contact }}</strong>
-          }
-        </p>
+        <!-- B2: ปุ่มข้อความกดได้จริง เปิดคำอธิบายทุกโหมด (เดิมเป็นตัวแดงที่กดไม่ได้และถูกซ่อนในโหมดง่าย) -->
+        <button type="button" class="forgot-link" [attr.aria-expanded]="forgotOpen()" (click)="forgotOpen.set(!forgotOpen())">
+          {{ i18n.t({ th: 'ลืมรหัสผ่าน?', en: 'Forgot your password?' }) }}
+        </button>
+        @if (forgotOpen()) {
+          <div class="info-box forgot-box" role="status">
+            <p><strong>{{ i18n.t({ th: 'เจ้าหน้าที่', en: 'Officers' }) }}</strong> — {{ i18n.t({ th: 'ขอให้หัวหน้าหน่วยงานรีเซ็ตรหัสให้', en: 'ask your agency head to reset it' }) }}</p>
+            <p><strong>{{ i18n.t({ th: 'เจ้าของบ้าน / หัวหน้า / แอดมิน', en: 'Homeowners / heads / admins' }) }}</strong> — {{ i18n.t({ th: 'ติดต่อผู้ดูแลระบบ', en: 'contact the system admin' }) }}@if (support(); as contact) {<span> · <strong>{{ contact }}</strong></span>}</p>
+            <p class="muted small">{{ i18n.t({ th: 'ระบบไม่มี OTP และผู้ใช้รีเซ็ตรหัสเองไม่ได้', en: 'There is no OTP, and users cannot reset the password themselves.' }) }}</p>
+          </div>
+        }
 
-        <div class="stack push-end">
+        <div class="stack auth-actions">
           <button type="submit" class="btn" [disabled]="!ready() || busy()">{{ error() ? i18n.t({ th: 'ลองอีกครั้ง', en: 'Try again' }) : i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</button>
           <p class="center small">
             {{ i18n.t({ th: 'ยังไม่มีบัญชี? ', en: 'No account? ' }) }}<a class="link" [routerLink]="url('A05')">{{ i18n.t({ th: 'สมัครสมาชิก', en: 'Sign up' }) }}</a>
@@ -360,7 +365,7 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
       min-inline-size: 0;
     }
     h1 {
-      font-size: 1.5rem;
+      font-size: var(--fs-xl);
       margin-block-start: 8px;
     }
     .err {
@@ -371,6 +376,33 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
     .link {
       color: var(--brand-text);
       font-weight: 700;
+    }
+    /* B2: ปุ่มข้อความ (ไม่ใช่ตัวแดงลอย) — พื้นที่แตะ 44px */
+    .forgot-link {
+      align-self: flex-start;
+      min-block-size: 44px;
+      padding: 4px 0;
+      border: 0;
+      background: none;
+      color: var(--brand-text);
+      font: inherit;
+      font-weight: 700;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+    }
+    .forgot-box {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .forgot-box p {
+      margin: 0;
+      line-height: 1.5;
+    }
+    /* B1: ปุ่มหลักห่างช่องสุดท้าย 24px ไม่ดันไปชิดล่างจอ */
+    .auth-actions {
+      margin-block-start: 24px;
     }
     .pick {
       inline-size: 100%;
@@ -393,6 +425,8 @@ export class AuthSignin implements OnInit {
   protected readonly roleChoice = ROLE_CHOICE;
   /** ช่องทางติดต่อผู้ดูแล (api.md §3.1 — public) */
   protected readonly support = signal<string | null>(null);
+  /** B2: คำอธิบาย "ลืมรหัสผ่าน" เปิด/ปิดได้ และแสดงทุกโหมด */
+  protected readonly forgotOpen = signal(false);
 
   /** ?next=/officer/… — กลับไปหน้าที่ตั้งใจเปิดหลังล็อกอิน */
   readonly next = input<string>();
@@ -499,16 +533,18 @@ export class AuthSignin implements OnInit {
         <h1>{{ i18n.t({ th: 'สมัครเป็น…', en: 'Sign up as…' }) }}</h1>
         <p class="muted small">{{ i18n.t({ th: 'เลือกให้ตรงกับคุณ', en: 'Pick the one that fits you' }) }}</p>
       </div>
-      @for (c of choices; track c.code) {
-        <a class="card choice" [routerLink]="url(c.code)">
-          <span class="icon-bubble"><app-icon [name]="c.icon" [size]="20" /></span>
-          <span class="grow">
-            <strong>{{ i18n.t(c.title) }}</strong>
-            <span class="muted small block easy-hide">{{ i18n.t(c.sub) }}</span>
-          </span>
-          <app-icon name="chevronRight" [size]="18" />
-        </a>
-      }
+      <!-- A3/A5: แถวเมนูธรรมดาในลิสต์เดียว ไม่ใช่การ์ดซ้อนกันต่อรายการ -->
+      <nav class="menu">
+        @for (c of choices; track c.code) {
+          <a class="menu-row" [routerLink]="url(c.code)">
+            <app-icon class="mi" [name]="c.icon" [size]="20" />
+            <span class="grow">
+              <strong>{{ i18n.t(c.title) }}</strong>
+            </span>
+            <app-icon class="chev" name="chevronRight" [size]="18" />
+          </a>
+        }
+      </nav>
       <p class="center small push-end easy-hide">
         {{ i18n.t({ th: 'มีบัญชีแล้ว? ', en: 'Have an account? ' }) }}<a class="link" [routerLink]="url('A04')">{{ i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</a>
       </p>
@@ -519,23 +555,9 @@ export class AuthSignin implements OnInit {
     .grow {
       flex: 1;
     }
-    .choice .grow {
-      min-inline-size: 0;
-    }
     h1 {
-      font-size: 1.5rem;
+      font-size: var(--fs-xl);
       margin-block-start: 8px;
-    }
-    .choice {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      text-decoration: none;
-      color: inherit;
-      min-block-size: 72px;
-    }
-    .block {
-      display: block;
     }
     .link {
       color: var(--brand-text);

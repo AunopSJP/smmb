@@ -4,6 +4,7 @@ import { apiError } from '../../core/api';
 import { HeadApi, type HouseHit, type Member, type Zone, type ZoneDetail, type ZoneHouse } from '../../core/head-api';
 import { DisplaySettings } from '../../core/display-settings';
 import { I18n, type Tr } from '../../core/i18n';
+import { fmtWhen, fmtWhenSec } from '../../core/time';
 import { Toast } from '../../core/toast';
 import { Confirm } from '../../shared/confirm-dialog';
 import { HousesMap, type HouseMapPoint } from '../../shared/houses-map';
@@ -106,7 +107,7 @@ const ZONE_ERROR: Record<string, Tr> = {
       inline-size: auto;
       min-block-size: 44px;
       padding: 6px 14px;
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
     }
     .zone {
       display: flex;
@@ -123,7 +124,7 @@ const ZONE_ERROR: Record<string, Tr> = {
       align-items: center;
       gap: 8px;
       strong {
-        font-size: 1.0625rem;
+        font-size: var(--fs-md);
       }
     }
     .push {
@@ -178,7 +179,7 @@ export class HeadZones implements OnInit {
   }
 
   protected updated(z: Zone): string {
-    return new Date(z.updated_at).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Bangkok' });
+    return fmtWhen(z.updated_at, this.i18n.lang());
   }
 }
 
@@ -227,9 +228,10 @@ export class HeadZones implements OnInit {
         </div>
         @if (windows().length < maxWindows) {
           <div class="add-window">
-            <input type="time" [value]="from()" (input)="from.set($any($event.target).value)" [attr.aria-label]="i18n.t({ th: 'เริ่ม', en: 'From' })" />
+            <!-- A8: บังคับรูปแบบ 24 ชม. แบบพิมพ์ HH:mm และกว้างพอที่ 390px -->
+            <input type="text" inputmode="numeric" autocomplete="off" maxlength="5" pattern="[0-2][0-9]:[0-5][0-9]" placeholder="HH:mm" [value]="from()" (input)="from.set($any($event.target).value)" [attr.aria-label]="i18n.t({ th: 'เริ่ม (24 ชม.)', en: 'From (24-hour)' })" />
             <span>–</span>
-            <input type="time" [value]="to()" (input)="to.set($any($event.target).value)" [attr.aria-label]="i18n.t({ th: 'ถึง', en: 'To' })" />
+            <input type="text" inputmode="numeric" autocomplete="off" maxlength="5" pattern="[0-2][0-9]:[0-5][0-9]" placeholder="HH:mm" [value]="to()" (input)="to.set($any($event.target).value)" [attr.aria-label]="i18n.t({ th: 'ถึง (24 ชม.)', en: 'To (24-hour)' })" />
             <button type="button" class="btn secondary small-btn" (click)="addWindow()">{{ i18n.t({ th: 'เพิ่ม', en: 'Add' }) }}</button>
           </div>
         }
@@ -928,7 +930,7 @@ export class HeadZoneEdit {
   }
 
   protected updated(iso: string): string {
-    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Asia/Bangkok' });
+    return fmtWhenSec(iso, this.i18n.lang());
   }
 
   private toMinutes(hhmm: string): number {

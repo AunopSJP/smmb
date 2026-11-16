@@ -56,54 +56,49 @@ const addRoleErrorKey = (e: { code: string | null; status: number | null }): str
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h2 class="section-title">{{ i18n.t({ th: 'บัญชี', en: 'Account' }) }}</h2>
-    <nav class="list">
+    <!-- A3/A4: แถวเมนูธรรมดา ไม่มีกล่องไอคอน · กุญแจ = รหัสผ่าน -->
+    <nav class="menu">
       @for (r of switchTo(); track r) {
-        <button type="button" class="row as-button" (click)="switchRole(r)">
-          <span class="icon-bubble"><app-icon [name]="roles[r].icon" [size]="20" /></span>
+        <button type="button" class="menu-row as-button" (click)="switchRole(r)">
+          <app-icon class="mi" [name]="roles[r].icon" [size]="20" />
           <span class="grow">
             <strong>{{ i18n.t({ th: 'ใช้งานเป็น', en: 'Switch to ' }) }}{{ i18n.t(roles[r].label) }}</strong>
-            <span class="muted small block easy-hide">{{ i18n.t({ th: 'บัญชีเดียวกัน ไม่ต้องเข้าสู่ระบบใหม่', en: 'Same account, no new sign-in' }) }}</span>
-            
           </span>
-          <app-icon name="chevronRight" [size]="18" />
+          <app-icon class="chev" name="chevronRight" [size]="18" />
         </button>
       }
       @if (session.agencyPending()) {
-        <a class="row" [routerLink]="url('A11')">
-          <span class="icon-bubble"><app-icon name="shield" [size]="20" /></span>
+        <a class="menu-row" [routerLink]="url('A11')">
+          <app-icon class="mi" name="shield" [size]="20" />
           <span class="grow">
             <strong>{{ i18n.t({ th: 'คำขอเข้าหน่วยงาน', en: 'Agency request' }) }}</strong>
-            <span class="muted small block easy-hide">{{ i18n.t({ th: 'หัวหน้ายังไม่ได้ยืนยัน', en: 'Your head has not approved it yet' }) }}</span>
           </span>
           <span class="chip warn">{{ i18n.t({ th: 'รอ', en: 'Waiting' }) }}</span>
         </a>
       } @else if (canJoin()) {
-        <a class="row" [routerLink]="url('A16')" [queryParams]="{ from: from() }">
-          <span class="icon-bubble"><app-icon name="shield" [size]="20" /></span>
+        <a class="menu-row" [routerLink]="url('A16')" [queryParams]="{ from: from() }">
+          <app-icon class="mi" name="shield" [size]="20" />
           <span class="grow">
             <strong>{{ i18n.t({ th: 'ขอเข้าหน่วยงาน', en: 'Join an agency' }) }}</strong>
-            <span class="muted small block easy-hide">{{ i18n.t({ th: 'เป็นเจ้าหน้าที่ด้วย? ใช้รหัสกลุ่มจากหัวหน้า', en: 'Also an officer? Use your head’s group code' }) }}</span>
           </span>
-          <app-icon name="chevronRight" [size]="18" />
+          <app-icon class="chev" name="chevronRight" [size]="18" />
         </a>
       }
       @if (canAddOwner()) {
-        <a class="row" [routerLink]="url('A15')" [queryParams]="{ from: from() }">
-          <span class="icon-bubble"><app-icon name="home" [size]="20" /></span>
+        <a class="menu-row" [routerLink]="url('A15')" [queryParams]="{ from: from() }">
+          <app-icon class="mi" name="home" [size]="20" />
           <span class="grow">
             <strong>{{ i18n.t({ th: 'เพิ่มบทบาทเจ้าของบ้าน', en: 'Add the homeowner role' }) }}</strong>
-            <span class="muted small block easy-hide">{{ i18n.t({ th: 'มีตู้ที่บ้าน? ใช้บัญชีนี้ ไม่ต้องสมัครใหม่', en: 'Mailbox at home? Same account, no new sign-up' }) }}</span>
           </span>
-          <app-icon name="chevronRight" [size]="18" />
+          <app-icon class="chev" name="chevronRight" [size]="18" />
         </a>
       }
-      <a class="row" [routerLink]="url('A14')" [queryParams]="{ from: from() }">
-        <span class="icon-bubble"><app-icon name="settings" [size]="20" /></span>
+      <a class="menu-row" [routerLink]="url('A14')" [queryParams]="{ from: from() }">
+        <app-icon class="mi" name="key" [size]="20" />
         <span class="grow">
           <strong>{{ i18n.t({ th: 'เปลี่ยนรหัสผ่าน', en: 'Change password' }) }}</strong>
-          <span class="muted small block easy-hide">{{ i18n.t({ th: 'เปลี่ยนแล้วต้องเข้าสู่ระบบใหม่ทุกเครื่อง', en: 'You will be signed out on every device' }) }}</span>
         </span>
-        <app-icon name="chevronRight" [size]="18" />
+        <app-icon class="chev" name="chevronRight" [size]="18" />
       </a>
     </nav>
   `,
@@ -318,7 +313,7 @@ export class AuthChangePassword {
     .progress {
       display: block;
       block-size: 6px;
-      border-radius: 3px;
+      border-radius: var(--radius-xs);
       background: var(--line);
       overflow: hidden;
       margin-block: 4px;

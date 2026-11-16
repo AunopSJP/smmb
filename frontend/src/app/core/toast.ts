@@ -96,11 +96,11 @@ export class Toast {
       max-width: min(100%, 520px);
       padding: 12px 16px;
       border: 0;
-      border-radius: 14px;
+      border-radius: var(--radius-sm);
       background: var(--text);
       color: var(--surface);
       font: inherit;
-      font-size: 0.9375rem;
+      font-size: var(--fs-base);
       font-weight: 600;
       line-height: 1.45;
       text-align: left;
@@ -126,7 +126,7 @@ export class Toast {
       min-block-size: 44px;
       padding: 0 12px;
       border: 1px solid currentColor;
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       background: none;
       color: inherit;
       font: inherit;

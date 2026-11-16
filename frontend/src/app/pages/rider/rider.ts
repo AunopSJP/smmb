@@ -6,16 +6,19 @@ import { apiError } from '../../core/api';
 import { I18n } from '../../core/i18n';
 import { CODE_ALPHABET, DELIVERY_LIMIT_PER_HOUR, formatCode, normalizeCode } from '../../core/rider-rules';
 import { screenUrl } from '../../screens/registry';
+import { fmtTime } from '../../core/time';
 import { Brand } from '../../shared/brand';
 import { CodeKeypad } from '../../shared/code-keypad';
 import { DisplaySettings } from '../../core/display-settings';
 import { Icon } from '../../shared/icon';
+import { ResultView } from '../../shared/result-view';
 
 // ไรเดอร์ — ไม่ต้องสมัคร ไม่ล็อกอิน ไม่เก็บข้อมูลตัวตน (api.md §5)
 // ทางเข้าจริง: สแกน QR หน้าตู้ด้วยกล้องมือถือ → ลิงก์ /b/<token> → หน้า R02 · สแกนไม่ได้ → พิมพ์รหัสใต้ QR (R01)
 // ตู้ไม่มีปุ่มหน้าตู้แล้ว (2026-10-28) — แจ้งส่งของได้ทาง QR / รหัสใต้ QR เท่านั้น · ใช้ API จริง
 
-const hhmm = (ts: number) => new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
+/** เวลา 24 ชม. ตามรูปแบบกลาง (A8) */
+const hhmm = (ts: number) => fmtTime(new Date(ts));
 
 /** ตัดสินจาก code ของ error เท่านั้น (CLAUDE.md กฎข้อ 10) */
 const ERROR_SCREEN: Record<string, string> = {
@@ -109,7 +112,8 @@ export class RiderApi {
       @if (display.easyMode()) {
         <app-code-keypad (key)="press($event)" (back)="backspace()" />
       }
-      <button type="submit" class="btn push-end" [disabled]="!ready() || busy()">{{ i18n.t({ th: 'ไปหน้าส่งของ', en: 'Continue' }) }}</button>
+      <!-- B1: ปุ่มหลักห่างช่องสุดท้าย 24px ไม่ดันไปชิดล่างจอ -->
+      <button type="submit" class="btn rider-submit" [disabled]="!ready() || busy()">{{ i18n.t({ th: 'ไปหน้าส่งของ', en: 'Continue' }) }}</button>
     </form>
   `,
   styles: `
@@ -117,13 +121,16 @@ export class RiderApi {
       flex: 1;
     }
     h1 {
-      font-size: 1.5rem;
+      font-size: var(--fs-xl);
       margin-block-start: 12px;
     }
     .field input {
-      font-size: 1.25rem;
+      font-size: var(--fs-lg);
       letter-spacing: 0.08em;
       text-transform: uppercase;
+    }
+    .rider-submit {
+      margin-block-start: 24px;
     }
     .field input::placeholder {
       text-transform: none;
@@ -235,7 +242,7 @@ export class RiderCode {
         font-weight: 700;
       }
       .no {
-        font-size: 3rem;
+        font-size: var(--fs-3xl);
         font-weight: 700;
         line-height: 1.15;
         font-variant-numeric: tabular-nums;
@@ -305,31 +312,27 @@ export class RiderDeliver implements OnInit {
 
 @Component({
   selector: 'app-rider-invalid',
-  imports: [Brand, RouterLink],
+  imports: [Brand, ResultView],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-brand />
-    <div class="stack grow">
-      <div class="result mid">
-        <span class="big-icon warn" aria-hidden="true">!</span>
-        <h1>{{ i18n.t({ th: 'QR หรือรหัสไม่ถูกต้อง', en: 'QR or code not valid' }) }}</h1>
-        <p class="muted small">
-          {{ i18n.t({ th: 'ลองสแกน QR ที่หน้าตู้อีกครั้ง', en: 'Scan the QR on the box again' }) }}<br />
-          {{ i18n.t({ th: 'หรือพิมพ์รหัสใต้ QR', en: 'or type the code under it' }) }}
-        </p>
-      </div>
-      <div class="stack push-end">
-        <a class="btn" [routerLink]="url('R01')">{{ i18n.t({ th: 'พิมพ์รหัสใหม่', en: 'Type the code again' }) }}</a>
-        <p class="muted small center easy-hide">{{ i18n.t({ th: 'สแกนใหม่ได้ด้วยกล้องมือถือ', en: 'You can rescan with your phone camera' }) }}</p>
-      </div>
-    </div>
+    <app-result-view
+      class="grow"
+      icon="search"
+      tone="warn"
+      role="alert"
+      [title]="i18n.t({ th: 'QR หรือรหัสไม่ถูกต้อง', en: 'QR or code not valid' })"
+      [body]="i18n.t({ th: 'ลองสแกน QR ที่หน้าตู้อีกครั้ง หรือพิมพ์รหัสใต้ QR', en: 'Scan the QR on the box again, or type the code under it' })"
+      [primaryLabel]="i18n.t({ th: 'พิมพ์รหัสใหม่', en: 'Type the code again' })"
+      [primaryLink]="url('R01')"
+    >
+      <p class="muted small easy-hide">{{ i18n.t({ th: 'สแกนใหม่ได้ด้วยกล้องมือถือ', en: 'You can rescan with your phone camera' }) }}</p>
+    </app-result-view>
   `,
   styles: `
+    /* หน้าแจ้งผลเต็มพื้นที่ที่เหลือ — จัดกลางแนวตั้งด้วย ResultView (A7) */
     .grow {
       flex: 1;
-    }
-    .mid {
-      margin-block-start: 18vh;
     }
   `,
 })
@@ -342,24 +345,18 @@ export class RiderInvalid {
 
 @Component({
   selector: 'app-rider-closed',
-  imports: [Brand, RouterLink],
+  imports: [Brand, ResultView],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-brand />
-    <div class="result mid">
-      <span class="big-icon" aria-hidden="true">✕</span>
-      <h1>{{ i18n.t({ th: 'ตู้นี้ปิดให้บริการ', en: 'This mailbox is not in service' }) }}</h1>
-      <p class="muted small">
-        {{ i18n.t({ th: 'ส่งของผ่านตู้นี้ไม่ได้ตอนนี้', en: 'Deliveries through this box are paused' }) }}<br />
-        {{ i18n.t({ th: 'โปรดติดต่อผู้รับโดยตรง', en: 'Please contact the recipient directly' }) }}
-      </p>
-      <a class="btn" [routerLink]="url('R01')">{{ i18n.t({ th: 'สแกน / พิมพ์รหัสตู้อื่น', en: 'Scan or enter another box' }) }}</a>
-    </div>
-  `,
-  styles: `
-    .mid {
-      margin-block-start: 22vh;
-    }
+    <app-result-view
+      icon="box"
+      tone="warn"
+      [title]="i18n.t({ th: 'ตู้นี้ปิดให้บริการ', en: 'This mailbox is not in service' })"
+      [body]="i18n.t({ th: 'ส่งของผ่านตู้นี้ไม่ได้ตอนนี้ · โปรดติดต่อผู้รับโดยตรง', en: 'Deliveries through this box are paused · please contact the recipient directly' })"
+      [primaryLabel]="i18n.t({ th: 'สแกน / พิมพ์รหัสตู้อื่น', en: 'Scan or enter another box' })"
+      [primaryLink]="url('R01')"
+    />
   `,
 })
 export class RiderClosed {
@@ -371,29 +368,33 @@ export class RiderClosed {
 
 @Component({
   selector: 'app-rider-limited',
-  imports: [Brand, RouterLink],
+  imports: [Brand, ResultView],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-brand />
-    <div class="stack grow">
-      <div class="result">
-        <span class="big-icon warn" aria-hidden="true">!</span>
-        <h1>{{ i18n.t({ th: 'แจ้งส่งของบ่อยเกินไป', en: 'Too many delivery reports' }) }}</h1>
-        <p class="muted small">
-          {{ i18n.t({ th: 'ตู้นี้แจ้งส่งของได้ไม่เกิน ' + limit + ' ครั้ง/ชั่วโมง', en: 'This box takes at most ' + limit + ' reports an hour' }) }}<br />
-          <span class="easy-hide">{{ i18n.t({ th: 'ป้องกันการแจ้งซ้ำจากรูปถ่าย QR', en: 'to stop repeats from photos of the QR' }) }}</span>
-        </p>
-      </div>
+    <app-result-view
+      class="grow"
+      icon="alert"
+      tone="warn"
+      [title]="i18n.t({ th: 'แจ้งส่งของบ่อยเกินไป', en: 'Too many delivery reports' })"
+      [body]="i18n.t({ th: 'ตู้นี้แจ้งส่งของได้ไม่เกิน ' + limit + ' ครั้ง/ชั่วโมง', en: 'This box takes at most ' + limit + ' reports an hour' })"
+      [note]="i18n.t({ th: 'ป้องกันการแจ้งซ้ำจากรูปถ่าย QR', en: 'to stop repeats from photos of the QR' })"
+      [primaryLabel]="i18n.t({ th: 'ลองอีกครั้งภายหลัง', en: 'Try again later' })"
+      [primaryLink]="url('R02')"
+    >
       <p class="info-box tip">
         <strong>{{ i18n.t({ th: 'นำของใส่ไว้ในตู้ได้', en: 'Real delivery? Just leave it in the box' }) }}</strong><br />
         <span class="muted small">{{ i18n.t({ th: 'เจ้าของบ้านจะเห็นตอนเปิดตู้', en: 'The owner will find it when they open the box' }) }}</span>
       </p>
-      <a class="btn secondary push-end" [routerLink]="url('R02')">{{ i18n.t({ th: 'ลองอีกครั้งภายหลัง', en: 'Try again later' }) }}</a>
-    </div>
+    </app-result-view>
   `,
   styles: `
     .grow {
       flex: 1;
+    }
+    .tip {
+      inline-size: 100%;
+      text-align: start;
     }
     .tip strong {
       color: var(--ok);
@@ -438,10 +439,10 @@ export class RiderLimited {
       margin-block-start: 20vh;
     }
     .result h1 {
-      font-size: 1.75rem;
+      font-size: var(--fs-xl);
     }
     .house {
-      font-size: 1.125rem;
+      font-size: var(--fs-md);
       font-weight: 700;
     }
   `,

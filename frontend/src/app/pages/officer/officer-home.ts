@@ -5,6 +5,7 @@ import { DisplaySettings } from '../../core/display-settings';
 import { I18n } from '../../core/i18n';
 import { hhmm, InspectionApi, type MyLog, type OfficerSummary } from '../../core/inspection-api';
 import { Session } from '../../core/session';
+import { fmtWhen } from '../../core/time';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
@@ -37,7 +38,7 @@ const toMinutes = (hhmm: string): number | null => {
   imports: [RouterLink, PageHeader, Icon, LoadingRows, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="caption()" [title]="session.me()?.display_name ?? ''" [bell]="url('O14')" />
+    <app-page-header [caption]="caption()" [title]="i18n.t({ th: 'หน้าหลัก', en: 'Home' })" [bell]="url('O14')" />
 
     <p class="adv-only adv-strip mono">
       <span>{{ i18n.t({ th: 'โซน ', en: 'Zone ' }) }}{{ zoneLabel() }}</span>
@@ -339,12 +340,6 @@ export class OfficerHome {
 
   /** เวลาเต็ม (วันที่ + เวลา) สำหรับโหมดละเอียด */
   protected fullStamp(iso: string | null): string {
-    if (!iso) return '';
-    const d = new Date(iso).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', {
-      day: 'numeric',
-      month: 'short',
-      timeZone: 'Asia/Bangkok',
-    });
-    return `${d} ${hhmm(iso)}`;
+    return iso ? fmtWhen(iso, this.i18n.lang()) : '';
   }
 }

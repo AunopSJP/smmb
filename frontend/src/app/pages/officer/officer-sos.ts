@@ -8,6 +8,7 @@ import { MapPin } from '../../shared/map-pin';
 import { SosHouseDetails } from '../../shared/profile-extras';
 import { OfficerSosApi, secondsSince, type SosCard } from '../../core/owner-api';
 import { Session } from '../../core/session';
+import { fmtWhen } from '../../core/time';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
@@ -110,7 +111,7 @@ const go = (router: Router, code: string, id?: string) =>
       color: inherit;
     }
     .big {
-      font-size: 1.125rem;
+      font-size: var(--fs-md);
     }
     .grow {
       flex: 1;
@@ -155,7 +156,7 @@ export class OfficerSosList {
   }
 
   protected day(iso: string): string {
-    return new Date(iso).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
+    return fmtWhen(iso, this.i18n.lang());
   }
 }
 
@@ -259,7 +260,7 @@ export class OfficerSosList {
       background: var(--sos-bg);
       color: var(--sos-fg);
       h1 {
-        font-size: 2rem;
+        font-size: var(--fs-2xl);
         line-height: 1.35;
       }
     }
@@ -270,9 +271,9 @@ export class OfficerSosList {
     }
     .pill {
       font-weight: 700;
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
       padding: 2px 10px;
-      border-radius: 999px;
+      border-radius: var(--radius-lg);
       background: rgb(255 255 255 / 20%);
     }
     .on-red {
@@ -283,7 +284,7 @@ export class OfficerSosList {
     }
     .tech {
       margin: 0;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       line-height: 1.6;
       opacity: 0.85;
       overflow-wrap: break-word;
@@ -391,9 +392,9 @@ export class OfficerSosCase implements OnInit {
       background: var(--sos-bg);
       color: var(--sos-fg);
       padding: 14px 16px 20px;
-      border-radius: 0 0 20px 20px;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
       h1 {
-        font-size: 1.75rem;
+        font-size: var(--fs-xl);
       }
     }
     .back {
@@ -402,18 +403,18 @@ export class OfficerSosCase implements OnInit {
       gap: 4px;
       color: var(--sos-fg);
       font-weight: 700;
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
       text-decoration: none;
     }
     .tech {
       margin: 0;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       opacity: 0.85;
       overflow-wrap: break-word;
     }
     .tech-muted {
       margin: 0;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       color: var(--text-muted);
     }
   `,
@@ -476,7 +477,7 @@ const OUTCOMES: { v: string; label: Tr }[] = [
   `,
   styles: `
     h1 {
-      font-size: 1.375rem;
+      font-size: var(--fs-lg);
     }
     .back {
       display: inline-flex;
@@ -484,7 +485,7 @@ const OUTCOMES: { v: string; label: Tr }[] = [
       gap: 4px;
       color: var(--brand-text);
       font-weight: 700;
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
       text-decoration: none;
     }
     .note {
@@ -506,7 +507,7 @@ const OUTCOMES: { v: string; label: Tr }[] = [
     }
     .tech {
       margin: 0;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       color: var(--text-muted);
     }
   `,

@@ -1,11 +1,16 @@
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import { DisplaySettings } from '../core/display-settings';
 import { I18n } from '../core/i18n';
+import { Session } from '../core/session';
 import { UnreadCount } from '../core/unread';
 import { Icon } from './icon';
 
-/** หัวหน้าจอ: บรรทัดเล็ก (บ้านเลขที่ / หน่วยงาน) + ชื่อหน้า + ปุ่มกระดิ่ง/ย้อนกลับ */
+/**
+ * หัวหน้าจอ: บรรทัดบริบท (บ้านเลขที่ / ชื่อหน่วยงาน / "แอดมิน") + ชื่อหน้า + ปุ่มกระดิ่ง/ย้อนกลับ
+ * กฎเดียวทั้งแอป (A6): บรรทัดบน = บริบทของบทบาท ไม่ใช่คำโปรย — และจองความสูงไว้เสมอ
+ * เพื่อให้ตำแหน่ง y ของชื่อหน้าเท่ากันทุกแท็บ แม้บางหน้าไม่มีข้อความบรรทัดบน
+ */
 @Component({
   selector: 'app-page-header',
   imports: [RouterLink, Icon],
@@ -18,9 +23,7 @@ import { Icon } from './icon';
         </a>
       }
       <div class="text">
-        @if (caption()) {
-          <p class="caption">{{ caption() }}</p>
-        }
+        <p class="caption">{{ context() }}</p>
         <h1>{{ title() }}</h1>
       </div>
       @if (bell()) {
@@ -45,12 +48,15 @@ import { Icon } from './icon';
       min-inline-size: 0;
     }
     .caption {
-      font-size: 0.8125rem;
+      /* จองหนึ่งบรรทัดเสมอ (A6) — หน้าไหนไม่มีบริบทก็ไม่ทำให้ชื่อหน้าขยับขึ้น */
+      min-block-size: calc(var(--fs-sm) * 1.5);
+      font-size: var(--fs-sm);
+      line-height: 1.5;
       color: var(--text-muted);
       overflow-wrap: break-word;
     }
     h1 {
-      font-size: 1.375rem;
+      font-size: var(--fs-lg);
       font-weight: 700;
       line-height: 1.35;
       overflow-wrap: break-word;
@@ -65,10 +71,10 @@ import { Icon } from './icon';
       min-inline-size: 18px;
       min-block-size: 18px;
       padding: 0 5px;
-      border-radius: 999px;
+      border-radius: var(--radius-lg);
       background: var(--badge-bg);
       color: var(--badge-fg);
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       font-weight: 800;
       line-height: 1.5;
       text-align: center;
@@ -82,11 +88,11 @@ import { Icon } from './icon';
         border-block-end: 1px solid var(--line-strong);
       }
       :host-context(.admin-layout) h1 {
-        font-size: 1.75rem;
+        font-size: var(--fs-xl);
         letter-spacing: -0.01em;
       }
       :host-context(.admin-layout) .caption {
-        font-size: 0.875rem;
+        font-size: var(--fs-sm);
       }
       :host-context(.admin-layout) .circle {
         inline-size: 40px;
@@ -121,7 +127,25 @@ export class PageHeader {
   protected readonly i18n = inject(I18n);
   protected readonly unread = inject(UnreadCount);
   protected readonly display = inject(DisplaySettings);
+  private readonly session = inject(Session);
+  private readonly router = inject(Router);
   readonly caption = input<string>();
+
+  /**
+   * บริบทบรรทัดบนตามบทบาท (A6) — ใช้ caption ที่หน้าส่งมา ถ้าไม่มีจึงเติมค่ากลาง:
+   * เจ้าของบ้าน = ชื่อบทบาท (หน้าที่ยังไม่รู้บ้านเลขที่จะส่งเอง) · เจ้าหน้าที่/หัวหน้า = ชื่อหน่วยงาน · แอดมิน = "แอดมิน"
+   */
+  protected readonly context = computed(() => {
+    const explicit = this.caption()?.trim();
+    if (explicit) return explicit;
+    const url = this.router.url;
+    if (url.startsWith('/admin')) return this.i18n.t({ th: 'แอดมิน', en: 'Admin' });
+    if (url.startsWith('/agency')) return this.session.me()?.agency?.name ?? this.i18n.t({ th: 'หัวหน้าหน่วยงาน', en: 'Agency head' });
+    if (url.startsWith('/officer')) return this.session.me()?.agency?.name ?? this.i18n.t({ th: 'เจ้าหน้าที่', en: 'Officer' });
+    if (url.startsWith('/home')) return this.i18n.t({ th: 'เจ้าของบ้าน', en: 'Homeowner' });
+    if (url.startsWith('/r/')) return this.i18n.t({ th: 'ไรเดอร์', en: 'Rider' });
+    return 'Smart Mailbox';
+  });
   readonly title = input.required<string>();
   /** URL ของหน้าแจ้งเตือน — ไม่ใส่ = ไม่มีกระดิ่ง */
   readonly bell = input<string>();

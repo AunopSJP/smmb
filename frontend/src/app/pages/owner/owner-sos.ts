@@ -73,7 +73,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
           <div class="adv-grid">
             <div><span>{{ i18n.t({ th: 'รหัส SOS', en: 'SOS ID' }) }}</span><b class="mono">{{ id() }}</b></div>
             <div><span>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</span><b class="mono">{{ sos()?.status ?? '—' }}</b></div>
-            <div><span>{{ i18n.t({ th: 'ส่งเมื่อ', en: 'Sent' }) }}</span><b class="mono">{{ sos()?.created_at ? exact(sos()!.created_at) : '—' }}</b></div>
+            <div><span>{{ i18n.t({ th: 'ส่งเมื่อ', en: 'Sent' }) }}</span><b class="num">{{ sos()?.created_at ? exact(sos()!.created_at) : '—' }}</b></div>
           </div>
         }
       } @else {
@@ -94,10 +94,10 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
           <div class="adv-grid">
             <div><span>{{ i18n.t({ th: 'รหัส SOS', en: 'SOS ID' }) }}</span><b class="mono">{{ id() }}</b></div>
             <div><span>{{ i18n.t({ th: 'ขั้น', en: 'Stage' }) }}</span><b class="mono">{{ st === 'zone' ? '1' : '2' }}/3</b></div>
-            <div><span>{{ i18n.t({ th: 'ผ่านมา', en: 'Elapsed' }) }}</span><b class="mono">{{ time() }}</b></div>
+            <div><span>{{ i18n.t({ th: 'ผ่านมา', en: 'Elapsed' }) }}</span><b class="num">{{ time() }}</b></div>
           </div>
           @if (sos()?.created_at) {
-            <p class="adv-line mono">{{ i18n.t({ th: 'ส่ง ', en: 'sent ' }) }}{{ exact(sos()!.created_at) }} · {{ i18n.t({ th: 'เปลี่ยนขั้น ', en: 'stage ' }) }}{{ exact(sos()!.stage_changed_at) }}</p>
+            <p class="adv-line num">{{ i18n.t({ th: 'ส่ง ', en: 'sent ' }) }}{{ exact(sos()!.created_at) }} · {{ i18n.t({ th: 'เปลี่ยนขั้น ', en: 'stage ' }) }}{{ exact(sos()!.stage_changed_at) }}</p>
           }
         }
 
@@ -167,12 +167,12 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       background: var(--sos-bg);
       color: var(--sos-fg);
       h1 {
-        font-size: 2rem;
+        font-size: var(--fs-2xl);
         line-height: 1.35;
         margin: 0;
       }
       p {
-        font-size: 1.25rem;
+        font-size: var(--fs-lg);
         line-height: 1.5;
         margin: 0;
         color: rgb(255 255 255 / 95%);
@@ -202,7 +202,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       border: 2px solid rgb(255 255 255 / 75%);
       background: transparent;
       color: var(--sos-fg);
-      font-size: 1.25rem;
+      font-size: var(--fs-lg);
     }
     .adv-grid {
       display: grid;
@@ -217,12 +217,12 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
         border-radius: var(--radius-sm);
         background: rgb(255 255 255 / 14%);
       }
-      span { font-size: 0.75rem; opacity: 0.85; }
-      b { font-size: 0.8125rem; }
+      span { font-size: var(--fs-xs); opacity: 0.85; }
+      b { font-size: var(--fs-sm); }
     }
     .adv-line {
       margin: 0 16px;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       text-align: center;
       opacity: 0.85;
       overflow-wrap: break-word;
@@ -260,7 +260,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       block-size: 26px;
       border-radius: 50%;
       border: 1.5px solid currentColor;
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       font-weight: 700;
     }
     li.now .num {
@@ -280,7 +280,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       background: var(--surface);
       border-radius: var(--radius-sm);
       padding: 10px 12px;
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
     }
     .dot.live {
       background: var(--sos);
@@ -367,7 +367,7 @@ export class SosWaiting {
       flex-direction: column;
       gap: 8px;
       text-align: start;
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       line-height: 1.6;
     }
   `,
@@ -530,17 +530,17 @@ export class SosCancel {
       background: var(--surface);
       border-radius: var(--radius-sm);
       padding: 10px 12px;
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
     }
     .tip {
       margin: 0;
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
       line-height: 1.6;
       color: var(--text-muted);
       text-align: center;
     }
     .adv-card {
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
     }
   `,
 })
@@ -636,7 +636,7 @@ export class SosAccepted {
       color: var(--ok);
     }
     h1 {
-      font-size: 1.5rem;
+      font-size: var(--fs-xl);
     }
     .center {
       text-align: center;

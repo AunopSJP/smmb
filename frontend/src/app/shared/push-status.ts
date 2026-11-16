@@ -7,6 +7,7 @@ import { DisplaySettings } from '../core/display-settings';
 import { I18n, type Tr } from '../core/i18n';
 import { isBrave, PushBlockedError, PushNotifications, type DiagStep, type PushBlocker, type PushServerStatus } from '../core/push-notifications';
 import { Session } from '../core/session';
+import { fmtWhenSec } from '../core/time';
 import { isSnoozed, PUSH_NUDGE_KEY, PUSH_NUDGE_SNOOZE_HOURS, snoozeUntil } from '../core/snooze';
 import { Toast } from '../core/toast';
 import { screenUrl } from '../screens/registry';
@@ -45,6 +46,16 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
         <button type="button" class="btn secondary easy-only" [disabled]="busy()" (click)="test()">{{ i18n.t({ th: 'ส่งข้อความทดสอบ', en: 'Send a test' }) }}</button>
       </div>
     } @else if (!snoozed()) {
+      <!-- C4: หน้าอื่น (compact) = แถบบรรทัดเดียว + ปุ่ม "เปิด" · หน้าหลัก/ตั้งค่าการแจ้งเตือน = แบบเต็ม -->
+      @if (compact()) {
+        <div class="card status warn bar" role="status">
+          <strong class="grow">{{ i18n.t({ th: '🔕 ยังไม่ได้รับแจ้งเตือนบนเครื่องนี้', en: '🔕 Notifications are off on this device' }) }}</strong>
+          <button type="button" class="btn" [disabled]="busy()" (click)="turnOn()">{{ i18n.t({ th: 'เปิดแจ้งเตือน', en: 'Turn on' }) }}</button>
+          @if (dismissible() && !required()) {
+            <button type="button" class="x" (click)="snooze()" [attr.aria-label]="i18n.t({ th: 'ปิดไว้ก่อน จะเตือนอีกครั้งใน ', en: 'Dismiss for now — reminds again in ' }) + hours + i18n.t({ th: ' ชั่วโมง', en: ' hours' })">✕</button>
+          }
+        </div>
+      } @else {
       <div class="card status warn">
         <div class="warn-head">
           <strong class="grow">{{ i18n.t({ th: '🔕 เครื่องนี้ยังไม่ได้รับแจ้งเตือน', en: '🔕 This device is not getting notifications' }) }}</strong>
@@ -80,6 +91,7 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
           }
         }
       </div>
+      }
     }
     @if (diag().length) {
       <div class="card diag" role="status">
@@ -128,6 +140,23 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
         border: 1.5px solid var(--warn);
         box-shadow: none;
       }
+      /* C4: แถบบรรทัดเดียวสำหรับหน้าที่ไม่ใช่หน้าหลัก/ตั้งค่าการแจ้งเตือน */
+      &.bar {
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+      }
+      &.bar strong {
+        font-size: var(--fs-sm);
+        font-weight: 600;
+      }
+      &.bar .btn {
+        inline-size: auto;
+        flex: none;
+        min-block-size: 44px;
+        padding: 8px 16px;
+      }
     }
     .warn-head {
       display: flex;
@@ -142,7 +171,7 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
       border: 0;
       background: transparent;
       color: var(--text-muted);
-      font-size: 1.125rem;
+      font-size: var(--fs-md);
       cursor: pointer;
     }
     .row-btns {
@@ -206,7 +235,7 @@ export class PushStatus implements OnInit {
   }
 
   protected exact(iso: string): string {
-    return new Date(iso).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Asia/Bangkok' });
+    return fmtWhenSec(iso, this.i18n.lang());
   }
   protected readonly blocker = computed<PushBlocker | null>(() => {
     this.tick();

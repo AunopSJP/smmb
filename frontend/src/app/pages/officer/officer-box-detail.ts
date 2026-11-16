@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal, ty
 import { RouterLink } from '@angular/router';
 import { I18n, type Tr } from '../../core/i18n';
 import { InspectionApi, type OfficerBoxDetail } from '../../core/inspection-api';
+import { Session } from '../../core/session';
+import { fmtWhenSec } from '../../core/time';
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
@@ -89,7 +91,7 @@ const STATUS: Record<OfficerBoxDetail['box']['status'], { label: Tr; icon: IconN
       flex: none;
       inline-size: 44px;
       block-size: 44px;
-      border-radius: 14px;
+      border-radius: var(--radius-sm);
       background: var(--ok-bg);
       color: var(--ok);
     }
@@ -101,16 +103,15 @@ const STATUS: Record<OfficerBoxDetail['box']['status'], { label: Tr; icon: IconN
 export class OfficerBoxDetailPage implements OnInit {
   protected readonly i18n = inject(I18n);
   private readonly api = inject(InspectionApi);
+  private readonly session = inject(Session);
   protected readonly url = screenUrl;
   readonly id = input<string>();
   protected readonly detail = signal<OfficerBoxDetail | null>(null);
   protected readonly loading = signal(true);
   protected readonly error = signal(false);
   protected readonly s = computed(() => STATUS[this.detail()?.box.status ?? 'offline']);
-  protected readonly caption = computed(() => {
-    const d = this.detail();
-    return d ? `${this.i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' })}${d.box.house_no}` : this.i18n.t({ th: 'เจ้าหน้าที่', en: 'Officer' });
-  });
+  /** บริบทหัวหน้าเพจ (A6): เจ้าหน้าที่ใช้ชื่อหน่วยงาน — บ้านเลขที่อยู่ในชื่อหน้า/เนื้อหา */
+  protected readonly caption = computed(() => this.session.me()?.agency?.name ?? this.i18n.t({ th: 'เจ้าหน้าที่', en: 'Officer' }));
 
   ngOnInit(): void {
     void this.load();
@@ -133,8 +134,6 @@ export class OfficerBoxDetailPage implements OnInit {
   }
 
   protected when(iso: string): string {
-    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', {
-      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok',
-    });
+    return fmtWhenSec(iso, this.i18n.lang());
   }
 }

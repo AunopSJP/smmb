@@ -53,10 +53,10 @@ import { bkkClock } from '../../core/time';
         @if (display.advancedMode()) {
           <section class="card">
             <dl class="kv">
-              <dt>{{ i18n.t({ th: 'สถานะคำสั่ง', en: 'Command state' }) }}</dt><dd class="mono">{{ w.status }}</dd>
+              <dt>{{ i18n.t({ th: 'สถานะคำสั่ง', en: 'Command state' }) }}</dt><dd>{{ wifiStatusText(w.status) }}</dd>
               <dt>{{ i18n.t({ th: 'ชื่อ AP', en: 'AP name' }) }}</dt><dd class="mono">{{ w.ap_name }}</dd>
-              <dt>{{ i18n.t({ th: 'สั่งเมื่อ', en: 'Requested' }) }}</dt><dd class="mono">{{ w.requested_at ? exact(w.requested_at) : '—' }}</dd>
-              <dt>{{ i18n.t({ th: 'ตู้รับคำสั่ง', en: 'Received' }) }}</dt><dd class="mono">{{ w.done_at ? exact(w.done_at) : '—' }}</dd>
+              <dt>{{ i18n.t({ th: 'สั่งเมื่อ', en: 'Requested' }) }}</dt><dd class="num">{{ w.requested_at ? exact(w.requested_at) : '—' }}</dd>
+              <dt>{{ i18n.t({ th: 'ตู้รับคำสั่ง', en: 'Received' }) }}</dt><dd class="num">{{ w.done_at ? exact(w.done_at) : '—' }}</dd>
             </dl>
           </section>
         }
@@ -150,7 +150,7 @@ import { bkkClock } from '../../core/time';
       border-radius: 50%;
       background: var(--action-bg);
       color: var(--action-fg);
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       font-weight: 700;
     }
     .easy-steps {
@@ -158,10 +158,10 @@ import { bkkClock } from '../../core/time';
       .num {
         inline-size: 48px;
         block-size: 48px;
-        font-size: 1.5rem;
+        font-size: var(--fs-xl);
       }
       strong {
-        font-size: 1.125rem;
+        font-size: var(--fs-md);
       }
     }
     .actions {
@@ -232,6 +232,17 @@ export class OwnerWifi {
   }
 
   /** เวลาแบบมีวินาที (โหมดละเอียด) */
+  /** C6: แปลสถานะคำสั่ง Wi-Fi ไม่โชว์ค่าอังกฤษดิบ */
+  protected wifiStatusText(s: string): string {
+    const map: Record<string, { th: string; en: string }> = {
+      idle: { th: 'ไม่มีคำสั่ง', en: 'No command' },
+      pending: { th: 'รอตู้รับคำสั่ง', en: 'Waiting for the box' },
+      done: { th: 'ตู้รับคำสั่งแล้ว', en: 'Received by the box' },
+      expired: { th: 'หมดอายุ', en: 'Expired' },
+    };
+    return this.i18n.t(map[s] ?? { th: 'ไม่ทราบสถานะ', en: 'Unknown state' });
+  }
+
   protected exact(iso: string): string {
     return bkkClock(iso);
   }

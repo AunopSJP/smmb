@@ -71,7 +71,7 @@ export async function cameraPermission(): Promise<'granted' | 'denied' | 'prompt
       position: relative;
       display: block;
       overflow: hidden;
-      border-radius: var(--radius, 16px);
+      border-radius: var(--radius);
       background: var(--print-ink);
       aspect-ratio: 1;
     }
@@ -85,7 +85,7 @@ export async function cameraPermission(): Promise<'granted' | 'denied' | 'prompt
       position: absolute;
       inset: 14%;
       border: 3px solid rgb(255 255 255 / 85%);
-      border-radius: 18px;
+      border-radius: var(--radius);
       box-shadow: 0 0 0 999px rgb(0 0 0 / 35%);
     }
     .line {
@@ -117,7 +117,7 @@ export async function cameraPermission(): Promise<'granted' | 'denied' | 'prompt
       transform: translateX(-50%);
       min-height: 44px;
       padding: 0 16px;
-      border-radius: 22px;
+      border-radius: var(--radius-lg);
       border: 0;
       background: rgb(0 0 0 / 55%);
       color: var(--on-dark);

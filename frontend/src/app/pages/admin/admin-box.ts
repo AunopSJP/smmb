@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { ApiConfig } from '../../core/api';
 import { AdminApi, type AdminBoxDetail, type BoxConfigOverride } from '../../core/admin-api';
 import { I18n, type Tr } from '../../core/i18n';
+import { fmtWhen } from '../../core/time';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { BoxSetupQr } from '../../shared/box-setup-qr';
@@ -22,9 +23,9 @@ import { LOW_BATTERY_PCT, boxBadge, seenText, SLOT_LABEL } from './admin-box-sha
   imports: [RouterLink, PageHeader, QrImage, BoxTest, BoxSetupQr, Icon, EmptyState, AdminBoxFirmware, AdminBoxDiagnostics, AdminBoxReports],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="id() ?? ''" [title]="i18n.t({ th: 'ตู้ ', en: 'Mailbox ' }) + (box()?.house_no ?? id() ?? '')" [back]="url('D03')" />
+    <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'ตู้ ', en: 'Mailbox ' }) + (box()?.house_no ?? id() ?? '')" [back]="url('D03')" />
     @if (box(); as b) {
-      @let badge = boxBadge(b);
+      @let badge = boxBadge(b, b.config.config.windows);
       <section class="kpis" [attr.aria-label]="i18n.t({ th: 'สรุปตู้', en: 'Box summary' })">
         <div class="kpi">
           <span class="kpi-label">{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</span>
@@ -87,25 +88,14 @@ import { LOW_BATTERY_PCT, boxBadge, seenText, SLOT_LABEL } from './admin-box-sha
 
       <div class="stack grow">
         @if (tab() === 'overview') {
-        <section class="card">
+        <!-- D1: การ์ดตัวเลขด้านบนมีสถานะ/แบต/เฟิร์มแวร์/ค่าตั้งค่าแล้ว — ตารางเหลือเฉพาะข้อมูลที่ไม่ซ้ำ -->
+        <section class="card overview-card">
           <dl class="kv">
-            <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt>
-            <dd><span class="chip" [class.ok]="badge.tone === 'ok'" [class.warn]="badge.tone === 'warn'" [class.danger]="badge.tone === 'danger'">{{ i18n.t(badge.label) }}</span></dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd class="adv-only">{{ b.id }}</dd>
+            <dt class="adv-only">{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd class="adv-only mono">{{ b.id }}</dd>
             <dt>{{ i18n.t({ th: 'บ้าน', en: 'House' }) }}</dt>
             <dd>{{ b.bound ? (b.house_no + (b.name ? ' · ' + b.name : '')) : i18n.t({ th: 'ยังไม่ผูก', en: 'not bound' }) }}</dd>
-            <dt>{{ i18n.t({ th: 'แบต', en: 'Battery' }) }}</dt>
-            <dd>{{ b.battery ? b.battery.pct + '%' + (b.battery.charging ? i18n.t({ th: ' · ชาร์จอยู่', en: ' · charging' }) : '') : '—' }}</dd>
-            <dt>{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last seen' }) }}</dt>
-            <dd>{{ i18n.t(seen(b.last_seen_at)) }}</dd>
             <dt class="easy-hide">{{ i18n.t({ th: 'ถือ long-poll ล่าสุด', en: 'Last long-poll' }) }}</dt>
             <dd class="easy-hide">{{ i18n.t(seen(b.last_poll_at)) }}</dd>
-            <dt>{{ i18n.t({ th: 'เฟิร์มแวร์', en: 'Firmware' }) }}</dt>
-            <dd>{{ b.fw ?? '—' }}</dd>
-            <dt class="easy-hide">{{ i18n.t({ th: 'ค่าตั้งค่า', en: 'Config' }) }}</dt>
-            <dd class="easy-hide" [class.warn-text]="!b.config.in_sync">
-              {{ b.config.in_sync ? i18n.t({ th: 'ตู้มีค่าล่าสุด', en: 'up to date' }) : i18n.t({ th: 'รอตู้ดึงค่าใหม่', en: 'waiting for the box' }) }}
-            </dd>
             <dt class="adv-only">{{ i18n.t({ th: 'ลงทะเบียนเมื่อ', en: 'Registered' }) }}</dt><dd class="adv-only">{{ fwDate(b.registered_at) }}</dd>
             @if (b.service_reason) {
               <dt class="adv-only">{{ i18n.t({ th: 'เหตุผลปิดบริการ', en: 'Service reason' }) }}</dt><dd class="adv-only">{{ b.service_reason }}</dd>
@@ -122,7 +112,7 @@ import { LOW_BATTERY_PCT, boxBadge, seenText, SLOT_LABEL } from './admin-box-sha
             <p class="muted small">{{ i18n.t({ th: 'เว้นว่าง = ใช้ค่ากลาง · เช่น ตู้สัญญาณแย่ให้ long-poll สั้นลง', en: 'Leave blank to use the shared value · e.g. shorten long-poll for a weak-signal box' }) }}</p>
             <label class="field">
               <span>{{ i18n.t({ th: 'เวลารายงานรายวัน', en: 'Daily report time' }) }} · {{ b.config.config.report_at }}</span>
-              <input type="time" [value]="ovReport()" (input)="ovReport.set($any($event.target).value)" />
+              <input type="text" inputmode="numeric" autocomplete="off" maxlength="5" pattern="[0-2][0-9]:[0-5][0-9]" placeholder="HH:mm" [value]="ovReport()" (input)="ovReport.set($any($event.target).value)" />
             </label>
             <label class="field">
               <span>{{ i18n.t({ th: 'เวลาสแกน QR ต่อครั้ง (วินาที 10–60)', en: 'QR scan time per try (s, 10–60)' }) }} · {{ b.config.config.scan_timeout_s }}</span>
@@ -368,7 +358,8 @@ import { LOW_BATTERY_PCT, boxBadge, seenText, SLOT_LABEL } from './admin-box-sha
         }
       </div>
 
-      <!-- ใบพิมพ์ QR (ซ่อนบนจอ) — ให้ปุ่ม "พิมพ์ QR" ใน D04 พิมพ์ได้จริง ไม่ใช่กระดาษเปล่า -->
+      <!-- ใบพิมพ์ QR (ซ่อนบนจอ) — ให้ปุ่ม "พิมพ์ QR" ใน D04 พิมพ์ได้จริง ไม่ใช่กระดาษเปล่า
+           ขนาดตัวอักษรในใบพิมพ์ใช้ pt (หน่วยกระดาษจริง) โดยตั้งใจ ไม่ใช้สเกลหน้าจอ -->
       <div class="print-sheet" aria-hidden="true">
         <p class="print-title" style="grid-column: 1 / -1; margin: 0 0 6mm; font-size: 18pt">
           {{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ b.house_no }} · {{ b.id }}
@@ -377,6 +368,7 @@ import { LOW_BATTERY_PCT, boxBadge, seenText, SLOT_LABEL } from './admin-box-sha
           @if (q.status === 'active') {
             <figure style="margin: 0; text-align: center">
               <app-qr-image [text]="q.url" level="H" [label]="i18n.t(slot(q.slot))" />
+              <!-- 11pt = ขนาดกระดาษจริงสำหรับคำอธิบายใต้ QR (ไม่ผูกกับสเกลหน้าจอ) -->
               <figcaption style="margin-block-start: 3mm; font-size: 11pt">
                 <strong>{{ i18n.t(slot(q.slot)) }}</strong><br />
                 {{ q.print_code }}
@@ -476,8 +468,9 @@ export class AdminBox implements OnInit {
     }
   }
 
+  /** วัน + เวลา 24 ชม. ตามรูปแบบกลาง (A8) */
   protected fwDate(iso: string): string {
-    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
+    return fmtWhen(iso, this.i18n.lang());
   }
 
   private fillOverride(o: Partial<BoxConfigOverride>): void {

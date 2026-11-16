@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { fmtTime } from './time';
 
 /** api.md §6.2 */
 export interface Inspection {
@@ -100,5 +101,5 @@ export interface MyLog {
   result: string;
 }
 
-export const hhmm = (iso: string | null | undefined): string =>
-  iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' }) : '';
+/** เวลา 24 ชม. ตามรูปแบบกลาง (A8) — คงชื่อเดิมให้หน้าที่เรียกใช้ไม่ต้องแก้ทั้งหมด */
+export const hhmm = (iso: string | null | undefined): string => (iso ? fmtTime(iso) : '');

@@ -64,6 +64,21 @@
   --track: #ececec;
 
   --font: 'Noto Sans Thai', 'Leelawadee UI', 'IBM Plex Sans Thai Looped', system-ui, sans-serif;
+  /* ── สเกลตัวอักษรกลาง 8 ขั้น (2026-11-16) ─────────────────────────────
+     ห้ามพิมพ์ font-size เป็นตัวเลขในคอมโพเนนต์ — ใช้ var(--fs-*) เท่านั้น
+     xs 12 · sm 14 · base 16 · md 18 · lg 22 · xl 28 · 2xl 36 · 3xl 48 (ที่สเกล 1) */
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.875rem;
+  --fs-base: 1rem;
+  --fs-md: 1.125rem;
+  --fs-lg: 1.375rem;
+  --fs-xl: 1.75rem;
+  --fs-2xl: 2.25rem;
+  --fs-3xl: 3rem;
+  /* ── สเกลความโค้งกลาง 4 ขั้น + 50% + 999px ───────────────────────────
+     ใช้ 50% สำหรับวงกลม และ 999px สำหรับแคปซูล/ป้ายเท่านั้น */
+  --radius-xs: 6px;
+  --radius-lg: 22px;
   /* สเกลตัวอักษร = ที่ผู้ใช้เลือก × โหมดการแสดงผล แล้วบีบด้วย min/max ของชนิดจอ (ดูด้านล่าง) */
   --text-scale-user: 1;
   --text-scale-mode: 1;
@@ -131,7 +146,7 @@
 
   .btn {
     min-block-size: 64px;
-    font-size: 1.125rem;
+    font-size: var(--fs-md);
   }
   .easy-hide {
     display: none !important;
@@ -172,32 +187,34 @@
 :root[data-mode='easy'] {
   --radius: 24px;
   --radius-sm: 20px;
+  --radius-xs: 8px;
+  --radius-lg: 26px;
   --gap: 16px;
 
   .card {
     padding: 20px;
   }
   .section-title {
-    font-size: 1.25rem;
+    font-size: var(--fs-lg);
     font-weight: 700;
   }
   .chip {
-    font-size: 0.9375rem;
+    font-size: var(--fs-base);
     padding: 4px 14px;
   }
   .kv {
-    font-size: 1.0625rem;
+    font-size: var(--fs-md);
   }
   .small {
-    font-size: 0.9375rem;
+    font-size: var(--fs-base);
   }
   .btn {
     min-block-size: 60px;
-    font-size: 1.0625rem;
+    font-size: var(--fs-md);
   }
   .btn.big {
     min-block-size: 72px;
-    font-size: 1.125rem;
+    font-size: var(--fs-md);
   }
   .list .row {
     padding-block: 14px;
@@ -205,7 +222,7 @@
   .icon-bubble {
     inline-size: 48px;
     block-size: 48px;
-    border-radius: 16px;
+    border-radius: var(--radius);
   }
   .icon-bubble app-icon svg {
     inline-size: 26px;
@@ -227,6 +244,8 @@
 :root[data-mode='advanced'] {
   --radius: 14px;
   --radius-sm: 10px;
+  --radius-xs: 4px;
+  --radius-lg: 16px;
   --gap: 10px;
 
   .card {
@@ -237,16 +256,16 @@
     min-block-size: 48px;
   }
   .kv {
-    font-size: 0.8125rem;
+    font-size: var(--fs-sm);
     gap: 6px 14px;
   }
   .section-title {
-    font-size: 0.8125rem;
+    font-size: var(--fs-sm);
     letter-spacing: 0.04em;
     color: var(--text-muted);
   }
   .stat .value {
-    font-size: 1.5rem;
+    font-size: var(--fs-xl);
   }
 }
 /* โหมดละเอียดบนจอคอม: เคยย่อ 0.96 แต่ทำให้ข้อความเล็ก 0.75rem ต่ำกว่า 12px — คงขนาดเท่าโหมดปกติ (ความละเอียดได้จากข้อมูลที่แสดงมากกว่า ไม่ใช่ตัวเล็กลง) */
@@ -255,8 +274,15 @@
     --text-scale-mode: 1;
   }
 }
+/* ตัวเลข/วันเวลา: ใช้ tabular-nums ให้หลักตรงกันโดยไม่ต้องเปลี่ยนเป็นฟอนต์ mono (C6)
+   mono สงวนไว้สำหรับรหัสตู้/เวอร์ชันเท่านั้น */
+.num {
+  font-variant-numeric: tabular-nums;
+}
 .mono {
   font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+  /* ขนาดอิงพ่อแม่ (0.92em) โดยตั้งใจ — รหัสตู้/เวอร์ชันต้องไม่ใหญ่กว่าข้อความข้างเคียง
+     จึงไม่ใช้ --fs-* ตรง ๆ (จะทำให้รหัสในหัวข้อใหญ่เท่าหัวข้อ) */
   font-size: 0.92em;
   overflow-wrap: anywhere;
 }
@@ -291,6 +317,12 @@
 .clamp-4 {
   -webkit-line-clamp: 4;
 }
+/* ลิงก์ข้อความ (.link) ต้องแตะง่ายบนมือถือ ≥44px — ใช้ inline-flex ไม่ให้บรรทัดพัง */
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+}
 /* ลิงก์ข้อความขนาดเล็ก — ขยายพื้นที่แตะขั้นต่ำ ~32px (WCAG 2.5.8) โดยหน้าตาไม่เปลี่ยน */
 .see-all,
 .tap {
@@ -307,10 +339,10 @@
   /* ปุ่มของ Leaflet พื้นขาวเสมอ — ตัวอักษรต้องเข้มทั้งธีมมืด (เดิมรับสีลิงก์ธีมมืด = ต่าง 2.1:1) */
   background-color: #fff !important;
   color: #333 !important;
-  font-size: 1.125rem !important;
+  font-size: var(--fs-md) !important;
 }
 .leaflet-control-attribution {
-  font-size: 0.75rem !important;
+  font-size: var(--fs-xs) !important;
   background: rgb(255 255 255 / 88%) !important;
   color: #333 !important;
 }
@@ -337,6 +369,7 @@ input,
 select,
 textarea {
   min-inline-size: 0;
+  /* กัน iOS ซูมเมื่อโฟกัส: ต้องไม่ต่ำกว่า 16px จึงเป็นค่าขั้นต่ำ ไม่ใช่ขั้นในสเกล */
   font-size: max(16px, 1rem);
   scroll-margin-block: 96px;
 }
@@ -527,11 +560,11 @@ button.row:active {
   color: var(--text-muted);
 }
 .small {
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
 }
 .section-title {
   font-weight: 700;
-  font-size: 1rem;
+  font-size: var(--fs-base);
   margin: 8px 4px 0;
 }
 
@@ -544,10 +577,10 @@ button.row:active {
   min-block-size: 52px;
   padding: 12px 16px;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--radius);
   font: inherit;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: var(--fs-base);
   cursor: pointer;
   text-decoration: none;
   background: var(--action-bg);
@@ -563,7 +596,7 @@ button.row:active {
   }
   &.big {
     min-block-size: 68px;
-    font-size: 1.25rem;
+    font-size: var(--fs-lg);
     border-radius: var(--radius);
   }
 }
@@ -573,8 +606,8 @@ button.row:active {
   align-items: center;
   gap: 4px;
   padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 0.75rem;
+  border-radius: var(--radius-lg);
+  font-size: var(--fs-xs);
   font-weight: 700;
   white-space: nowrap;
   background: var(--ib-bg);
@@ -594,13 +627,87 @@ button.row:active {
   }
 }
 
+/* ── แถวเมนู 2 แบบ (A3) ───────────────────────────────────────────────
+   (ก) .menu-row ธรรมดา: ไอคอนเส้นเล็ก ไม่มีกล่องเทา · คำอธิบายรองใส่ .sub เฉพาะชื่อที่ยังไม่ชัด
+   (ข) .menu-row.priority: รายการที่ต้องลงมือทำ/มีสถานะ — ใช้ไม่เกิน 2 แถวต่อหน้า
+   ใช้กับ H13 / O13 / L11 / D16 / A05 */
+.menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.menu > * + * {
+  border-block-start: 1px solid var(--line);
+}
+.menu-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  inline-size: 100%;
+  min-block-size: 56px;
+  padding: 14px 16px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+.menu-row .mi {
+  flex: none;
+  color: var(--text-muted);
+}
+.menu-row .grow {
+  flex: 1;
+  min-inline-size: 0;
+}
+.menu-row strong {
+  display: block;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.menu-row .sub {
+  display: block;
+  margin-block-start: 2px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+.menu-row .chev {
+  flex: none;
+  color: var(--text-muted);
+}
+.menu-row.priority {
+  background: var(--brand-lighter);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+.menu-row.priority .mi {
+  color: var(--brand-text);
+}
+.menu-row:disabled,
+.menu-row.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+@media (hover: hover) {
+  .menu-row:hover:not(:disabled) {
+    background: var(--brand-lighter);
+  }
+}
+
 .icon-bubble {
   display: grid;
   place-items: center;
   flex: none;
   inline-size: 40px;
   block-size: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--ib-bg);
   color: var(--ib-fg);
 
@@ -630,11 +737,11 @@ button.row:active {
   padding: 12px 14px;
 
   .label {
-    font-size: 0.8125rem;
+    font-size: var(--fs-sm);
     color: var(--text-muted);
   }
   .value {
-    font-size: 1.75rem;
+    font-size: var(--fs-xl);
     font-weight: 700;
     line-height: 1.2;
   }
@@ -678,7 +785,7 @@ app-area-shell main > :not(router-outlet) {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 10px 16px;
-  font-size: 0.9375rem;
+  font-size: var(--fs-base);
 
   dt {
     color: var(--text-muted);
@@ -699,7 +806,7 @@ app-area-shell main > :not(router-outlet) {
   display: flex;
   gap: 3px;
   padding: 3px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--track);
 
   button {
@@ -707,12 +814,12 @@ app-area-shell main > :not(router-outlet) {
     flex: 1 1 auto;
     min-block-size: 38px;
     padding: 6px 10px;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     border: 0;
     background: transparent;
     color: var(--text-muted);
     font: inherit;
-    font-size: 0.875rem;
+    font-size: var(--fs-sm);
     cursor: pointer;
   }
   button[aria-pressed='true'] {
@@ -733,11 +840,11 @@ app-area-shell main > :not(router-outlet) {
     flex: none;
     min-block-size: 34px;
     padding: 0 14px;
-    border-radius: 999px;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--line);
     background: var(--surface);
     color: var(--text-muted);
-    font-size: 0.8125rem;
+    font-size: var(--fs-sm);
     font-weight: 400;
   }
   &.chips button[aria-pressed='true'] {
@@ -780,7 +887,7 @@ app-area-shell main > :not(router-outlet) {
   flex: none;
   inline-size: 52px;
   block-size: 32px;
-  border-radius: 16px;
+  border-radius: var(--radius);
   background: var(--line);
   position: relative;
   cursor: pointer;
@@ -817,14 +924,14 @@ app-area-shell main > :not(router-outlet) {
 }
 .sheet {
   background: var(--surface);
-  border-radius: 20px 20px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 12px;
 
   h2 {
-    font-size: 1.25rem;
+    font-size: var(--fs-lg);
   }
 }
 
@@ -839,7 +946,7 @@ app-area-shell main > :not(router-outlet) {
   color: var(--sos-fg);
   text-align: center;
   padding: 20px 16px 24px;
-  border-radius: 0 0 24px 24px;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -849,23 +956,23 @@ app-area-shell main > :not(router-outlet) {
     background: var(--success-bg);
   }
   h1 {
-    font-size: 1.5rem;
+    font-size: var(--fs-xl);
     line-height: 1.3;
   }
   .timer {
-    font-size: 2.25rem;
+    font-size: var(--fs-2xl);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
   }
   .pill {
-    font-size: 0.75rem;
+    font-size: var(--fs-xs);
     font-weight: 700;
     padding: 2px 10px;
-    border-radius: 999px;
+    border-radius: var(--radius-lg);
     background: rgb(255 255 255 / 20%);
   }
   p {
-    font-size: 0.875rem;
+    font-size: var(--fs-sm);
     opacity: 0.9;
   }
 }
@@ -906,20 +1013,20 @@ app-area-shell main > :not(router-outlet) {
   text-decoration: none;
 
   strong {
-    font-size: 1.375rem;
+    font-size: var(--fs-lg);
   }
   span {
-    font-size: 0.75rem;
+    font-size: var(--fs-xs);
     line-height: 1.3;
     text-align: start;
   }
   .calls.big & {
     min-block-size: 76px;
     strong {
-      font-size: 2rem;
+      font-size: var(--fs-2xl);
     }
     span {
-      font-size: 0.9375rem;
+      font-size: var(--fs-base);
     }
   }
 }
@@ -933,14 +1040,14 @@ app-area-shell main > :not(router-outlet) {
   padding: 8px 10px;
   border: 1px dashed var(--brand);
   border-radius: var(--radius-sm);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   color: var(--brand-dark);
 
   button {
     font: inherit;
     font-weight: 700;
     padding: 4px 10px;
-    border-radius: 999px;
+    border-radius: var(--radius-lg);
     border: 0;
     background: var(--brand-light);
     color: var(--brand-dark);
@@ -976,7 +1083,7 @@ app-area-shell main > :not(router-outlet) {
   padding-block-start: 24px;
 
   h1 {
-    font-size: 1.375rem;
+    font-size: var(--fs-lg);
     line-height: 1.35;
   }
 }
@@ -986,7 +1093,7 @@ app-area-shell main > :not(router-outlet) {
   inline-size: 72px;
   block-size: 72px;
   border-radius: 50%;
-  font-size: 2rem;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   background: var(--icon-bg);
   color: var(--text-muted);
@@ -1134,6 +1241,17 @@ input[type='radio']:disabled + * {
   color: var(--on-dark);
   box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 70%);
 }
+/* ปุ่มการกระทำที่ย้อนกลับไม่ได้ (C2): ขอบแดง ไม่ใช่พื้นแดง เพื่อไม่ให้ดูเป็นปุ่มหลัก */
+.btn.outline-danger {
+  background: transparent;
+  color: var(--sos);
+  box-shadow: inset 0 0 0 1.5px var(--sos);
+}
+@media (hover: hover) {
+  .btn.outline-danger:hover:not([disabled]) {
+    background: var(--danger-bg);
+  }
+}
 .btn[disabled],
 .btn.disabled {
   background: var(--icon-bg);
@@ -1146,7 +1264,7 @@ input[type='radio']:disabled + * {
   background: var(--surface);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
-  font-size: 0.875rem;
+  font-size: var(--fs-sm);
   text-align: start;
 }
 .ok-text {
@@ -1171,14 +1289,14 @@ input[type='radio']:disabled + * {
 }
 .form-title {
   margin: 0;
-  font-size: 1.0625rem;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--brand-dark);
 }
 .form-hint {
   margin: -8px 0 0;
   color: var(--text-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
 }
 /* ช่องคู่: จอกว้างพอ = สองคอลัมน์ · จอแคบ = เรียงลงเอง · ช่องที่ป้ายยาวไม่ทำให้ช่องข้างเยื้อง */
 .form-grid {
@@ -1199,7 +1317,48 @@ fieldset {
     padding: 0;
     margin-block-end: 8px;
     font-weight: 700;
-    font-size: 0.9375rem;
+    font-size: var(--fs-base);
+  }
+}
+
+/* ลิงก์ในหัวการ์ดแอดมิน ("จัดการ") ต้องแตะง่าย ≥44px บนมือถือ */
+.admin-layout :is(.panel header, .adv-head, .section-head) a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+}
+
+/* ── D3: ตาราง "ต้องจัดการ" ของแอดมินบนมือถือ → การ์ดแนวตั้ง (เรื่อง + ระดับ + ปุ่ม) ── */
+@media (max-width: 1023px) {
+  .admin-layout .panel.flush .tbl thead {
+    display: none;
+  }
+  .admin-layout .panel.flush .tbl,
+  .admin-layout .panel.flush .tbl tbody,
+  .admin-layout .panel.flush .tbl tr,
+  .admin-layout .panel.flush .tbl td {
+    display: block;
+    inline-size: 100%;
+  }
+  .admin-layout .panel.flush .tbl tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 10px;
+    padding: 14px 16px;
+    border-block-start: 1px solid var(--line);
+  }
+  .admin-layout .panel.flush .tbl td {
+    padding: 0;
+    border: 0;
+  }
+  .admin-layout .panel.flush .tbl td.hide-sm {
+    display: none;
+  }
+  .admin-layout .panel.flush .tbl td.act {
+    grid-column: 1 / -1;
+  }
+  .admin-layout .panel.flush .tbl td.act .btn {
+    inline-size: 100%;
   }
 }
 
@@ -1231,7 +1390,7 @@ details.opt {
     &::after {
       content: '+';
       margin-inline-start: auto;
-      font-size: 1.25rem;
+      font-size: var(--fs-lg);
       line-height: 1;
       color: var(--brand-text);
     }
@@ -1251,7 +1410,7 @@ details.opt {
 }
 .opt-tag {
   margin-inline-start: 8px;
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--text-muted);
 }
@@ -1263,9 +1422,9 @@ details.opt {
   gap: 8px;
   padding: 8px 14px;
   border: 1.5px solid var(--line-strong, color-mix(in srgb, var(--text-muted) 40%, transparent));
-  border-radius: 999px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
-  font-size: 0.9375rem;
+  font-size: var(--fs-base);
   cursor: pointer;
 
   input {
@@ -1292,7 +1451,7 @@ details.opt {
 
   > span {
     font-weight: 700;
-    font-size: 0.9375rem;
+    font-size: var(--fs-base);
   }
   input:not([type='checkbox']):not([type='radio']),
   select,
@@ -1319,7 +1478,7 @@ details.opt {
   }
   small {
     color: var(--text-muted);
-    font-size: 0.8125rem;
+    font-size: var(--fs-sm);
   }
   /* ต้องเฉพาะเจาะจงเท่ากฎขอบปกติด้านบน (:not ×2) ไม่งั้นขอบแดงถูกทับ — เคยไม่ขึ้นทั้งแอป */
   &.invalid input:not([type='checkbox']):not([type='radio']),
@@ -1390,7 +1549,7 @@ details.opt {
     border-radius: 50%;
     background: var(--text);
     color: var(--surface);
-    font-size: 0.875rem;
+    font-size: var(--fs-sm);
     font-weight: 700;
   }
   strong,
@@ -1482,7 +1641,7 @@ details.opt {
 
     .section-title {
       margin: 8px 0 -4px;
-      font-size: 1.0625rem;
+      font-size: var(--fs-md);
     }
 
     // ปุ่ม: พอดีตัว ไม่ยืดเต็มจอ
@@ -1491,7 +1650,7 @@ details.opt {
       min-block-size: 40px;
       padding: 8px 20px;
       border-radius: var(--radius-sm);
-      font-size: 0.9375rem;
+      font-size: var(--fs-base);
       transition:
         background 0.12s,
         box-shadow 0.12s;
@@ -1511,7 +1670,7 @@ details.opt {
       }
       &.big {
         min-block-size: 48px;
-        font-size: 1rem;
+        font-size: var(--fs-base);
       }
     }
     .stack > .btn,
@@ -1540,7 +1699,7 @@ details.opt {
         inline-size: 100%;
       }
       > span {
-        font-size: 0.875rem;
+        font-size: var(--fs-sm);
       }
     }
     input[type='search'],
@@ -1567,12 +1726,12 @@ details.opt {
         transform 0.12s;
 
       .label {
-        font-size: 0.875rem;
+        font-size: var(--fs-sm);
         font-weight: 600;
       }
       .value {
         margin-block-start: 4px;
-        font-size: 2.125rem;
+        font-size: var(--fs-2xl);
         letter-spacing: -0.01em;
       }
       @media (hover: hover) {
@@ -1617,7 +1776,7 @@ details.opt {
       padding: 10px 20px;
       background: var(--icon-bg);
       color: var(--text-muted);
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       font-weight: 700;
       letter-spacing: 0.02em;
     }
@@ -1669,18 +1828,18 @@ details.opt {
   gap: 14px;
   background: var(--surface);
   border: 1px solid var(--line-strong, var(--line));
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 16px 18px;
   min-inline-size: 0;
 
   > h2 {
-    font-size: 1rem;
+    font-size: var(--fs-base);
     font-weight: 700;
   }
   > .hint {
     margin-block-start: -8px;
     color: var(--text-muted);
-    font-size: 0.8125rem;
+    font-size: var(--fs-sm);
   }
 }
 /* แถบบันทึก: ติดล่างจอ เห็นตลอดเวลาแก้ฟอร์มยาว */
@@ -1695,10 +1854,22 @@ details.opt {
   padding: 12px 16px;
   background: var(--surface);
   border: 1px solid var(--line-strong, var(--line));
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
 }
 .savebar .btn {
   inline-size: auto;
+  white-space: nowrap;
+}
+/* D2: มือถือ — ข้อความบน ปุ่มล่างเต็มความกว้าง ไม่ตัดเป็นสองบรรทัด */
+@media (max-width: 700px) {
+  .savebar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .savebar .btn {
+    inline-size: 100%;
+  }
 }
 
 // ═══ ความกว้างเนื้อหาตามชนิดจอ (สวย/อ่านง่าย ไม่แคบหรือกว้างเกิน) ═══════════════════
@@ -1714,10 +1885,15 @@ details.opt {
 .frame[data-area='admin'] {
   --content-w: min(100%, 1360px);
 }
+/* B1: ไรเดอร์บนจอ ≥701px จำกัดความกว้างเท่าหน้า auth (440px) — ไม่ให้ปุ่มกว้าง ~450px ลอยกลางจอ */
+@media (min-width: 701px) {
+  .frame[data-area='rider'] {
+    --content-w: min(100%, 440px);
+  }
+}
 @media (min-width: 1024px) {
   .frame[data-area='owner'],
-  .frame[data-area='officer'],
-  .frame[data-area='rider'] {
+  .frame[data-area='officer'] {
     --content-w: 820px;
   }
   .frame[data-area='head'] {
@@ -1833,7 +2009,7 @@ details.opt {
     box-shadow: var(--shadow);
   }
   .frame.admin-layout .kpi-value {
-    font-size: 1.75rem;
+    font-size: var(--fs-xl);
   }
   .frame.admin-layout .page {
     gap: 14px;
@@ -1920,7 +2096,7 @@ details.opt {
       background: transparent;
       color: var(--text);
       font: inherit;
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
       outline: none;
       &:hover,
       &:focus,
@@ -1935,7 +2111,7 @@ details.opt {
       border: 0;
       background: transparent;
       color: var(--text-muted);
-      font-size: 1.125rem;
+      font-size: var(--fs-md);
       line-height: 1;
       cursor: pointer;
     }
@@ -1943,7 +2119,7 @@ details.opt {
   .nav-empty {
     margin: 12px;
     color: var(--text-muted);
-    font-size: 0.875rem;
+    font-size: var(--fs-sm);
   }
   .theme-switch {
     display: flex;
@@ -2112,7 +2288,7 @@ details.opt {
     background: color-mix(in srgb, var(--icon-bg) 55%, var(--surface));
     border-block-end: 1px solid var(--line-strong);
     color: var(--text-muted);
-    font-size: 0.75rem;
+    font-size: var(--fs-xs);
     font-weight: 700;
     letter-spacing: 0.07em;
     text-transform: uppercase;
@@ -2138,10 +2314,10 @@ details.opt {
   .row .go {
     padding: 6px 12px;
     border: 1px solid var(--line-strong);
-    border-radius: 999px;
+    border-radius: var(--radius-lg);
     background: var(--surface);
     color: var(--text);
-    font-size: 0.8125rem;
+    font-size: var(--fs-sm);
     font-weight: 600;
     white-space: nowrap;
   }
@@ -2190,12 +2366,35 @@ details.opt {
     color: var(--text);
     font: inherit;
   }
+  /* D5: ตัวเลือก "จัดกลุ่ม" ในแถบเครื่องมือ */
+  .groupby {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .groupby select {
+    min-block-size: 44px;
+    padding: 6px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: var(--fs-sm);
+  }
   .toolbar .segmented {
     padding: 0;
     background: transparent;
   }
   .toolbar .segmented.chips button {
-    min-block-size: 40px;
+    min-block-size: 44px;
+  }
+  .toolbar .search-box {
+    min-block-size: 44px;
+  }
+  /* ช่องค้นหาต้องแตะง่าย 44px (แม้ตัว input จะอยู่ในกล่องที่มี padding) */
+  .toolbar .search-box input {
+    min-block-size: 44px;
   }
 
   // ── แท็บในหน้า (เช่น หมวดของตู้ D04) ──
@@ -2219,7 +2418,7 @@ details.opt {
     background: none;
     color: var(--text-muted);
     font: inherit;
-    font-size: 0.9375rem;
+    font-size: var(--fs-base);
     font-weight: 600;
     cursor: pointer;
   }
@@ -2278,7 +2477,7 @@ details.opt {
     flex: none;
     inline-size: 40px;
     block-size: 40px;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: var(--icon-bg);
     color: var(--brand-text);
     transition:
@@ -2296,14 +2495,14 @@ details.opt {
   }
   .tile strong {
     display: block;
-    font-size: 0.9375rem;
+    font-size: var(--fs-base);
     line-height: 1.35;
   }
   .tile .hint {
     display: block;
     margin-block-start: 2px;
     color: var(--text-muted);
-    font-size: 0.8125rem;
+    font-size: var(--fs-sm);
     line-height: 1.45;
   }
   .tile .count {
@@ -2320,12 +2519,12 @@ details.opt {
     margin-block-start: 4px;
   }
   .section-head h2 {
-    font-size: 1rem;
+    font-size: var(--fs-base);
     font-weight: 700;
   }
   .section-head .count {
     color: var(--text-muted);
-    font-size: 0.875rem;
+    font-size: var(--fs-sm);
   }
   .empty-state {
     display: flex;
@@ -2410,10 +2609,10 @@ details.opt {
   .kpi {
     gap: 6px;
     padding: 16px 18px;
-    border-radius: 14px;
+    border-radius: var(--radius-sm);
   }
   .kpi-value {
-    font-size: 1.5rem;
+    font-size: var(--fs-xl);
   }
   .kpi-hint {
     line-height: 1.45;
@@ -2423,12 +2622,12 @@ details.opt {
   }
   .section-title {
     margin-block: 32px 12px;
-    font-size: 1.0625rem;
+    font-size: var(--fs-md);
     line-height: 1.4;
   }
   .card {
     padding: 20px 24px;
-    border-radius: 16px;
+    border-radius: var(--radius);
   }
   .card.stack,
   .stack {
@@ -2479,7 +2678,7 @@ details.opt {
     max-inline-size: 100%;
     margin-block-start: 12px;
     border: 1px solid var(--line-strong, var(--line));
-    border-radius: 12px;
+    border-radius: var(--radius-sm);
     overflow: hidden;
   }
   @media (max-width: 599px) {

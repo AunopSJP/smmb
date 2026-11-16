@@ -4,13 +4,12 @@ import { AppReset } from '../../core/app-reset';
 import { SelectedBox } from '../../core/selected-box';
 import { DisplaySettings } from '../../core/display-settings';
 import { I18n, type Tr } from '../../core/i18n';
-import { hhmm } from '../../core/inspection-api';
 import { OwnerApi, type BoxDetail, type BoxEvent, type BoxSummary } from '../../core/owner-api';
 import { screenUrl } from '../../screens/registry';
 import { BoxPicker } from '../../shared/box-picker';
 import { Icon, type IconName } from '../../shared/icon';
 import { PrivatePhoto } from '../../shared/private-photo';
-import { bkkClock } from '../../core/time';
+import { bkkClock, bkkDay, fmtDay, fmtTime, fmtWhen } from '../../core/time';
 import { PageHeader } from '../../shared/page-header';
 import { EmptyState, LoadError, LoadingRows } from '../../shared/state-view';
 
@@ -32,7 +31,6 @@ const KIND: Record<BoxEvent['type'], { icon: IconName; tone: '' | 'warn'; title:
 };
 
 /** "วันนี้" ตามเวลาไทย */
-const bkkDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(d);
 
 /** ช่วงวันที่ (เวลาไทย) ของแต่ละปุ่ม — ส่งให้เซิร์ฟเวอร์กรอง · all/custom ไม่มีช่วงในตัว */
 const rangeOf = (days: number | null): { from?: string } => (days === null ? {} : { from: bkkDay(new Date(Date.now() - days * 86_400_000)) });
@@ -127,8 +125,8 @@ export class OwnerHistoryStore {
   }
 }
 
-const dateTime = (iso: string, lang: 'th' | 'en') =>
-  new Date(iso).toLocaleString(lang === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' });
+/** วัน + เวลา 24 ชม. ตามรูปแบบกลาง (A8) */
+const dateTime = (iso: string, lang: 'th' | 'en') => fmtWhen(iso, lang);
 
 /** เวลาแบบมีวินาที (โหมดละเอียด) */
 const clockSec = bkkClock;
@@ -260,7 +258,7 @@ const clockSec = bkkClock;
       gap: 12px;
     }
     .day {
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       font-weight: 700;
       color: var(--text-muted);
       margin: 6px 4px -4px;
@@ -273,7 +271,7 @@ const clockSec = bkkClock;
       justify-content: space-between;
       gap: 8px;
       padding-inline: 4px;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       color: var(--text-muted);
     }
     /* OwnHistory_E: การ์ดใหญ่ กดง่าย */
@@ -285,10 +283,10 @@ const clockSec = bkkClock;
       text-decoration: none;
       color: inherit;
       strong {
-        font-size: 1.25rem;
+        font-size: var(--fs-lg);
       }
       .muted {
-        font-size: 1rem;
+        font-size: var(--fs-base);
       }
     }
   `,
@@ -332,12 +330,7 @@ export class OwnerHistory {
       const key = bkkDay(new Date(e.at));
       let g = out.find((x) => x.key === key);
       if (!g) {
-        const label =
-          key === today
-            ? this.i18n.t({ th: 'วันนี้', en: 'Today' })
-            : key === yesterday
-              ? this.i18n.t({ th: 'เมื่อวาน', en: 'Yesterday' })
-              : new Date(e.at).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' });
+        const label = key === today ? this.i18n.t({ th: 'วันนี้', en: 'Today' }) : key === yesterday ? this.i18n.t({ th: 'เมื่อวาน', en: 'Yesterday' }) : fmtDay(e.at, this.i18n.lang());
         g = { key, label, items: [] };
         out.push(g);
       }
@@ -345,7 +338,8 @@ export class OwnerHistory {
     }
     return out;
   });
-  protected readonly time = hhmm;
+  /** เวลา 24 ชม. (รูปแบบกลาง A8) */
+  protected readonly time = fmtTime;
   protected readonly today = bkkDay(new Date());
   protected readonly from = this.store.customFrom;
   protected readonly to = this.store.customTo;
@@ -408,13 +402,9 @@ export class OwnerHistory {
     return this.items().filter((e) => e.type === t).length;
   }
 
-  /** "เมื่อวาน 21:40" สำหรับการ์ดโหมดง่าย */
+  /** "เมื่อวาน 21:40" สำหรับการ์ดโหมดง่าย — ใช้รูปแบบกลาง (A8) */
   protected whenDay(iso: string): string {
-    const key = bkkDay(new Date(iso));
-    const now = new Date();
-    if (key === bkkDay(now)) return this.i18n.t({ th: 'วันนี้', en: 'today' });
-    if (key === bkkDay(new Date(now.getTime() - 86_400_000))) return this.i18n.t({ th: 'เมื่อวาน', en: 'yesterday' });
-    return new Date(iso).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' });
+    return fmtDay(iso, this.i18n.lang());
   }
 }
 
@@ -499,10 +489,10 @@ function useEvent(type: BoxEvent['type']) {
       align-items: center;
       gap: 14px;
       padding: 18px;
-      border-radius: 20px;
+      border-radius: var(--radius-lg);
       background: var(--ok-bg);
       color: var(--ok);
-      strong { font-size: 1.125rem; }
+      strong { font-size: var(--fs-md); }
     }
     .okc {
       display: grid;
@@ -530,7 +520,7 @@ function useEvent(type: BoxEvent['type']) {
       border-block-end: 1px solid var(--line);
     }
     .result-head strong {
-      font-size: 1rem;
+      font-size: var(--fs-base);
     }
     .grow {
       flex: 1;
@@ -609,9 +599,9 @@ export class OwnerInspection {
       align-items: center;
       gap: 14px;
       padding: 18px;
-      border-radius: 20px;
+      border-radius: var(--radius-lg);
       background: var(--bg);
-      strong { font-size: 1.125rem; }
+      strong { font-size: var(--fs-md); }
     }
     .okc {
       display: grid;
@@ -639,7 +629,7 @@ export class OwnerInspection {
       border-block-end: 1px solid var(--line);
     }
     .result-head strong {
-      font-size: 1rem;
+      font-size: var(--fs-base);
     }
     .grow {
       flex: 1;
@@ -714,7 +704,7 @@ export class OwnerDelivery {
         <div class="adv-grid">
           <div class="cell"><span class="label">{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</span><strong class="value mono">{{ b.id }}</strong></div>
           <div class="cell"><span class="label">{{ i18n.t({ th: 'สถานะ', en: 'State' }) }}</span><strong class="value mono">{{ b.status }}</strong></div>
-          <div class="cell"><span class="label">{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</span><strong class="value mono">{{ b.last_seen_at ? exact(b.last_seen_at) : '—' }}</strong></div>
+          <div class="cell"><span class="label">{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</span><strong class="value num">{{ b.last_seen_at ? exact(b.last_seen_at) : '—' }}</strong></div>
           <div class="cell"><span class="label">{{ i18n.t({ th: 'แบตก่อนหลุด', en: 'Battery' }) }}</span><strong class="value">{{ b.battery ? b.battery.pct + '%' : '—' }}</strong></div>
           <div class="cell"><span class="label">{{ i18n.t({ th: 'รายงานแบตเมื่อ', en: 'Battery reported' }) }}</span><strong class="value mono">{{ b.battery?.reported_at ? exact(b.battery!.reported_at!) : '—' }}</strong></div>
           <div class="cell"><span class="label">{{ i18n.t({ th: 'ชาร์จ', en: 'Charging' }) }}</span><strong class="value">{{ b.battery?.charging === null || !b.battery ? '—' : b.battery.charging ? i18n.t({ th: 'กำลังชาร์จ', en: 'Charging' }) : i18n.t({ th: 'ไม่ได้ชาร์จ', en: 'Not charging' }) }}</strong></div>
@@ -751,7 +741,7 @@ export class OwnerDelivery {
       gap: 10px;
       text-align: center;
       padding: 20px;
-      border-radius: 22px;
+      border-radius: var(--radius-lg);
       background: var(--ib-warn-bg);
       color: var(--ib-warn-fg);
     }
@@ -765,7 +755,7 @@ export class OwnerDelivery {
       color: var(--surface);
     }
     .hero-warn strong {
-      font-size: 1.25rem;
+      font-size: var(--fs-lg);
       line-height: 1.35;
     }
     .easy-warn {
@@ -777,16 +767,16 @@ export class OwnerDelivery {
       border-radius: var(--radius);
       background: var(--ib-warn-bg);
       color: var(--ib-warn-fg);
-      strong { font-size: 1.875rem; line-height: 1.3; }
-      span { font-size: 1.125rem; line-height: 1.5; }
+      strong { font-size: var(--fs-xl); line-height: 1.3; }
+      span { font-size: var(--fs-md); line-height: 1.5; }
     }
     .easy-check {
       display: flex;
       flex-direction: column;
       gap: 6px;
-      font-size: 1.125rem;
+      font-size: var(--fs-md);
       line-height: 1.55;
-      strong { font-size: 1.25rem; }
+      strong { font-size: var(--fs-lg); }
     }
     .adv-grid {
       display: grid;
@@ -802,8 +792,8 @@ export class OwnerDelivery {
       background: var(--surface);
       box-shadow: var(--shadow);
     }
-    .label { font-size: 0.75rem; color: var(--text-muted); }
-    .adv-cause ol { margin: 6px 0 0; padding-inline-start: 20px; font-size: 0.8125rem; line-height: 1.7; }
+    .label { font-size: var(--fs-xs); color: var(--text-muted); }
+    .adv-cause ol { margin: 6px 0 0; padding-inline-start: 20px; font-size: var(--fs-sm); line-height: 1.7; }
     .steps {
       margin: 0;
       padding: 0;
@@ -827,7 +817,7 @@ export class OwnerDelivery {
       background: var(--ib-bg);
       color: var(--ib-fg);
       font-weight: 700;
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
     }
     .steps small {
       display: block;
@@ -862,7 +852,7 @@ export class OwnerOffline {
     const b = this.box();
     if (!b?.last_seen_at) return '—';
     const batt = b.battery ? ' · ' + this.i18n.t({ th: 'แบต ', en: 'battery ' }) + b.battery.pct + '%' : '';
-    return new Date(b.last_seen_at).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' }) + batt;
+    return fmtWhen(b.last_seen_at, this.i18n.lang()) + batt;
   });
 
   protected exact(iso: string): string {

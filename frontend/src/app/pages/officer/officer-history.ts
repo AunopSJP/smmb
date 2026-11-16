@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { I18n, type Tr } from '../../core/i18n';
 import { DisplaySettings } from '../../core/display-settings';
-import { hhmm, InspectionApi, type MyLog } from '../../core/inspection-api';
+import { InspectionApi, type MyLog } from '../../core/inspection-api';
 import { Session } from '../../core/session';
+import { fmtWhen, fmtWhenSec } from '../../core/time';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { EmptyState, LoadingRows } from '../../shared/state-view';
@@ -11,7 +12,8 @@ import { EmptyState, LoadingRows } from '../../shared/state-view';
 const OK = new Set(['ok', 'pass', 'passed']);
 
 const RESULT: Record<string, Tr> = {
-  ok: { th: 'เริ่มตรวจ', en: 'Started' },
+  /* ok = รับการสแกนแล้วแต่ยังไม่จบ → แสดงตามจริง ไม่ใช่ "ผ่าน" */
+  ok: { th: 'ยังไม่จบ', en: 'In progress' },
   pass: { th: 'ผ่าน', en: 'Passed' },
   retry: { th: 'อ่านไม่ผ่าน', en: 'Not read' },
   fail: { th: 'ไม่ผ่าน', en: 'Failed' },
@@ -29,7 +31,6 @@ const RESULT: Record<string, Tr> = {
   unreadable: { th: 'กล้องอ่านไม่ได้', en: 'Camera couldn’t read' },
 };
 
-const bkkDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(d);
 
 /** O15 ประวัติการสแกนของฉัน (ตามแคนวาสดีไซน์) — ข้อมูลจริง `GET /officer/logs` · เห็นเฉพาะของตัวเอง · บันทึกทุกครั้งแม้ไม่ผ่าน */
 @Component({
@@ -62,15 +63,14 @@ const bkkDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/B
       } @else {
       <ul class="list">
         @for (l of rows(); track l.id) {
-          @let ok = isOk(l);
           <li class="row">
-            <span class="icon-bubble" [class.danger]="!ok" [class.ok]="ok"><app-icon [name]="ok ? 'check' : 'alert'" [size]="20" /></span>
+            <span class="icon-bubble" [class.danger]="chipTone(l) === 'danger'" [class.ok]="chipTone(l) === 'ok'"><app-icon [name]="chipTone(l) === 'ok' ? 'check' : chipTone(l) === 'danger' ? 'alert' : 'info'" [size]="20" /></span>
             <span class="grow">
               <strong>{{ title(l) }}</strong>
               <span class="muted small block">{{ when(l.at) }}<span class="easy-hide"> · {{ i18n.t(how(l)) }}</span></span>
               <span class="muted small block adv-only">{{ i18n.t({ th: 'เวลาบันทึก ', en: 'Logged ' }) }}{{ stamp(l.at) }}</span>
             </span>
-            <span class="chip" [class.ok]="ok" [class.danger]="!ok">{{ i18n.t(resultText(l)) }}</span>
+            <span class="chip" [class.ok]="chipTone(l) === 'ok'" [class.warn]="chipTone(l) === 'warn'" [class.danger]="chipTone(l) === 'danger'">{{ i18n.t(resultText(l)) }}</span>
           </li>
         }
       </ul>
@@ -94,7 +94,7 @@ const bkkDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/B
     }
     .tech {
       margin: 0;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       color: var(--text-muted);
     }
   `,
@@ -167,22 +167,21 @@ export class OfficerHistory {
     return l.house_no ? this.i18n.t({ th: 'บ้าน ', en: 'House ' }) + l.house_no : this.i18n.t({ th: 'ไม่ทราบตู้', en: 'Unknown box' });
   }
 
+  /** สีป้ายตามผลจริง (A9): เขียว = ผ่าน · ส้ม = ยังไม่จบ/อ่านไม่ผ่าน · แดง = ไม่ผ่าน */
+  protected chipTone(l: MyLog): '' | 'ok' | 'warn' | 'danger' {
+    if (l.qr_kind === 'badge' && l.result === 'ok') return 'ok';
+    if (l.result === 'pass' || l.result === 'passed') return 'ok';
+    if (l.result === 'ok' || l.result === 'retry' || l.result === 'unreadable') return 'warn';
+    return 'danger';
+  }
+
+  /** วัน + เวลา 24 ชม. ตามรูปแบบกลาง (A8) */
   protected when(iso: string): string {
-    const today = bkkDay(new Date()) === bkkDay(new Date(iso));
-    const d = new Date(iso).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' });
-    return (today ? this.i18n.t({ th: 'วันนี้', en: 'Today' }) : d) + ' ' + hhmm(iso);
+    return fmtWhen(iso, this.i18n.lang());
   }
 
   /** เวลาเต็มพร้อมวันที่และวินาที (โหมดละเอียด) */
   protected stamp(iso: string): string {
-    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-      timeZone: 'Asia/Bangkok',
-    });
+    return fmtWhenSec(iso, this.i18n.lang());
   }
 }

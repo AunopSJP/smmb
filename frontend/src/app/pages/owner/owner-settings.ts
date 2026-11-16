@@ -21,7 +21,7 @@ import { AccountActions } from '../auth/auth-account';
 import { extrasFromProfile, extrasPayload, extrasValid, ProfileExtras } from '../../shared/profile-extras';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { bkkClock } from '../../core/time';
+import { bkkClock, fmtDate } from '../../core/time';
 
 @Component({
   selector: 'app-owner-settings',
@@ -65,39 +65,41 @@ import { bkkClock } from '../../core/time';
       @if (display.easyMode()) {
         <!-- SettingsEasy: เมนูสั้น 4 อย่าง -->
         <h2 class="group">{{ i18n.t({ th: 'เมนู', en: 'Menu' }) }}</h2>
-        <nav class="list easy-menu">
-          <a class="row" routerLink="/settings/notifications">
-            <span class="icon-bubble"><app-icon name="bell" [size]="22" /></span>
+        <!-- A3: แถวเด่นไม่เกิน 2 แถว — แจ้งเตือนที่ยังไม่เปิด และที่อยู่ที่ยังกรอกไม่ครบ -->
+        <nav class="menu easy-menu">
+          <a class="menu-row" [class.priority]="!pushOn()" routerLink="/settings/notifications">
+            <app-icon class="mi" name="bell" [size]="22" />
             <span class="grow">
               <strong>{{ i18n.t({ th: 'การแจ้งเตือน', en: 'Notifications' }) }}</strong>
-              <span class="chip" [class.ok]="pushOn()" [class.warn]="!pushOn()">{{ pushOn() ? i18n.t({ th: 'เปิดอยู่', en: 'On' }) : i18n.t({ th: 'ยังไม่เปิด', en: 'Off' }) }}</span>
+              @if (!pushOn()) {
+                <span class="sub">{{ i18n.t({ th: 'ยังไม่เปิดบนเครื่องนี้ — แตะเพื่อเปิด', en: 'Off on this device — tap to turn on' }) }}</span>
+              }
             </span>
-            <app-icon name="chevronRight" [size]="20" />
+            <span class="chip" [class.ok]="pushOn()" [class.warn]="!pushOn()">{{ pushOn() ? i18n.t({ th: 'เปิดอยู่', en: 'On' }) : i18n.t({ th: 'ยังไม่เปิด', en: 'Off' }) }}</span>
           </a>
-        <app-my-data-link />
-          <a class="row" [routerLink]="url('H13-d')">
-            <span class="icon-bubble"><app-icon name="settings" [size]="22" /></span>
+          <app-my-data-link />
+          <a class="menu-row" [routerLink]="url('H13-d')">
+            <app-icon class="mi" name="monitor" [size]="22" />
             <span class="grow">
               <strong>{{ i18n.t({ th: 'แบบการใช้งาน', en: 'Display mode' }) }}</strong>
-              <span class="muted small block">{{ i18n.t(displaySummary()) }}</span>
+              <span class="sub">{{ i18n.t(displaySummary()) }}</span>
             </span>
-            <app-icon name="chevronRight" [size]="20" />
+            <app-icon class="chev" name="chevronRight" [size]="20" />
           </a>
-          <a class="row" [routerLink]="url('H13-c')" [queryParams]="boxQuery()">
-            <span class="icon-bubble"><app-icon name="user" [size]="22" /></span>
+          <a class="menu-row" [routerLink]="url('H13-c')" [queryParams]="boxQuery()">
+            <app-icon class="mi" name="wrench" [size]="22" />
             <span class="grow">
               <strong>{{ i18n.t({ th: 'ขอให้ช่างมาดู', en: 'Ask a technician' }) }}</strong>
-              <span class="muted small block">{{ i18n.t({ th: 'ตู้เสีย หรืออยากเปลี่ยน Wi-Fi', en: 'Broken box, or want to change Wi-Fi' }) }}</span>
             </span>
-            <app-icon name="chevronRight" [size]="20" />
+            <app-icon class="chev" name="chevronRight" [size]="20" />
           </a>
-          <button type="button" class="row" (click)="openDetails()">
-            <span class="icon-bubble"><app-icon name="pin" [size]="22" /></span>
+          <button type="button" class="menu-row" [class.priority]="!addressReady()" (click)="openDetails()">
+            <app-icon class="mi" name="pin" [size]="22" />
             <span class="grow">
-              <strong>{{ i18n.t({ th: 'ที่อยู่และข้อมูลของฉัน', en: 'My address and details' }) }}</strong>
-              <span class="chip" [class.ok]="addressReady()" [class.warn]="!addressReady()">{{ addressReady() ? i18n.t({ th: 'กรอกแล้ว', en: 'Filled in' }) : i18n.t({ th: 'ยังกรอกไม่ครบ', en: 'Not complete' }) }}</span>
+              <strong>{{ i18n.t({ th: 'ที่อยู่บ้านและผู้อยู่อาศัย', en: 'Home address and residents' }) }}</strong>
+              <span class="sub">{{ addressReady() ? i18n.t({ th: 'กรอกครบแล้ว', en: 'Complete' }) : i18n.t({ th: 'ยังกรอกไม่ครบ — แตะเพื่อเติม', en: 'Not complete — tap to finish' }) }}</span>
             </span>
-            <app-icon name="chevronRight" [size]="20" />
+            <app-icon class="chev" name="chevronRight" [size]="20" />
           </button>
         </nav>
         <p class="muted small">{{ i18n.t({ th: 'อยากเห็นข้อมูลของตู้มากขึ้น? เปลี่ยนแบบการใช้งานเป็น "ปกติ" หรือ "ละเอียด" ได้ที่ข้อสอง', en: 'Want more detail about the box? Switch the display mode to “normal” or “detailed” in the second item.' }) }}</p>
@@ -150,10 +152,6 @@ import { bkkClock } from '../../core/time';
             </dd>
           </dl>
         </section>
-        <div class="release easy-hide">
-          <button type="button" class="link danger-text" [disabled]="releasing()" (click)="release(b)">{{ i18n.t({ th: 'ยกเลิกการผูกตู้นี้', en: 'Unlink this mailbox' }) }}</button>
-          <span class="muted small block">{{ i18n.t({ th: 'ใช้เมื่อขายบ้านหรือย้ายออก · ต้องทำก่อนลบบัญชี', en: 'For when you sell or move out · needed before deleting your account' }) }}</span>
-        </div>
         <a class="btn secondary easy-hide" [routerLink]="url('A07')" [queryParams]="{ from: 'H13' }">{{ i18n.t({ th: '+ ผูกตู้เพิ่ม', en: '+ Link another mailbox' }) }}</a>
 
         @if (display.advancedMode()) {
@@ -162,13 +160,13 @@ import { bkkClock } from '../../core/time';
           <section class="card">
             <dl class="kv">
               <dt>{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd class="mono">{{ b.id }}</dd>
-              <dt>{{ i18n.t({ th: 'สถานะ', en: 'State' }) }}</dt><dd class="mono">{{ b.status }}</dd>
-              <dt>{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</dt><dd class="mono">{{ b.last_seen_at ? exact(b.last_seen_at) : '—' }}</dd>
+              <dt>{{ i18n.t({ th: 'สถานะ', en: 'State' }) }}</dt><dd>{{ statusText(b.status) }}</dd>
+              <dt>{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</dt><dd class="num">{{ b.last_seen_at ? exact(b.last_seen_at) : '—' }}</dd>
               <dt>{{ i18n.t({ th: 'แบตเตอรี่', en: 'Battery' }) }}</dt><dd class="mono">{{ b.battery ? b.battery.pct + '%' : '—' }}{{ b.battery ? ' · ' + (b.battery.charging ? i18n.t({ th: 'กำลังชาร์จ', en: 'charging' }) : i18n.t({ th: 'ไม่ได้ชาร์จ', en: 'not charging' })) : '' }}</dd>
               <dt>{{ i18n.t({ th: 'รายงานแบตเมื่อ', en: 'Battery reported' }) }}</dt><dd class="mono">{{ b.battery?.reported_at ? exact(b.battery!.reported_at!) : '—' }}</dd>
-              <dt>{{ i18n.t({ th: 'คำสั่ง Wi-Fi', en: 'Wi-Fi command' }) }}</dt><dd class="mono">{{ b.wifi_reset.status }} · {{ b.wifi_reset.ap_name }}</dd>
-              @if (b.wifi_reset.requested_at) { <dt>{{ i18n.t({ th: 'สั่งเมื่อ', en: 'Requested' }) }}</dt><dd class="mono">{{ exact(b.wifi_reset.requested_at) }}</dd> }
-              @if (b.wifi_reset.done_at) { <dt>{{ i18n.t({ th: 'ตู้รับคำสั่ง', en: 'Received' }) }}</dt><dd class="mono">{{ exact(b.wifi_reset.done_at) }}</dd> }
+              <dt>{{ i18n.t({ th: 'คำสั่ง Wi-Fi', en: 'Wi-Fi command' }) }}</dt><dd>{{ wifiStatusText(b.wifi_reset.status) }} · <span class="mono">{{ b.wifi_reset.ap_name }}</span></dd>
+              @if (b.wifi_reset.requested_at) { <dt>{{ i18n.t({ th: 'สั่งเมื่อ', en: 'Requested' }) }}</dt><dd class="num">{{ exact(b.wifi_reset.requested_at) }}</dd> }
+              @if (b.wifi_reset.done_at) { <dt>{{ i18n.t({ th: 'ตู้รับคำสั่ง', en: 'Received' }) }}</dt><dd class="num">{{ exact(b.wifi_reset.done_at) }}</dd> }
               @if (b.qr_task) {
                 <dt>{{ i18n.t({ th: 'เคส QR', en: 'QR case' }) }}</dt><dd class="mono">{{ b.qr_task.case_id }} · {{ b.qr_task.health }} · {{ exact(b.qr_task.requested_at) }}</dd>
               }
@@ -186,7 +184,7 @@ import { bkkClock } from '../../core/time';
             <summary>
               <span class="icon-bubble"><app-icon name="pin" [size]="20" /></span>
               <span class="grow">
-                <strong>{{ i18n.t({ th: 'ที่อยู่และหมุดบ้าน', en: 'Address and house pin' }) }}</strong>
+                <strong>{{ i18n.t({ th: 'ที่อยู่บ้าน', en: 'Home address' }) }}</strong>
                 <span class="muted small block">{{ addressText(b) || i18n.t({ th: 'ยังไม่ได้กรอกที่อยู่', en: 'No address yet' }) }}</span>
               </span>
               <app-icon name="chevronRight" [size]="18" class="chev" />
@@ -239,7 +237,7 @@ import { bkkClock } from '../../core/time';
             <summary>
               <span class="icon-bubble"><app-icon name="user" [size]="20" /></span>
               <span class="grow">
-                <strong>{{ i18n.t({ th: 'ข้อมูลของฉันและรายละเอียดบ้าน', en: 'My details and house details' }) }}</strong>
+                <strong>{{ i18n.t({ th: 'ข้อมูลผู้อยู่อาศัย', en: 'Resident details' }) }}</strong>
                 <span class="muted small block">{{ extrasSummary() }}</span>
               </span>
               <app-icon name="chevronRight" [size]="18" class="chev" />
@@ -254,45 +252,60 @@ import { bkkClock } from '../../core/time';
 
       <!-- 4) เมนูตั้งค่า -->
       <h2 class="group easy-hide">{{ i18n.t({ th: 'ตั้งค่าและบริการ', en: 'Settings and services' }) }}</h2>
-      <nav class="list easy-hide">
+      <nav class="menu easy-hide">
         @for (m of menu(); track m.code) {
           @if (m.needsBox && loaded() && !boxes().length) {
-            <div class="row disabled" aria-disabled="true">
-              <span class="icon-bubble"><app-icon [name]="m.icon" [size]="20" /></span>
+            <div class="menu-row disabled" aria-disabled="true">
+              <app-icon class="mi" [name]="m.icon" [size]="20" />
               <span class="grow">
                 <strong>{{ i18n.t(m.title) }}</strong>
-                <span class="muted small block">{{ i18n.t({ th: 'ผูกตู้ก่อนจึงจะใช้ได้', en: 'Link a mailbox first' }) }}</span>
+                <span class="sub">{{ i18n.t({ th: 'ผูกตู้ก่อนจึงจะใช้ได้', en: 'Link a mailbox first' }) }}</span>
               </span>
             </div>
           } @else {
-          <a class="row" [routerLink]="url(m.code)" [queryParams]="m.needsBox ? boxQuery() : null">
-            <span class="icon-bubble"><app-icon [name]="m.icon" [size]="20" /></span>
+          <a class="menu-row" [routerLink]="url(m.code)" [queryParams]="m.needsBox ? boxQuery() : null">
+            <app-icon class="mi" [name]="m.icon" [size]="20" />
             <span class="grow">
               <strong>{{ i18n.t(m.title) }}</strong>
-              <span class="muted small block">{{ i18n.t(m.sub) }}</span>
+              @if (m.sub) {
+                <span class="sub">{{ i18n.t(m.sub) }}</span>
+              }
             </span>
             @if (m.badge) {
               <span class="chip ok">{{ i18n.t(m.badge) }}</span>
             } @else {
-              <app-icon name="chevronRight" [size]="18" />
+              <app-icon class="chev" name="chevronRight" [size]="18" />
             }
           </a>
           }
         }
-        <a class="row" routerLink="/settings/notifications">
-          <span class="icon-bubble"><app-icon name="bell" [size]="20" /></span>
+        <a class="menu-row" [class.priority]="!pushOn()" routerLink="/settings/notifications">
+          <app-icon class="mi" name="bell" [size]="20" />
           <span class="grow">
             <strong>{{ i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' }) }}</strong>
-            <span class="muted small block">{{ pushOn() ? i18n.t({ th: 'เครื่องนี้รับแจ้งเตือนอยู่ · เลือกชนิดที่รับ · ทดสอบ', en: 'On for this device · choose what to receive · test' }) : i18n.t({ th: 'เครื่องนี้ยังไม่ได้เปิด — แตะเพื่อเปิด', en: 'Off on this device — tap to turn on' }) }}</span>
+            @if (!pushOn()) {
+              <span class="sub">{{ i18n.t({ th: 'เครื่องนี้ยังไม่ได้เปิด — แตะเพื่อเปิด', en: 'Off on this device — tap to turn on' }) }}</span>
+            }
           </span>
           <span class="chip" [class.ok]="pushOn()" [class.warn]="!pushOn()">{{ pushOn() ? i18n.t({ th: 'เปิด', en: 'On' }) : i18n.t({ th: 'ปิด', en: 'Off' }) }}</span>
-          <app-icon name="chevronRight" [size]="18" />
+          <app-icon class="chev" name="chevronRight" [size]="18" />
         </a>
         <app-my-data-link />
       </nav>
 
       <!-- 5) บัญชี -->
       <app-account-actions class="easy-hide" current="owner" from="H13" />
+
+      <!-- C2: การกระทำที่ย้อนกลับไม่ได้อยู่ท้ายหน้า แยกกลุ่มชัดเจน + ยังมีขั้นยืนยัน -->
+      @if (box(); as b) {
+        <h2 class="group easy-hide">{{ i18n.t({ th: 'การกระทำที่ย้อนกลับไม่ได้', en: 'Irreversible actions' }) }}</h2>
+        <section class="danger-zone easy-hide">
+          <button type="button" class="btn outline-danger" [disabled]="releasing()" (click)="release(b)">
+            {{ i18n.t({ th: 'ยกเลิกการผูกตู้นี้', en: 'Unlink this mailbox' }) }}
+          </button>
+          <p class="muted small">{{ i18n.t({ th: 'ใช้เมื่อขายบ้านหรือย้ายออก · ต้องทำก่อนลบบัญชี', en: 'For when you sell or move out · needed before deleting your account' }) }}</p>
+        </section>
+      }
 
       <button type="button" class="btn secondary signout" (click)="signout()">
         {{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}
@@ -304,11 +317,11 @@ import { bkkClock } from '../../core/time';
       border: 2px solid var(--brand);
     }
     .sec {
-      font-size: 1rem;
+      font-size: var(--fs-base);
     }
     .group {
       margin: 12px 4px 0;
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       font-weight: 700;
       letter-spacing: 0.02em;
       color: var(--text-muted);
@@ -321,21 +334,26 @@ import { bkkClock } from '../../core/time';
       box-shadow: var(--shadow);
       overflow: hidden;
     }
-    /* SettingsEasy: แถวใหญ่ กดง่าย */
-    .easy-menu .row {
-      min-block-size: 96px;
+    /* SettingsEasy: แถวใหญ่ กดง่าย (A3 — แถวเมนูธรรมดา ไม่มีกล่องไอคอน) */
+    .easy-menu .menu-row {
+      min-block-size: 72px;
       gap: 16px;
     }
-    .easy-menu .icon-bubble {
-      inline-size: 54px;
-      block-size: 54px;
-      border-radius: 16px;
+    .easy-menu .menu-row strong {
+      font-size: var(--fs-md);
     }
-    .easy-menu strong {
-      font-size: 1.1875rem;
+    .easy-menu .menu-row .chip {
+      margin-inline-start: 4px;
     }
-    .easy-menu .chip {
-      margin-block-start: 4px;
+    /* C2: กลุ่มการกระทำที่ย้อนกลับไม่ได้ — กรอบแดงอ่อน แยกจากปุ่มทั่วไป */
+    .danger-zone {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 16px;
+      border: 1px solid color-mix(in srgb, var(--sos) 35%, var(--line));
+      border-radius: var(--radius);
+      background: var(--surface);
     }
     /* แถวที่เป็นปุ่ม (เดิมใช้ <a href="#...">) — ให้หน้าตาเหมือนลิงก์แถวเดิม */
     .easy-menu button.row {
@@ -421,6 +439,9 @@ import { bkkClock } from '../../core/time';
       margin-block-start: 4px;
     }
     .link {
+      display: inline-flex;
+      align-items: center;
+      min-block-size: 44px;
       border: 0;
       background: none;
       padding: 6px;
@@ -511,6 +532,29 @@ export class OwnerSettings {
   protected readonly failed = signal(false);
   /** เครื่องนี้เปิดแจ้งเตือนแล้ว (ใช้ในเมนูโหมดง่าย) */
   protected readonly pushOn = computed(() => this.session.me()?.push.subscribed === true);
+  /** C6: แปลสถานะตู้ (ไม่โชว์ค่าอังกฤษดิบ) */
+  protected statusText(s: BoxDetail['status']): string {
+    const map: Record<BoxDetail['status'], Tr> = {
+      online: { th: 'ออนไลน์', en: 'Online' },
+      offline: { th: 'ไม่ออนไลน์', en: 'Offline' },
+      sleeping: { th: 'พักอยู่ (นอกเวลาตรวจ)', en: 'Sleeping outside patrol hours' },
+      service_closed: { th: 'ปิดให้บริการ', en: 'Service closed' },
+      unbound: { th: 'ยังไม่ผูกบ้าน', en: 'Not linked to a house' },
+    };
+    return this.i18n.t(map[s]);
+  }
+
+  /** C6: แปลสถานะคำสั่ง Wi-Fi */
+  protected wifiStatusText(s: string): string {
+    const map: Record<string, Tr> = {
+      idle: { th: 'ไม่มีคำสั่ง', en: 'No command' },
+      pending: { th: 'รอตู้รับคำสั่ง', en: 'Waiting for the box' },
+      done: { th: 'ตู้รับคำสั่งแล้ว', en: 'Received by the box' },
+      expired: { th: 'หมดอายุ', en: 'Expired' },
+    };
+    return this.i18n.t(map[s] ?? { th: 'ไม่ทราบสถานะ', en: 'Unknown state' });
+  }
+
   /** ที่อยู่กรอกครบหรือยัง (ใช้ป้ายในเมนูโหมดง่าย) */
   protected readonly addressReady = computed(() => {
     const a = this.box()?.address;
@@ -603,7 +647,7 @@ export class OwnerSettings {
 
   /** ข้อความใต้ชื่อแพ็ก: ไม่มีวันหมดอายุ / ถึงวันที่ / ใกล้หมด / หมดแล้ว */
   protected planNote(p: PlanInfo): string {
-    const date = p.ends_at ? new Date(p.ends_at).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'medium', timeZone: 'Asia/Bangkok' }) : '';
+    const date = p.ends_at ? fmtDate(p.ends_at, this.i18n.lang()) : '';
     if (p.status === 'expired') return this.i18n.t({ th: `หมดอายุเมื่อ ${date}`, en: `Expired on ${date}` });
     if (p.status === 'expiring') return this.i18n.t({ th: `ใกล้หมดอายุ · ถึง ${date}`, en: `Expiring soon · until ${date}` });
     return p.ends_at ? this.i18n.t({ th: `ใช้ได้ถึง ${date}`, en: `Valid until ${date}` }) : this.i18n.t({ th: 'ไม่มีวันหมดอายุ', en: 'No end date' });
@@ -780,13 +824,17 @@ export class OwnerSettings {
   protected signout(): void {
     void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true }));
   }
-  protected readonly menu = computed<{ code: string; icon: IconName; title: Tr; sub: Tr; badge?: Tr; needsBox?: boolean }[]>(() => {
+  /**
+   * เมนูตั้งค่า (A3/A4/C1): ชื่อไม่ซ้ำ · ไอคอน 1 ตัว = 1 ความหมาย
+   * sub แสดงเฉพาะเมื่อชื่อเมนูยังไม่บอกสิ่งที่ได้ (เช่นค่าปัจจุบันของการแสดงผล)
+   */
+  protected readonly menu = computed<{ code: string; icon: IconName; title: Tr; sub?: Tr; badge?: Tr; needsBox?: boolean }[]>(() => {
     return [
-    { code: 'H16', icon: 'pin', title: { th: 'หน่วยงานใกล้บ้านบนแผนที่', en: 'Agencies near you on the map' }, sub: { th: 'ดูว่าอยู่ตรงไหน แล้วเลือกว่าให้ใครดูแลบ้าน', en: 'See where each agency is and pick who looks after you' } },
-    { code: 'H13-b', icon: 'layers', title: { th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' }, sub: { th: 'กดสั่งจากเว็บ ตู้จะเข้าโหมดตั้งค่าเอง', en: 'Tap here — the mailbox enters setup mode by itself' }, needsBox: true },
-    { code: 'H13-c', icon: 'user', title: { th: 'แจ้งช่าง', en: 'Request a technician' }, sub: { th: 'ให้ช่างนัดมาตั้งค่า / ซ่อม', en: 'A technician will set up or repair' }, needsBox: true },
-    { code: 'H14', icon: 'bell', title: { th: 'แจ้งเตือนย้อนหลัง', en: 'Notification history' }, sub: { th: 'ดูแจ้งเตือนที่เคยได้รับทั้งหมด', en: 'Everything you have been notified about' } },
-    { code: 'H13-d', icon: 'settings', title: { th: 'การแสดงผล', en: 'Display' }, sub: { th: 'ธีม · ภาษา · ขนาดตัวอักษร', en: 'Theme · language · text size' } },
+    { code: 'H16', icon: 'pin', title: { th: 'หน่วยงานใกล้บ้าน', en: 'Agencies near you' } },
+    { code: 'H13-b', icon: 'wifi', title: { th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' }, needsBox: true },
+    { code: 'H13-c', icon: 'wrench', title: { th: 'แจ้งช่าง', en: 'Request a technician' }, needsBox: true },
+    { code: 'H14', icon: 'list', title: { th: 'แจ้งเตือนย้อนหลัง', en: 'Notification history' } },
+    { code: 'H13-d', icon: 'monitor', title: { th: 'การแสดงผล', en: 'Display' }, sub: { th: 'ธีม · ภาษา · ขนาดตัวอักษร', en: 'Theme · language · text size' } },
   ];
   });
 }

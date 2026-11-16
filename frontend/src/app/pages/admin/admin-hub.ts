@@ -22,12 +22,13 @@ interface HubItem {
 /** D16 ระบบและตั้งค่า — ศูนย์รวมเมนูผู้ดูแล (ตามแคนวาสดีไซน์ UX/UI 2026-11-06): เฝ้าระวัง + ตั้งค่า · ใช้หน้าเดิมทั้งหมด */
 const WATCH: HubItem[] = [
   { code: 'D05', icon: 'scan', title: { th: 'สุขภาพ QR', en: 'QR health' }, hint: { th: 'เคสที่ต้องจัดการ', en: 'Cases to handle' }, count: (o) => o.qr_issues.total },
-  { code: 'D15', icon: 'wifi', title: { th: 'คำขอช่าง', en: 'Technician requests' }, hint: { th: 'รอรับ / รอนัด', en: 'Open requests' }, count: (o) => o.technician_requests_open },
+  { code: 'D15', icon: 'wrench', title: { th: 'คำขอช่าง', en: 'Technician requests' }, hint: { th: 'รอรับ / รอนัด', en: 'Open requests' }, count: (o) => o.technician_requests_open },
   { code: 'D13', icon: 'layers', title: { th: 'หน่วยงาน', en: 'Agencies' }, hint: { th: 'อนุมัติและสร้างหน่วยงาน', en: 'Approve and create agencies' }, count: (o) => o.agencies_pending },
 ];
+/* A4: ไอคอน 1 ตัว = 1 ความหมาย — เฟิร์มแวร์=กล่อง · ตั้งค่าตู้=สไลเดอร์ · ช่าง=ประแจ */
 const SETTINGS: HubItem[] = [
-  { code: 'D17', icon: 'layers', title: { th: 'เฟิร์มแวร์', en: 'Firmware' }, hint: { th: 'รุ่นของตู้ และอัปเดตอัตโนมัติ', en: 'Box versions and auto update' } },
-  { code: 'D10', icon: 'settings', title: { th: 'ตั้งค่าตู้', en: 'Mailbox config' }, hint: { th: 'เวลารายงาน การสแกน ค่ากลาง', en: 'Reporting, scanning, defaults' } },
+  { code: 'D17', icon: 'box', title: { th: 'เฟิร์มแวร์', en: 'Firmware' }, hint: { th: 'รุ่นของตู้ และอัปเดตอัตโนมัติ', en: 'Box versions and auto update' } },
+  { code: 'D10', icon: 'sliders', title: { th: 'ตั้งค่าตู้', en: 'Mailbox config' }, hint: { th: 'เวลารายงาน การสแกน ค่ากลาง', en: 'Reporting, scanning, defaults' } },
   { code: 'D14', icon: 'target', title: { th: 'แพ็กเกจ', en: 'Plans' }, hint: { th: 'ช่วงทดลองมีแค่แพ็กเกจฟรี', en: 'Trial has only the free plan' } },
   { code: 'D11', icon: 'list', title: { th: 'บันทึกทั้งหมด', en: 'All logs' }, hint: { th: 'ประวัติการสแกน/ส่งของ/SOS', en: 'Scans, deliveries, SOS' } },
   { code: 'D11', icon: 'shield', title: { th: 'บันทึกการเข้าถึงข้อมูล', en: 'Data access log' }, hint: { th: 'ใครเปิดดูเบอร์/รหัสลับ แก้ลบไม่ได้', en: 'Who opened phones/secrets, cannot be edited' }, query: { type: 'data_access' } },
@@ -44,41 +45,35 @@ const SETTINGS: HubItem[] = [
       <app-load-error (retry)="load()" />
     }
     <div class="stack">
-      <!-- โหมดง่าย (SetAdmin_E): 4 ทางเข้าหลักที่ต้องใช้บ่อย -->
-      <nav class="list easy-only">
-        <a class="row" [routerLink]="url('D05')">
-          <span class="icon-bubble"><app-icon name="scan" [size]="20" /></span>
-          <span class="grow"><strong>{{ i18n.t({ th: 'สุขภาพ QR', en: 'QR health' }) }}</strong><span class="muted small block">{{ i18n.t({ th: 'เคสที่ต้องจัดการ', en: 'Cases to handle' }) }}</span></span>
-          @if (o(); as ov) { <span class="chip warn">{{ ov.qr_issues.total }}</span> }
-          <app-icon name="chevronRight" [size]="18" />
+      <!-- โหมดง่าย (SetAdmin_E): ทางเข้าหลักแบบแถวเมนู ไม่ใช่การ์ดซ้อน (A3) -->
+      <nav class="menu easy-only">
+        @for (it of watch; track it.code; let i = $index) {
+          <a class="menu-row" [class.priority]="isPriority(it, i)" [routerLink]="url(it.code)">
+            <app-icon class="mi" [name]="it.icon" [size]="20" />
+            <span class="grow"><strong>{{ i18n.t(it.title) }}</strong></span>
+            @if (it.count && o(); as ov) {
+              @if (it.count(ov); as n) {
+                <span class="chip warn">{{ n }}</span>
+              }
+            }
+            <app-icon class="chev" name="chevronRight" [size]="18" />
+          </a>
+        }
+        <a class="menu-row" [routerLink]="url('D11')" [queryParams]="{ type: 'data_access' }">
+          <app-icon class="mi" name="shield" [size]="20" />
+          <span class="grow"><strong>{{ i18n.t({ th: 'บันทึกการเข้าถึงข้อมูล', en: 'Data access log' }) }}</strong></span>
+          <app-icon class="chev" name="chevronRight" [size]="18" />
         </a>
-        <a class="row" [routerLink]="url('D15')">
-          <span class="icon-bubble"><app-icon name="wifi" [size]="20" /></span>
-          <span class="grow"><strong>{{ i18n.t({ th: 'คำขอช่าง', en: 'Technician requests' }) }}</strong><span class="muted small block">{{ i18n.t({ th: 'รอรับ / รอนัด', en: 'Open requests' }) }}</span></span>
-          @if (o(); as ov) { <span class="chip warn">{{ ov.technician_requests_open }}</span> }
-          <app-icon name="chevronRight" [size]="18" />
-        </a>
-        <a class="row" [routerLink]="url('D13')">
-          <span class="icon-bubble"><app-icon name="shield" [size]="20" /></span>
-          <span class="grow"><strong>{{ i18n.t({ th: 'หน่วยงานรออนุมัติ', en: 'Agencies waiting' }) }}</strong><span class="muted small block">{{ i18n.t({ th: 'อนุมัติหรือสร้างหน่วยงาน', en: 'Approve or create' }) }}</span></span>
-          @if (o(); as ov) { <span class="chip warn">{{ ov.agencies_pending }}</span> }
-          <app-icon name="chevronRight" [size]="18" />
-        </a>
-        <a class="row" [routerLink]="url('D11')" [queryParams]="{ type: 'data_access' }">
-          <span class="icon-bubble"><app-icon name="list" [size]="20" /></span>
-          <span class="grow"><strong>{{ i18n.t({ th: 'บันทึกการเข้าถึงข้อมูล', en: 'Data access log' }) }}</strong><span class="muted small block">{{ i18n.t({ th: 'แก้หรือลบไม่ได้', en: 'Cannot be edited' }) }}</span></span>
-          <app-icon name="chevronRight" [size]="18" />
-        </a>
-        <a class="row" routerLink="/settings/notifications">
-          <span class="icon-bubble"><app-icon name="bell" [size]="20" /></span>
-          <span class="grow"><strong>{{ i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' }) }}</strong><span class="muted small block">{{ i18n.t({ th: 'ชนิดที่รับ · ส่งทดสอบ', en: 'What to receive · send a test' }) }}</span></span>
-          <app-icon name="chevronRight" [size]="18" />
+        <a class="menu-row" routerLink="/settings/notifications">
+          <app-icon class="mi" name="bell" [size]="20" />
+          <span class="grow"><strong>{{ i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' }) }}</strong></span>
+          <app-icon class="chev" name="chevronRight" [size]="18" />
         </a>
         <app-my-data-link />
-        <a class="row" routerLink="/settings/display">
-          <span class="icon-bubble"><app-icon name="settings" [size]="20" /></span>
-          <span class="grow"><strong>{{ i18n.t({ th: 'โหมดการแสดงผล', en: 'Display mode' }) }}</strong><span class="muted small block">{{ i18n.t({ th: 'ง่าย · ปกติ · ละเอียด', en: 'Easy · normal · detailed' }) }}</span></span>
-          <app-icon name="chevronRight" [size]="18" />
+        <a class="menu-row" routerLink="/settings/display">
+          <app-icon class="mi" name="monitor" [size]="20" />
+          <span class="grow"><strong>{{ i18n.t({ th: 'โหมดการแสดงผล', en: 'Display mode' }) }}</strong></span>
+          <app-icon class="chev" name="chevronRight" [size]="18" />
         </a>
       </nav>
 
@@ -88,48 +83,51 @@ const SETTINGS: HubItem[] = [
           <span class="count">{{ alertCount() }} {{ i18n.t({ th: 'รายการต้องดู', en: 'to check' }) }}</span>
         }
       </div>
-      <nav class="tiles easy-hide">
-        @for (it of watch; track it.code) {
-          <a class="tile" [routerLink]="url(it.code)">
-            <span class="icon-bubble"><app-icon [name]="it.icon" [size]="20" /></span>
+      <nav class="menu easy-hide">
+        @for (it of watch; track it.code; let i = $index) {
+          <a class="menu-row" [class.priority]="isPriority(it, i)" [routerLink]="url(it.code)">
+            <app-icon class="mi" [name]="it.icon" [size]="20" />
             <span class="grow">
               <strong>{{ i18n.t(it.title) }}</strong>
-              <span class="hint">{{ i18n.t(it.hint) }}</span>
+              @if (it.count && o() && it.count(o()!) > 0) {
+                <span class="sub">{{ i18n.t(it.hint) }}</span>
+              }
             </span>
             @if (it.count && o(); as ov) {
               @if (it.count(ov); as n) {
                 <span class="chip warn count">{{ n }}</span>
               }
             }
+            <app-icon class="chev" name="chevronRight" [size]="18" />
           </a>
         }
       </nav>
       <div class="section-head easy-hide">
         <h2>{{ i18n.t({ th: 'ตั้งค่าและเครื่องมือ', en: 'Settings and tools' }) }}</h2>
       </div>
-      <nav class="tiles easy-hide">
+      <nav class="menu easy-hide">
         @for (it of settings; track it.title.th) {
-          <a class="tile" [routerLink]="url(it.code)" [queryParams]="it.query ?? null">
-            <span class="icon-bubble"><app-icon [name]="it.icon" [size]="20" /></span>
+          <a class="menu-row" [routerLink]="url(it.code)" [queryParams]="it.query ?? null">
+            <app-icon class="mi" [name]="it.icon" [size]="20" />
             <span class="grow">
               <strong>{{ i18n.t(it.title) }}</strong>
-              <span class="hint">{{ i18n.t(it.hint) }}</span>
             </span>
+            <app-icon class="chev" name="chevronRight" [size]="18" />
           </a>
         }
-        <a class="tile" routerLink="/settings/notifications">
-          <span class="icon-bubble"><app-icon name="bell" [size]="20" /></span>
+        <a class="menu-row" routerLink="/settings/notifications">
+          <app-icon class="mi" name="bell" [size]="20" />
           <span class="grow">
             <strong>{{ i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' }) }}</strong>
-            <span class="hint">{{ i18n.t({ th: 'ชนิดที่รับ · ส่งทดสอบ · วิธีแก้ถ้าไม่เด้ง', en: 'What to receive · send a test · fixes if nothing arrives' }) }}</span>
           </span>
+          <app-icon class="chev" name="chevronRight" [size]="18" />
         </a>
-        <a class="tile" routerLink="/settings/display">
-          <span class="icon-bubble"><app-icon name="settings" [size]="20" /></span>
+        <a class="menu-row" routerLink="/settings/display">
+          <app-icon class="mi" name="monitor" [size]="20" />
           <span class="grow">
             <strong>{{ i18n.t({ th: 'การแสดงผล', en: 'Display' }) }}</strong>
-            <span class="hint">{{ i18n.t({ th: 'ธีม · ภาษา · ขนาดตัวอักษร · โหมดง่าย', en: 'Theme · language · text size · easy mode' }) }}</span>
           </span>
+          <app-icon class="chev" name="chevronRight" [size]="18" />
         </a>
       </nav>
       @if (o(); as ov) {
@@ -160,6 +158,12 @@ const SETTINGS: HubItem[] = [
       flex: 1;
       min-inline-size: 0;
     }
+    /* D16: บนจอคอมไม่ยืดแถวเมนูเต็ม 1360px — จำกัดความกว้างให้อ่านง่าย */
+    @media (min-width: 1024px) {
+      .menu {
+        max-inline-size: 760px;
+      }
+    }
   `,
 })
 export class AdminHub {
@@ -179,6 +183,12 @@ export class AdminHub {
     return this.watch.reduce((sum, it) => sum + (it.count?.(o) ?? 0), 0);
   });
   protected readonly failed = signal(false);
+
+  /** A3: แถวเด่นไม่เกิน 2 แถว — เฉพาะรายการที่มีตัวเลขต้องจัดการจริง */
+  protected isPriority(it: HubItem, index: number): boolean {
+    const o = this.o();
+    return index < 2 && !!o && !!it.count && it.count(o) > 0;
+  }
 
   constructor() {
     void this.load();

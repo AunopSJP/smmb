@@ -52,7 +52,8 @@ const DEFAULT_CENTER: LatLng = { lat: 13.7563, lng: 100.5018 };
       transform: rotate(45deg);
       color: var(--map-on-brand);
       /* 12px ที่โหมดปกติ และโตตามโหมดตัวอักษรแต่ไม่เกิน 14px เพื่อให้เลข 2 หลักยังพอดีหมุด */
-      font-size: clamp(12px, 0.75rem, 14px);
+      /* เครดิตแผนที่ (Leaflet สร้างเอง) — ใช้ขั้นเล็กสุดของสเกล ไม่ต่ำกว่า 12px */
+      font-size: var(--fs-xs);
       font-weight: 700;
       line-height: 1;
     }

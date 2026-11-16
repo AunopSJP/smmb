@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { ApiConfig, apiError, isOffline } from '../../core/api';
 import { I18n, type Tr } from '../../core/i18n';
 import { hhmm, type Inspection, InspectionApi, type OfficerSummary, type ProblemReason, type QrCondition } from '../../core/inspection-api';
+import { fmtTime } from '../../core/time';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { QrImage } from '../../shared/qr-image';
@@ -115,22 +116,22 @@ async function startInspection(api: InspectionApi, router: Router, body: Paramet
     }
     .msg {
       background: rgb(255 255 255 / 12%);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       padding: 10px 14px;
       text-align: center;
     }
     .cam-strip {
       align-self: stretch;
       margin: 0;
-      border-radius: 6px;
+      border-radius: var(--radius-xs);
       background: rgb(0 0 0 / 45%);
       padding: 4px 10px;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       color: rgb(255 255 255 / 85%);
     }
     :host-context([data-mode='easy']) .aim {
       margin-block-start: 40px;
-      font-size: 1.625rem;
+      font-size: var(--fs-xl);
       text-align: center;
     }
   `,
@@ -267,7 +268,7 @@ const CAMERA_NOTE: Record<string, Tr> = {
   `,
   styles: `
     h1 {
-      font-size: 1.375rem;
+      font-size: var(--fs-lg);
     }
     .back-link {
       display: inline-flex;
@@ -277,7 +278,7 @@ const CAMERA_NOTE: Record<string, Tr> = {
       gap: 4px;
       color: var(--brand-text);
       font-weight: 700;
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
       text-decoration: none;
     }
     .note {
@@ -294,7 +295,7 @@ const CAMERA_NOTE: Record<string, Tr> = {
     }
     input {
       font: inherit;
-      font-size: 1.5rem;
+      font-size: var(--fs-xl);
       font-weight: 700;
       letter-spacing: 0.1em;
       min-block-size: 60px;
@@ -315,12 +316,12 @@ const CAMERA_NOTE: Record<string, Tr> = {
       color: var(--sos);
     }
     .tech {
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       line-height: 1.7;
       padding: 8px 12px;
     }
     :host-context([data-mode='easy']) input {
-      font-size: 2.125rem;
+      font-size: var(--fs-2xl);
       min-block-size: 76px;
       text-align: center;
     }
@@ -399,14 +400,14 @@ const CONDITIONS: { v: QrCondition; label: Tr; wide?: boolean }[] = [
   `,
   styles: `
     h1 {
-      font-size: 1.375rem;
+      font-size: var(--fs-lg);
     }
     .strong {
       font-weight: 700;
     }
     .tech {
       margin: 0;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       color: var(--text-muted);
       overflow-wrap: break-word;
     }
@@ -435,7 +436,7 @@ const CONDITIONS: { v: QrCondition; label: Tr; wide?: boolean }[] = [
     }
     :host-context([data-mode='easy']) .grid button {
       min-block-size: 76px;
-      font-size: 1.125rem;
+      font-size: var(--fs-md);
     }
   `,
 })
@@ -493,7 +494,7 @@ export class OfficerQrCondition implements OnInit {
       color: var(--sos);
     }
     .tech {
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       color: var(--text-muted);
     }
   `,
@@ -551,7 +552,7 @@ const DENIED: Record<string, { title: Tr; body: Tr }> = {
   `,
   styles: `
     .tech {
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       color: var(--text-muted);
     }
   `,
@@ -636,7 +637,7 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
     }
     .tech {
       margin: 0;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       color: var(--text-muted);
       overflow-wrap: break-word;
     }
@@ -653,7 +654,7 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
       border-radius: 50%;
       background: var(--danger-bg);
       color: var(--sos);
-      font-size: 1.75rem;
+      font-size: var(--fs-xl);
       font-weight: 700;
       &::after {
         content: '';
@@ -836,7 +837,7 @@ interface WakeLockSentinelLike {
   `,
   styles: `
     h1 {
-      font-size: 1.375rem;
+      font-size: var(--fs-lg);
     }
     .strong {
       font-weight: 700;
@@ -863,7 +864,7 @@ interface WakeLockSentinelLike {
       background: none;
       color: var(--text-muted);
       font: inherit;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       text-decoration: underline;
       cursor: pointer;
     }
@@ -892,22 +893,22 @@ interface WakeLockSentinelLike {
       gap: 6px;
       align-self: stretch;
       div {
-        border-radius: 9px;
+        border-radius: var(--radius-xs);
         background: var(--bg);
         padding: 6px 8px;
-        font-size: 0.75rem;
+        font-size: var(--fs-xs);
         color: var(--text-muted);
       }
       b {
         display: block;
-        font-size: 0.75rem;
+        font-size: var(--fs-xs);
         color: var(--text);
       }
     }
     .tech {
       align-self: stretch;
       margin: 0;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       color: var(--text-muted);
       overflow-wrap: break-word;
     }
@@ -918,7 +919,7 @@ interface WakeLockSentinelLike {
       span {
         inline-size: 32px;
         block-size: 6px;
-        border-radius: 3px;
+        border-radius: var(--radius-xs);
         background: var(--line);
       }
       .failed {
@@ -950,7 +951,7 @@ export class OfficerBadge implements OnInit {
   protected readonly expText = computed(() => {
     const iso = this.expiresIso();
     return iso
-      ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Bangkok' })
+      ? fmtTime(iso, true)
       : '—';
   });
   private expiresAt = 0;
@@ -1081,7 +1082,7 @@ export class OfficerBadge implements OnInit {
   `,
   styles: `
     .tech {
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       color: var(--text-muted);
       overflow-wrap: break-word;
     }
@@ -1171,7 +1172,7 @@ const HOLD_MS = 8000;
       color: var(--success-fg);
     }
     .result h1 {
-      font-size: 1.75rem;
+      font-size: var(--fs-xl);
     }
     .spinner {
       display: inline-block;
@@ -1196,7 +1197,7 @@ const HOLD_MS = 8000;
       margin: 16px auto 0;
       width: min(260px, 70%);
       height: 6px;
-      border-radius: 3px;
+      border-radius: var(--radius-xs);
       background: rgba(255, 255, 255, 0.3);
       overflow: hidden;
       span {
@@ -1207,12 +1208,12 @@ const HOLD_MS = 8000;
       }
     }
     .house {
-      font-size: 1.125rem;
+      font-size: var(--fs-md);
       font-weight: 700;
     }
     .tech {
       margin: 0;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       line-height: 1.7;
       color: rgb(255 255 255 / 82%);
       overflow-wrap: break-word;

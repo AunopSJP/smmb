@@ -43,7 +43,7 @@ import { Icon, type IconName } from './icon';
       flex: none;
       inline-size: 40px;
       block-size: 40px;
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       background: var(--icon-bg);
     }
     .lines {
@@ -57,7 +57,7 @@ import { Icon, type IconName } from './icon';
     .lines i {
       display: block;
       block-size: 12px;
-      border-radius: 999px;
+      border-radius: var(--radius-lg);
       background: var(--icon-bg);
     }
     .lines i:first-child {
@@ -179,7 +179,7 @@ const KIND_DEFAULTS: Record<EmptyKind, { icon: IconName; title: Tr; hint: Tr }> 
       color: var(--sos);
     }
     strong {
-      font-size: 1.0625rem;
+      font-size: var(--fs-md);
       line-height: 1.4;
     }
     .muted {
@@ -234,7 +234,7 @@ export class EmptyState {
       place-items: center;
       inline-size: 44px;
       block-size: 44px;
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       background: var(--danger-bg);
       color: var(--sos);
     }

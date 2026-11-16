@@ -78,12 +78,12 @@ export class Confirm {
     }
     h2 {
       margin: 0;
-      font-size: 1.25rem;
+      font-size: var(--fs-lg);
       line-height: 1.35;
     }
     p {
       margin: 0;
-      font-size: 0.9375rem;
+      font-size: var(--fs-base);
       overflow-wrap: break-word;
     }
     .btn.danger {

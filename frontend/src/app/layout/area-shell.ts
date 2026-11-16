@@ -334,7 +334,7 @@ const MOCK_SCREENS = new Set<string>();
       inline-size: 32px;
       block-size: 32px;
       border: 1px solid var(--line-strong, var(--line));
-      border-radius: 8px;
+      border-radius: var(--radius-xs);
       background: var(--surface);
       color: var(--text-muted);
       cursor: pointer;
@@ -367,7 +367,7 @@ const MOCK_SCREENS = new Set<string>();
       inline-size: 28px;
       block-size: 28px;
       border: 0;
-      border-radius: 6px;
+      border-radius: var(--radius-xs);
       background: transparent;
       color: var(--text-muted);
       cursor: pointer;
@@ -401,7 +401,7 @@ const MOCK_SCREENS = new Set<string>();
     }
     .side .sub a {
       padding: 7px 10px;
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
       color: var(--text-muted);
     }
     @media (hover: hover) {
@@ -448,7 +448,7 @@ const MOCK_SCREENS = new Set<string>();
       inset-inline-end: 2px;
       min-inline-size: 18px;
       padding: 0 4px;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
     }
     .side.mini a.active::before {
       inset-inline-start: -10px;
@@ -463,11 +463,11 @@ const MOCK_SCREENS = new Set<string>();
       place-items: center;
       inline-size: 38px;
       block-size: 38px;
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       background: var(--action-bg);
       color: var(--action-fg);
       font-weight: 800;
-      font-size: 1.25rem;
+      font-size: var(--fs-lg);
     }
     .name {
       display: flex;
@@ -476,7 +476,7 @@ const MOCK_SCREENS = new Set<string>();
       line-height: 1.35;
     }
     .name small {
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       font-weight: 500;
       color: var(--text-muted);
     }
@@ -488,7 +488,7 @@ const MOCK_SCREENS = new Set<string>();
       border: 0;
       background: none;
       font: inherit;
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       font-weight: 700;
       color: var(--text-muted);
       padding: 16px 12px 6px;
@@ -506,10 +506,10 @@ const MOCK_SCREENS = new Set<string>();
       align-items: center;
       gap: 12px;
       padding: 10px 12px;
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       color: var(--text);
       text-decoration: none;
-      font-size: 0.9375rem;
+      font-size: var(--fs-base);
     }
     .lbl {
       flex: 1;
@@ -522,10 +522,10 @@ const MOCK_SCREENS = new Set<string>();
       flex: none;
       min-inline-size: 22px;
       padding: 1px 7px;
-      border-radius: 999px;
+      border-radius: var(--radius-lg);
       background: var(--icon-bg);
       color: var(--text);
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       font-weight: 700;
       text-align: center;
       font-variant-numeric: tabular-nums;
@@ -557,7 +557,7 @@ const MOCK_SCREENS = new Set<string>();
       inset-block-start: 8px;
       inset-block-end: 8px;
       inline-size: 4px;
-      border-radius: 0 4px 4px 0;
+      border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
       background: var(--brand);
     }
     .me {
@@ -593,10 +593,10 @@ const MOCK_SCREENS = new Set<string>();
       white-space: nowrap;
     }
     .who strong {
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
     }
     .who small {
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       color: var(--text-muted);
     }
     .out {
@@ -606,7 +606,7 @@ const MOCK_SCREENS = new Set<string>();
       inline-size: 36px;
       block-size: 36px;
       border: 0;
-      border-radius: 8px;
+      border-radius: var(--radius-xs);
       background: transparent;
       color: var(--text-muted);
       cursor: pointer;
@@ -620,7 +620,7 @@ const MOCK_SCREENS = new Set<string>();
     .demo {
       display: block;
       text-align: center;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       padding: 4px 16px;
       background: var(--brand-light);
       color: var(--brand-dark);

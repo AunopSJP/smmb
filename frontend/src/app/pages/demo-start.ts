@@ -81,7 +81,7 @@ import { Icon, type IconName } from '../shared/icon';
     }
     h1 {
       color: var(--brand-text);
-      font-size: 1.75rem;
+      font-size: var(--fs-xl);
     }
     button.row {
       inline-size: 100%;
@@ -114,7 +114,7 @@ import { Icon, type IconName } from '../shared/icon';
     select {
       font: inherit;
       padding: 8px 10px;
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--line);
       background: var(--bg);
       color: var(--text);

@@ -88,6 +88,14 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
             <button type="button" [attr.aria-pressed]="filter() === f.v" (click)="filter.set(f.v)">{{ i18n.t(f.label) }} <span class="n">{{ counts()[f.v] }}</span></button>
           }
         </div>
+        <!-- D5: ตัวกรอง + จัดกลุ่ม (มาตรฐานรายการข้อมูลของโปรเจกต์) -->
+        <label class="groupby">
+          <span class="muted small">{{ i18n.t({ th: 'จัดกลุ่ม', en: 'Group' }) }}</span>
+          <select [value]="groupBy()" (change)="groupBy.set($any($event.target).value)">
+            <option value="status">{{ i18n.t({ th: 'ตามสถานะ', en: 'By status' }) }}</option>
+            <option value="none">{{ i18n.t({ th: 'ไม่จัดกลุ่ม', en: 'No grouping' }) }}</option>
+          </select>
+        </label>
         <form class="add" (submit)="$event.preventDefault(); register()">
           <label class="count">
             <span class="muted small">{{ i18n.t({ th: 'ลงทะเบียนตู้ใหม่', en: 'Register boxes' }) }}</span>
@@ -107,7 +115,11 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
           }
           <span></span>
         </div>
-        @for (b of rows(); track b.id) {
+        @for (g of groups(); track g.key) {
+          @if (g.label) {
+            <h3 class="group-head">{{ g.label }} <span class="n">{{ g.items.length }}</span></h3>
+          }
+        @for (b of g.items; track b.id) {
           @let badge = boxBadge(b);
           <a class="row cols" [routerLink]="url('D04')" [queryParams]="{ id: b.id }">
             <span class="who">
@@ -139,6 +151,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
             <p class="row muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ไม่มีตู้ในกลุ่มนี้', en: 'No mailboxes here' }) }}</p>
           }
         }
+        }
       </div>
       <p class="muted small easy-hide">{{ i18n.t({ th: 'ทั้งหมด ' + total() + ' ตู้', en: total() + ' mailboxes' }) }}</p>
       @if (boxes().length < total()) {
@@ -150,6 +163,23 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
     </div>
   `,
   styles: `
+    /* D5: หัวกลุ่มในตาราง (จัดกลุ่มตามสถานะ) */
+    .group-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 0;
+      padding: 10px 16px;
+      border-block-start: 1px solid var(--line);
+      background: var(--icon-bg);
+      color: var(--text-muted);
+      font-size: var(--fs-sm);
+      font-weight: 700;
+    }
+    .group-head .n {
+      font-variant-numeric: tabular-nums;
+    }
     .status {
       margin: 0 0 12px;
       padding: 12px 14px;
@@ -221,7 +251,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
     .bar {
       inline-size: 56px;
       block-size: 6px;
-      border-radius: 3px;
+      border-radius: var(--radius-xs);
       background: var(--icon-bg);
       overflow: hidden;
     }
@@ -262,7 +292,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       }
     }
     .arrow {
-      font-size: 0.625rem;
+      font-size: var(--fs-xs);
     }
     /* มือถือ: สองบรรทัด (ชื่อ+สถานะ / แบต+ติดต่อล่าสุด) · จอคอม: คอลัมน์แบบตาราง */
     .cols {
@@ -308,13 +338,13 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       text-align: center;
     }
     .easy-summary b {
-      font-size: 1.75rem;
+      font-size: var(--fs-xl);
       font-weight: 800;
       line-height: 1.1;
       font-variant-numeric: tabular-nums;
     }
     .easy-summary span {
-      font-size: 0.9375rem;
+      font-size: var(--fs-base);
       color: var(--text-muted);
     }
     .easy-row {
@@ -322,7 +352,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
     }
     .secret {
       word-break: break-all;
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       background: var(--icon-bg);
       padding: 6px 8px;
       border-radius: var(--radius-sm);
@@ -442,6 +472,21 @@ export class AdminBoxes implements OnInit {
       this.sortDir.set('asc');
     }
   }
+
+  /** D5: จัดกลุ่มรายการตามสถานะ (ค่าเริ่มต้น) — กลุ่มที่ไม่มีรายการจะไม่แสดง */
+  protected readonly groupBy = signal<'status' | 'none'>('status');
+  protected readonly groups = computed(() => {
+    const list = this.rows();
+    if (this.groupBy() === 'none') return [{ key: 'all', label: '', items: list }];
+    const map = new Map<string, AdminBoxRow[]>();
+    for (const b of list) {
+      const arr = map.get(b.status) ?? [];
+      arr.push(b);
+      map.set(b.status, arr);
+    }
+    const out = [...map.entries()].map(([key, items]) => ({ key, label: this.i18n.t(boxBadge(items[0]).label), items }));
+    return out.length ? out : [{ key: 'all', label: '', items: [] as AdminBoxRow[] }];
+  });
 
   protected readonly rows = computed(() => {
     const f = this.filter();

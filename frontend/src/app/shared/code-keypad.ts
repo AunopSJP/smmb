@@ -17,7 +17,8 @@ import { I18n } from '../core/i18n';
   styles: `
     .pad {
       display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
+      /* B6: 31 ปุ่ม + ปุ่มลบ → 5 คอลัมน์ทำให้แถวสุดท้ายเต็มพอดี (เดิม 6 คอลัมน์เหลือ "9" กับลบ) */
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       inline-size: 100%;
       gap: 6px;
     }
@@ -26,11 +27,11 @@ import { I18n } from '../core/i18n';
       min-inline-size: 0;
       padding: 0;
       border: 0;
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       background: var(--surface);
       color: var(--text);
       font: inherit;
-      font-size: 1.25rem;
+      font-size: var(--fs-lg);
       font-weight: 700;
       box-shadow: var(--shadow);
       cursor: pointer;
@@ -40,7 +41,7 @@ import { I18n } from '../core/i18n';
       background: var(--brand-light);
     }
     .back {
-      grid-column: span 2;
+      grid-column: span 4;
       color: var(--brand-text);
     }
   `,

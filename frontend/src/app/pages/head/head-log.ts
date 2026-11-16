@@ -1,9 +1,11 @@
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, model, signal, type OnInit } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { DisplaySettings } from '../../core/display-settings';
 import { HeadApi } from '../../core/head-api';
 import { I18n, type Tr } from '../../core/i18n';
+import { bkkDay, fmtDay, fmtTime, fmtWhenSec } from '../../core/time';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
@@ -44,7 +46,8 @@ interface LogRow {
 const OK_RESULTS = new Set(['ok', 'pass', 'passed']);
 
 const RESULT_TEXT: Record<string, Tr> = {
-  ok: { th: 'เริ่มตรวจ', en: 'Started' },
+  /* "ok" = เซิร์ฟเวอร์รับการสแกนแล้วแต่ผลยังไม่ออก → ยังไม่จบ (ไม่ใช่ผ่าน) */
+  ok: { th: 'ยังไม่จบ', en: 'In progress' },
   pass: { th: 'ผ่าน', en: 'Passed' },
   retry: { th: 'อ่านไม่ผ่าน', en: 'Not read' },
   fail: { th: 'ไม่ผ่าน', en: 'Failed' },
@@ -71,22 +74,22 @@ const RESULT_TEXT: Record<string, Tr> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
-      [caption]="(api.agency()?.name ?? '') + ' · ' + i18n.t({ th: 'หัวหน้าหน่วยงาน', en: 'Agency head' })"
+      [caption]="api.agency()?.name ?? i18n.t({ th: 'หัวหน้าหน่วยงาน', en: 'Agency head' })"
       [title]="i18n.t({ th: 'ประวัติการสแกน', en: 'Scan log' })"
       [bell]="url('L09')"
     />
     <div class="stack">
-      <div class="segmented chips easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'ผลการตรวจ', en: 'Result' })">
+      <!-- D4: ตัวกรองแบบแคปซูลเห็นตลอด — ช่วงวัน/ปัญหา/ตัวกรองเพิ่มเติม -->
+      <div class="segmented chips filter-caps" role="group" [attr.aria-label]="i18n.t({ th: 'ตัวกรอง', en: 'Filters' })">
         <button type="button" [attr.aria-pressed]="!onlyProblems()" (click)="setProblems(false)">{{ i18n.t({ th: 'ทั้งหมด', en: 'All' }) }}</button>
-        <button type="button" [attr.aria-pressed]="onlyProblems()" (click)="setProblems(true)">{{ i18n.t({ th: 'เฉพาะที่มีปัญหา', en: 'Problems only' }) }}</button>
+        <button type="button" [attr.aria-pressed]="onlyProblems()" (click)="setProblems(true)">{{ i18n.t({ th: 'มีปัญหา', en: 'Problems' }) }}</button>
+        <button type="button" [attr.aria-pressed]="range() === 'today'" (click)="setRange('today')">{{ i18n.t({ th: 'วันนี้', en: 'Today' }) }}</button>
+        <button type="button" [attr.aria-pressed]="range() === '7d'" (click)="setRange('7d')">{{ i18n.t({ th: '7 วัน', en: '7 days' }) }}</button>
+        <button type="button" [attr.aria-pressed]="range() === '30d'" (click)="setRange('30d')">{{ i18n.t({ th: '30 วัน', en: '30 days' }) }}</button>
+        <button type="button" [attr.aria-pressed]="showFilters()" (click)="showFilters.set(!showFilters())">{{ i18n.t({ th: 'ตัวกรองเพิ่มเติม', en: 'More filters' }) }}</button>
       </div>
-      <details class="filters easy-hide" [open]="filtersActive()">
-        <summary>
-          {{ i18n.t({ th: 'ตัวกรอง', en: 'Filters' }) }}
-          @if (filtersActive()) {
-            <span class="chip ok">{{ i18n.t({ th: 'กำลังกรอง', en: 'active' }) }}</span>
-          }
-        </summary>
+      @if (showFilters()) {
+      <section class="filters easy-hide" [attr.aria-label]="i18n.t({ th: 'ตัวกรองเพิ่มเติม', en: 'More filters' })">
         <form class="fgrid" (submit)="$event.preventDefault(); apply()">
           <label class="field">
             <span>{{ i18n.t({ th: 'โซน', en: 'Zone' }) }}</span>
@@ -125,9 +128,14 @@ const RESULT_TEXT: Record<string, Tr> = {
             <button type="button" class="btn secondary" (click)="clearFilters()">{{ i18n.t({ th: 'ล้าง', en: 'Clear' }) }}</button>
           </div>
         </form>
-      </details>
+      </section>
+      }
       <ul class="list">
-        @for (l of rows(); track l.id) {
+        @for (g of dayGroups(); track g.key) {
+          @if (g.label) {
+            <li class="group-head">{{ g.label }}</li>
+          }
+        @for (l of g.items; track l.id) {
           @let ok = isOk(l);
           <li class="row">
             <span class="icon-bubble" [class.danger]="!ok"><app-icon [name]="icon(l)" [size]="20" /></span>
@@ -137,12 +145,13 @@ const RESULT_TEXT: Record<string, Tr> = {
               <span class="muted small block easy-only">{{ l.officer?.display_name ?? '—' }}</span>
               <span class="muted small block adv-only">{{ i18n.t({ th: 'เวลาบันทึก ', en: 'Logged ' }) }}{{ exact(l.at) }}</span>
             </span>
-            <span class="chip" [class.ok]="ok" [class.danger]="!ok">{{ i18n.t(resultText(l)) }}</span>
+            <span class="chip" [class.ok]="chipTone(l) === 'ok'" [class.warn]="chipTone(l) === 'warn'" [class.danger]="chipTone(l) === 'danger'">{{ i18n.t(resultText(l)) }}</span>
           </li>
         } @empty {
           @if (!loadFailed()) {
             <li class="row muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ไม่มีรายการ', en: 'Nothing here' }) }}</li>
           }
+        }
         }
       </ul>
       @if (loadFailed()) {
@@ -195,20 +204,36 @@ const RESULT_TEXT: Record<string, Tr> = {
     .block {
       display: block;
     }
+    /* D4: ตัวกรองเป็นแคปซูลเห็นตลอด (ไม่ใช่การ์ดพับ) */
     .filters {
-      background: var(--surface);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 12px 16px;
-    }
-    .filters > summary {
-      cursor: pointer;
-      padding-block: 10px;
-      margin-block: -10px;
-      font-weight: 700;
       display: flex;
-      align-items: center;
-      gap: 8px;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+    /* แคปซูลตัวกรองเลื่อนแนวนอนได้ ไม่กินครึ่งจอ */
+    .filter-caps {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      padding-block-end: 2px;
+      scrollbar-width: thin;
+    }
+    .filter-caps button {
+      flex: none;
+      min-block-size: 44px;
+    }
+    /* D5: หัวกลุ่มตามวันในตาราง */
+    .group-head {
+      padding: 10px 16px;
+      border-block-start: 1px solid var(--line);
+      background: var(--icon-bg);
+      color: var(--text-muted);
+      font-size: var(--fs-sm);
+      font-weight: 700;
+      list-style: none;
     }
     .fgrid {
       display: flex;
@@ -256,6 +281,10 @@ export class HeadLog implements OnInit {
   protected readonly fQ = signal('');
   protected readonly fFrom = signal('');
   protected readonly fTo = signal('');
+  /** ช่วงวันที่แบบแคปซูล (today/7d/30d/custom) */
+  protected readonly range = signal<'today' | '7d' | '30d' | 'custom'>('custom');
+  /** เปิด/ปิดช่องกรองละเอียด — แคปซูลหลักเห็นตลอด */
+  protected readonly showFilters = signal(false);
   protected readonly zoneOptions = signal<{ id: string; name: string }[]>([]);
   protected readonly officerOptions = signal<{ id: string; display_name: string }[]>([]);
   protected readonly filtersActive = computed(() => !!(this.fZone() || this.fOfficer() || this.fQ().trim() || this.fFrom() || this.fTo()));
@@ -319,17 +348,46 @@ export class HeadLog implements OnInit {
     void this.apply();
   }
 
+  /** D4: เลือกช่วงวันด้วยแคปซูลเดียว (คำนวณจากวันนี้เวลาไทย) */
+  protected setRange(r: 'today' | '7d' | '30d'): void {
+    const today = bkkDay();
+    this.range.set(r);
+    if (r === 'today') {
+      this.fFrom.set(today);
+      this.fTo.set(today);
+    } else {
+      const days = r === '7d' ? 6 : 29;
+      this.fFrom.set(bkkDay(new Date(Date.now() - days * 86_400_000)));
+      this.fTo.set(today);
+    }
+    void this.apply();
+  }
+
   protected clearFilters(): void {
     this.fZone.set('');
     this.fOfficer.set('');
     this.fQ.set('');
     this.fFrom.set('');
     this.fTo.set('');
+    this.range.set('custom');
     void this.apply();
   }
 
   protected readonly days = signal(30);
   protected readonly exporting = signal(false);
+
+  /** D5: จัดกลุ่มรายการตามวัน (วันนี้/เมื่อวาน/วันที่) — ใช้ร่วมกับตัวกรองด้านบน */
+  protected readonly dayGroups = computed(() => {
+    const map = new Map<string, LogRow[]>();
+    for (const l of this.rows()) {
+      const key = bkkDay(l.at);
+      const arr = map.get(key) ?? [];
+      arr.push(l);
+      map.set(key, arr);
+    }
+    const out = [...map.entries()].map(([key, items]) => ({ key, label: fmtDay(items[0].at, this.i18n.lang()), items }));
+    return out.length ? out : [{ key: 'none', label: '', items: [] as LogRow[] }];
+  });
 
   /** GET /agency/logs/export.csv?days= — สูงสุด 10,000 แถว */
   protected async exportCsv(): Promise<void> {
@@ -343,7 +401,7 @@ export class HeadLog implements OnInit {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+      const today = bkkDay();
       a.download = `smmb-scan-log-${today}.csv`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -371,13 +429,21 @@ export class HeadLog implements OnInit {
     return l.qr_kind === 'badge' ? 'shield' : this.isOk(l) ? 'scan' : 'alert';
   }
 
-  protected time(iso: string): string {
-    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Bangkok' });
+  /** สีป้ายตามผลจริง (A9): เขียว = ผ่าน · ส้ม = ยังไม่จบ/อ่านไม่ผ่าน · แดง = ไม่ผ่าน */
+  protected chipTone(l: LogRow): '' | 'ok' | 'warn' | 'danger' {
+    if (l.qr_kind === 'badge' && l.result === 'ok') return 'ok';
+    if (l.result === 'pass' || l.result === 'passed') return 'ok';
+    if (l.result === 'ok' || l.result === 'retry' || l.result === 'unreadable') return 'warn';
+    return 'danger';
   }
 
-  /** โหมดละเอียด: เวลาที่มีความละเอียดถึงวินาที */
+  protected time(iso: string): string {
+    return fmtTime(iso);
+  }
+
+  /** โหมดละเอียด: วัน + เวลา 24 ชม. ถึงวินาที (รูปแบบกลาง A8) */
   protected exact(iso: string): string {
-    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Asia/Bangkok' });
+    return fmtWhenSec(iso, this.i18n.lang());
   }
 
   protected sub(l: LogRow): string {
@@ -393,15 +459,26 @@ export class HeadLog implements OnInit {
 
 @Component({
   selector: 'app-head-notifications',
-  imports: [PageHeader, NotificationList],
+  imports: [PageHeader, NotificationList, RouterLink, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
-      [caption]="(api.agency()?.name ?? '') + ' · ' + i18n.t({ th: 'หัวหน้าหน่วยงาน', en: 'Agency head' })"
+      [caption]="api.agency()?.name ?? i18n.t({ th: 'หัวหน้าหน่วยงาน', en: 'Agency head' })"
       [title]="i18n.t({ th: 'การแจ้งเตือน', en: 'Notifications' })"
       [back]="url('L04')"
     />
     <div class="stack">
+      <!-- A4: หน้าย่อยเดียวรวมประวัติ + ตั้งค่าชนิดที่รับ (เดิมมี 3 แถวกระดิ่งในหน้าตั้งค่า) -->
+      <nav class="menu">
+        <a class="menu-row" routerLink="/settings/notifications">
+          <app-icon class="mi" name="bell" [size]="20" />
+          <span class="grow">
+            <strong>{{ i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' }) }}</strong>
+            <span class="sub">{{ i18n.t({ th: 'ชนิดที่รับ · ส่งทดสอบ · วิธีแก้ถ้าไม่เด้ง', en: 'What to receive · send a test · fixes if nothing arrives' }) }}</span>
+          </span>
+          <app-icon class="chev" name="chevronRight" [size]="18" />
+        </a>
+      </nav>
       <app-notification-list />
     </div>
   `,

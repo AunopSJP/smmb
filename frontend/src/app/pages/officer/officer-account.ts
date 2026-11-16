@@ -44,42 +44,42 @@ import { PushStatus } from '../../shared/push-status';
       </section>
 
       <h2 class="section-title">{{ i18n.t({ th: 'การใช้งาน', en: 'Usage' }) }}</h2>
-      <nav class="list">
-        <a class="row easy-hide" [routerLink]="url('O02')">
-          <span class="icon-bubble"><app-icon name="scan" [size]="20" /></span>
+      <!-- A3/A4: แถวเมนูธรรมดา · ไอคอนไม่ซ้ำความหมาย (ประแจ/กุญแจ/จอ) -->
+      <nav class="menu">
+        <a class="menu-row easy-hide" [routerLink]="url('O02')">
+          <app-icon class="mi" name="scan" [size]="20" />
           <span class="grow">
             <strong>{{ i18n.t({ th: 'กล้องสแกน QR', en: 'QR scanner camera' }) }}</strong>
-            <span class="muted small block">{{ i18n.t({ th: 'เบราว์เซอร์จะขอสิทธิ์เมื่อเริ่มสแกน · พิมพ์รหัสใต้ QR แทนได้', en: 'Browser asks when scanning starts · you can type the printed code instead' }) }}</span>
           </span>
-          <app-icon name="chevronRight" [size]="18" />
+          <app-icon class="chev" name="chevronRight" [size]="18" />
         </a>
-        <a class="row" routerLink="/settings/notifications">
-          <span class="icon-bubble"><app-icon name="bell" [size]="20" /></span>
+        <a class="menu-row" [class.priority]="!pushOn()" routerLink="/settings/notifications">
+          <app-icon class="mi" name="bell" [size]="20" />
           <span class="grow">
             <strong>{{ i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' }) }}</strong>
-            <span class="muted small block">{{ i18n.t({ th: 'เจ้าหน้าที่ต้องเปิดไว้เสมอเพื่อรับ SOS', en: 'Officers must keep this on to receive SOS' }) }}</span>
+            @if (!pushOn()) {
+              <span class="sub">{{ i18n.t({ th: 'ต้องเปิดเพื่อรับ SOS — แตะเพื่อเปิด', en: 'Must be on to receive SOS — tap to turn on' }) }}</span>
+            }
           </span>
-          <app-icon name="chevronRight" [size]="18" />
+          <app-icon class="chev" name="chevronRight" [size]="18" />
         </a>
         <app-my-data-link />
-        <a class="row" [routerLink]="url('O13-b')">
-          <span class="icon-bubble"><app-icon name="settings" [size]="20" /></span>
+        <a class="menu-row" [routerLink]="url('O13-b')">
+          <app-icon class="mi" name="monitor" [size]="20" />
           <span class="grow">
             <strong>{{ i18n.t({ th: 'การแสดงผล', en: 'Display' }) }}</strong>
-            <span class="muted small block">{{ i18n.t({ th: 'ธีมกลางคืน · ภาษา · ขนาดตัวอักษร', en: 'Night theme · language · text size' }) }}</span>
           </span>
-          <app-icon name="chevronRight" [size]="18" />
+          <app-icon class="chev" name="chevronRight" [size]="18" />
         </a>
       </nav>
       <div class="easy-hide"><app-account-actions current="officer" from="O13" /></div>
-      <nav class="list easy-only">
-        <a class="row" [routerLink]="url('A14')" [queryParams]="{ from: 'O13' }">
-          <span class="icon-bubble"><app-icon name="settings" [size]="20" /></span>
+      <nav class="menu easy-only">
+        <a class="menu-row" [routerLink]="url('A14')" [queryParams]="{ from: 'O13' }">
+          <app-icon class="mi" name="key" [size]="20" />
           <span class="grow">
             <strong>{{ i18n.t({ th: 'เปลี่ยนรหัสผ่าน', en: 'Change password' }) }}</strong>
-            <span class="muted small block">{{ i18n.t({ th: 'ลืมรหัส? ให้หัวหน้ารีเซ็ตให้', en: 'Forgot it? Ask your head to reset it' }) }}</span>
           </span>
-          <app-icon name="chevronRight" [size]="18" />
+          <app-icon class="chev" name="chevronRight" [size]="18" />
         </a>
       </nav>
       <p class="muted small easy-hide">{{ i18n.t({ th: 'ลืมรหัสผ่าน ติดต่อหัวหน้าให้รีเซ็ต', en: 'Forgot your password? Ask your head to reset it' }) }}</p>
@@ -92,7 +92,7 @@ import { PushStatus } from '../../shared/push-status';
     .icon-bubble.ok { background: var(--ok-bg); color: var(--ok); }
     .push-toggle { min-block-size: 44px; padding: 6px 12px; }
     .signout { color: var(--brand-text); box-shadow: inset 0 0 0 1.5px var(--line); }
-    .tech { margin: 0; font-size: 0.75rem; color: var(--text-muted); }
+    .tech { margin: 0; font-size: var(--fs-xs); color: var(--text-muted); }
   `,
 })
 export class OfficerAccount {
@@ -105,11 +105,10 @@ export class OfficerAccount {
   protected readonly summary = signal<Awaited<ReturnType<InspectionApi['summary']>> | null>(null);
   protected readonly loading = signal(true);
   protected readonly error = signal(false);
-  protected readonly caption = computed(() => {
-    const agency = this.me()?.agency?.name ?? this.i18n.t({ th: 'เจ้าหน้าที่', en: 'Officer' });
-    const zone = this.summary()?.window?.zone_name;
-    return zone ? agency + ' · ' + zone : agency;
-  });
+  /** A6: บริบทหัวหน้าเพจ = ชื่อหน่วยงาน (โซนอยู่ในเนื้อหา ไม่ใช่บรรทัดหัว) */
+  protected readonly caption = computed(() => this.me()?.agency?.name ?? this.i18n.t({ th: 'เจ้าหน้าที่', en: 'Officer' }));
+  /** ใช้ตัดสินแถวเด่น "แจ้งเตือนยังไม่เปิด" */
+  protected readonly pushOn = computed(() => this.me()?.push.subscribed === true);
   /** รายละเอียดที่ผู้ใช้กรอกตอนสมัคร (Me.profile) — มีเฉพาะช่องที่กรอก */
   protected readonly rank = computed(() => {
     const v = this.me()?.profile?.['rank'];

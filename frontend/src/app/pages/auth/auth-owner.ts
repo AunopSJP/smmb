@@ -62,7 +62,8 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
         <small class="easy-hide">{{ i18n.t({ th: 'ใช้เข้าสู่ระบบ · เจ้าหน้าที่เห็นเฉพาะตอนคุณกด SOS', en: 'Used to sign in · officers see it only during your SOS' }) }}</small>
       </label>
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
-      <p class="small easy-only">{{ i18n.t({ th: 'รหัสผ่านอย่างน้อย 8 ตัว · ลืมแล้วติดต่อผู้ดูแลระบบ', en: 'At least 8 characters · if you forget it, contact the admin' }) }}</p>
+      <!-- B3: โหมดง่ายเหลือคำใบ้รหัสผ่านบรรทัดเดียวจาก PasswordField — ที่นี่ไม่พูดซ้ำ -->
+
       
       </section>
       }
@@ -99,9 +100,9 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
         </p>
       }
       @if (step() < 4) {
-        <button type="button" class="btn push-end" (click)="next()">{{ i18n.t({ th: 'ถัดไป', en: 'Next' }) }}</button>
+        <button type="button" class="btn form-actions" (click)="next()">{{ i18n.t({ th: 'ถัดไป', en: 'Next' }) }}</button>
       } @else {
-        <button type="submit" class="btn push-end" [disabled]="busy()">{{ i18n.t({ th: 'สมัครและไปผูกตู้', en: 'Sign up and add my mailbox' }) }}</button>
+        <button type="submit" class="btn form-actions" [disabled]="busy()">{{ i18n.t({ th: 'สมัครและไปผูกตู้', en: 'Sign up and add my mailbox' }) }}</button>
       }
       @if (step() > 1) {
         <button type="button" class="btn secondary" (click)="step.set(step() - 1)">{{ i18n.t({ th: 'ย้อนกลับ', en: 'Back' }) }}</button>
@@ -112,6 +113,10 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
     .grow {
       flex: 1;
     }
+    /* B1: ปุ่มหลักห่างช่องสุดท้าย 24px ไม่ดันไปชิดล่างจอ */
+    .form-actions {
+      margin-block-start: 24px;
+    }
     a {
       color: inherit;
       font-weight: 700;
@@ -119,7 +124,7 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
     .progress {
       display: block;
       block-size: 6px;
-      border-radius: 3px;
+      border-radius: var(--radius-xs);
       background: var(--line);
       overflow: hidden;
       margin-block: 4px;
@@ -553,7 +558,7 @@ export class AuthNameBox {
       color: var(--success-fg);
     }
     .result h1 {
-      font-size: 1.5rem;
+      font-size: var(--fs-xl);
     }
     .summary {
       background: rgb(255 255 255 / 15%);

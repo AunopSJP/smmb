@@ -1,6 +1,7 @@
 .page {
-  /* กันปุ่ม SOS (fixed) ทับการ์ดท้ายหน้า */
-  padding-block-end: calc(100px + env(safe-area-inset-bottom));
+  /* C3: เผื่อที่ท้ายรายการ = ความสูงปุ่ม SOS (สูงสุด 96px ในโหมดง่าย) + แท็บล่าง 68px + ระยะหายใจ
+     เพื่อให้เลื่อนแถวสุดท้ายพ้นปุ่ม SOS ได้ โดยปุ่มยังลอยเห็นตลอด */
+  padding-block-end: calc(180px + env(safe-area-inset-bottom));
 }
 .status {
   display: flex;
@@ -8,10 +9,10 @@
   gap: 8px;
   font-weight: 700;
   color: var(--ok);
-  font-size: 1.0625rem;
+  font-size: var(--fs-md);
 
   &.big {
-    font-size: 1.75rem;
+    font-size: var(--fs-xl);
     .dot {
       inline-size: 16px;
       block-size: 16px;
@@ -27,12 +28,12 @@
   color: inherit;
 }
 .big-text {
-  font-size: 1.25rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   margin-block-start: 8px;
 }
 .big-when {
-  font-size: 1.75rem;
+  font-size: var(--fs-xl);
   font-weight: 800;
   line-height: 1.25;
 }
@@ -47,7 +48,7 @@
   padding: 26px 20px;
   background: var(--ok-bg);
   strong {
-    font-size: 1.75rem;
+    font-size: var(--fs-xl);
     line-height: 1.25;
     color: var(--ok);
   }
@@ -57,7 +58,7 @@
   }
 }
 .easy-sub {
-  font-size: 1.125rem;
+  font-size: var(--fs-md);
   line-height: 1.45;
   color: var(--text-muted);
 }
@@ -78,7 +79,7 @@
   flex-direction: column;
   gap: 4px;
   strong {
-    font-size: 1.5rem;
+    font-size: var(--fs-xl);
     line-height: 1.3;
   }
 }
@@ -95,7 +96,7 @@
   gap: 8px;
   min-block-size: 124px;
   text-align: center;
-  font-size: 1.125rem;
+  font-size: var(--fs-md);
   font-weight: 700;
   span {
     display: flex;
@@ -103,7 +104,7 @@
     gap: 2px;
   }
   small {
-    font-size: 0.9375rem;
+    font-size: var(--fs-base);
     font-weight: 400;
     color: var(--text-muted);
   }
@@ -117,16 +118,20 @@
   padding-block-start: 12px;
   border-block-start: 1px solid var(--line);
 }
+/* A5: ชั้นในของการ์ดใช้คอลัมน์ + เส้นคั่น ไม่มีพื้น/เงาของตัวเอง */
 .cell {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px;
-  border-radius: var(--radius-sm);
-  background: var(--bg);
+  padding: 0 10px;
+  border-inline-start: 1px solid var(--line);
   .value {
-    font-size: 0.9375rem;
+    font-size: var(--fs-base);
   }
+}
+.cell:nth-child(3n + 1) {
+  padding-inline-start: 0;
+  border-inline-start: 0;
 }
 .patrol {
   display: flex;
@@ -139,13 +144,13 @@
   .strip {
     position: relative;
     block-size: 10px;
-    border-radius: 5px;
+    border-radius: var(--radius-xs);
     background: var(--line);
     i {
       position: absolute;
       inset-block: 0;
       background: var(--brand);
-      border-radius: 5px;
+      border-radius: var(--radius-xs);
     }
     .now {
       position: absolute;
@@ -157,7 +162,7 @@
   .ticks {
     display: flex;
     justify-content: space-between;
-    font-size: 0.75rem;
+    font-size: var(--fs-xs);
     color: var(--text-muted);
   }
 }
@@ -167,20 +172,31 @@
   gap: 10px;
   margin-block-start: 2px;
 }
+/* A5: การ์ดในการ์ด → ใช้เส้นคั่นบางและคอลัมน์ ไม่มีพื้น/เงาซ้อน */
 .mini {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--surface) 86%, var(--text) 4%);
+  min-inline-size: 0;
+  padding: 0 12px;
+  border: 0;
+  border-inline-start: 1px solid var(--line);
+  border-radius: 0;
+  background: none;
+}
+.mini:first-child {
+  padding-inline-start: 0;
+  border-inline-start: 0;
 }
 .cover-cell {
   grid-column: 1 / -1;
+  margin-block-start: 10px;
+  padding: 10px 0 0;
+  border-block-start: 1px solid var(--line);
+  border-inline-start: 0;
 }
 .agency {
-  font-size: 0.95rem;
+  font-size: var(--fs-base);
   line-height: 1.35;
   overflow-wrap: break-word;
 }
@@ -189,15 +205,15 @@
   font-weight: 600;
 }
 .label {
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
 }
 .value {
-  font-size: 1.0625rem;
+  font-size: var(--fs-md);
 }
 .bar {
   block-size: 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   background: var(--line);
   overflow: hidden;
   span {
@@ -214,7 +230,7 @@
 .see-all {
   color: var(--brand);
   font-weight: 700;
-  font-size: 0.875rem;
+  font-size: var(--fs-sm);
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -255,7 +271,7 @@
 
   &.simple-sos {
     min-block-size: 96px;
-    font-size: 1.5rem;
+    font-size: var(--fs-xl);
   }
 }
 .sos-text {
@@ -264,7 +280,7 @@
   align-items: center;
   line-height: 1.25;
   small {
-    font-size: 0.75rem;
+    font-size: var(--fs-xs);
     font-weight: 400;
   }
 }
@@ -309,11 +325,11 @@
     position: relative;
   }
   span {
-    font-size: 1.5rem;
+    font-size: var(--fs-xl);
     font-weight: 700;
   }
   strong {
-    font-size: 3rem;
+    font-size: var(--fs-3xl);
     line-height: 1;
   }
 }
@@ -325,11 +341,11 @@
 
   h2 {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: var(--fs-xl);
   }
   p {
     margin: 0;
-    font-size: 1rem;
+    font-size: var(--fs-base);
     font-weight: 400;
   }
   .btn {
@@ -380,7 +396,7 @@
 .intro {
   text-align: center;
   h2 {
-    font-size: 1.25rem;
+    font-size: var(--fs-lg);
     margin-block-end: 6px;
   }
   p {
@@ -412,7 +428,7 @@
     }
     small {
       color: var(--text-muted);
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
     }
   }
 }
@@ -433,5 +449,5 @@
   justify-content: center;
   gap: 10px;
   min-block-size: 56px;
-  font-size: 1.0625rem;
+  font-size: var(--fs-md);
 }

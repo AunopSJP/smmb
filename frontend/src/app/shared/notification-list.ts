@@ -4,6 +4,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal, type OnIn
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { I18n } from '../core/i18n';
+import { bkkDay, fmtDay, fmtTime, fmtWhenSec } from '../core/time';
 import { UnreadCount } from '../core/unread';
 import { Icon, type IconName } from './icon';
 import { liveRefresh } from '../core/live-refresh';
@@ -141,24 +142,24 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
       min-inline-size: 20px;
       padding: 0 6px;
       margin-inline-start: 4px;
-      border-radius: 999px;
+      border-radius: var(--radius-lg);
       background: var(--badge-bg);
       color: var(--badge-fg);
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       font-weight: 700;
     }
     .more {
       display: block;
       margin-block-start: 4px;
       color: var(--brand-text);
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       font-weight: 700;
     }
     .meta {
       display: block;
       margin-block-start: 3px;
       color: var(--text-muted);
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       overflow-wrap: break-word;
     }
     .read-all {
@@ -168,11 +169,11 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
       gap: 6px;
       padding: 8px 12px;
       border: 1px solid var(--line);
-      border-radius: 999px;
+      border-radius: var(--radius-lg);
       background: var(--surface);
       color: var(--brand-text);
       font: inherit;
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
       font-weight: 700;
       cursor: pointer;
     }
@@ -183,7 +184,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
     }
     .day {
       margin: 8px 4px 0;
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       font-weight: 700;
       color: var(--text-muted);
     }
@@ -226,7 +227,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
       flex: none;
       inline-size: 40px;
       block-size: 40px;
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       background: var(--icon-bg);
       color: var(--text-muted);
     }
@@ -255,11 +256,11 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
     }
     time {
       flex: none;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       color: var(--text-muted);
     }
     .body {
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
       color: var(--text-muted);
       line-height: 1.45;
       display: -webkit-box;
@@ -302,7 +303,7 @@ export class NotificationList implements OnInit {
   /** แบ่งตามวัน (เวลาไทย): วันนี้ · เมื่อวาน · วันที่ */
   protected readonly groups = computed(() => {
     const list = this.onlyUnread() ? this.items().filter((n) => !n.read_at) : this.items();
-    const key = (d: Date) => (Number.isNaN(d.getTime()) ? 'unknown' : d.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' }));
+    const key = (d: Date) => (Number.isNaN(d.getTime()) ? 'unknown' : bkkDay(d));
     const today = key(new Date());
     const yesterday = key(new Date(Date.now() - 86_400_000));
     const out: { key: string; label: string; items: Notification[] }[] = [];
@@ -317,7 +318,7 @@ export class NotificationList implements OnInit {
               ? this.i18n.t({ th: 'วันนี้', en: 'Today' })
               : k === yesterday
                 ? this.i18n.t({ th: 'เมื่อวาน', en: 'Yesterday' })
-                : new Date(n.created_at).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Bangkok' });
+                : fmtDay(n.created_at, this.i18n.lang());
         g = { key: k, label, items: [] };
         out.push(g);
       }
@@ -358,9 +359,7 @@ export class NotificationList implements OnInit {
 
   /** เวลาจริง (วันที่ + เวลา วินาที) — เฉพาะโหมดละเอียด */
   protected exact(iso: string | null | undefined): string {
-    const d = new Date(iso ?? '');
-    if (Number.isNaN(d.getTime())) return '—';
-    return d.toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Asia/Bangkok' });
+    return fmtWhenSec(iso ?? '', this.i18n.lang());
   }
 
   /** ข้อมูลเทคนิคของรายการ (ชนิด · id · เวลา · สถานะอ่าน · ปลายทาง) — เฉพาะโหมดละเอียด */
@@ -378,7 +377,7 @@ export class NotificationList implements OnInit {
     const mins = Math.floor((Date.now() - d.getTime()) / 60_000);
     if (mins < 1) return this.i18n.t({ th: 'เมื่อสักครู่', en: 'Just now' });
     if (mins < 60) return this.i18n.t({ th: `${mins} นาทีที่แล้ว`, en: `${mins} min ago` });
-    return d.toLocaleTimeString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
+    return fmtTime(d);
   }
 
   /** POST /me/notifications/read ไม่ส่ง ids = อ่านทั้งหมด (api.md §3) */

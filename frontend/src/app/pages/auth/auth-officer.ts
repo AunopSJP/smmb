@@ -32,6 +32,8 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
     <span class="progress" role="progressbar" aria-valuemin="1" aria-valuemax="2" [attr.aria-label]="i18n.t({ th: 'ขั้นตอนการสมัคร', en: 'Signup progress' })" [attr.aria-valuetext]="i18n.t({ th: 'ขั้นที่ ', en: 'Step ' }) + step() + i18n.t({ th: ' จาก 2', en: ' of 2' })" [attr.aria-valuenow]="step()"><span [style.width.%]="(step() / 2) * 100"></span></span>
     <form class="stack grow" (submit)="$event.preventDefault(); step() < 2 ? next() : submit()">
       @if (step() === 1) {
+      <!-- B4: ช่องบังคับทั้ง 3 อยู่ใน .form-section เดียวกัน (เดิม 3 ช่องแรกอยู่นอกการ์ด) -->
+      <section class="form-section">
       <label class="field" [class.invalid]="errorCode() === 'GROUP_CODE_INVALID'">
         <span>{{ i18n.t({ th: 'รหัสกลุ่มจากหัวหน้า', en: 'Group code from your head' }) }}</span>
         <input autocomplete="off" autocapitalize="characters" spellcheck="false" [placeholder]="i18n.t({ th: 'เช่น PX7K-2MQ9', en: 'e.g. PX7K-2MQ9' })" [value]="f().group_code" (input)="set('group_code', $any($event.target).value)" />
@@ -45,6 +47,7 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
         <span>{{ i18n.t({ th: 'ตำแหน่ง / ยศ', en: 'Position / rank' }) }}</span>
         <input maxlength="100" [placeholder]="i18n.t({ th: 'เช่น ผบ.หมู่ / หัวหน้าเวร', en: 'e.g. Sergeant / shift lead' })" [value]="f().position" (input)="set('position', $any($event.target).value)" />
       </label>
+      </section>
       <details class="opt form-section easy-hide" [class.invalid]="tried() && !emergencyOk()" [open]="optOpen() || hasOpt() || (tried() && !emergencyOk())" (toggle)="optOpen.set($any($event.target).open)">
         <summary class="form-title">
           <span>{{ i18n.t({ th: 'เลขประจำตัว และผู้ติดต่อฉุกเฉิน', en: 'Staff number and emergency contact' }) }}</span>
@@ -69,7 +72,14 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
         <p class="form-hint">{{ i18n.t({ th: 'กรอกทั้งชื่อและเบอร์ หรือเว้นว่างทั้งคู่ · หัวหน้าหน่วยงานเห็นเพื่อใช้ตอนเกิดเหตุกับคุณ', en: 'Fill in both, or leave both empty · your agency head can see it for emergencies involving you' }) }}</p>
         </div>
       </details>
-      <div class="easy-hide"><app-profile-extras kind="officer" [(value)]="extras" [tried]="tried()" /></div>
+      <!-- B4: กลุ่มไม่บังคับพับไว้ท้ายขั้น ไม่ทำให้ขั้น 1 ยาว -->
+      <details class="opt form-section easy-hide">
+        <summary class="form-title">
+          <span>{{ i18n.t({ th: 'ข้อมูลเพิ่มเติม', en: 'More details' }) }}</span>
+          <span class="opt-tag">{{ i18n.t({ th: 'ไม่บังคับ · เพิ่มทีหลังได้', en: 'optional · add later' }) }}</span>
+        </summary>
+        <div class="opt-body"><app-profile-extras kind="officer" [(value)]="extras" [tried]="tried()" /></div>
+      </details>
       <p class="small easy-only">{{ i18n.t({ th: 'หัวหน้าต้องอนุมัติก่อน จึงจะเริ่มตรวจได้', en: 'Your head must approve before you can start inspections' }) }}</p>
       
       }
@@ -92,9 +102,9 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
         </p>
       }
       @if (step() < 2) {
-        <button type="button" class="btn push-end" (click)="next()">{{ i18n.t({ th: 'ถัดไป', en: 'Next' }) }}</button>
+        <button type="button" class="btn form-actions" (click)="next()">{{ i18n.t({ th: 'ถัดไป', en: 'Next' }) }}</button>
       } @else {
-        <button type="submit" class="btn push-end" [disabled]="busy()">{{ i18n.t({ th: 'ส่งคำขอสมัคร', en: 'Send request' }) }}</button>
+        <button type="submit" class="btn form-actions" [disabled]="busy()">{{ i18n.t({ th: 'ส่งคำขอสมัคร', en: 'Send request' }) }}</button>
         <button type="button" class="btn secondary" (click)="step.set(1)">{{ i18n.t({ th: 'ย้อนกลับ', en: 'Back' }) }}</button>
       }
     </form>
@@ -109,6 +119,10 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
     .grow {
       flex: 1;
     }
+    /* B1: ปุ่มหลักห่างช่องสุดท้าย 24px */
+    .form-actions {
+      margin-block-start: 24px;
+    }
     a {
       color: inherit;
       font-weight: 700;
@@ -116,7 +130,7 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
     .progress {
       display: block;
       block-size: 6px;
-      border-radius: 3px;
+      border-radius: var(--radius-xs);
       background: var(--line);
       overflow: hidden;
       margin-block: 4px;
@@ -446,7 +460,7 @@ export class AuthPushRequired {
       flex: 1;
     }
     .sec h2 {
-      font-size: 1rem;
+      font-size: var(--fs-base);
       margin-block-end: 6px;
     }
     .sec.first {
@@ -461,7 +475,7 @@ export class AuthPushRequired {
       display: flex;
       flex-direction: column;
       gap: 4px;
-      font-size: 0.9375rem;
+      font-size: var(--fs-base);
     }
   `,
 })

@@ -4,6 +4,7 @@ import { AdminApi, type AdminAgency, type AdminUser } from '../../core/admin-api
 import { apiError } from '../../core/api';
 import { AGENCY_TYPE_LABEL, showGroupCode } from '../../core/head-api';
 import { I18n, type Tr } from '../../core/i18n';
+import { fmtDate, fmtWhen } from '../../core/time';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { UserPlan } from './admin-plans';
@@ -115,7 +116,7 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
       text-align: center;
     }
     .code {
-      font-size: 2rem;
+      font-size: var(--fs-2xl);
       font-weight: 700;
       letter-spacing: 0.06em;
     }
@@ -159,8 +160,9 @@ export class AdminAgencyRequests implements OnInit {
     return a.heads.map((h) => h.id).join(', ') || '—';
   }
 
+  /** วัน + เวลา 24 ชม. ตามรูปแบบกลาง (A8) */
   protected date(iso: string): string {
-    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' });
+    return fmtWhen(iso, this.i18n.lang());
   }
 
   /** POST /admin/agencies/:id/approve → หัวหน้าได้บทบาท officer + head · ได้รหัสกลุ่ม */
@@ -328,6 +330,14 @@ const ROLE_LABEL: Record<string, Tr> = {
           }
           <button type="button" [attr.aria-pressed]="pendingDelete()" (click)="setPending(true)">{{ i18n.t({ th: 'รอลบ', en: 'Pending deletion' }) }} @if (pendingDelete()) { <span class="n">{{ total() }}</span> }</button>
         </div>
+        <!-- D5: จัดกลุ่มรายชื่อตามสถานะ -->
+        <label class="groupby">
+          <span class="muted small">{{ i18n.t({ th: 'จัดกลุ่ม', en: 'Group' }) }}</span>
+          <select [value]="groupBy()" (change)="groupBy.set($any($event.target).value)">
+            <option value="status">{{ i18n.t({ th: 'ตามสถานะ', en: 'By status' }) }}</option>
+            <option value="none">{{ i18n.t({ th: 'ไม่จัดกลุ่ม', en: 'No grouping' }) }}</option>
+          </select>
+        </label>
       </div>
 
       <div class="split">
@@ -396,7 +406,11 @@ const ROLE_LABEL: Record<string, Tr> = {
           <span>{{ i18n.t({ th: 'เบอร์โทร · บทบาท', en: 'Phone · roles' }) }}</span>
           <span>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</span>
         </div>
-        @for (u of shown(); track u.id) {
+        @for (g of userGroups(); track g.key) {
+          @if (g.label) {
+            <p class="group-head">{{ g.label }} <span class="n">{{ g.items.length }}</span></p>
+          }
+        @for (u of g.items; track u.id) {
           <button type="button" class="row ucols" [class.on]="u.id === selectedId()" (click)="select(u.id)">
             <strong class="name">{{ u.name }}</strong>
             <span class="info small"><span class="muted">{{ u.phone }}</span> · {{ roles(u) }}</span>
@@ -415,6 +429,7 @@ const ROLE_LABEL: Record<string, Tr> = {
             <p class="row muted">{{ i18n.t({ th: 'ไม่พบผู้ใช้', en: 'No users found' }) }}</p>
           }
         }
+        }
       </nav>
       @if (users().length < total()) {
         <button type="button" class="btn secondary" [disabled]="loadingMore()" (click)="loadMore()">
@@ -429,6 +444,18 @@ const ROLE_LABEL: Record<string, Tr> = {
       flex: 1;
       min-inline-size: 0;
       text-align: start;
+    }
+    /* D5: หัวกลุ่มรายชื่อตามสถานะ */
+    .group-head {
+      display: flex;
+      justify-content: space-between;
+      margin: 0;
+      padding: 10px 16px;
+      border-block-start: 1px solid var(--line);
+      background: var(--icon-bg);
+      color: var(--text-muted);
+      font-size: var(--fs-sm);
+      font-weight: 700;
     }
     .block {
       display: block;
@@ -560,7 +587,7 @@ const ROLE_LABEL: Record<string, Tr> = {
       cursor: pointer;
     }
     .temp {
-      font-size: 1.5rem;
+      font-size: var(--fs-xl);
       font-weight: 700;
       letter-spacing: 0.06em;
     }
@@ -607,6 +634,19 @@ export class AdminUsers implements OnInit {
     return out;
   });
   protected readonly shown = computed(() => this.users().filter((u) => this.inFilter(this.roleFilter(), u)));
+  /** D5: จัดกลุ่มรายชื่อตามสถานะ */
+  protected readonly groupBy = signal<'status' | 'none'>('status');
+  protected readonly userGroups = computed(() => {
+    const list = this.shown();
+    if (this.groupBy() === 'none') return [{ key: 'all', label: '', items: list }];
+    const groups = [
+      { key: 'active', label: this.i18n.t({ th: 'ใช้งาน', en: 'Active' }), items: list.filter((u) => !u.deleted_at && u.status === 'active') },
+      { key: 'disabled', label: this.i18n.t({ th: 'ปิดบัญชี', en: 'Disabled' }), items: list.filter((u) => !u.deleted_at && u.status !== 'active') },
+      { key: 'deleted', label: this.i18n.t({ th: 'รอลบ', en: 'Pending deletion' }), items: list.filter((u) => !!u.deleted_at) },
+    ];
+    const out = groups.filter((g) => g.items.length);
+    return out.length ? out : [{ key: 'all', label: '', items: [] as AdminUser[] }];
+  });
   protected readonly selected = computed(() => this.users().find((u) => u.id === this.selectedId()) ?? null);
   protected readonly temp = signal<string | null>(null);
   protected readonly error = signal<Tr | null>(null);
@@ -700,8 +740,9 @@ export class AdminUsers implements OnInit {
   }
 
   /** วันที่ (เวลาไทย) ของเวลาที่ API ส่งมา */
+  /** วันที่เต็ม (มีปี) ตามรูปแบบกลาง (A8) */
   protected dayText(iso: string): string {
-    return new Date(iso).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Bangkok' });
+    return fmtDate(iso, this.i18n.lang());
   }
 
   /** วันสุดท้ายที่กู้ได้ = วันที่ขอลบ + ช่วงพัก (ค่าเดียวกับ DELETE_RECOVERY_DAYS ฝั่ง backend · ฝั่ง server ตัดสินจริง) */

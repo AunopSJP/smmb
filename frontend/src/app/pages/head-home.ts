@@ -6,6 +6,7 @@ import { DisplaySettings } from '../core/display-settings';
 import { HeadApi, showGroupCode } from '../core/head-api';
 import { I18n } from '../core/i18n';
 import { liveRefresh } from '../core/live-refresh';
+import { fmtWhenSec } from '../core/time';
 import { screenUrl } from '../screens/registry';
 import { Icon } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
@@ -45,7 +46,7 @@ interface RecentLog {
   imports: [RouterLink, PageHeader, Icon, LoadError, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="i18n.t({ th: 'หัวหน้าหน่วยงาน', en: 'Agency head' })" [title]="api.agency()?.name ?? ''" [bell]="url('L09')" />
+    <app-page-header [caption]="api.agency()?.name ?? i18n.t({ th: 'หัวหน้าหน่วยงาน', en: 'Agency head' })" [title]="i18n.t({ th: 'หน้าหลัก', en: 'Home' })" [bell]="url('L09')" />
 
     <div class="stack">
       @if (failed()) {
@@ -260,16 +261,16 @@ interface RecentLog {
     }
     .stats3 .value,
     .stats4 .value {
-      font-size: 1.5rem;
+      font-size: var(--fs-xl);
       font-weight: 700;
       line-height: 1.2;
     }
     .stats4 .value {
-      font-size: 1.15rem;
+      font-size: var(--fs-md);
     }
     .stats3 .label,
     .stats4 .label {
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       color: var(--text-muted);
     }
     .stats3 .value.warn,
@@ -291,7 +292,7 @@ interface RecentLog {
       gap: 10px;
       margin: 0 2px;
       color: var(--text-muted);
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
     }
     .hero {
       background: var(--surface);
@@ -300,33 +301,35 @@ interface RecentLog {
       padding: 22px 20px;
     }
     .hero-n {
-      font-size: 3.5rem;
+      font-size: var(--fs-3xl);
       font-weight: 800;
       line-height: 1;
-      color: var(--brand-text);
+      /* A9: ตัวเลขความคืบหน้าใช้สีข้อความ ไม่ใช่แดงแบรนด์ */
+      color: var(--text);
     }
     .hero-n small {
-      font-size: 1.25rem;
+      font-size: var(--fs-lg);
       color: var(--text-muted);
       font-weight: 600;
     }
     .hero-label {
       margin-block-start: 6px;
       color: var(--text-muted);
-      font-size: 1.0625rem;
+      font-size: var(--fs-md);
     }
     .hero-bar {
       display: block;
       block-size: 10px;
-      border-radius: 5px;
+      border-radius: var(--radius-xs);
       background: var(--line);
       margin-block-start: 14px;
       overflow: hidden;
     }
+    /* A9: ความคืบหน้า = เขียว (สำเร็จ/ครบ) ไม่ใช้แดงแบรนด์ */
     .hero-bar > span {
       display: block;
       block-size: 100%;
-      background: var(--brand);
+      background: var(--success-bg);
     }
     .big {
       display: flex;
@@ -346,7 +349,7 @@ interface RecentLog {
       flex: none;
       inline-size: 52px;
       block-size: 52px;
-      border-radius: 16px;
+      border-radius: var(--radius);
       background: var(--icon-bg);
       color: var(--brand-text);
     }
@@ -360,12 +363,12 @@ interface RecentLog {
     }
     .big b {
       display: block;
-      font-size: 1.25rem;
+      font-size: var(--fs-lg);
     }
     .big .grow > span {
       display: block;
       color: var(--text-muted);
-      font-size: 0.9375rem;
+      font-size: var(--fs-base);
     }
     .big-n {
       margin-inline-start: auto;
@@ -374,10 +377,11 @@ interface RecentLog {
       min-inline-size: 40px;
       block-size: 40px;
       padding: 0 6px;
-      border-radius: 20px;
-      background: var(--action-bg);
-      color: var(--action-fg);
-      font-size: 1.25rem;
+      border-radius: var(--radius-lg);
+      /* A9: จำนวนนับ = ข้อมูล ไม่ใช่ปุ่ม → พื้นกลาง ไม่ใช้แดงแบรนด์ */
+      background: var(--icon-bg);
+      color: var(--text);
+      font-size: var(--fs-lg);
       font-weight: 800;
     }
     .big.warn .big-n {
@@ -401,11 +405,11 @@ interface RecentLog {
       place-items: center;
       min-inline-size: 28px;
       block-size: 28px;
-      border-radius: 14px;
+      border-radius: var(--radius-sm);
       background: var(--sos-bg);
       color: var(--sos-fg);
       font-weight: 700;
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
     }
     .sec {
       display: flex;
@@ -424,15 +428,16 @@ interface RecentLog {
     .zone .bar {
       display: block;
       block-size: 8px;
-      border-radius: 4px;
+      border-radius: var(--radius-xs);
       background: var(--line);
       margin-block: 8px 6px;
       overflow: hidden;
     }
+    /* A9: แถบความคืบหน้าของโซนเป็นเขียวเช่นเดียวกับหน้าหลักเจ้าหน้าที่ */
     .zone .bar > span {
       display: block;
       block-size: 100%;
-      background: var(--brand);
+      background: var(--success-bg);
     }
     .zone-meta {
       overflow-wrap: break-word;
@@ -444,7 +449,7 @@ interface RecentLog {
       background: var(--surface);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       line-height: 1.75;
       overflow-wrap: break-word;
     }
@@ -523,7 +528,7 @@ export class HeadHome {
   }
 
   protected exactTime(iso: string): string {
-    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Asia/Bangkok' });
+    return fmtWhenSec(iso, this.i18n.lang());
   }
 
   private async refreshAll(): Promise<void> {

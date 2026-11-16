@@ -14,20 +14,18 @@ import { Icon } from './icon';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (api.availability() === 'yes') {
-      <a class="row" routerLink="/settings/my-data">
-        <span class="icon-bubble"><app-icon name="shield" [size]="20" /></span>
+      <!-- C1: ชื่อไม่ซ้ำกับ "ข้อมูลของฉัน" เดิม · A3: แถวเมนูธรรมดา ไม่มีกล่องไอคอน -->
+      <a class="menu-row" routerLink="/settings/my-data">
+        <app-icon class="mi" name="shield" [size]="20" />
         <span class="grow">
-          <strong>{{ i18n.t({ th: 'ข้อมูลของฉัน', en: 'My data' }) }}</strong>
-          <span class="muted small block easy-hide">{{ i18n.t({ th: 'เครื่องที่ล็อกอิน · ส่งออกข้อมูล · ลบบัญชี', en: 'Signed-in devices · export · delete account' }) }}</span>
+          <strong>{{ i18n.t({ th: 'บัญชีและความเป็นส่วนตัว', en: 'Account and privacy' }) }}</strong>
         </span>
-        <app-icon name="chevronRight" [size]="18" />
+        <app-icon class="chev" name="chevronRight" [size]="18" />
       </a>
     }
   `,
   styles: `
     :host { display: contents; }
-    .grow { flex: 1; min-inline-size: 0; }
-    .block { display: block; }
   `,
 })
 export class MyDataLink {

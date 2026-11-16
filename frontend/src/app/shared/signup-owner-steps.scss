@@ -16,7 +16,7 @@
   align-items: stretch;
   input {
     text-align: center;
-    font-size: 1.125rem;
+    font-size: var(--fs-md);
     font-weight: 700;
     min-inline-size: 0;
   }
@@ -24,10 +24,10 @@
 .step-btn {
   min-block-size: 48px;
   border: 1.5px solid var(--line-strong, color-mix(in srgb, var(--text-muted) 40%, transparent));
-  border-radius: var(--radius-sm, 10px);
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--brand-dark);
-  font-size: 1.5rem;
+  font-size: var(--fs-xl);
   line-height: 1;
   cursor: pointer;
   &:disabled {

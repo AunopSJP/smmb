@@ -140,7 +140,7 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
       padding: 0;
       legend {
         font-weight: 700;
-        font-size: 0.9375rem;
+        font-size: var(--fs-base);
         padding: 0;
         margin-block-end: 6px;
       }
@@ -152,7 +152,7 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
     .progress {
       display: block;
       block-size: 6px;
-      border-radius: 3px;
+      border-radius: var(--radius-xs);
       background: var(--line);
       overflow: hidden;
       margin-block: 4px;
@@ -449,7 +449,7 @@ const NEXT_STEPS: Step[] = [
       font-weight: 700;
     }
     .code {
-      font-size: 2.25rem;
+      font-size: var(--fs-2xl);
       font-weight: 700;
       letter-spacing: 0.06em;
       font-variant-numeric: tabular-nums;

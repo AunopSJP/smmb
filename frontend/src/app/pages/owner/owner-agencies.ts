@@ -121,7 +121,7 @@ const km = (a: LatLng, b: LatLng): number => {
       border-radius: 50%;
       background: var(--icon-bg);
       color: var(--brand-text);
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       font-weight: 700;
     }
     .ag.on .num {
@@ -149,12 +149,12 @@ const km = (a: LatLng, b: LatLng): number => {
       padding: 18px;
     }
     :host-context([data-mode='easy']) .ag-head strong {
-      font-size: 1.25rem;
+      font-size: var(--fs-lg);
     }
     :host-context([data-mode='easy']) .num {
       inline-size: 36px;
       block-size: 36px;
-      font-size: 1rem;
+      font-size: var(--fs-base);
     }
   `,
 })

@@ -93,10 +93,10 @@ import { PageHeader } from '../../shared/page-header';
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 1rem;
+      font-size: var(--fs-base);
     }
     .lbl {
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       color: var(--text-muted);
     }
     .modes {
@@ -130,7 +130,7 @@ import { PageHeader } from '../../shared/page-header';
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 1.0625rem;
+      font-size: var(--fs-md);
     }
     .tick {
       display: inline-grid;
@@ -151,13 +151,13 @@ import { PageHeader } from '../../shared/page-header';
       inline-size: 68px;
       block-size: 92px;
       padding: 6px;
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       background: var(--bg);
       border: 1px solid var(--line);
       overflow: hidden;
       i, b, em, u, s {
         display: block;
-        border-radius: 3px;
+        border-radius: var(--radius-xs);
         text-decoration: none;
       }
       .th-top {
@@ -174,7 +174,7 @@ import { PageHeader } from '../../shared/page-header';
         column-gap: 5px;
         row-gap: 3px;
         padding: 5px;
-        border-radius: 7px;
+        border-radius: var(--radius-xs);
         background: color-mix(in srgb, var(--ok) 22%, var(--surface));
         u { grid-row: span 2; inline-size: 14px; block-size: 14px; border-radius: 50%; background: var(--ok); }
         s { block-size: 4px; background: color-mix(in srgb, var(--ok) 60%, var(--text-muted)); }
@@ -197,13 +197,13 @@ import { PageHeader } from '../../shared/page-header';
           inset-block: 2px;
           inset-inline-end: 3px;
           inline-size: 9px;
-          border-radius: 2px;
+          border-radius: var(--radius-xs);
           background: color-mix(in srgb, var(--bg) 70%, transparent);
         }
       }
       .th-btn {
         block-size: 14px;
-        border-radius: 7px;
+        border-radius: var(--radius-xs);
         background: var(--sos);
       }
     }
@@ -213,7 +213,7 @@ import { PageHeader } from '../../shared/page-header';
       .th-hero { padding-block: 9px; u { inline-size: 20px; block-size: 20px; } s { block-size: 5px; } }
       .th-rows i { block-size: 12px; }
       .th-rows i:nth-child(n + 2) { display: none; }
-      .th-btn { block-size: 26px; border-radius: 9px; }
+      .th-btn { block-size: 26px; border-radius: var(--radius-xs); }
     }
     .thumb[data-m='default'] {
       .th-rows i:nth-child(n + 3) { display: none; }
@@ -222,7 +222,7 @@ import { PageHeader } from '../../shared/page-header';
       gap: 3px;
       .th-hero { padding: 3px 4px; u { inline-size: 9px; block-size: 9px; } s { block-size: 3px; } }
       .th-rows { gap: 2px; i { block-size: 5px; } i::after { inset-block: 1px; inline-size: 12px; } }
-      .th-btn { block-size: 9px; border-radius: 4px; }
+      .th-btn { block-size: 9px; border-radius: var(--radius-xs); }
     }
     .t {
       inline-size: 20px;
@@ -236,7 +236,7 @@ import { PageHeader } from '../../shared/page-header';
     }
     .sample {
       font-weight: 700;
-      font-size: 1.125rem;
+      font-size: var(--fs-md);
       color: var(--ok);
     }
     .toggle {

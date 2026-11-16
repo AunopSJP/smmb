@@ -237,7 +237,7 @@ export const careLabel = (v: string, i18n: I18n): string => {
     details.opt > summary::after {
       content: '+';
       margin-inline-start: auto;
-      font-size: 1.25rem;
+      font-size: var(--fs-lg);
       line-height: 1;
       color: var(--brand-text);
     }
@@ -248,7 +248,7 @@ export const careLabel = (v: string, i18n: I18n): string => {
       margin-block-end: 12px;
     }
     .opt-tag {
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       font-weight: 500;
       color: var(--text-muted);
     }

@@ -5,6 +5,7 @@ import { DisplaySettings } from '../../core/display-settings';
 import { HeadApi, type Member } from '../../core/head-api';
 import { I18n, type Tr } from '../../core/i18n';
 import { Session } from '../../core/session';
+import { fmtWhen } from '../../core/time';
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { Confirm } from '../../shared/confirm-dialog';
@@ -25,7 +26,7 @@ const MEMBER_ERROR: Record<string, Tr> = {
 
 const ago = (iso: string | null, lang: 'th' | 'en'): string => {
   if (!iso) return lang === 'th' ? 'ยังไม่เคยตรวจ' : 'no inspections yet';
-  return new Date(iso).toLocaleString(lang === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' });
+  return fmtWhen(iso, lang);
 };
 
 // ── L05 · สมาชิก ─────────────────────────────────────────────
@@ -87,7 +88,10 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
       @if ((view() === 'all' || display.advancedMode()) && !display.easyMode()) {
       <h2 class="section-title">{{ i18n.t({ th: 'ในหน่วยงานแล้ว', en: 'In the agency' }) }} ({{ team().length }})</h2>
       <nav class="list">
-        @for (m of team(); track m.id) {
+        <!-- D5: จัดกลุ่มตามสถานะ (หัวหน้า / ใช้งาน / ปิดสิทธิ์) -->
+        @for (g of teamGroups(); track g.key) {
+          <p class="group-head">{{ g.label }} <span class="n">{{ g.items.length }}</span></p>
+        @for (m of g.items; track m.id) {
           <a class="row" [routerLink]="url('L05-b')" [queryParams]="{ id: m.id }">
             <span class="grow">
               <strong>{{ m.display_name }}@if (m.id === meId()) { <span class="muted small"> ({{ i18n.t({ th: 'คุณ', en: 'you' }) }})</span> }</strong>
@@ -105,6 +109,7 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
         } @empty {
           <p class="row muted">{{ i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) }}</p>
         }
+        }
       </nav>
       <section class="card">
         <span class="muted small">{{ i18n.t({ th: 'รหัสกลุ่ม (ให้ลูกทีมใช้สมัคร)', en: 'Group code (for your team to sign up)' }) }}</span>
@@ -121,6 +126,17 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
     }
     .block {
       display: block;
+    }
+    .group-head {
+      display: flex;
+      justify-content: space-between;
+      margin: 0;
+      padding: 10px 16px;
+      border-block-start: 1px solid var(--line);
+      background: var(--icon-bg);
+      color: var(--text-muted);
+      font-size: var(--fs-sm);
+      font-weight: 700;
     }
     .two {
       display: grid;
@@ -143,7 +159,7 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
       text-decoration: none;
     }
     .code {
-      font-size: 1.5rem;
+      font-size: var(--fs-xl);
       font-weight: 700;
       letter-spacing: 0.06em;
     }
@@ -170,6 +186,16 @@ export class HeadMembers implements OnInit {
   protected readonly showAllTeam = signal(false);
   private initialViewSet = false;
   protected readonly team = computed(() => this.all().filter((m) => m.status !== 'pending'));
+  /** D5: กลุ่มของทีมตามสถานะ — หัวหน้า / ใช้งาน / ปิดสิทธิ์ */
+  protected readonly teamGroups = computed(() => {
+    const list = this.team();
+    const groups = [
+      { key: 'head', label: this.i18n.t({ th: 'หัวหน้า', en: 'Heads' }), items: list.filter((m) => m.is_head && m.status !== 'disabled') },
+      { key: 'active', label: this.i18n.t({ th: 'ใช้งาน', en: 'Active' }), items: list.filter((m) => !m.is_head && m.status !== 'disabled') },
+      { key: 'disabled', label: this.i18n.t({ th: 'ปิดสิทธิ์', en: 'Disabled' }), items: list.filter((m) => m.status === 'disabled') },
+    ];
+    return groups.filter((g) => g.items.length);
+  });
   protected readonly busy = signal(false);
   protected readonly code = computed(() => {
     const c = this.api.agency()?.group_code ?? '';
@@ -289,7 +315,7 @@ export class HeadMembers implements OnInit {
     }
     .easy-name {
       display: block;
-      font-size: 1.5rem;
+      font-size: var(--fs-xl);
     }
     .call-btn {
       margin-block-start: 10px;
@@ -303,7 +329,7 @@ export class HeadMembers implements OnInit {
       padding-block: 4px;
     }
     .temp {
-      font-size: 1.5rem;
+      font-size: var(--fs-xl);
       font-weight: 700;
       letter-spacing: 0.06em;
     }

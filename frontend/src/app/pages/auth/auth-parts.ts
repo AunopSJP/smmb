@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject, input, model, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { DisplaySettings } from '../../core/display-settings';
 import { I18n, type Tr } from '../../core/i18n';
 import { PASSWORD_MAX, PASSWORD_MIN } from '../../core/mock/auth-demo';
 import { TERMS_VERSION } from '../../core/terms';
+import { fmtTime } from '../../core/time';
 import { screenUrl } from '../../screens/registry';
 
 /** ช่องรหัสผ่าน + ปุ่มแสดง/ซ่อน (ผู้ใช้สูงอายุพิมพ์ผิดบ่อย) */
@@ -28,7 +30,12 @@ import { screenUrl } from '../../screens/registry';
         </button>
       </span>
       @if (isNew()) {
-        <small [class.muted]="!(hint() && invalid())" [class.danger-text]="hint() && invalid()">{{ i18n.t({ th: 'ความยาว ' + min + '–' + max + ' ตัว · ไม่ต้องมีอักขระพิเศษ', en: min + '–' + max + ' characters · no special characters required' }) }}</small>
+        @if (display.easyMode()) {
+          <!-- B3: โหมดง่ายเหลือบรรทัดเดียว -->
+          <small [class.muted]="!(hint() && invalid())" [class.danger-text]="hint() && invalid()">{{ i18n.t({ th: 'อย่างน้อย ' + min + ' ตัว', en: 'At least ' + min + ' characters' }) }}</small>
+        } @else {
+          <small [class.muted]="!(hint() && invalid())" [class.danger-text]="hint() && invalid()">{{ i18n.t({ th: 'ความยาว ' + min + '–' + max + ' ตัว · ไม่ต้องมีอักขระพิเศษ', en: min + '–' + max + ' characters · no special characters required' }) }}</small>
+        }
       }
     </label>
   `,
@@ -49,6 +56,8 @@ import { screenUrl } from '../../screens/registry';
 })
 export class PasswordField {
   protected readonly i18n = inject(I18n);
+  /** B3: โหมดง่ายย่อคำใบ้รหัสผ่านเหลือ "อย่างน้อย 8 ตัว" */
+  protected readonly display = inject(DisplaySettings);
   protected readonly min = PASSWORD_MIN;
   protected readonly max = PASSWORD_MAX;
   readonly value = model('');
@@ -111,4 +120,4 @@ export class TermsCheck {
 }
 
 /** เวลาตอนนี้ HH:mm (เวลาไทย) */
-export const nowHHmm = () => new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
+export const nowHHmm = () => fmtTime(new Date());

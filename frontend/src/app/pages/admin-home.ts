@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { AdminApi, type AdminAgency, type AdminBoxRow, type AdminOverview, type FirmwareInfo } from '../core/admin-api';
 import { I18n, type Tr } from '../core/i18n';
 import { Session } from '../core/session';
+import { fmtMonthDay, fmtTime } from '../core/time';
 import { Toast } from '../core/toast';
 import { LOW_BATTERY_PCT, seenText } from './admin/admin-boxes';
 import { screenUrl } from '../screens/registry';
@@ -29,7 +30,7 @@ interface Segment {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
-      [caption]="i18n.t({ th: 'ผู้ดูแลระบบ', en: 'System admin' })"
+      [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })"
       [title]="i18n.t({ th: 'ภาพรวมระบบ', en: 'System overview' })"
       [bell]="url('D12')"
     />
@@ -440,10 +441,9 @@ export class AdminHome implements OnInit {
   protected readonly activity = computed(() => {
     const days = this.overview()?.activity_7d ?? [];
     const max = Math.max(1, ...days.map((d) => d.inspections + d.problems + d.deliveries));
-    const lang = this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB';
     return days.map((d) => ({
       ...d,
-      label: new Date(`${d.date}T12:00:00+07:00`).toLocaleDateString(lang, { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' }),
+      label: fmtMonthDay(`${d.date}T12:00:00+07:00`, this.i18n.lang()),
       hInspections: (d.inspections / max) * 100,
       hProblems: (d.problems / max) * 100,
       hDeliveries: (d.deliveries / max) * 100,
@@ -522,7 +522,7 @@ export class AdminHome implements OnInit {
     this.overview.set(overview);
     this.failed.set(!overview);
     const now = new Date();
-    this.asOf.set(now.toLocaleTimeString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' }));
+    this.asOf.set(fmtTime(now));
     this.asOfIso.set(now.toISOString());
     this.loaded.set(true);
     // รายละเอียดรองโหลดต่อเบื้องหลัง — ไม่บล็อกหน้าจอ

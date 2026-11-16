@@ -13,9 +13,9 @@
 }
 .open {
   font-weight: 700;
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   padding: 2px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-lg);
   background: rgb(255 255 255 / 20%);
 }
 .grow {
@@ -38,7 +38,7 @@
   background: var(--sos-bg);
   color: var(--sos-fg);
   h2 {
-    font-size: 1.625rem;
+    font-size: var(--fs-xl);
   }
 }
 .sos-title {
@@ -58,19 +58,20 @@
   align-items: baseline;
   gap: 8px;
   strong {
-    font-size: 2.5rem;
+    font-size: var(--fs-2xl);
     line-height: 1;
   }
 }
 .bar {
   block-size: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--line);
   overflow: hidden;
   span {
     display: block;
     block-size: 100%;
-    background: var(--brand);
+    /* A9: ตรวจครบ = เขียว (เดิมแดงแบรนด์ ซึ่งขัดกับหน้าหัวหน้า) */
+    background: var(--success-bg);
   }
 }
 .next {
@@ -92,7 +93,7 @@ ul {
   gap: 4px;
   color: var(--ok);
   font-weight: 700;
-  font-size: 0.875rem;
+  font-size: var(--fs-sm);
 }
 .zz {
   align-self: center;
@@ -111,7 +112,7 @@ ul {
   padding: 10px;
 }
 .round {
-  font-size: 1.375rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
 }
 .sos-note {
@@ -122,7 +123,7 @@ ul {
   border-radius: var(--radius-sm);
   background: var(--danger-bg);
   color: var(--sos);
-  font-size: 0.875rem;
+  font-size: var(--fs-sm);
 }
 .done-card {
   display: flex;
@@ -134,13 +135,13 @@ ul {
   background: var(--success-bg);
   color: var(--success-fg);
   h2 {
-    font-size: 1.375rem;
+    font-size: var(--fs-lg);
   }
 }
 .full-bar {
   align-self: stretch;
   block-size: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--success-fg);
 }
 
@@ -153,7 +154,7 @@ ul {
   border-radius: var(--radius-sm);
   background: var(--icon-bg);
   padding: 6px 10px;
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
 }
 .metrics {
@@ -161,18 +162,18 @@ ul {
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
   .m {
-    border-radius: 9px;
+    border-radius: var(--radius-xs);
     background: var(--bg);
     padding: 6px 8px;
     min-inline-size: 0;
   }
   .l {
     display: block;
-    font-size: 0.75rem;
+    font-size: var(--fs-xs);
     color: var(--text-muted);
   }
   .v {
-    font-size: 0.8125rem;
+    font-size: var(--fs-sm);
     font-weight: 700;
     overflow-wrap: break-word;
   }
@@ -186,13 +187,14 @@ ul {
   position: relative;
   display: block;
   block-size: 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   background: var(--line);
   overflow: hidden;
   i {
     position: absolute;
     inset-block: 0;
-    background: var(--brand);
+    /* ช่วงเวลาตรวจบนแถบ 24 ชม. = ช่วงที่ทำได้ ไม่ใช่ความคืบหน้า → ใช้กลาง ไม่ใช่แดงแบรนด์ */
+    background: var(--text-muted);
   }
   s {
     position: absolute;
@@ -204,7 +206,7 @@ ul {
 .legend {
   display: flex;
   justify-content: space-between;
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
 }
 .hn {
   display: grid;
@@ -216,11 +218,11 @@ ul {
   block-size: auto;
   min-block-size: 44px;
   padding: 6px 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--icon-bg);
   color: var(--brand-text);
   font-weight: 700;
-  font-size: 0.875rem;
+  font-size: var(--fs-sm);
   line-height: 1.35;
   text-align: center;
   overflow-wrap: break-word;
@@ -235,7 +237,7 @@ ul {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   line-height: 1.7;
 }
 .stack-tight {
@@ -247,17 +249,17 @@ ul {
 /* โหมดง่าย: ตัวเลขใหญ่ ปุ่มอยู่ท้าย — รายละเอียดอื่นซ่อนด้วย .easy-hide */
 :host-context([data-mode='easy']) {
   .count strong {
-    font-size: 3.25rem;
+    font-size: var(--fs-3xl);
   }
   .count .muted {
-    font-size: 1.125rem;
+    font-size: var(--fs-md);
   }
   .bar {
     block-size: 12px;
-    border-radius: 6px;
+    border-radius: var(--radius-xs);
   }
   .next {
-    font-size: 1.0625rem;
+    font-size: var(--fs-md);
   }
 }
 
@@ -271,7 +273,7 @@ ul {
   .next {
     background: none;
     padding: 0;
-    font-size: 0.8125rem;
+    font-size: var(--fs-sm);
   }
   .adv-strip {
     background: none;

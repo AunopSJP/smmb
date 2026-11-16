@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { I18n, type Tr } from '../core/i18n';
 import { Session } from '../core/session';
 import { DisplaySettings } from '../core/display-settings';
+import { fmtDate } from '../core/time';
 import { screenUrl } from '../screens/registry';
 import { Icon } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
@@ -94,7 +95,7 @@ interface Option {
       margin-inline: auto;
     }
     .grow { flex: 1; min-inline-size: 0; }
-    .head { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
+    .head { display: flex; align-items: center; gap: 8px; font-size: var(--fs-base); }
     .block { display: block; }
     .toggle { display: flex; align-items: center; gap: 12px; padding-block: 8px; }
     .toggle > span { flex: 1; min-inline-size: 0; }
@@ -132,7 +133,7 @@ export class NotifSettings {
   }
 
   protected day(iso: string): string {
-    return new Date(iso).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'Asia/Bangkok' });
+    return fmtDate(iso, this.i18n.lang());
   }
 
   protected readonly role = computed<'owner' | 'officer' | 'head' | 'admin'>(() => {

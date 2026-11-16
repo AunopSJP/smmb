@@ -364,11 +364,11 @@ export class UserPlan {
       border-radius: var(--radius);
     }
     .easy-plan strong {
-      font-size: 2rem;
+      font-size: var(--fs-2xl);
       line-height: 1.3;
     }
     .easy-plan span {
-      font-size: 1rem;
+      font-size: var(--fs-base);
       color: var(--text-muted);
     }
     .plans {
@@ -398,20 +398,20 @@ export class UserPlan {
       gap: 10px;
     }
     .plan-card header strong {
-      font-size: 1.0625rem;
+      font-size: var(--fs-md);
     }
     .plan-card .price {
       margin: 0;
       color: var(--text-muted);
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
     }
     .plan-card .owners {
       margin: 4px 0 2px;
       color: var(--text-muted);
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
     }
     .plan-card .owners b {
-      font-size: 1.5rem;
+      font-size: var(--fs-xl);
       color: var(--text);
       font-variant-numeric: tabular-nums;
     }
@@ -424,12 +424,12 @@ export class UserPlan {
     .mini {
       min-block-size: 44px;
       padding: 4px 12px;
-      border-radius: 999px;
+      border-radius: var(--radius-lg);
       border: 1.5px solid var(--line);
       background: var(--surface);
       color: var(--text);
       font: inherit;
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       font-weight: 700;
       cursor: pointer;
       white-space: nowrap;

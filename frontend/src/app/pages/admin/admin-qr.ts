@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { AdminApi, type AdminBoxDetail, type AdminQrHealth, type AdminQrIssue } from '../../core/admin-api';
 import { AdminQrState } from '../../core/admin-qr-state';
 import { I18n, type Tr } from '../../core/i18n';
+import { fmtWhen } from '../../core/time';
 import { Toast } from '../../core/toast';
 import { Confirm } from '../../shared/confirm-dialog';
 import { screenUrl } from '../../screens/registry';
@@ -71,7 +72,8 @@ const WHO_LABEL: Record<'admin' | 'owner' | 'tech' | 'none', Tr> = {
   none: { th: '—', en: '—' },
 };
 
-const fmtDate = (iso: string, lang: 'th' | 'en') => new Date(iso).toLocaleString(lang === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' });
+/** รูปแบบวันเวลากลาง (A8) */
+const fmtDate = (iso: string, lang: 'th' | 'en') => fmtWhen(iso, lang);
 
 // ── ใบพิมพ์ QR ใบใหม่ (ซ่อนบนจอ — window.print()) ───────────────────
 
@@ -100,6 +102,7 @@ const fmtDate = (iso: string, lang: 'th' | 'en') => new Date(iso).toLocaleString
   styles: `
     .print-card {
       border: 1px solid var(--print-ink);
+      /* ใบพิมพ์ใช้หน่วยมิลลิเมตรจริง (ไม่ใช่ px/โทเคนจอ) — 4mm คงที่ทุกเครื่องพิมพ์ */
       border-radius: 4mm;
       padding: 6mm;
       text-align: center;
@@ -116,6 +119,7 @@ const fmtDate = (iso: string, lang: 'th' | 'en') => new Date(iso).toLocaleString
       inline-size: 55mm;
       margin: 4mm auto;
     }
+    /* ใบพิมพ์: ใช้ pt (หน่วยกระดาษ) ไม่ใช่โทเคนหน้าจอ — 20pt รหัส, 9pt คำอธิบาย */
     .code {
       font-size: 20pt;
       font-weight: 700;
@@ -608,7 +612,7 @@ const REISSUE_STEPS: FlowStep[] = [
       gap: 12px;
       background: var(--surface);
       border: 1px solid var(--line-strong, var(--line));
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       padding: 18px 20px;
     }
     .panel.now {
@@ -619,7 +623,7 @@ const REISSUE_STEPS: FlowStep[] = [
       border-color: var(--ok);
     }
     .eyebrow {
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       font-weight: 700;
       color: var(--brand-text);
       text-transform: uppercase;
@@ -629,11 +633,11 @@ const REISSUE_STEPS: FlowStep[] = [
       color: var(--ok);
     }
     h2 {
-      font-size: 1.25rem;
+      font-size: var(--fs-lg);
       line-height: 1.35;
     }
     h2.small-title {
-      font-size: 1rem;
+      font-size: var(--fs-base);
     }
     .actions {
       display: flex;
@@ -711,7 +715,7 @@ const REISSUE_STEPS: FlowStep[] = [
       block-size: 26px;
       border-radius: 50%;
       border: 1.5px solid var(--line-strong, var(--line));
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       font-weight: 700;
     }
     .steps li.done .num {
@@ -727,7 +731,7 @@ const REISSUE_STEPS: FlowStep[] = [
     .steps small {
       display: block;
       color: var(--text-muted);
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
     }
     .sr-only {
       position: absolute;

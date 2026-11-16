@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { AdminApi, type AdminBoxRow, type FirmwareInfo } from '../../core/admin-api';
 import { apiError } from '../../core/api';
 import { I18n } from '../../core/i18n';
+import { fmtDate } from '../../core/time';
 import { Toast } from '../../core/toast';
 import { Confirm } from '../../shared/confirm-dialog';
 import { screenUrl } from '../../screens/registry';
@@ -141,21 +142,21 @@ const kb = (n: number) => (n >= 1_048_576 ? (n / 1_048_576).toFixed(1) + ' MB' :
       text-align: center;
     }
     .easy-n {
-      font-size: 3rem;
+      font-size: var(--fs-3xl);
       font-weight: 800;
       line-height: 1;
       color: var(--brand-text);
       font-variant-numeric: tabular-nums;
     }
     .easy-n small {
-      font-size: 1.125rem;
+      font-size: var(--fs-md);
       font-weight: 600;
       color: var(--text-muted);
     }
     .fbar {
       display: block;
       block-size: 14px;
-      border-radius: 7px;
+      border-radius: var(--radius-xs);
       background: var(--icon-bg);
       overflow: hidden;
     }
@@ -206,7 +207,7 @@ export class AdminFirmware {
   }
 
   protected date(iso: string): string {
-    return new Date(iso).toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Bangkok' });
+    return fmtDate(iso, this.i18n.lang());
   }
 
   protected reload(): void {

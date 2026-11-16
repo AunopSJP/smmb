@@ -30,7 +30,7 @@ import { PageHeader } from '../../shared/page-header';
     }
     .tech {
       margin: 0;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       color: var(--text-muted);
     }
   `,

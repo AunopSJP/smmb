@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, output, si
 import { apiError } from '../../core/api';
 import { AdminApi, type AdminBoxDetail, type FirmwareInfo } from '../../core/admin-api';
 import { I18n } from '../../core/i18n';
+import { fmtWhen } from '../../core/time';
 import { Toast } from '../../core/toast';
 import { Confirm } from '../../shared/confirm-dialog';
 import { EmptyState } from '../../shared/state-view';
@@ -111,7 +112,7 @@ import { EmptyState } from '../../shared/state-view';
       gap: 12px;
     }
     .fw-ver {
-      font-size: 1.5rem;
+      font-size: var(--fs-xl);
     }
     .fw-auto .row {
       display: flex;
@@ -133,7 +134,7 @@ import { EmptyState } from '../../shared/state-view';
       inline-size: auto;
       min-block-size: 44px;
       padding: 6px 14px;
-      font-size: 0.9375rem;
+      font-size: var(--fs-base);
       flex: none;
     }
     .fw-drop {
@@ -306,7 +307,7 @@ export class AdminBoxFirmware implements OnInit {
 
 
   protected fwDate(iso: string): string {
-    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
+    return fmtWhen(iso, this.i18n.lang());
   }
 
   ngOnInit(): void {

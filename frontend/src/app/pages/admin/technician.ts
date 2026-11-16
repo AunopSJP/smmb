@@ -194,7 +194,7 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
       gap: 10px;
     }
     .two .btn {
-      font-size: 0.9375rem;
+      font-size: var(--fs-base);
     }
     .btn.tested {
       background: var(--ok-bg);
@@ -225,7 +225,7 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
       align-items: center;
       padding-block: 5px;
       border-block-start: 1px solid var(--line);
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
     }
     .adv-step:first-child {
       border-block-start: 0;

@@ -47,7 +47,7 @@ import { Icon } from './icon';
       gap: 2px;
       min-inline-size: 0;
       padding: 8px 4px 10px;
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       line-height: 1.3;
       text-decoration: none;
       color: var(--text-muted);

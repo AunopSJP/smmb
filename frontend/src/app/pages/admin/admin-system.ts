@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, si
 import { AdminApi, type AdminLog, type AdminLogType, type BoxConfig } from '../../core/admin-api';
 import { I18n, type Tr } from '../../core/i18n';
 import { Session } from '../../core/session';
+import { bkkDay, fmtDay, fmtWhen } from '../../core/time';
 
 type BoxConfigDefaults = Omit<BoxConfig, 'windows'>;
 import { downloadText, toCsv } from '../../core/csv';
@@ -35,7 +36,9 @@ type NumKey = keyof typeof LIMITS;
         <h2>{{ i18n.t({ th: 'การรายงานของตู้', en: 'Box reporting' }) }}</h2>
         <label class="field">
           <span>{{ i18n.t({ th: 'เวลารายงานสถานะรายวัน', en: 'Daily report time' }) }}</span>
-          <input type="time" required [value]="form().report_at" (input)="set('report_at', $any($event.target).value)" />
+          <!-- A8: บังคับ 24 ชม. แบบพิมพ์ HH:mm (input type=time แสดง AM/PM ตามเครื่อง) -->
+          <input type="text" required inputmode="numeric" autocomplete="off" maxlength="5" pattern="[0-2][0-9]:[0-5][0-9]" placeholder="HH:mm" [value]="form().report_at" (input)="set('report_at', $any($event.target).value)" />
+          <small class="easy-hide">{{ i18n.t({ th: 'รูปแบบ 24 ชั่วโมง เช่น 03:00', en: '24-hour format, e.g. 03:00' }) }}</small>
           <small>{{ i18n.t({ th: 'ตู้ส่งสถานะ + แบตวันละครั้ง และดึงค่าใหม่ตอนนี้', en: 'The box reports status + battery once a day and picks up new settings then' }) }}</small>
         </label>
       </section>
@@ -71,13 +74,16 @@ type NumKey = keyof typeof LIMITS;
       <p class="muted small easy-only">{{ i18n.t({ th: 'โหมดง่ายแสดงเฉพาะเวลารายงานกับไฟส่องกล้อง — ค่าอื่นใช้ค่าแนะนำอยู่แล้ว', en: 'Easy mode shows only the report time and camera light — other values already use the recommended defaults' }) }}</p>
 
       <div class="savebar">
-        <span class="muted small">
-          <span class="easy-hide">{{ i18n.t({ th: 'รุ่นปัจจุบัน v', en: 'Current version v' }) }}{{ ver() }} · {{ i18n.t({ th: 'ตู้ดึงค่าใหม่ภายใน 1 วัน', en: 'boxes pick it up within 1 day' }) }}</span>
+        <!-- D2: ข้อความสถานะอยู่บน ปุ่มอยู่ล่างเต็มความกว้างบนมือถือ -->
+        <span class="muted small save-state">
           @if (changed()) {
-            · <strong class="warn-text">{{ i18n.t({ th: 'มีการแก้ที่ยังไม่บันทึก', en: 'unsaved changes' }) }}</strong>
+            <strong class="warn-text">{{ i18n.t({ th: 'มีการแก้ที่ยังไม่บันทึก — พร้อมบันทึก', en: 'Unsaved changes — ready to save' }) }}</strong>
+          } @else {
+            <strong>{{ i18n.t({ th: 'ยังไม่มีการเปลี่ยนแปลง', en: 'No changes yet' }) }}</strong>
           }
+          <span class="easy-hide block">{{ i18n.t({ th: 'รุ่นปัจจุบัน v', en: 'Current version v' }) }}{{ ver() }} · {{ i18n.t({ th: 'ตู้ดึงค่าใหม่ภายใน 1 วัน', en: 'boxes pick it up within 1 day' }) }}</span>
         </span>
-        <button type="submit" class="btn" [disabled]="!allValid() || !changed() || busy()">{{ i18n.t({ th: 'บันทึกค่า', en: 'Save' }) }}</button>
+        <button type="submit" class="btn" [disabled]="!allValid() || !changed() || busy()">{{ i18n.t({ th: 'บันทึกค่า', en: 'Save changes' }) }}</button>
       </div>
     </form>
   `,
@@ -223,7 +229,12 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
           <span>{{ i18n.t({ th: 'รายละเอียด', en: 'Details' }) }}</span>
           <span>{{ i18n.t({ th: 'ผล', en: 'Result' }) }}</span>
         </li>
-        @for (l of rows(); track l.id) {
+        <!-- D5: จัดกลุ่มตามวัน (วันนี้/เมื่อวาน/วันที่) -->
+        @for (g of dayGroups(); track g.key) {
+          @if (g.label) {
+            <li class="group-head">{{ g.label }}</li>
+          }
+        @for (l of g.items; track l.id) {
           @let m = meta[l.type];
           <li class="row lcols">
             <span><span class="chip" [class.warn]="m.tone === 'warn'" [class.danger]="m.tone === 'danger' || l.fail">{{ i18n.t(m.label) }}</span></span>
@@ -239,6 +250,7 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
           </li>
         } @empty {
           <li class="row muted">{{ loading() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'ไม่มีรายการ', en: 'Nothing here' }) }}</li>
+        }
         }
       </ul>
       @if (error()) {
@@ -258,6 +270,15 @@ function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
       list-style: none;
       margin: 0;
       padding: 0;
+    }
+    /* D5: หัวกลุ่มตามวัน */
+    .group-head {
+      padding: 10px 16px;
+      border-block-start: 1px solid var(--line);
+      background: var(--icon-bg);
+      color: var(--text-muted);
+      font-size: var(--fs-sm);
+      font-weight: 700;
     }
     .grow {
       flex: 1;
@@ -324,6 +345,19 @@ export class AdminLogs {
     return this.allRows().filter((l) => !p.size || p.has(l.type));
   });
 
+  /** D5: จัดกลุ่ม log ตามวัน */
+  protected readonly dayGroups = computed(() => {
+    const map = new Map<string, AdminLog[]>();
+    for (const l of this.rows()) {
+      const key = bkkDay(l.created_at);
+      const arr = map.get(key) ?? [];
+      arr.push(l);
+      map.set(key, arr);
+    }
+    const out = [...map.entries()].map(([key, items]) => ({ key, label: fmtDay(items[0].created_at, this.i18n.lang()), items }));
+    return out.length ? out : [{ key: 'none', label: '', items: [] as AdminLog[] }];
+  });
+
   /** ?type=data_access ฯลฯ — เลือกประเภทไว้ให้ตั้งแต่เปิดหน้า (ใช้จากหน้า "ระบบ") */
   readonly type = input<string>();
 
@@ -376,9 +410,8 @@ export class AdminLogs {
     const cached = this.titleCache.get(cacheKey);
     if (cached) return cached;
     const place = log.house_no ?? log.box_id ?? log.result ?? log.type;
-    const lang = this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB';
-    const at = new Date(log.created_at);
-    const date = `${at.toLocaleDateString(lang, { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' })} ${at.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' })}`;
+    /* รูปแบบวันเวลากลาง (A8): วันนี้/เมื่อวาน/วันที่ + 24 ชม. */
+    const date = fmtWhen(log.created_at, this.i18n.lang());
     const out = { th: `${LOG_TYPE[log.type].label.th} · ${place} · ${date}`, en: `${LOG_TYPE[log.type].label.en} · ${place} · ${date}` };
     this.titleCache.set(cacheKey, out);
     return out;
@@ -402,7 +435,7 @@ export class AdminLogs {
     const t = (x: Tr) => this.i18n.t(x);
     const head = [t({ th: 'ประเภท', en: 'Type' }), t({ th: 'รายการ', en: 'Event' }), t({ th: 'รายละเอียด', en: 'Details' }), t({ th: 'ผล', en: 'Result' })];
     const body = this.rows().map((l) => [t(this.meta[l.type].label), t(this.title(l)), t(this.sub(l)), l.fail ? t({ th: 'ไม่ผ่าน', en: 'Failed' }) : '']);
-    const day = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+    const day = bkkDay();
     downloadText(`smmb-logs-${day}.csv`, toCsv([head, ...body]));
   }
 

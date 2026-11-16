@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { Router, RouterLink } from '@angular/router';
 import { I18n, type Tr } from '../core/i18n';
 import { MyDataApi, type MySession } from '../core/my-data-api';
+import { fmtWhen } from '../core/time';
 import {
   blockerText,
   canContinueFromPreview,
@@ -184,7 +185,7 @@ import { EmptyState, LoadingRows } from '../shared/state-view';
       margin-inline: auto;
     }
     .grow { flex: 1; min-inline-size: 0; }
-    .head { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
+    .head { display: flex; align-items: center; gap: 8px; font-size: var(--fs-base); }
     .block { display: block; }
     .device { display: flex; align-items: center; gap: 12px; padding-block: 8px; flex-wrap: wrap; }
     .device + .device { border-block-start: 1px solid var(--line); }
@@ -282,7 +283,7 @@ export class MyData {
   }
 
   protected when(iso: string): string {
-    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
+    return fmtWhen(iso, this.i18n.lang());
   }
 
   protected countEntries(p: DeletePreview): { key: string; label: Tr; n: number }[] {

@@ -67,7 +67,7 @@ export function setupQrLink(boxId: string, secret: string, serverUrl: string): s
       border-radius: var(--radius-sm);
       background: var(--sos-bg);
       color: var(--sos-fg);
-      font-size: 0.875rem;
+      font-size: var(--fs-sm);
       font-weight: 700;
     }
     .qr-box {

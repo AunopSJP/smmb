@@ -6,7 +6,7 @@
   gap: 4px;
   background: var(--surface);
   padding: 4px;
-  border-radius: 14px;
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow);
 
   button {
@@ -15,9 +15,9 @@
     background: transparent;
     color: var(--text-muted);
     padding: 10px 6px;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     font-weight: 700;
-    font-size: 0.8125rem;
+    font-size: var(--fs-sm);
     cursor: pointer;
   }
   button.active {
@@ -29,7 +29,7 @@
 .zone-code {
   margin: 0 2px;
   color: var(--text-muted);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   overflow-wrap: anywhere;
 }
 .head {
@@ -42,7 +42,7 @@
   background: none;
   padding: 4px;
   font: inherit;
-  font-size: 0.875rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--brand);
   text-decoration: none;
@@ -59,13 +59,13 @@
   gap: 6px;
   min-block-size: 44px;
   padding: 6px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-lg);
   border: 1.5px solid var(--line);
   background: var(--surface);
   color: var(--text);
   font: inherit;
   font-weight: 700;
-  font-size: 0.875rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
 
   span {
@@ -86,12 +86,14 @@
 }
 .add-window {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 
   input {
-    flex: 1;
-    min-inline-size: 0;
+    /* A8: กว้างพอไม่ตัด "06:00" ที่ 390px และขึ้นบรรทัดใหม่ได้แทนการบีบ */
+    flex: 1 1 7.5rem;
+    min-inline-size: 7.5rem;
     font: inherit;
     min-block-size: 44px;
     padding: 6px 8px;
@@ -122,8 +124,8 @@
   gap: 6px;
   padding: 6px 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
-  font-size: 0.875rem;
+  border-radius: var(--radius-lg);
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 .pill.pending {
@@ -171,7 +173,7 @@
   inline-size: 40px;
   block-size: 40px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text-muted);
   cursor: pointer;
@@ -210,7 +212,7 @@
 }
 .hit.picked {
   background: var(--brand-lighter);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding-inline: 8px;
   margin-inline: -8px;
 }
@@ -233,7 +235,7 @@
   gap: 12px;
   padding: 12px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   cursor: pointer;
 
@@ -251,7 +253,7 @@
     background: var(--brand-lighter);
     color: var(--brand-text);
     font-weight: 700;
-    font-size: 0.875rem;
+    font-size: var(--fs-sm);
   }
   .name-row {
     display: flex;
@@ -273,7 +275,7 @@
 :host-context([data-mode='easy']) .member .avatar {
   inline-size: 48px;
   block-size: 48px;
-  font-size: 1rem;
+  font-size: var(--fs-base);
 }
 :host-context([data-mode='easy']) .hit,
 :host-context([data-mode='easy']) .house-row {
@@ -281,5 +283,5 @@
 }
 :host-context([data-mode='easy']) .search-row input {
   min-block-size: 52px;
-  font-size: 1.0625rem;
+  font-size: var(--fs-md);
 }

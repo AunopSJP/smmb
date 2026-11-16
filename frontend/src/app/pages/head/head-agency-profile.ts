@@ -65,7 +65,7 @@ import { PageHeader } from '../../shared/page-header';
       text-align: center;
     }
     .code {
-      font-size: 1.75rem;
+      font-size: var(--fs-xl);
       font-weight: 700;
       letter-spacing: 0.08em;
       color: var(--brand-text);

@@ -31,22 +31,22 @@ import { I18n } from '../../core/i18n';
     /* โหมดง่าย: ปุ่มโทรใหญ่ขึ้น (ปลอดภัยไว้ก่อน) · โหมดละเอียด: กระชับขึ้น */
     :host-context([data-mode='easy']) .call {
       min-block-size: 92px;
-      border-radius: 24px;
+      border-radius: var(--radius-lg);
     }
     :host-context([data-mode='easy']) .call strong {
-      font-size: 2.25rem;
+      font-size: var(--fs-2xl);
     }
     :host-context([data-mode='easy']) .call span {
-      font-size: 1rem;
+      font-size: var(--fs-base);
     }
     :host-context([data-mode='advanced']) .call {
       min-block-size: 46px;
     }
     :host-context([data-mode='advanced']) .call strong {
-      font-size: 1.125rem;
+      font-size: var(--fs-md);
     }
     :host-context([data-mode='advanced']) .call span {
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
     }
   `,
 })

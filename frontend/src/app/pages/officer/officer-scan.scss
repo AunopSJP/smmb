@@ -15,7 +15,7 @@
   align-items: center;
   gap: 12px;
   h1 {
-    font-size: 1.125rem;
+    font-size: var(--fs-md);
   }
 }
 .round {
@@ -37,7 +37,7 @@
   position: relative;
   inline-size: min(72vw, 260px);
   aspect-ratio: 1;
-  border-radius: 16px;
+  border-radius: var(--radius);
   background: rgb(255 255 255 / 6%);
   outline: 3px solid var(--on-dark);
   outline-offset: -3px;
@@ -87,12 +87,12 @@
   }
 }
 .hint {
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   opacity: 0.7;
 }
 .torch {
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-lg);
   padding: 8px 18px;
   background: rgb(255 255 255 / 15%);
   color: var(--on-dark);
@@ -122,14 +122,14 @@
   text-align: center;
   opacity: 0.55;
   h1 {
-    font-size: 1.25rem;
+    font-size: var(--fs-lg);
   }
 }
 .perm {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 1.0625rem !important;
+  font-size: var(--fs-md) !important;
 }
 .two {
   display: grid;
@@ -140,7 +140,7 @@
 /* โหมดง่าย: ช่องมองใหญ่ ปุ่มปิดใหญ่ ตัวอักษรชัด (แคนวาส OffScan_E) */
 :host-context([data-mode='easy']) {
   .top h1 {
-    font-size: 1.5rem;
+    font-size: var(--fs-xl);
   }
   .round {
     inline-size: 56px;
@@ -160,7 +160,7 @@
   .top {
     gap: 10px;
     h1 {
-      font-size: 0.9375rem;
+      font-size: var(--fs-base);
     }
   }
   .round {
@@ -169,6 +169,6 @@
   }
   .aim {
     margin-block-start: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--fs-sm);
   }
 }

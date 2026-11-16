@@ -5,12 +5,13 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { apiError } from '../core/api';
 import { DisplaySettings } from '../core/display-settings';
 import { I18n } from '../core/i18n';
-import { hhmm } from '../core/inspection-api';
 import { type BoxDetail, type BoxSummary, minutesAgo, OwnerApi, type Sos } from '../core/owner-api';
+import { bkkDay, fmtDay, fmtTime, fmtWhen, fmtWhenSec } from '../core/time';
 import { screenUrl } from '../screens/registry';
 import { BoxPicker } from '../shared/box-picker';
 import { Icon } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
+import { PushStatus } from '../shared/push-status';
 import { LoadingRows } from '../shared/state-view';
 import { Toast } from '../core/toast';
 import { Session } from '../core/session';
@@ -28,11 +29,11 @@ const REFRESH_MS = 10_000;
 /** H03 หน้าหลักเจ้าของบ้าน (api.md §4.2) · H03-L แบบเรียบง่าย · H03-e กดค้าง SOS — ข้อมูลจริง */
 @Component({
   selector: 'app-owner-home',
-  imports: [NgTemplateOutlet, RouterLink, PageHeader, Icon, LoadingRows, BoxPicker, CallButtons],
+  imports: [NgTemplateOutlet, RouterLink, PageHeader, Icon, LoadingRows, BoxPicker, CallButtons, PushStatus],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (noBox()) {
-      <app-page-header [caption]="greeting()" [title]="i18n.t({ th: 'เริ่มใช้งานตู้ของคุณ', en: 'Set up your mailbox' })" />
+      <app-page-header [title]="i18n.t({ th: 'เริ่มใช้งานตู้ของคุณ', en: 'Set up your mailbox' })" />
       <div class="stack page onboard">
         <section class="hero" aria-hidden="true">
           <svg viewBox="0 0 240 170" class="art">
@@ -82,18 +83,20 @@ const REFRESH_MS = 10_000;
         </div>
       </div>
     } @else if (!b() && !error()) {
-      <app-page-header [caption]="greeting()" [title]="i18n.t({ th: 'หน้าหลัก', en: 'Home' })" />
+      <app-page-header [title]="i18n.t({ th: 'หน้าหลัก', en: 'Home' })" />
       <div class="stack page">
         <app-loading-rows [rows]="4" [label]="i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' })" />
       </div>
     } @else if (b(); as b) {
       <app-page-header
-        [caption]="i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + b.house_no + (display.mode() === 'advanced' ? ' · ' + b.id : '')"
-        [title]="b.name || b.id"
+        [caption]="i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + b.house_no + (b.name ? ' · ' + b.name : '') + (display.mode() === 'advanced' ? ' · ' + b.id : '')"
+        [title]="i18n.t({ th: 'หน้าหลัก', en: 'Home' })"
         [bell]="url('H14')"
       />
 
       <div class="stack page">
+        <!-- C4: แบนเนอร์เต็มแสดงเฉพาะหน้าหลัก (และหน้าตั้งค่าการแจ้งเตือน) · จำการปิดต่อเครื่อง -->
+        <app-push-status [dismissible]="true" />
         @if (boxes().length > 1) {
           <app-box-picker [boxes]="boxes()" [value]="b.id" (pick)="select($event)" />
         }
@@ -108,20 +111,26 @@ const REFRESH_MS = 10_000;
         <ng-template #tOffline let-b>
           <section class="card offline stack" role="status">
             <strong>{{ i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' }) }}</strong>
-            <span class="small">{{ i18n.t({ th: 'เจ้าหน้าที่จะตรวจตู้ไม่ได้จนกว่าตู้จะกลับมาออนไลน์', en: 'Officers cannot check the mailbox until it is back online' }) }}</span>
-            @if (lastInspection(b); as li) {
-              <span class="small">{{ i18n.t({ th: 'เจ้าหน้าที่ตรวจล่าสุด ', en: 'Last officer check ' }) }}{{ li }}</span>
+            <!-- C5: โหมดง่ายเหลือหัวข้อ + 1 ประโยค + ปุ่มเดียว · รายละเอียด/ปุ่ม Wi-Fi/ช่าง ไปอยู่ H12-d -->
+            @if (easy()) {
+              <span class="small">{{ i18n.t({ th: 'เจ้าหน้าที่จะตรวจตู้ไม่ได้จนกว่าตู้จะกลับมาออนไลน์', en: 'Officers cannot check the mailbox until it is back online' }) }}</span>
+              <a class="btn" [routerLink]="url('H12-d')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'ดูวิธีแก้', en: 'See how to fix it' }) }}</a>
+            } @else {
+              <span class="small">{{ i18n.t({ th: 'เจ้าหน้าที่จะตรวจตู้ไม่ได้จนกว่าตู้จะกลับมาออนไลน์', en: 'Officers cannot check the mailbox until it is back online' }) }}</span>
+              @if (lastInspection(b); as li) {
+                <span class="small">{{ i18n.t({ th: 'เจ้าหน้าที่ตรวจล่าสุด ', en: 'Last officer check ' }) }}{{ li }}</span>
+              }
+              <ol class="checks small">
+                <li>{{ i18n.t({ th: 'แบตตู้อาจหมด — แผงโซลาร์โดนแดดไหม', en: 'The battery may be empty — is the solar panel in sun?' }) }}</li>
+                <li>{{ i18n.t({ th: 'Wi-Fi บ้านใช้งานได้ไหม', en: 'Is your home Wi-Fi working?' }) }}</li>
+                <li>{{ i18n.t({ th: 'เพิ่งเปลี่ยนรหัส Wi-Fi ใช่ไหม', en: 'Did you just change the Wi-Fi password?' }) }}</li>
+              </ol>
+              <div class="two">
+                <a class="btn secondary" [routerLink]="url('H13-b')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'ตั้ง Wi-Fi ใหม่', en: 'Set up Wi-Fi' }) }}</a>
+                <a class="btn" [routerLink]="url('H13-c')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'แจ้งช่าง', en: 'Get a technician' }) }}</a>
+              </div>
+              <a class="see-all" [routerLink]="url('H12-d')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'ดูสาเหตุและวิธีแก้ทั้งหมด', en: 'See causes and fixes' }) }}</a>
             }
-            <ol class="checks small easy-hide">
-              <li>{{ i18n.t({ th: 'แบตตู้อาจหมด — แผงโซลาร์โดนแดดไหม', en: 'The battery may be empty — is the solar panel in sun?' }) }}</li>
-              <li>{{ i18n.t({ th: 'Wi-Fi บ้านใช้งานได้ไหม', en: 'Is your home Wi-Fi working?' }) }}</li>
-              <li>{{ i18n.t({ th: 'เพิ่งเปลี่ยนรหัส Wi-Fi ใช่ไหม', en: 'Did you just change the Wi-Fi password?' }) }}</li>
-            </ol>
-            <div class="two">
-              <a class="btn secondary" [routerLink]="url('H13-b')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'ตั้ง Wi-Fi ใหม่', en: 'Set up Wi-Fi' }) }}</a>
-              <a class="btn" [routerLink]="url('H13-c')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'แจ้งช่าง', en: 'Get a technician' }) }}</a>
-            </div>
-            <a class="see-all" [routerLink]="url('H12-d')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'ดูสาเหตุและวิธีแก้ทั้งหมด', en: 'See causes and fixes' }) }}</a>
           </section>
         </ng-template>
         <ng-template #tQr let-b>
@@ -214,16 +223,14 @@ const REFRESH_MS = 10_000;
             <div class="mini adv-hide">
               <span class="label">{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</span>
               @if (b.last_seen_at) {
+                <!-- C7: รวม "11 นาที" + "ที่แล้ว" เป็นบรรทัดเดียว -->
                 <strong class="value">{{ lastSeenText(b.last_seen_at) }}</strong>
-                @if (needsAgo(b.last_seen_at)) {
-                  <span class="label">{{ i18n.t({ th: 'ที่แล้ว', en: 'ago' }) }}</span>
-                }
               } @else {
                 <strong class="value muted">{{ i18n.t({ th: 'รอข้อมูล', en: 'No report yet' }) }}</strong>
                 <span class="label">{{ i18n.t({ th: 'ยังไม่เคยติดต่อ', en: 'Never connected' }) }}</span>
               }
               @if (b.last_seen_at) {
-                <span class="label adv-only mono">{{ timeSec(b.last_seen_at) }}</span>
+                <span class="label adv-only num">{{ timeSec(b.last_seen_at) }}</span>
               }
             </div>
             <div class="mini cover-cell">
@@ -245,11 +252,11 @@ const REFRESH_MS = 10_000;
             </div>
             <div class="cell">
               <span class="label">{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</span>
-              <strong class="value mono">{{ b.last_seen_at ? timeSec(b.last_seen_at) : '—' }}</strong>
+              <strong class="value num">{{ b.last_seen_at ? timeSec(b.last_seen_at) : '—' }}</strong>
             </div>
             <div class="cell">
               <span class="label">{{ i18n.t({ th: 'รายงานแบตเมื่อ', en: 'Battery reported' }) }}</span>
-              <strong class="value mono">{{ b.battery?.reported_at ? timeSec(b.battery!.reported_at!) : '—' }}</strong>
+              <strong class="value num">{{ b.battery?.reported_at ? timeSec(b.battery!.reported_at!) : '—' }}</strong>
             </div>
             <div class="cell">
               <span class="label">{{ i18n.t({ th: 'เวลาตรวจที่ตู้ใช้', en: 'Patrol at the box' }) }}</span>
@@ -257,18 +264,18 @@ const REFRESH_MS = 10_000;
             </div>
             <div class="cell">
               <span class="label">{{ i18n.t({ th: 'สถานะ', en: 'State' }) }}</span>
-              <strong class="value mono">{{ b.status }}</strong>
+              <strong class="value">{{ statusText(b.status) }}</strong>
             </div>
             <div class="cell">
               <span class="label">{{ i18n.t({ th: 'QR หน้าตู้', en: 'Front QR' }) }}</span>
-              <strong class="value mono">{{ b.qr_task ? b.qr_task.health : i18n.t({ th: 'ปกติ', en: 'OK' }) }}</strong>
+              <strong class="value">{{ qrHealthText(b.qr_task?.health) }}</strong>
             </div>
           </div>
           @if (b.patrol.windows.length) {
             <div class="patrol adv-only">
               <div class="label-row">
                 <span class="label">{{ i18n.t({ th: 'เวลาตรวจวันนี้', en: 'Patrol hours today' }) }}</span>
-                <span class="label mono">{{ windowsText(b) }} · {{ nowText() }}</span>
+                <span class="label num">{{ windowsText(b) }} · {{ nowText() }}</span>
               </div>
               <div class="strip" role="img" [attr.aria-label]="windowsText(b)">
                 @for (w of stripWindows(b); track $index) {
@@ -318,7 +325,7 @@ const REFRESH_MS = 10_000;
                   </span>
                 }
                 @if (display.advancedMode()) {
-                  <span class="muted small adv-only mono">{{ timeSec(e.at) }}</span>
+                  <span class="muted small adv-only num">{{ timeSec(e.at) }}</span>
                 } @else {
                   <span class="muted small">{{ day(e.at) }} {{ time(e.at) }}</span>
                 }
@@ -445,10 +452,10 @@ const REFRESH_MS = 10_000;
       gap: 14px;
       b {
         display: block;
-        font-size: 1.1875rem;
+        font-size: var(--fs-md);
       }
       span:not(.okc) {
-        font-size: 0.875rem;
+        font-size: var(--fs-sm);
         color: var(--text-muted);
       }
     }
@@ -469,7 +476,7 @@ const REFRESH_MS = 10_000;
     .cover {
       align-self: flex-start;
       gap: 6px;
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       font-weight: 400;
       padding: 6px 12px;
     }
@@ -510,19 +517,17 @@ export class OwnerHome implements OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(Toast);
   protected readonly url = screenUrl;
-  protected readonly time = hhmm;
+  /** เวลา 24 ชม. (รูปแบบกลาง A8) */
+  protected readonly time = fmtTime;
   /** เวลาติดต่อล่าสุดแบบอ่านง่าย — ไม่ปล่อยเป็น “4320 นาทีที่แล้ว” */
+  /** C7: ข้อความเวลาเดียวจบ — "11 นาทีที่แล้ว" ไม่แยก "ที่แล้ว" ไปอีกบรรทัด */
   protected lastSeenText(iso: string): string {
     const m = minutesAgo(iso) ?? 0;
     if (m < 1) return this.i18n.t({ th: 'เมื่อสักครู่', en: 'just now' });
-    if (m < 60) return `${m} ${this.i18n.t({ th: 'นาที', en: 'min' })}`;
+    if (m < 60) return this.i18n.t({ th: `${m} นาทีที่แล้ว`, en: `${m} min ago` });
     const h = Math.floor(m / 60);
-    if (h < 24) return `${h} ${this.i18n.t({ th: 'ชั่วโมง', en: 'h' })}`;
-    return `${Math.floor(h / 24)} ${this.i18n.t({ th: 'วัน', en: 'd' })}`;
-  }
-  /** "เมื่อสักครู่" ไม่ต้องมีคำว่า "ที่แล้ว" ต่อท้าย (เดิมอังกฤษขึ้น "just now ago") */
-  protected needsAgo(iso: string): boolean {
-    return (minutesAgo(iso) ?? 0) >= 1;
+    if (h < 24) return this.i18n.t({ th: `${h} ชั่วโมงที่แล้ว`, en: `${h} h ago` });
+    return this.i18n.t({ th: `${Math.floor(h / 24)} วันที่แล้ว`, en: `${Math.floor(h / 24)} d ago` });
   }
   /** ?box=BX-00042 เมื่อมีหลายตู้ (ไม่ใส่ = ตู้แรก) */
   readonly box = input<string>();
@@ -681,37 +686,32 @@ export class OwnerHome implements OnDestroy {
     return this.display.advancedMode() ? b.latest_events : b.latest_events.slice(0, 4);
   }
 
-  /** เวลาแบบมีวินาทีสำหรับโหมดละเอียด */
+  /** เวลาแบบมีวินาทีสำหรับโหมดละเอียด — รูปแบบกลาง (A8) */
   protected timeSec(iso: string): string {
-    const d = new Date(iso);
-    const t = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
-    // ไม่ใช่วันนี้ต้องมีวันที่กำกับ — เดิมเหตุการณ์เมื่อวาน/ตู้ที่หลุดไปหลายวันขึ้นแค่เวลา อ่านแล้วเข้าใจว่าเป็นวันนี้
-    const bkk = (x: Date) => x.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
-    return bkk(d) === bkk(new Date()) ? t : `${this.day(iso)} ${t}`;
+    return fmtWhenSec(iso, this.i18n.lang());
   }
 
   /** เวลาปัจจุบันของเวลาตรวจ (มีวินาที) */
   protected nowText(): string {
-    return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
+    return fmtTime(new Date(), true);
   }
 
   /** ข้อความเวลาตรวจล่าสุด หรือ '' ถ้ายังไม่เคยมี */
   protected lastInspection(b: BoxDetail): string {
     const at = b.last_inspected_at ?? b.latest_events.find((x) => x.type === 'inspected')?.at;
-    return at ? this.day(at) + ' ' + hhmm(at) : '';
+    return at ? fmtWhen(at, this.i18n.lang()) : '';
   }
 
   /** เวลาตรวจล่าสุดแบบอ่านง่าย (โหมดง่าย) */
   protected lastCheck(b: BoxDetail): string {
     const at = b.last_inspected_at ?? b.latest_events.find((x) => x.type === 'inspected')?.at;
-    return at ? `${this.day(at)} ${this.i18n.t({ th: 'เวลา', en: 'at' })} ${hhmm(at)}` : this.i18n.t({ th: 'ยังไม่มี', en: 'None yet' });
+    return at ? fmtWhen(at, this.i18n.lang()) : this.i18n.t({ th: 'ยังไม่มี', en: 'None yet' });
   }
 
   protected deliveriesToday(b: BoxDetail): number {
     if (typeof b.deliveries_today === 'number') return b.deliveries_today;
-    const ymd = (iso: string) => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
-    const t = ymd(new Date().toISOString());
-    return b.latest_events.filter((x) => x.type !== 'inspected' && ymd(x.at) === t).length;
+    const t = bkkDay();
+    return b.latest_events.filter((x) => x.type !== 'inspected' && bkkDay(x.at) === t).length;
   }
 
   protected windowsText(b: BoxDetail): string {
@@ -732,11 +732,33 @@ export class OwnerHome implements OnDestroy {
     return ((h * 60 + m) / 1440) * 100;
   }
 
+  /** วันแบบอ่านเร็ว (วันนี้/เมื่อวาน/วันที่) — รูปแบบกลาง (A8) */
   protected day(iso: string): string {
-    const d = new Date(iso);
-    const today = new Date();
-    const same = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' }) === today.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
-    return same ? this.i18n.t({ th: 'วันนี้', en: 'Today' }) : d.toLocaleDateString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' });
+    return fmtDay(iso, this.i18n.lang());
+  }
+
+  /** C6: แปลสถานะตู้ทุกค่าเป็นไทย/อังกฤษ (ไม่โชว์ค่าอังกฤษดิบ offline/idle) */
+  protected statusText(s: BoxDetail['status']): string {
+    const map: Record<BoxDetail['status'], { th: string; en: string }> = {
+      online: { th: 'ออนไลน์', en: 'Online' },
+      offline: { th: 'ไม่ออนไลน์', en: 'Offline' },
+      sleeping: { th: 'พักอยู่ (นอกเวลาตรวจ)', en: 'Sleeping outside patrol hours' },
+      service_closed: { th: 'ปิดให้บริการ', en: 'Service closed' },
+      unbound: { th: 'ยังไม่ผูกบ้าน', en: 'Not linked to a house' },
+    };
+    return this.i18n.t(map[s]);
+  }
+
+  /** C6: แปลสถานะสุขภาพ QR */
+  protected qrHealthText(h: string | undefined): string {
+    if (!h) return this.i18n.t({ th: 'ปกติ', en: 'OK' });
+    const map: Record<string, { th: string; en: string }> = {
+      ok: { th: 'ปกติ', en: 'OK' },
+      damaged: { th: 'ชำรุด', en: 'Damaged' },
+      missing: { th: 'หาย', en: 'Missing' },
+      pending: { th: 'รอดำเนินการ', en: 'Pending' },
+    };
+    return this.i18n.t(map[h] ?? { th: 'ต้องตรวจ', en: 'Needs a check' });
   }
 
   protected startHold(event: Event): void {

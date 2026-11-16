@@ -17,15 +17,17 @@ interface Row {
   hint: Tr;
 }
 
+/* A3/A4: เมนูแถวเดียว ไม่มีกล่องไอคอน · 1 ไอคอน = 1 ความหมาย
+   กระดิ่งเหลือแถวเดียว (L09) — ประวัติ/ตั้งค่า/เครื่องใหม่ รวมอยู่หน้าย่อยเดียวกัน */
 const AGENCY: Row[] = [
   { code: 'O02', icon: 'scan', title: { th: 'ตรวจตู้เอง', en: 'Inspect a box myself' }, hint: { th: 'ตรวจได้เฉพาะโซนที่คุณอยู่', en: 'Only zones you belong to' } },
-  { code: 'L10', icon: 'pin', title: { th: 'ข้อมูลหน่วยงานและหมุดแผนที่', en: 'Agency details and map pin' }, hint: { th: 'ที่อยู่ ช่องทางติดต่อ และรหัสกลุ่ม', en: 'Address, contact and group code' } },
+  { code: 'L10', icon: 'pin', title: { th: 'ข้อมูลหน่วยงาน', en: 'Agency details' }, hint: { th: 'ที่อยู่ ช่องทางติดต่อ และรหัสกลุ่ม', en: 'Address, contact and group code' } },
   { code: 'L08', icon: 'list', title: { th: 'ประวัติการสแกน', en: 'Scan log' }, hint: { th: 'ทุกการสแกนของทีม ลบหรือแก้ไม่ได้', en: 'Every scan by your team, cannot be edited' } },
-  { code: 'L09', icon: 'bell', title: { th: 'แจ้งเตือนของหัวหน้า', en: 'Head notifications' }, hint: { th: 'เครื่องใหม่ของเจ้าหน้าที่ คำขอเข้าทีม', en: 'New devices, join requests' } },
+  { code: 'L09', icon: 'bell', title: { th: 'การแจ้งเตือน', en: 'Notifications' }, hint: { th: 'ประวัติ · ตั้งค่า · เครื่องใหม่ของเจ้าหน้าที่', en: 'History · settings · officer new devices' } },
 ];
 const ACCOUNT: Row[] = [
-  { code: 'O13-b', icon: 'settings', title: { th: 'แบบการใช้งานและการแสดงผล', en: 'Mode and display' }, hint: { th: 'โหมด ง่าย / ปกติ / ละเอียด ธีม ภาษา ขนาดตัวอักษร', en: 'Easy / normal / detailed, theme, language, text size' } },
-  { code: 'O13', icon: 'user', title: { th: 'บัญชีของฉัน', en: 'My account' }, hint: { th: 'เปลี่ยนรหัสผ่าน บทบาทของฉัน', en: 'Change password, my roles' } },
+  { code: 'O13-b', icon: 'monitor', title: { th: 'แบบการใช้งานและการแสดงผล', en: 'Mode and display' }, hint: { th: 'โหมด ง่าย / ปกติ / ละเอียด ธีม ภาษา ขนาดตัวอักษร', en: 'Easy / normal / detailed, theme, language, text size' } },
+  { code: 'O13', icon: 'key', title: { th: 'บัญชีและรหัสผ่าน', en: 'Account and password' }, hint: { th: 'เปลี่ยนรหัสผ่าน บทบาทของฉัน', en: 'Change password, my roles' } },
 ];
 
 /** L11 ตั้งค่า (หัวหน้า) — ตามแคนวาสดีไซน์: รวมทางเข้าข้อมูลหน่วยงาน/ประวัติ/แจ้งเตือน/บัญชีไว้ที่เดียว · ใช้หน้าเดิมทั้งหมด */
@@ -38,53 +40,32 @@ const ACCOUNT: Row[] = [
     <div class="stack grow">
       <app-push-status [required]="true" deviceLabel="head" />
       <h2 class="section-title">{{ i18n.t({ th: 'หน่วยงาน', en: 'Agency' }) }}</h2>
-      <nav class="list">
+      <nav class="menu">
         @for (r of agency; track r.code) {
-          <a class="row" [class.easy-hide]="r.code !== 'L10'" [routerLink]="url(r.code)">
-            <span class="icon-bubble"><app-icon [name]="r.icon" [size]="20" /></span>
+          <a class="menu-row" [class.easy-hide]="r.code !== 'L10'" [routerLink]="url(r.code)">
+            <app-icon class="mi" [name]="r.icon" [size]="20" />
             <span class="grow">
               <strong>{{ i18n.t(r.title) }}</strong>
-              <span class="muted small block easy-hide">{{ i18n.t(r.hint) }}</span>
+              @if (r.code === 'L10') {
+                <span class="sub">{{ code() }}</span>
+              } @else if (r.code === 'L09') {
+                <span class="sub">{{ i18n.t(r.hint) }}</span>
+              }
             </span>
-            <app-icon name="chevronRight" [size]="18" />
+            <app-icon class="chev" name="chevronRight" [size]="18" />
           </a>
         }
-        <a class="row easy-hide" [routerLink]="url('L10')">
-          <span class="icon-bubble"><app-icon name="shield" [size]="20" /></span>
-          <span class="grow">
-            <strong>{{ i18n.t({ th: 'รหัสกลุ่ม', en: 'Group code' }) }}</strong>
-            <span class="muted small block">{{ code() }} · {{ i18n.t({ th: 'สร้างใหม่ได้', en: 'can be regenerated' }) }}</span>
-          </span>
-          <app-icon name="chevronRight" [size]="18" />
-        </a>
-        <a class="row easy-hide" [routerLink]="url('L09')">
-          <span class="icon-bubble"><app-icon name="bell" [size]="20" /></span>
-          <span class="grow">
-            <strong>{{ i18n.t({ th: 'แจ้งเตือนเครื่องใหม่ของเจ้าหน้าที่', en: 'Officer new-device alerts' }) }}</strong>
-            <span class="muted small block">{{ i18n.t({ th: 'เปิดอยู่ · แจ้งทันทีเมื่อเจ้าหน้าที่เข้าจากเครื่องใหม่', en: 'On · alerts you when an officer signs in from a new device' }) }}</span>
-          </span>
-          <app-icon name="chevronRight" [size]="18" />
-        </a>
-        <a class="row" routerLink="/settings/notifications">
-          <span class="icon-bubble"><app-icon name="bell" [size]="20" /></span>
-          <span class="grow">
-            <strong>{{ i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' }) }}</strong>
-            <span class="muted small block">{{ i18n.t({ th: 'ชนิดที่รับ · ส่งทดสอบ · วิธีแก้ถ้าไม่เด้ง', en: 'What to receive · send a test · fixes if nothing arrives' }) }}</span>
-          </span>
-          <app-icon name="chevronRight" [size]="18" />
-        </a>
         <app-my-data-link />
       </nav>
       <h2 class="section-title">{{ i18n.t({ th: 'บัญชี', en: 'Account' }) }}</h2>
-      <nav class="list">
+      <nav class="menu">
         @for (r of account; track r.code) {
-          <a class="row" [routerLink]="url(r.code)">
-            <span class="icon-bubble"><app-icon [name]="r.icon" [size]="20" /></span>
+          <a class="menu-row" [routerLink]="url(r.code)">
+            <app-icon class="mi" [name]="r.icon" [size]="20" />
             <span class="grow">
               <strong>{{ i18n.t(r.title) }}</strong>
-              <span class="muted small block easy-hide">{{ i18n.t(r.hint) }}</span>
             </span>
-            <app-icon name="chevronRight" [size]="18" />
+            <app-icon class="chev" name="chevronRight" [size]="18" />
           </a>
         }
       </nav>

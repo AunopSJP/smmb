@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal, type OnIn
 import { AdminApi, type AdminTechnicianRequest } from '../../core/admin-api';
 import { DisplaySettings } from '../../core/display-settings';
 import { I18n } from '../../core/i18n';
+import { fmtWhen } from '../../core/time';
 import { Toast } from '../../core/toast';
 import { Confirm } from '../../shared/confirm-dialog';
 import { PageHeader } from '../../shared/page-header';
@@ -105,14 +106,7 @@ export class AdminTechnicianRequests implements OnInit {
   /** เวลานัด/ส่งคำขอ — fix TZ ไทย + ภาษา */
   protected dateTime(iso: string | null | undefined): string {
     if (!iso) return '';
-    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Asia/Bangkok',
-    });
+    return fmtWhen(iso, this.i18n.lang());
   }
   protected readonly rows = signal<AdminTechnicianRequest[]>([]);
   protected readonly filter = signal<'open' | 'scheduled' | 'done'>('open');

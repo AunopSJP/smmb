@@ -1,0 +1,499 @@
+﻿<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SMMB · 3 ทิศทาง UX/UI ที่คน 9 ขวบและ 60 ปีใช้ได้</title>
+<style>
+  :root{
+    --ink:#12140f; --paper:#f4f0e6; --paper2:#ebe5d7; --muted:#5f6359; --rule:#c9c2b2;
+    --a:#0a5b43; --b:#c08a2e; --b-deep:#b23a2e; --c:#0b57d0;
+    --cream:#f4f0e6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--paper);color:var(--ink);font-size:16px;line-height:1.6;font-family:'Noto Sans Thai','Leelawadee UI','Tahoma',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  button{font:inherit;color:inherit}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+  .ic{display:block}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  :focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+
+  /* nav */
+  .nav{position:sticky;top:0;z-index:30;background:var(--ink);color:var(--cream);border-bottom:1px solid rgb(244 240 230 / 20%)}
+  .nav .wrap{display:flex;align-items:center;gap:16px;min-height:58px}
+  .nav .brand{font-weight:800;font-size:18px;letter-spacing:.02em;white-space:nowrap}
+  .nav .brand b{color:#fff}
+  .nav .brand span{font-size:11px;font-weight:500;opacity:.6;letter-spacing:.1em;margin-left:8px}
+  .nav nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+  .nav nav a{font-size:12.5px;padding:6px 10px;border:1px solid transparent;border-radius:3px;opacity:.8}
+  .nav nav a:hover{border-color:rgb(244 240 230 / 40%);opacity:1}
+  .nav .go{background:var(--cream);color:var(--ink);font-weight:700;opacity:1;padding:6px 12px;border-radius:3px;font-size:12.5px}
+  .nav .go:hover{background:#fff}
+
+  /* hero */
+  .hero{background:var(--ink);color:var(--cream);padding:56px 0 0;position:relative;overflow:hidden}
+  .hero::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgb(244 240 230 / 6%) 1px,transparent 1px);background-size:100% 44px;pointer-events:none}
+  .hero .wrap{position:relative;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:40px;align-items:start}
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:11.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#bdb8aa;margin:0 0 18px}
+  .eyebrow::before{content:"";width:28px;height:2px;background:#bdb8aa}
+  .hero h1{font-size:clamp(40px,6.2vw,76px);line-height:1.14;letter-spacing:-.035em;margin:0;font-weight:800}
+  .hero h1 em{font-style:normal;color:#d9cfae}
+  .hero .lede{max-width:600px;margin:22px 0 0;font-size:17.5px;line-height:1.7;color:#d8d2c3}
+  .hero .lede b{color:#fff;font-weight:700}
+  .hero .cta{display:flex;gap:10px;flex-wrap:wrap;margin:26px 0 0}
+  .btn{display:inline-flex;align-items:center;gap:9px;min-height:50px;padding:0 18px;border:1.5px solid var(--cream);border-radius:3px;font-weight:700;font-size:14px;background:transparent;color:var(--cream);cursor:pointer}
+  .btn:hover{background:rgb(244 240 230 / 10%)}
+  .btn.solid{background:var(--cream);color:var(--ink);border-color:var(--cream)}
+  .btn.solid:hover{background:#fff}
+  .hero .art{align-self:center;justify-self:end;width:100%;max-width:360px;opacity:.9}
+  .hero .art svg{width:100%;height:auto;display:block}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:44px 0 0;border-top:1px solid rgb(244 240 230 / 22%)}
+  .stat{padding:14px 10px 20px;border-right:1px solid rgb(244 240 230 / 14%)}
+  .stat:first-child{padding-left:0}
+  .stat b{display:block;font-size:30px;line-height:1.1;font-weight:800;letter-spacing:-.02em}
+  .stat span{display:block;font-size:11.5px;color:#bdb8aa;margin-top:3px}
+
+  .testbar{background:#1c1e18;border-top:1px solid rgb(244 240 230 / 14%);padding:16px 0 22px}
+  .testbar .wrap{display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:18px;align-items:start}
+  .testbar .lead{font-size:11px;letter-spacing:.14em;font-weight:700;color:#9a9587;text-transform:uppercase;padding-top:3px;white-space:nowrap}
+  .testbar .q{font-size:13px;line-height:1.5;color:#d8d2c3;display:flex;gap:8px}
+  .testbar .q b{color:#fff;font-weight:700}
+  .testbar .tick{flex:none;width:18px;height:18px;border:1.5px solid #8f8a7c;border-radius:50%;display:grid;place-items:center;color:#d9cfae;margin-top:2px}
+
+  /* sections */
+  section.pad{padding:64px 0 12px}
+  .sechead{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:28px}
+  .sechead .num{font-size:12px;font-weight:800;letter-spacing:.16em;color:var(--muted);white-space:nowrap;padding-bottom:4px}
+  .sechead h2{font-size:clamp(26px,3.4vw,40px);line-height:1.18;letter-spacing:-.025em;margin:0;font-weight:800}
+  .sechead p{max-width:520px;margin:0;font-size:14.5px;color:var(--muted);line-height:1.65}
+  .sechead .left{display:flex;gap:18px;align-items:flex-start}
+  .sechead .left .num{padding-top:7px}
+
+  /* cards */
+  .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+  .card{border:1.5px solid var(--ink);background:#fbf8f0;display:flex;flex-direction:column;min-width:0;position:relative}
+  .card .stripe{height:8px;background:var(--accent)}
+  .card .top{display:flex;align-items:flex-start;gap:12px;padding:15px 16px 12px}
+  .card .letter{width:44px;height:44px;border:1.5px solid var(--ink);display:grid;place-items:center;font-weight:800;font-size:20px;flex:none;background:#fff}
+  .card .top h3{margin:0;font-size:21px;line-height:1.25;font-weight:800;letter-spacing:-.01em}
+  .card .top p{margin:3px 0 0;font-size:12.5px;color:var(--muted);line-height:1.45}
+  .card .shotwrap{background:var(--shotbg);border-top:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink);height:452px;display:flex;justify-content:center;overflow:hidden;position:relative}
+  .card .shotwrap::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(to bottom,rgb(0 0 0 / 0%) 80%,rgb(0 0 0 / 8%))}
+  .shot{width:201px;height:436px;overflow:hidden;margin-top:8px}
+  .shot iframe{width:402px;height:872px;border:0;transform:scale(.5);transform-origin:top left;pointer-events:none;background:transparent}
+  .card .body{padding:13px 16px 16px;display:flex;flex-direction:column;flex:1}
+  .card .line{display:flex;gap:8px;font-size:13px;line-height:1.5;margin:0 0 6px}
+  .card .line b{flex:none;font-weight:800;font-size:11px;letter-spacing:.06em;color:var(--muted);width:52px;padding-top:1px}
+  .card .line.strong{font-weight:600}
+  .card .open{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--rule);padding-top:12px;margin-top:14px;font-size:13.5px;font-weight:800;color:var(--accent)}
+  .card .open:hover{text-decoration:underline;text-underline-offset:4px}
+  .card .open span{font-size:18px}
+
+  /* compare */
+  .tablewrap{overflow-x:auto;border:1.5px solid var(--ink);background:#fbf8f0}
+  table{border-collapse:collapse;width:100%;min-width:760px}
+  th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--rule);vertical-align:top;font-size:13.5px;line-height:1.55}
+  thead th{background:var(--paper2);font-size:11.5px;letter-spacing:.08em;font-weight:800;border-bottom:2px solid var(--ink);white-space:nowrap}
+  thead th:first-child{width:150px}
+  tbody th{font-weight:700;color:var(--muted);font-size:12.5px;background:#f6f2e8;border-right:1px solid var(--rule);width:150px}
+  tbody tr:last-child th,tbody tr:last-child td{border-bottom:0}
+  td b{font-weight:800}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:1px}
+  .dot.a{background:var(--a)}.dot.b{background:var(--b)}.dot.c{background:var(--c)}
+
+  /* principles */
+  .rules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border-top:1.5px solid var(--ink);border-left:1.5px solid var(--ink)}
+  .rule{border-right:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink);padding:18px 18px 16px;background:#fbf8f0;display:grid;grid-template-columns:44px 1fr;gap:14px}
+  .rule .n{font-size:26px;font-weight:800;line-height:1;letter-spacing:-.03em;color:var(--muted)}
+  .rule h3{margin:0;font-size:16px;font-weight:800;line-height:1.4}
+  .rule p{margin:4px 0 0;font-size:13px;color:var(--muted);line-height:1.6}
+  .rule code{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;background:var(--paper2);padding:1px 4px;border-radius:2px}
+  .avoid{margin-top:18px;border:1.5px dashed var(--ink);padding:14px 16px;display:flex;gap:14px;align-items:flex-start;background:#f3ede0}
+  .avoid b{font-size:12px;letter-spacing:.08em;white-space:nowrap;padding-top:2px}
+  .avoid p{margin:0;font-size:13.5px;line-height:1.65;color:var(--muted)}
+  .avoid span{display:inline-block;margin:2px 10px 2px 0;color:var(--ink)}
+
+  /* coverage */
+  .counts{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1.5px solid var(--ink);margin-bottom:20px;background:#fbf8f0}
+  .count{padding:16px 18px;border-right:1.5px solid var(--ink)}
+  .count:last-child{border-right:0}
+  .count b{display:block;font-size:36px;line-height:1;font-weight:800;letter-spacing:-.03em}
+  .count span{display:block;font-size:12.5px;color:var(--muted);margin-top:4px}
+  .coverage td:first-child{font-weight:800;white-space:nowrap}
+  .code{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:11px;border:1px solid var(--rule);background:#fff;padding:0 4px;margin:1px 2px 1px 0;border-radius:2px;white-space:nowrap}
+  .coverage a{font-weight:700;border-bottom:1px solid var(--ink)}
+  .coverage a:hover{background:var(--paper2)}
+  .note{margin:14px 0 0;font-size:12.5px;color:var(--muted);line-height:1.7;padding-left:12px;border-left:3px solid var(--rule)}
+
+  /* choose */
+  .choose{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .qbox{border:1.5px solid var(--ink);background:#fbf8f0;padding:18px}
+  .qbox .q{font-size:11.5px;font-weight:800;letter-spacing:.1em;color:var(--muted)}
+  .qbox h3{margin:8px 0 6px;font-size:18px;line-height:1.35}
+  .qbox p{margin:0;font-size:13.5px;color:var(--muted);line-height:1.65}
+  .qbox .pick{display:inline-block;margin-top:12px;font-size:12px;font-weight:800;padding:3px 8px;border:1.5px solid var(--ink);background:#fff}
+  .recommend{margin-top:18px;background:var(--ink);color:var(--cream);padding:22px 24px;display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center}
+  .recommend .big{font-size:52px;font-weight:800;line-height:1;letter-spacing:-.04em}
+  .recommend h3{margin:0;font-size:18px}
+  .recommend p{margin:4px 0 0;font-size:13.5px;line-height:1.65;color:#d8d2c3}
+  .recommend b{color:#fff}
+
+  footer{background:var(--ink);color:#d8d2c3;margin-top:64px;padding:36px 0 44px}
+  footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;align-items:flex-start}
+  footer h3{margin:0 0 6px;color:#fff;font-size:18px}
+  footer p{margin:0;max-width:620px;font-size:13px;line-height:1.7}
+  footer .links{display:flex;gap:8px;flex-wrap:wrap}
+  footer .links a{border:1px solid rgb(244 240 230 / 30%);padding:6px 10px;font-size:12px;border-radius:3px}
+  footer .links a:hover{border-color:#fff;color:#fff}
+  footer .fine{margin-top:28px;padding-top:16px;border-top:1px solid rgb(244 240 230 / 16%);font-size:11.5px;color:#9a9587}
+
+  @media (max-width:1100px){
+    .hero .wrap{grid-template-columns:1fr}
+    .hero .art{display:none}
+    .cards{grid-template-columns:1fr 1fr}
+    .card:last-child{grid-column:1/-1;max-width:560px}
+    .testbar .wrap{grid-template-columns:1fr 1fr}
+    .testbar .lead{grid-column:1/-1}
+  }
+  @media (max-width:760px){
+    .wrap{padding:0 16px}
+    .nav nav a:not(.go){display:none}
+    .hero{padding-top:36px}
+    .stats{grid-template-columns:1fr 1fr}
+    .stat:nth-child(2){border-right:0}
+    .stat{padding:12px 8px 14px}
+    .stat b{font-size:26px}
+    .cards{grid-template-columns:1fr}
+    .card:last-child{max-width:none}
+    .card .shotwrap{height:500px}
+    .shot{width:225px;height:488px}
+    .shot iframe{transform:scale(.56)}
+    .sechead{flex-direction:column;align-items:flex-start;gap:10px}
+    .sechead .left{gap:12px}
+    .rules{grid-template-columns:1fr}
+    .counts{grid-template-columns:1fr}
+    .count{border-right:0;border-bottom:1.5px solid var(--ink)}
+    .count:last-child{border-bottom:0}
+    .choose{grid-template-columns:1fr}
+    .recommend{grid-template-columns:1fr}
+    .recommend .big{font-size:40px}
+    .testbar .wrap{grid-template-columns:1fr;gap:10px}
+    .testbar .q{font-size:12.5px}
+    .hero h1{font-size:clamp(34px,9vw,52px)}
+    .hero .lede{font-size:16px}
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <div class="brand"><b>SMMB</b><span>UX/UI · 3 DIRECTIONS</span></div>
+    <nav aria-label="สารบัญ">
+      <a href="#directions">3 แบบ</a>
+      <a href="#compare">เทียบกัน</a>
+      <a href="#rules">เกณฑ์ 9–60</a>
+      <a href="#coverage">ครบทุกหน้า</a>
+      <a href="system.html">ระบบ/Tokens</a>
+      <a class="go" href="#choose">เลือกแบบ</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <p class="eyebrow">ข้อเสนอออกแบบใหม่ · 16 พ.ย. 2026</p>
+      <h1>ตู้จดหมาย<br>ที่<em>ยายใช้ได้</em><br>เด็กก็ใช้เป็น</h1>
+      <p class="lede">ออกแบบใหม่ทั้งระบบ <b>3 ทิศทาง</b> ทุกบทบาท ทุกสถานะ เริ่มจากคำถามเดียว — คนที่ไม่เคยใช้ เปิดมาแล้ว<b>รู้ไหมว่าต้องกดอะไรต่อ</b> โดยไม่ต้องมีใครสอน</p>
+      <div class="cta">
+        <a class="btn solid" href="#directions">ดู 3 แบบ ↓</a>
+        <a class="btn" href="#rules">อ่านเกณฑ์ 9 ขวบ / 60 ปี</a>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>3</b><span>ทิศทางที่ต่างกันจริง</span></div>
+        <div class="stat"><b>104</b><span>หน้าจอต่อทิศทาง</span></div>
+        <div class="stat"><b>6</b><span>บทบาทการใช้งาน</span></div>
+        <div class="stat"><b>0</b><span>เมนูซ่อน / ท่าทางลับ</span></div>
+      </div>
+    </div>
+    <div class="art" aria-hidden="true">
+      <svg viewBox="0 0 380 320" fill="none">
+        <ellipse cx="190" cy="292" rx="112" ry="9" stroke="#f4f0e6" stroke-opacity=".22" stroke-width="2"/>
+        <rect x="158" y="214" width="26" height="66" rx="5" stroke="#f4f0e6" stroke-opacity=".3" stroke-width="2.5"/>
+        <path d="M92 154v-44c0-34 27-56 58-56h124c27 0 46 18 46 44v56z" stroke="#f4f0e6" stroke-opacity=".42" stroke-width="2.5"/>
+        <path d="M92 154h228v44a12 12 0 0 1-12 12H104a12 12 0 0 1-12-12z" stroke="#f4f0e6" stroke-opacity=".42" stroke-width="2.5"/>
+        <path d="M112 108h126v34H112z" stroke="#f4f0e6" stroke-opacity=".3" stroke-width="2"/>
+        <path d="M132 120h86" stroke="#f4f0e6" stroke-opacity=".55" stroke-width="6" stroke-linecap="round"/>
+        <g transform="translate(196 78) rotate(-6)">
+          <rect width="62" height="42" fill="#12140f" stroke="#f4f0e6" stroke-opacity=".55" stroke-width="2"/>
+          <path d="M2 3l29 21L60 3M2 40l21-17M60 40L39 23" stroke="#f4f0e6" stroke-opacity=".4" stroke-width="1.6"/>
+        </g>
+        <rect x="104" y="158" width="52" height="20" fill="#12140f" stroke="#f4f0e6" stroke-opacity=".3" stroke-width="1.6"/>
+        <text x="130" y="172" text-anchor="middle" font-family="Tahoma,sans-serif" font-size="11" font-weight="700" fill="#f4f0e6" fill-opacity=".5">42 / 5</text>
+        <circle cx="284" cy="142" r="9" stroke="#f4f0e6" stroke-opacity=".45" stroke-width="2.5"/>
+        <path d="M330 176V56" stroke="#f4f0e6" stroke-opacity=".35" stroke-width="4" stroke-linecap="round"/>
+        <path d="M330 56h52l-12 15 12 15h-52z" stroke="#c08a2e" stroke-width="2.5"/>
+        <path d="M330 56h52l-12 15 12 15h-52z" fill="#c08a2e" fill-opacity=".16"/>
+        <g opacity=".55">
+          <rect x="30" y="46" width="42" height="26" stroke="#f4f0e6" stroke-opacity=".25"/>
+          <text x="51" y="64" text-anchor="middle" font-family="Tahoma,sans-serif" font-size="12" font-weight="700" fill="#f4f0e6" fill-opacity=".6">A</text>
+          <rect x="30" y="82" width="42" height="26" stroke="#f4f0e6" stroke-opacity=".25"/>
+          <text x="51" y="100" text-anchor="middle" font-family="Tahoma,sans-serif" font-size="12" font-weight="700" fill="#f4f0e6" fill-opacity=".6">B</text>
+          <rect x="30" y="118" width="42" height="26" stroke="#f4f0e6" stroke-opacity=".25"/>
+          <text x="51" y="136" text-anchor="middle" font-family="Tahoma,sans-serif" font-size="12" font-weight="700" fill="#f4f0e6" fill-opacity=".6">C</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <div class="testbar">
+    <div class="wrap">
+      <div class="lead">ทดสอบ 5 วินาที</div>
+      <div class="q"><span class="tick">✓</span><span>เปิดมาแล้วรู้ไหมว่า<b>ตู้ทำงานปกติหรือไม่</b></span></div>
+      <div class="q"><span class="tick">✓</span><span>อยากขอความช่วยเหลือ <b>กดถูกปุ่มใน 1 ครั้ง</b>ไหม</span></div>
+      <div class="q"><span class="tick">✓</span><span>รู้ไหมว่า<b>สิ่งที่ต้องทำต่อ</b>คืออะไร</span></div>
+    </div>
+  </div>
+</section>
+
+<main>
+  <section class="pad" id="directions">
+    <div class="wrap">
+      <div class="sechead">
+        <div class="left"><span class="num">01 / 03</span><h2>3 ทิศทาง<br>ไม่ใช่ 3 สี</h2></div>
+        <p>ทั้งสามแบบใช้ข้อมูลชุดเดียวกัน แต่เปลี่ยน <b>วิธีพาไปทำงาน</b> — ป้ายบอกทาง, วัตถุที่จับต้องได้, และการตัดสินใจครั้งละหนึ่งอย่าง เลือกตามคนที่คุณกลัวว่าเขาจะกดพลาด</p>
+      </div>
+
+      <div class="cards">
+        <article class="card" style="--accent:var(--a);--shotbg:#e8e2d2">
+          <div class="stripe"></div>
+          <div class="top">
+            <span class="letter">A</span>
+            <div><h3>ป้ายบอกทาง</h3><p>อ่านป้าย → ทำตาม → จบ</p></div>
+          </div>
+          <div class="shotwrap" aria-hidden="true">
+            <div class="shot"><iframe src="a-signs.html?embed=1#owner-home" title="ตัวอย่างแบบ A" scrolling="no" tabindex="-1"></iframe></div>
+          </div>
+          <div class="body">
+            <p class="line"><b>เหมาะกับ</b>เจ้าหน้าที่ · แอดมิน · จอใหญ่หน้างาน</p>
+            <p class="line"><b>จุดแข็ง</b>ขั้นตอนเป็นป้าย ตัวอักษรใหญ่ ทุกจอมีทางออก</p>
+            <p class="line"><b>แลกกับ</b>ดูเป็นทางการกว่าเพื่อน</p>
+            <a class="open" href="a-signs.html#owner-home">เปิดโปรโตไทป์ A <span>→</span></a>
+          </div>
+        </article>
+
+        <article class="card" style="--accent:var(--b-deep);--shotbg:#dccfb6">
+          <div class="stripe"></div>
+          <div class="top">
+            <span class="letter">B</span>
+            <div><h3>ตู้จริง</h3><p>เห็นตู้ = รู้สถานะ</p></div>
+          </div>
+          <div class="shotwrap" aria-hidden="true">
+            <div class="shot"><iframe src="b-mailbox.html?embed=1#owner-home" title="ตัวอย่างแบบ B" scrolling="no" tabindex="-1"></iframe></div>
+          </div>
+          <div class="body">
+            <p class="line"><b>เหมาะกับ</b>เจ้าของบ้าน · เด็ก · ผู้สูงอายุ</p>
+            <p class="line"><b>จุดแข็ง</b>รูปตู้เปลี่ยนท่าแทนตัวเลข ปุ่มนูนเหมือนของจริง</p>
+            <p class="line"><b>แลกกับ</b>ใช้พื้นที่แนวตั้งมากกว่าปกติ</p>
+            <a class="open" href="b-mailbox.html#owner-home">เปิดโปรโตไทป์ B <span>→</span></a>
+          </div>
+        </article>
+
+        <article class="card" style="--accent:var(--c);--shotbg:#e7e7e1">
+          <div class="stripe"></div>
+          <div class="top">
+            <span class="letter">C</span>
+            <div><h3>ปุ่มเดียว</h3><p>หนึ่งจอ หนึ่งปุ่ม</p></div>
+          </div>
+          <div class="shotwrap" aria-hidden="true">
+            <div class="shot"><iframe src="c-kiosk.html?embed=1#owner-home" title="ตัวอย่างแบบ C" scrolling="no" tabindex="-1"></iframe></div>
+          </div>
+          <div class="body">
+            <p class="line"><b>เหมาะกับ</b>ผู้ใช้ครั้งแรก · สายตาไม่ดี · หน้างาน</p>
+            <p class="line"><b>จุดแข็ง</b>ปุ่มหลักอยู่ตำแหน่งเดิม 18px ไม่มีเมนูซ่อน</p>
+            <p class="line"><b>แลกกับ</b>ข้อมูลรองต้องกดเข้าไปดู</p>
+            <a class="open" href="c-kiosk.html#owner-home">เปิดโปรโตไทป์ C <span>→</span></a>
+          </div>
+        </article>
+      </div>
+
+      <p class="note">ทุกการ์ดเป็นหน้าจอจริงที่ฝังมา — กด “เปิดโปรโตไทป์” เพื่อสลับได้ทั้ง 104 หน้า · ลองกดค้าง SOS, เปลี่ยนโหมดตัวอักษร, สลับกลางคืน/สว่าง และกลับด้วยปุ่มย้อนกลับของเบราว์เซอร์</p>
+    </div>
+  </section>
+
+  <section class="pad" id="compare">
+    <div class="wrap">
+      <div class="sechead">
+        <div class="left"><span class="num">02 / 03</span><h2>เทียบกัน<br>แบบไม่เข้าข้าง</h2></div>
+        <p>ความต่างที่วัดได้ ไม่ใช่แค่ความสวย — ขนาดปุ่ม จำนวนการตัดสินใจ วิธีบอกสถานะ และจุดที่คนมักพลาด</p>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr><th scope="col">เกณฑ์</th><th scope="col"><span class="dot a"></span>A · ป้ายบอกทาง</th><th scope="col"><span class="dot b"></span>B · ตู้จริง</th><th scope="col"><span class="dot c"></span>C · ปุ่มเดียว</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">การนำทาง</th><td>ป้ายรหัสหน้า + เส้นขั้นตอน</td><td>แท็บลิ้นชัก + รูปตู้</td><td>ปุ่มเดียว + ย้อนกลับมุมซ้าย</td></tr>
+            <tr><th scope="row">ตัวอักษรเนื้อหา</th><td><b>17px</b> · หัวข้อ 25px</td><td><b>17px</b> · หัวข้อ 25px</td><td><b>18–19px</b> · หัวข้อ 27px</td></tr>
+            <tr><th scope="row">ปุ่มหลัก</th><td>66–88px</td><td>70px + ขอบล่าง 6px</td><td>74px ตำแหน่งเดิมทุกจอ</td></tr>
+            <tr><th scope="row">บอกสถานะ</th><td>คำ + แถบสี + ไอคอน</td><td>รูปตู้ + ธง + ตราประทับ</td><td>ประโยคเดียว + เส้นสี</td></tr>
+            <tr><th scope="row">SOS</th><td>จอเฉพาะ + กดค้าง 3 วิ</td><td>ปุ่มนูนกลางจอ + กดค้าง</td><td>ปุ่มแดง + นับ 3–2–1</td></tr>
+            <tr><th scope="row">งานแอดมิน</th><td>ตารางจริงบนจอกว้าง</td><td>การ์ด/ตารางแบบหน้างาน</td><td>รายการอ่านง่าย ไม่มีตารางแน่น</td></tr>
+            <tr><th scope="row">จุดที่พลาดง่าย</th><td>ป้ายเยอะถ้าไม่คุมลำดับ</td><td>จอยาวถ้ามีหลายการ์ด</td><td>ข้อมูลเปรียบเทียบต้องกดเพิ่ม</td></tr>
+            <tr><th scope="row">ความมั่นใจของผู้ใช้ใหม่</th><td>สูง</td><td>สูงมาก</td><td>สูงที่สุด</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="pad" id="rules">
+    <div class="wrap">
+      <div class="sechead">
+        <div class="left"><span class="num">03 / 03</span><h2>เกณฑ์เดียว<br>ที่ใช้ตัดสิน</h2></div>
+        <p>ไม่ใช่ “สวยแบบไหน” แต่คือ “คน 9 ขวบที่อ่านช้าที่สุด กับคน 60 ปีที่สายตาไม่ดีที่สุด ทำได้โดยไม่มีใครสอนหรือไม่”</p>
+      </div>
+      <div class="rules">
+        <div class="rule"><span class="n">01</span><div><h3>หนึ่งจอ หนึ่งการตัดสินใจ</h3><p>ทุกจอมีปุ่มหลักเพียงปุ่มเดียว ที่เหลือเป็นทางเลือก-secondary ที่ไม่แย่งสายตา</p></div></div>
+        <div class="rule"><span class="n">02</span><div><h3>คำก่อนไอคอน</h3><p>ไม่มีไอคอนลอยเดี่ยว ๆ ที่ต้องเดา — ทุกไอคอนมีป้ายกำกับ และป้ายต้องอ่านออกที่ 13px</p></div></div>
+        <div class="rule"><span class="n">03</span><div><h3>ตัวอักษร 17–19px</h3><p>เนื้อหาไม่ต่ำกว่า <code>17px</code> · ปุ่ม <code>19px</code> · บรรทัดยาวไม่เกิน 34 ตัวอักษรในโหมดง่าย</p></div></div>
+        <div class="rule"><span class="n">04</span><div><h3>เป้าสัมผัส 56–88px</h3><p>ไม่มีปุ่มเล็กกว่า <code>44px</code> · แถวรายการขั้นต่ำ <code>64px</code> · เว้นช่องว่างระหว่างปุ่มที่ทำลายข้อมูล</p></div></div>
+        <div class="rule"><span class="n">05</span><div><h3>สถานะเป็นประโยค</h3><p>ไม่ใช้สีหรือตัวเลขเดี่ยว — “ตู้ทำงานปกติ” มาก่อน “86%” และมีคำอธิบายว่าต้องทำอะไรต่อ</p></div></div>
+        <div class="rule"><span class="n">06</span><div><h3>ทางออกต้องมองเห็น</h3><p>ย้อนกลับ/ยกเลิก/ปิด อยู่ทุกจอ ไม่มี gesture ซ่อน ไม่มีปัดเพื่อลบ ไม่มีหน้าจอที่ออกไม่ได้</p></div></div>
+        <div class="rule"><span class="n">07</span><div><h3>ฉุกเฉินต้องมีคนรับ</h3><p>SOS = กดค้าง 3 วิ → บอกว่าใครรับ → ถ้าไม่มีเจ้าหน้าที่ ให้โทร 191/1669 ทันที พร้อมปุ่มโทร</p></div></div>
+        <div class="rule"><span class="n">08</span><div><h3>ข้อมูลเทคนิคซ่อนได้ ไม่ใช่หาย</h3><p>โหมดละเอียดเข้าถึงรหัส/เวลา/แบตได้ แต่โหมดง่ายเห็นเฉพาะสิ่งที่ต้องทำ</p></div></div>
+      </div>
+      <div class="avoid">
+        <b>ไม่ทำ</b>
+        <p>
+          <span>✕ gradient ม่วงบนพื้นขาว</span>
+          <span>✕ glassmorphism</span>
+          <span>✕ ไอคอนเดี่ยวไม่มีป้าย</span>
+          <span>✕ ปุ่มเล็กกว่า 44px</span>
+          <span>✕ สถานะด้วยสีอย่างเดียว</span>
+          <span>✕ auto-carousel ที่ต้องรอ</span>
+          <span>✕ ตัวเลขเทคนิคในโหมดง่าย</span>
+          <span>✕ ปัด/กดค้างแบบซ่อน (ยกเว้น SOS ที่มีป้ายบอก)</span>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="pad" id="coverage">
+    <div class="wrap">
+      <div class="sechead">
+        <div class="left"><span class="num">04 / 05</span><h2>ครบทุกหน้า<br>แล้วทุกหน้ามาอยู่ตรงไหน</h2></div>
+        <p>ไม่ได้ทำแค่หน้าหลัก — ทั้ง 104 หน้าจอต่อแบบ ครอบทุกบทบาท ทุกสถานะสำคัญ และทุกงานที่คนใช้จริงในแต่ละวัน</p>
+      </div>
+
+      <div class="counts">
+        <div class="count"><b>104</b><span>หน้าจอที่กดเล่นได้ · ต่อ 1 ทิศทาง</span></div>
+        <div class="count"><b>312</b><span>หน้าจอรวมทั้ง 3 ทิศทาง</span></div>
+        <div class="count"><b>99</b><span>รหัสหน้าจอใน registry ที่แมปกับ pattern ชุดนี้</span></div>
+      </div>
+
+      <div class="tablewrap coverage">
+        <table>
+          <thead><tr><th scope="col">กลุ่ม</th><th scope="col">รหัส wireframe</th><th scope="col">จอต้นแบบที่เปิดได้</th></tr></thead>
+          <tbody>
+            <tr>
+              <th scope="row">เจ้าของบ้าน</th>
+              <td><span class="code">H03</span><span class="code">H03-b/c/d/L</span><span class="code">H08</span><span class="code">H09</span><span class="code">H10</span><span class="code">H11</span><span class="code">H11-b</span><span class="code">H12</span><span class="code">H12-b</span><span class="code">H12-c</span><span class="code">H12-d/e</span><span class="code">H13</span><span class="code">H13-b/c/d</span><span class="code">H14</span><span class="code">H16</span></td>
+              <td><a href="a-signs.html#owner-home">หน้าหลัก</a> · <a href="a-signs.html#owner-empty">เริ่มใช้ตู้</a> · <a href="a-signs.html#sos-hold">SOS กดค้าง</a> · <a href="a-signs.html#sos-sending">กำลังส่ง</a> · <a href="a-signs.html#sos-accepted">มีคนรับ</a> · <a href="a-signs.html#sos-no-officer">ไม่มีเจ้าหน้าที่</a> · <a href="a-signs.html#owner-history">ประวัติ</a> · <a href="a-signs.html#owner-inspection">ตรวจ</a> · <a href="a-signs.html#owner-delivery">ของมาส่ง</a> · <a href="a-signs.html#owner-settings">ตั้งค่า</a> · <a href="a-signs.html#owner-wifi">Wi-Fi</a> · <a href="a-signs.html#owner-technician">เรียกช่าง</a> · <a href="a-signs.html#owner-agencies">หน่วยงานใกล้บ้าน</a> · <a href="a-signs.html#owner-notifications">แจ้งเตือน</a></td>
+            </tr>
+            <tr>
+              <th scope="row">เจ้าหน้าที่</th>
+              <td><span class="code">O01</span><span class="code">O01-b/c/d/e/N</span><span class="code">O02</span><span class="code">O02-b/c</span><span class="code">O03</span><span class="code">O04</span><span class="code">O04-b</span><span class="code">O05</span><span class="code">O06</span><span class="code">O06-c</span><span class="code">O08</span><span class="code">O09</span><span class="code">O10</span><span class="code">O11</span><span class="code">O12</span><span class="code">O13</span><span class="code">O14</span><span class="code">O15</span><span class="code">O16</span></td>
+              <td><a href="a-signs.html#officer-home">หน้าสรุป</a> · <a href="a-signs.html#officer-scan">สแกน</a> · <a href="a-signs.html#officer-code">พิมพ์รหัส</a> · <a href="a-signs.html#officer-badge">QR ประจำตัว</a> · <a href="a-signs.html#officer-done">ตรวจแล้ว</a> · <a href="a-signs.html#officer-sos-list">รายการ SOS</a> · <a href="a-signs.html#officer-sos-case">รับเรื่อง</a> · <a href="a-signs.html#officer-sos-close">ปิดเรื่อง</a> · <a href="a-signs.html#officer-history">ประวัติ</a> · <a href="a-signs.html#officer-box">รายละเอียดตู้</a></td>
+            </tr>
+            <tr>
+              <th scope="row">หัวหน้าหน่วยงาน</th>
+              <td><span class="code">L04</span><span class="code">L05</span><span class="code">L05-b</span><span class="code">L06</span><span class="code">L07</span><span class="code">L07-b/c</span><span class="code">L08</span><span class="code">L09</span><span class="code">L10</span><span class="code">L11</span><span class="code">L02/L03</span><span class="code">L01</span></td>
+              <td><a href="a-signs.html#head-home">ภาพรวมทีม</a> · <a href="a-signs.html#head-members">สมาชิก</a> · <a href="a-signs.html#head-zones">โซน</a> · <a href="a-signs.html#head-log">บันทึกการตรวจ</a> · <a href="a-signs.html#head-settings">ตั้งค่า</a></td>
+            </tr>
+            <tr>
+              <th scope="row">แอดมิน / ช่าง</th>
+              <td><span class="code">D01–D17</span><span class="code">T01</span><span class="code">T02</span><span class="code">T02-b/c</span></td>
+              <td><a href="a-signs.html#admin-home">ภาพรวมระบบ</a> · <a href="a-signs.html#admin-boxes">ตู้ทั้งหมด</a> · <a href="a-signs.html#admin-box">รายละเอียดตู้</a> · <a href="a-signs.html#admin-qr">สุขภาพ QR</a> · <a href="a-signs.html#admin-users">ผู้ใช้</a> · <a href="a-signs.html#admin-system">ระบบ</a></td>
+            </tr>
+            <tr>
+              <th scope="row">ไรเดอร์</th>
+              <td><span class="code">R01</span><span class="code">R02</span><span class="code">R03</span><span class="code">R03-b</span><span class="code">R03-c</span><span class="code">R04</span></td>
+              <td><a href="a-signs.html#rider-code">พิมพ์รหัส</a> · <a href="a-signs.html#rider-confirm">ยืนยันส่ง</a> · <a href="a-signs.html#rider-done">ส่งแล้ว</a> · <a href="a-signs.html#rider-invalid">รหัสผิด</a></td>
+            </tr>
+            <tr>
+              <th scope="row">เข้าสู่ระบบ / สมัคร</th>
+              <td><span class="code">A01–A16</span><span class="code">L01/L02/L03</span></td>
+              <td><a href="a-signs.html#auth-signin">เข้าสู่ระบบ</a> · <a href="a-signs.html#auth-choose">เลือกประเภท</a> · <a href="a-signs.html#auth-signup">สมัคร</a> · <a href="a-signs.html#auth-activate">ผูกตู้</a></td>
+            </tr>
+            <tr>
+              <th scope="row">ใช้ร่วมกัน</th>
+              <td><span class="code">NotifSettings</span><span class="code">ModePicker</span><span class="code">ErrOffline</span><span class="code">ErrNoAccess</span><span class="code">ErrSession</span><span class="code">MyData</span></td>
+              <td><a href="a-signs.html#notif-settings">ตั้งค่าแจ้งเตือน</a> · <a href="a-signs.html#display">แบบการใช้งาน</a> · <a href="a-signs.html#error-offline">ออฟไลน์</a> · <a href="a-signs.html#error-404">ไม่พบหน้า</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">หน้าที่เป็น “สถานะย่อยของจอเดียวกัน” (เช่น O02-c ขอสิทธิ์กล้อง, H12-d ตู้ไม่ออนไลน์) ใช้โครงเดียวกับหน้าหลักของกลุ่มและแสดงเป็น state ในการไหลของงาน · <b>H15 สมาชิกในบ้าน</b> ยังเป็นข้อเสนอ ไม่อยู่ในขอบเขตผลิตภัณฑ์รอบนี้ · หน้า Error/Session และ MyData ใช้ pattern กลาง</p>
+      <p class="note" style="border-left-color:#0b57d0"><a href="system.html" style="font-weight:800;border-bottom:1px solid #12140f">เปิดภาคผนวก: token สี · ตาราง contrast · โหมดกลางคืน · สารบัญทั้ง 104 จอ →</a></p>
+    </div>
+  </section>
+
+  <section class="pad" id="choose">
+    <div class="wrap">
+      <div class="sechead">
+        <div class="left"><span class="num">05 / 05</span><h2>เลือกแบบไหน<br>สำหรับบ้านคุณ</h2></div>
+        <p>ทั้งสามแบบพร้อมใช้ ไม่มีอันไหน “ถูกที่สุด” — ขึ้นกับว่าคนที่คุณกลัวว่าเขาจะกดพลาดคือใคร</p>
+      </div>
+      <div class="choose">
+        <div class="qbox">
+          <div class="q">ถ้าคนหลักคือเจ้าของบ้านสูงอายุ</div>
+          <h3>เริ่มที่ B หรือ C</h3>
+          <p>B ให้ความมั่นใจด้วยรูปตู้ที่เปลี่ยนท่า — เห็นปุ๊บรู้ปั๊บว่ามีจดหมายหรือมีปัญหา<br>C ให้ความเรียบง่ายที่สุดเมื่อต้องทำครั้งแรกโดยไม่มีใครช่วย</p>
+          <span class="pick">แนะนำ C สำหรับ onboarding</span>
+        </div>
+        <div class="qbox">
+          <div class="q">ถ้าต้องรองรับเจ้าหน้าที่และแอดมิน</div>
+          <h3>ใช้ A เป็นภาษากลาง</h3>
+          <p>ตารางจริงบนจอกว้าง ป้ายขั้นตอนชัด และตัวอักษรใหญ่พอสำหรับใช้งานกลางแดด<br>เหมาะกับทีมที่ทำงานเร็วและต้องเห็นข้อมูลหลายอย่างพร้อมกัน</p>
+          <span class="pick">แนะนำ A สำหรับทีมปฏิบัติการ</span>
+        </div>
+        <div class="qbox">
+          <div class="q">ถ้าจะเปิดนำร่องหมู่บ้านเดียว</div>
+          <h3>เริ่ม C แล้วขยายเป็น B</h3>
+          <p>C ลดความผิดพลาดในช่วงแรกและเก็บ feedback ได้ตรงที่สุด<br>เมื่อผู้ใช้คุ้นแล้ว ค่อยเพิ่มความอบอุ่นและบริบทของ B ในหน้าหลัก</p>
+          <span class="pick">แนะนำ C → B</span>
+        </div>
+      </div>
+      <div class="recommend">
+        <div class="big">?</div>
+        <div>
+          <h3>ข้อเสนอตรง ๆ: ใช้ C กับ SOS/onboarding · B กับหน้าหลักเจ้าของบ้าน · A กับเจ้าหน้าที่/แอดมิน</h3>
+          <p>ทั้งสามแบบใช้ token ชุดเดียวกัน (สี แดงหม่น แดงฉุกเฉิน เขียวสำเร็จ เทากลาง) และโครงข้อมูลเดียวกัน จึงผสมได้โดยไม่กลายเป็นสามผลิตภัณฑ์ — แต่ถ้าต้องเลือกหนึ่งแบบทั้งระบบ <b>ผมเลือก C</b> เพราะเป็นแบบเดียวที่คน 60 ปีใช้ได้โดยไม่ต้องมีใครนั่งข้าง</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <h3>SMMB · ข้อเสนอ UX/UI 3 ทิศทาง</h3>
+      <p>โปรโตไทป์ HTML/CSS/JS ไม่ผูกกับ Angular · ข้อมูลตัวอย่างทั้งหมดเป็นข้อมูลสมมติ · โครงสร้างหน้าอ้างจาก <code>screens/registry.ts</code> และ flow จริงของระบบ · พร้อมแปลงเป็น design token + คอมโพเนนต์ Angular ในขั้นถัดไป</p>
+    </div>
+    <div class="links" aria-label="ลิงก์โปรโตไทป์">
+      <a href="a-signs.html#owner-home">A · ป้ายบอกทาง</a>
+      <a href="b-mailbox.html#owner-home">B · ตู้จริง</a>
+      <a href="c-kiosk.html#owner-home">C · ปุ่มเดียว</a>
+    </div>
+  </div>
+  <div class="wrap fine">หากเปิดจากโฟลเดอร์ในเครื่อง ต้องเปิดทั้งโฟลเดอร์ <b>ux-redesign</b> เพื่อให้ <code>screens.js</code> โหลดได้ · แนะนำเปิดผ่าน local server ถ้าเบราว์เซอร์บล็อกไฟล์ท้องถิ่น</div>
+</footer>
+
+</body>
+</html>
+

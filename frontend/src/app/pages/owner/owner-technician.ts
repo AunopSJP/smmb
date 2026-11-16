@@ -8,7 +8,7 @@ import { screenUrl } from '../../screens/registry';
 import { BoxPicker } from '../../shared/box-picker';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
-import { bkkClock } from '../../core/time';
+import { bkkClock, fmtWhen } from '../../core/time';
 
 @Component({
   selector: 'app-owner-technician',
@@ -85,7 +85,9 @@ import { bkkClock } from '../../core/time';
             <span class="done-ic"><app-icon name="check" [size]="26" /></span>
             <div>
               <strong>{{ i18n.t({ th: 'ช่างทำเสร็จแล้ว', en: 'The technician has finished' }) }}</strong>
-              <span class="muted small block">{{ done.scheduled_at ? i18n.t({ th: 'นัด ', en: 'Appointment ' }) + dateTime(done.scheduled_at) : i18n.t({ th: 'ส่งเมื่อ ', en: 'Sent ' }) + dateTime(done.created_at) }} · {{ reasonLabel(done.reason) }}</span>
+              <!-- C7: แยก "นัด …" กับ "สาเหตุ" คนละบรรทัด ไม่ติดกันเป็นพืด -->
+              <span class="muted small block">{{ done.scheduled_at ? i18n.t({ th: 'นัด ', en: 'Appointment ' }) + dateTime(done.scheduled_at) : i18n.t({ th: 'ส่งเมื่อ ', en: 'Sent ' }) + dateTime(done.created_at) }}</span>
+              <span class="muted small block">{{ reasonLabel(done.reason) }}</span>
               @if (done.admin_note) { <span class="small block">{{ done.admin_note }}</span> }
               <span class="muted small block">{{ i18n.t({ th: 'งานนี้ใช้ได้ปกติไหม?', en: 'Did this fix work?' }) }}</span>
               @if (done.owner_result === 'ok') {
@@ -120,7 +122,7 @@ import { bkkClock } from '../../core/time';
       color: var(--ok);
     }
     h1 {
-      font-size: 1.375rem;
+      font-size: var(--fs-lg);
     }
     .center {
       text-align: center;
@@ -129,9 +131,9 @@ import { bkkClock } from '../../core/time';
       display: block;
       margin-block-start: 2px;
       padding: 12px;
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       text-align: center;
-      font-size: 0.9375rem;
+      font-size: var(--fs-base);
       font-weight: 600;
       color: var(--text-muted);
       text-decoration: none;
@@ -144,7 +146,7 @@ import { bkkClock } from '../../core/time';
     }
     .field { display: flex; flex-direction: column; gap: 8px; }
     .field select, .field textarea { inline-size: 100%; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text); background: var(--surface); font: inherit; }
-    .choice { display: flex; align-items: center; gap: 12px; min-block-size: 48px; padding: 10px 12px; border-radius: 12px; font-weight: 600; cursor: pointer; }
+    .choice { display: flex; align-items: center; gap: 12px; min-block-size: 48px; padding: 10px 12px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; }
     @media (hover: hover) {
       .choice:hover { background: var(--icon-bg); }
     }
@@ -156,9 +158,9 @@ import { bkkClock } from '../../core/time';
       gap: 6px;
       justify-content: center;
       span {
-        font-size: 0.75rem;
+        font-size: var(--fs-xs);
         padding: 3px 10px;
-        border-radius: 999px;
+        border-radius: var(--radius-lg);
         background: var(--icon-bg);
         color: var(--text-muted);
       }
@@ -174,7 +176,7 @@ import { bkkClock } from '../../core/time';
       gap: 6px;
       border: 2px solid var(--brand);
       box-shadow: none;
-      .when { font-size: 1.3125rem; }
+      .when { font-size: var(--fs-lg); }
     }
     .tl {
       margin: 0;
@@ -210,12 +212,12 @@ import { bkkClock } from '../../core/time';
         border-radius: 50%;
         background: var(--icon-bg);
         color: var(--text-muted);
-        font-size: 0.75rem;
+        font-size: var(--fs-xs);
         font-weight: 700;
       }
       .done .d { background: var(--ok); color: var(--surface); }
       b, small { display: block; }
-      small { color: var(--text-muted); font-size: 0.8125rem; }
+      small { color: var(--text-muted); font-size: var(--fs-sm); }
     }
     .done-note {
       display: flex;
@@ -241,18 +243,12 @@ import { bkkClock } from '../../core/time';
 export class OwnerTechnician {
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
-  /** เวลานัด/ส่งคำขอ — fix TZ ไทย + ภาษา ไม่พึ่ง locale ของเครื่อง */
+  /** เวลานัด/ส่งคำขอ — ใช้รูปแบบกลาง A8 (วันนี้/เมื่อวาน/วันที่ + 24 ชม.) */
   protected dateTime(iso: string | null | undefined): string {
     if (!iso) return '';
-    return new Date(iso).toLocaleString(this.i18n.lang() === 'th' ? 'th-TH' : 'en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Asia/Bangkok',
-    });
+    return fmtWhen(iso, this.i18n.lang());
   }
+
   private readonly api = inject(OwnerApi);
   private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(Toast);

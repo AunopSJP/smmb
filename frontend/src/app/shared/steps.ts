@@ -67,7 +67,7 @@ export interface Step {
       block-size: 28px;
       border-radius: 50%;
       border: 1.5px solid currentColor;
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       font-weight: 700;
     }
     li.now .num {

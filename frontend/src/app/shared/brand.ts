@@ -19,20 +19,20 @@ import { I18n } from '../core/i18n';
       padding: 8px 0 4px;
     }
     img {
-      border-radius: 9px;
+      border-radius: var(--radius-xs);
     }
     :host(.hero) {
       flex-direction: column;
       justify-content: center;
       gap: 10px;
       padding: 28px 0 12px;
-      font-size: 1.375rem;
+      font-size: var(--fs-lg);
     }
     :host(.hero) img {
-      border-radius: 20px;
+      border-radius: var(--radius-lg);
     }
     :host(.hero) small {
-      font-size: 0.9375rem;
+      font-size: var(--fs-base);
       font-weight: 400;
       color: var(--text-muted);
       text-align: center;

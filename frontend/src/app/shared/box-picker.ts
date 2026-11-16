@@ -144,7 +144,7 @@ let nextId = 0;
       flex: none;
       inline-size: 42px;
       block-size: 42px;
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       background: var(--brand-light);
       color: var(--brand-dark);
     }
@@ -156,19 +156,19 @@ let nextId = 0;
       min-inline-size: 0;
     }
     .eyebrow {
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
       color: var(--text-muted);
     }
     .txt strong {
-      font-size: 1rem;
+      font-size: var(--fs-base);
       line-height: 1.3;
       overflow-wrap: anywhere;
     }
     .meta {
-      font-size: 0.8125rem;
+      font-size: var(--fs-sm);
       line-height: 1.35;
       color: var(--text-muted);
       overflow-wrap: anywhere;
@@ -176,10 +176,10 @@ let nextId = 0;
     .count {
       flex: none;
       padding: 3px 9px;
-      border-radius: 999px;
+      border-radius: var(--radius-lg);
       background: var(--icon-bg);
       color: var(--text-muted);
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       font-weight: 700;
       font-variant-numeric: tabular-nums;
       i {
@@ -224,13 +224,13 @@ let nextId = 0;
       align-items: center;
       justify-content: space-between;
       margin: 4px 8px 6px;
-      font-size: 0.75rem;
+      font-size: var(--fs-xs);
       font-weight: 700;
       letter-spacing: 0.02em;
       color: var(--text-muted);
       span {
         padding: 1px 7px;
-        border-radius: 999px;
+        border-radius: var(--radius-lg);
         background: var(--icon-bg);
         font-variant-numeric: tabular-nums;
       }
@@ -260,7 +260,7 @@ let nextId = 0;
       flex: none;
       inline-size: 36px;
       block-size: 36px;
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       background: var(--icon-bg);
       color: var(--text-muted);
     }
@@ -271,12 +271,12 @@ let nextId = 0;
       gap: 1px;
       min-inline-size: 0;
       strong {
-        font-size: 0.9375rem;
+        font-size: var(--fs-base);
         line-height: 1.35;
         overflow-wrap: anywhere;
       }
       span {
-        font-size: 0.8125rem;
+        font-size: var(--fs-sm);
         line-height: 1.35;
         color: var(--text-muted);
         overflow-wrap: anywhere;
@@ -300,22 +300,22 @@ let nextId = 0;
         padding: 12px 14px;
       }
       .eyebrow {
-        font-size: 0.75rem;
+        font-size: var(--fs-xs);
       }
       .txt strong {
-        font-size: 1.125rem;
+        font-size: var(--fs-md);
       }
       .meta {
-        font-size: 0.875rem;
+        font-size: var(--fs-sm);
       }
       .option {
         min-block-size: 66px;
       }
       .opt-txt strong {
-        font-size: 1.0625rem;
+        font-size: var(--fs-md);
       }
       .opt-txt span {
-        font-size: 0.875rem;
+        font-size: var(--fs-sm);
       }
     }
 

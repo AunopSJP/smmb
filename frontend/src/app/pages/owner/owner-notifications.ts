@@ -14,12 +14,13 @@ import { PushStatus } from '../../shared/push-status';
   imports: [PageHeader, NotificationList, PushStatus, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="caption()" [title]="i18n.t({ th: 'การแจ้งเตือน', en: 'Notifications' })" [back]="url('H03')" />
+    <app-page-header [title]="i18n.t({ th: 'การแจ้งเตือน', en: 'Notifications' })" [back]="url('H03')" />
     <div class="stack">
       @if (easy()) {
         <p class="muted small easy-only">{{ i18n.t({ th: 'รายการล่าสุด · แตะเพื่อดูรายละเอียด', en: 'Latest items · tap to open' }) }}</p>
       }
-      <app-push-status />
+      <!-- C4: หน้าแจ้งเตือนย้อนหลัง = แถบบรรทัดเดียว (แบบเต็มอยู่ที่หน้าหลัก/ตั้งค่าการแจ้งเตือน) -->
+      <app-push-status [compact]="true" [dismissible]="true" />
       <app-notification-list />
       @if (advanced()) {
         <p class="muted small adv-only">{{ i18n.t({ th: 'เก็บในหน้านี้แม้ push ไม่ถึง · ชนิดที่ปิดรับไว้จะไม่เก็บและไม่ส่ง · SOS/ตู้มีปัญหา/QR ปลอม ปิดไม่ได้', en: 'Items stay here even if the push did not arrive. Muted types are not stored or sent. SOS, mailbox problems and fake QR alerts cannot be muted.' }) }}</p>
