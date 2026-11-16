@@ -171,6 +171,13 @@ export class AdminBoxController {
     return this.boxes.requestBeep(p.box_id, body.pattern, auth.userId);
   }
 
+  /** กลับสแตนบาย: ตู้ถือ long-poll ตลอด พร้อมรับการสแกน QR ทันที */
+  @Post('boxes/:box_id/standby')
+  @HttpCode(HttpStatus.OK)
+  requestStandby(@Auth() auth: AuthContext, @Param() p: BoxIdParam) {
+    return this.boxes.requestStandby(p.box_id, auth.userId);
+  }
+
   /** สั่งตู้ลืม Wi-Fi แล้วกลับโหมดตั้งค่า */
   @Post('boxes/:box_id/wifi-reset')
   @HttpCode(HttpStatus.OK)

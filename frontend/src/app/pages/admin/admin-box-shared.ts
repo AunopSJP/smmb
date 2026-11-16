@@ -8,8 +8,8 @@ export type Tone = '' | 'ok' | 'warn' | 'danger';
 export const LOW_BATTERY_PCT = 20;
 
 const STATUS: Record<BoxStatus, { label: Tr; tone: Tone }> = {
-  online: { label: { th: 'ออนไลน์', en: 'Online' }, tone: 'ok' },
-  sleeping: { label: { th: 'พักอยู่', en: 'Sleeping' }, tone: '' },
+  online: { label: { th: 'ออนไลน์ · พร้อมสแกน', en: 'Online · ready to scan' }, tone: 'ok' },
+  sleeping: { label: { th: 'พักอยู่ · นอกเวลาตรวจ', en: 'Sleeping · outside patrol hours' }, tone: '' },
   offline: { label: { th: 'ไม่ออนไลน์', en: 'Offline' }, tone: 'danger' },
   service_closed: { label: { th: 'ปิดบริการ', en: 'Closed' }, tone: '' },
   unbound: { label: { th: 'ยังไม่ผูก', en: 'Unbound' }, tone: '' },

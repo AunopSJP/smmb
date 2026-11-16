@@ -26,7 +26,7 @@ export const nowS = () => Math.floor(Date.now() / 1000);
 
 /** คำสั่งจากเจ้าของบ้านที่รอตู้รับ — ตอนนี้มีอย่างเดียว: ตัด Wi-Fi เก่า แล้วกลับโหมดปล่อย Wi-Fi (โปรโตคอล §2.8) */
 export interface BoxCommand {
-  type: 'wifi_reset' | 'ota' | 'beep';
+  type: 'wifi_reset' | 'ota' | 'beep' | 'standby';
   /** ใช้ตอบรับ (event wifi_reset + command_id) — เปลี่ยนทุกครั้งที่เจ้าของกดใหม่ · ota: `U-<version>` */
   id: string;
   /** เฉพาะ ota: เวอร์ชัน/ขนาด/sha256 ของเฟิร์มแวร์ที่ตู้ต้องโหลดจาก `GET /v1/box/firmware/<version>` (โปรโตคอล §2.9) */
@@ -42,6 +42,9 @@ export const BEEP_PATTERNS = ['ready', 'pass', 'retry', 'fail', 'error', 'wifi']
 export type BeepPattern = (typeof BEEP_PATTERNS)[number];
 /** คำสั่งทดสอบเสียงค้างเกินนี้ = หมดอายุ (ไม่ให้ตู้ที่เพิ่งออนไลน์ส่งเสียงเองทีหลังโดยไม่มีใครอยู่หน้างาน) */
 export const BEEP_TTL_S = 120;
+
+/** คำสั่งกลับสแตนบายค้างเกินนี้ = หมดอายุ (ตู้ออฟไลน์) */
+export const STANDBY_TTL_S = 600;
 
 /** ค้างเกินนี้ = หมดอายุ (ตู้ออฟไลน์/ปิดอยู่) ไม่ส่งให้ตู้อีก · เจ้าของต้องกดใหม่ */
 export const WIFI_RESET_TTL_H = 24;
@@ -132,6 +135,13 @@ export class BoxProtocolService {
       [boxId, BEEP_TTL_S],
     );
     if (beep.rows[0]) return { type: 'beep', id: `B-${beep.rows[0].at}`, pattern: beep.rows[0].pattern };
+    const standby = await this.pool.query<{ at: string }>(
+      `SELECT floor(extract(epoch FROM standby_requested_date))::bigint::text AS at
+       FROM app.box_tb
+       WHERE box_id = $1 AND standby_requested_date IS NOT NULL AND standby_requested_date > now() - make_interval(secs => $2)`,
+      [boxId, STANDBY_TTL_S],
+    );
+    if (standby.rows[0]) return { type: 'standby', id: `S-${standby.rows[0].at}` };
     const offer = await this.firmware.offerFor(boxId);
     return offer ? { type: 'ota', id: `U-${offer.version}`, ...offer } : null;
   }
@@ -143,6 +153,17 @@ export class BoxProtocolService {
       `UPDATE app.box_tb SET beep_requested_date = NULL, beep_done_date = now()
        WHERE box_id = $1 AND beep_requested_date IS NOT NULL
          AND 'B-' || floor(extract(epoch FROM beep_requested_date))::bigint::text = $2`,
+      [boxId, commandId],
+    );
+  }
+
+  /** ตู้ตอบรับว่ากลับสแตนบายแล้ว · ตอบซ้ำ/คำสั่งเก่า/หมดอายุ = ไม่ทำอะไร */
+  private async completeStandby(boxId: string, commandId: unknown): Promise<void> {
+    if (typeof commandId !== 'string' || !/^S-\d+$/.test(commandId)) return;
+    await this.pool.query(
+      `UPDATE app.box_tb SET standby_requested_date = NULL, standby_done_date = now()
+       WHERE box_id = $1 AND standby_requested_date IS NOT NULL
+         AND 'S-' || floor(extract(epoch FROM standby_requested_date))::bigint::text = $2`,
       [boxId, commandId],
     );
   }
@@ -177,6 +198,7 @@ export class BoxProtocolService {
     await this.pool.query(`UPDATE app.box_tb SET last_seen_date = now() WHERE box_id = $1`, [boxId]);
     if (body.type === 'wifi_reset') await this.completeWifiReset(boxId, body.command_id);
     if (body.type === 'beep') await this.completeBeep(boxId, body.command_id);
+    if (body.type === 'standby') await this.completeStandby(boxId, body.command_id);
     return { server_time: nowS(), config_ver: (await this.configs.forBox(boxId)).ver };
   }
 

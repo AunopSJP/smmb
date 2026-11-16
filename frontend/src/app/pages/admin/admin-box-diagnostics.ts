@@ -12,6 +12,23 @@ import { seenText } from './admin-box-shared';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let b = box();
+        <h2 class="section-title">{{ i18n.t({ th: 'กลับสแตนบาย', en: 'Back to standby' }) }}</h2>
+        <section class="card stack">
+          <p class="muted small">{{ i18n.t({ th: 'ตู้จะต่อ Wi-Fi และถือการเชื่อมต่อค้างไว้ตลอด เพื่อให้สแกน QR หน้าตู้แล้วทำงานทันที · ตู้ต้องออนไลน์ · หมดอายุใน 10 นาที', en: 'The box stays connected to Wi-Fi and listening, so a QR scan works at once · must be online · expires in 10 min' }) }}</p>
+          <button type="button" class="btn" [disabled]="standbyBusy()" (click)="goStandby()">{{ i18n.t({ th: 'กลับสแตนบาย', en: 'Back to standby' }) }}</button>
+          @switch (b.standby.status) {
+            @case ('pending') {
+              <p class="status warn" role="status">{{ i18n.t({ th: 'ส่งคำสั่งแล้ว รอตู้รับ… (หมดอายุใน 10 นาที)', en: 'Sent — waiting for the box… (expires in 10 min)' }) }}</p>
+            }
+            @case ('done') {
+              <p class="status ok" role="status">{{ i18n.t({ th: 'ตู้ตอบรับแล้ว พร้อมสแกน QR · ', en: 'The box confirmed standby, ready to scan · ' }) }}{{ i18n.t(seen(b.standby.done_at)) }}</p>
+            }
+            @case ('expired') {
+              <p class="status danger" role="alert">{{ i18n.t({ th: 'ตู้ไม่รับคำสั่งภายใน 10 นาที — ตู้ออนไลน์อยู่ไหม?', en: 'The box did not take it within 10 min — is it online?' }) }}</p>
+            }
+          }
+        </section>
+
         <h2 class="section-title">{{ i18n.t({ th: 'ทดสอบเสียง Buzzer', en: 'Buzzer test' }) }}</h2>
         <section class="card stack">
           <p class="muted small">{{ i18n.t({ th: 'กดแล้วตู้ที่ออนไลน์จะส่งเสียงตามรูปแบบนั้นทันที (ต้องยืนอยู่ใกล้ตู้) · ใช้ตรวจสอบว่าลำโพง/ขาต่อทำงาน และให้ช่างรู้จักความหมายของเสียงแต่ละแบบ', en: 'The online box plays that pattern right away (stand near it) · checks the buzzer wiring and teaches what each sound means' }) }}</p>
@@ -127,6 +144,7 @@ export class AdminBoxDiagnostics {
   protected readonly seen = seenText;
 
   protected readonly beepBusy = signal(false);
+  protected readonly standbyBusy = signal(false);
   /** รูปแบบเสียง (ตรงกับโปรโตคอล §2.5 และข้อความในแอปเจ้าหน้าที่) */
   protected readonly beepPatterns: { v: BeepPattern; label: Tr; sound: Tr }[] = [
     { v: 'ready', label: { th: 'พร้อม / ได้งาน', en: 'Ready' }, sound: { th: 'สั้น 1 ครั้ง', en: 'short ×1' } },
@@ -138,6 +156,20 @@ export class AdminBoxDiagnostics {
   ];
   protected beepName(p: BeepPattern | null): Tr {
     return this.beepPatterns.find((x) => x.v === p)?.label ?? { th: '', en: '' };
+  }
+
+  protected async goStandby(): Promise<void> {
+    const id = this.box().id;
+    if (!id || this.standbyBusy()) return;
+    this.standbyBusy.set(true);
+    try {
+      await this.api.requestStandby(id);
+      this.changed.emit();
+    } catch {
+      this.toast.show({ th: 'สั่งกลับสแตนบายไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Could not send standby — check your connection and try again' });
+    } finally {
+      this.standbyBusy.set(false);
+    }
   }
 
   protected async testBeep(pattern: BeepPattern): Promise<void> {

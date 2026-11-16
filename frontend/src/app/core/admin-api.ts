@@ -43,6 +43,8 @@ export interface AdminBoxRow {
   buzzer: { status: 'pending' | 'expired' | 'done' | null; pattern: BeepPattern | null; requested_at: string | null; done_at: string | null };
   /** คำสั่งให้ตู้ลืม Wi-Fi แล้วกลับโหมดตั้งค่า */
   wifi_reset: { status: 'pending' | 'expired' | 'done' | null; ap_name: string; requested_at: string | null; done_at: string | null };
+  /** กลับสแตนบาย (ถือ long-poll รอสแกน QR) */
+  standby: { status: 'pending' | 'expired' | 'done' | null; requested_at: string | null; done_at: string | null };
 }
 
 export type BeepPattern = 'ready' | 'pass' | 'retry' | 'fail' | 'error' | 'wifi';
@@ -298,6 +300,10 @@ export class AdminApi {
     return firstValueFrom(
       this.http.post<{ box_id: string; wifi_reset: boolean; ap_name: string }>(`/api/v1/admin/boxes/${encodeURIComponent(id)}/unbind`, { reason, reset_wifi: resetWifi }),
     );
+  }
+  /** กลับสแตนบาย: ตู้ถือ long-poll ตลอดและพร้อมรับการสแกน QR (ตู้ต้องออนไลน์ · หมดอายุใน 10 นาที) */
+  requestStandby(id: string): Promise<{ expires_in_s: number }> {
+    return firstValueFrom(this.http.post<{ expires_in_s: number }>(`/api/v1/admin/boxes/${encodeURIComponent(id)}/standby`, {}));
   }
   /** ทดสอบเสียง buzzer ของตู้ (ตู้ต้องออนไลน์ · หมดอายุใน 2 นาที) */
   requestBeep(id: string, pattern: BeepPattern): Promise<{ pattern: BeepPattern; expires_in_s: number }> {

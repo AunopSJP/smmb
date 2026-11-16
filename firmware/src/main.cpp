@@ -120,6 +120,13 @@ static void hookWifiReset()
   ESP.restart(); // เปิดใหม่ → ไม่มี Wi-Fi → โหมดตั้งค่า (ปล่อย MAILBOX-xxxxxx)
 }
 
+static void hookStandby()
+{
+  settings.sleep = false;
+  settingsSave();
+  beepReady();
+}
+
 static void linkSetup()
 {
   LinkHooks h;
@@ -133,6 +140,7 @@ static void linkSetup()
   h.beep = beepByName;
   h.saveConfig = settingsSaveConfig;
   h.wifiReset = hookWifiReset;
+  h.standby = hookStandby;
   linkBegin(h, FW_VERSION);
 }
 

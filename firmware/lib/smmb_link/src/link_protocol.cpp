@@ -244,6 +244,19 @@ static void handleCommand(JsonVariantConst cmd)
     return;
   }
 
+  if (strcmp(type, "standby") == 0)
+  {
+    if (!ackCommand("standby", id, 3))
+    {
+      Serial.println("[cmd] standby: ack failed — will retry on next poll");
+      return;
+    }
+    Serial.println("[cmd] standby: stay awake for QR scans");
+    if (linkHooks.standby)
+      linkHooks.standby();
+    return;
+  }
+
   if (strcmp(type, "wifi_reset") == 0)
   {
     if (!ackCommand("wifi_reset", id, 3))

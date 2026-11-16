@@ -9,7 +9,7 @@ import { BoxConfigService } from './box-config.service.js';
 import { deviceSecret, frontQrToken, newActivateToken, newPrintCode, showPrintCode } from './box-crypto.js';
 import { BoxJobService, type JobDto } from './box-job.service.js';
 import { NotificationService } from '../push/notification.service.js';
-import { BEEP_TTL_S, setupApName, WIFI_RESET_TTL_H, type BeepPattern } from './box-protocol.service.js';
+import { BEEP_TTL_S, STANDBY_TTL_S, setupApName, WIFI_RESET_TTL_H, type BeepPattern } from './box-protocol.service.js';
 import { JobHub } from './job-hub.js';
 
 export type QrSlot = 1 | 2 | 'activate';
@@ -53,6 +53,8 @@ export interface AdminBoxRow {
   wifi_reset: { status: 'pending' | 'expired' | 'done' | null; ap_name: string; requested_at: string | null; done_at: string | null };
   /** ทดสอบเสียง buzzer: pending = รอตู้รับ (หมดอายุใน 2 นาที) · expired = ตู้ไม่รับ (ออฟไลน์?) · done = ตู้ส่งเสียงแล้ว */
   buzzer: { status: 'pending' | 'expired' | 'done' | null; pattern: BeepPattern | null; requested_at: string | null; done_at: string | null };
+  /** กลับสแตนบาย (ถือ long-poll รอสแกน QR): pending = รอตู้รับ · expired = ตู้ไม่รับใน 10 นาที · done = ตู้ตอบรับแล้ว · null = ไม่เคยสั่ง */
+  standby: { status: 'pending' | 'expired' | 'done' | null; requested_at: string | null; done_at: string | null };
 }
 
 export type CameraDiagnosticState = 'started' | 'ready' | 'scan_result' | 'error';
@@ -106,6 +108,8 @@ interface BoxRow {
   beep_pattern: BeepPattern | null;
   beep_requested_date: Date | null;
   beep_done_date: Date | null;
+  standby_requested_date: Date | null;
+  standby_done_date: Date | null;
   config_override: Record<string, unknown>;
   config_ver_seen: number | null;
   created_date: Date;
@@ -115,7 +119,7 @@ interface BoxRow {
 export const FW_INSTALL_GRACE_MS = 3 * 60_000;
 
 const BOX_COLS = `box_id, house_no, name, owner_user_id, service_active, service_reason, service_changed_date, battery_pct, charging, battery_date,
-  last_seen_date, last_poll_date, fw, fw_target, fw_target_fetched_date, wifi_reset_requested_date, wifi_reset_done_date, beep_pattern, beep_requested_date, beep_done_date, config_override, config_ver_seen, created_date`;
+  last_seen_date, last_poll_date, fw, fw_target, fw_target_fetched_date, wifi_reset_requested_date, wifi_reset_done_date, beep_pattern, beep_requested_date, beep_done_date, standby_requested_date, standby_done_date, config_override, config_ver_seen, created_date`;
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 const intField = (value: unknown, max: number): number | null =>
@@ -380,6 +384,18 @@ export class AdminBoxService {
     return { ap_name: setupApName(boxId) };
   }
 
+  /** กลับสแตนบาย: ตู้รับตอน long-poll / boot / report แล้วถือ long-poll ตลอด (รอสแกน QR) · ไม่รับใน 10 นาที = หมดอายุ */
+  async requestStandby(boxId: string, adminId: string): Promise<{ expires_in_s: number }> {
+    const { rowCount } = await this.pool.query(
+      `UPDATE app.box_tb SET standby_requested_date = now(), standby_requested_by = $2 WHERE box_id = $1`,
+      [boxId, adminId],
+    );
+    if (!rowCount) throw new NotFoundException();
+    await this.pool.query(`INSERT INTO app.data_access_log_tb (actor_user_id, subject_kind, subject_id, fields) VALUES ($1, 'box', $2, '{standby_requested}')`, [adminId, boxId]);
+    this.hub.wake(boxId);
+    return { expires_in_s: STANDBY_TTL_S };
+  }
+
   /** ยกเลิกคำสั่ง "ลืม Wi-Fi" ที่ตู้ยังไม่ได้รับ (กดผิด) — ตู้รับไปแล้วยกเลิกไม่ได้ */
   async cancelWifiReset(boxId: string, adminId: string): Promise<void> {
     const { rowCount } = await this.pool.query(
@@ -561,6 +577,17 @@ export class AdminBoxService {
         pattern: r.beep_pattern,
         requested_at: r.beep_requested_date?.toISOString() ?? null,
         done_at: r.beep_done_date?.toISOString() ?? null,
+      },
+      standby: {
+        status: r.standby_requested_date
+          ? Date.now() - r.standby_requested_date.getTime() > STANDBY_TTL_S * 1000
+            ? 'expired'
+            : 'pending'
+          : r.standby_done_date
+            ? 'done'
+            : null,
+        requested_at: r.standby_requested_date?.toISOString() ?? null,
+        done_at: r.standby_done_date?.toISOString() ?? null,
       },
     };
   }
