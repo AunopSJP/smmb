@@ -42,6 +42,24 @@ describe('configVersion', () => {
     expect(configVersion({ ...cfg, windows: [['06:00', '09:30']] })).not.toBe(v);
     expect(configVersion({ ...cfg, longpoll_wait_s: 40 })).not.toBe(v);
   });
+
+  it('wifi_power_save / sleep_outside_window change the version only when switched on, and differently from each other', () => {
+    const v = configVersion(cfg);
+    const ps = configVersion({ ...cfg, wifi_power_save: true });
+    const sleep = configVersion({ ...cfg, sleep_outside_window: true });
+    expect(ps).not.toBe(v);
+    expect(sleep).not.toBe(v);
+    expect(sleep).not.toBe(ps);
+    expect(configVersion({ ...cfg, wifi_power_save: false, sleep_outside_window: false })).toBe(v); // ปิดอยู่ = ไม่กระทบ config_ver ของตู้เดิม
+  });
+});
+
+describe('sleep_outside_window override', () => {
+  it('is picked from a per-box override and is off by default', () => {
+    expect(DEFAULT_CONFIG.sleep_outside_window).toBe(false);
+    expect(resolveDefaults({}, { sleep_outside_window: true }).sleep_outside_window).toBe(true);
+    expect(resolveDefaults({ sleep_outside_window: 'yes' }).sleep_outside_window).toBe(false); // ผิดรูปแบบ = ค่าเริ่มต้น
+  });
 });
 
 describe('resolveDefaults', () => {

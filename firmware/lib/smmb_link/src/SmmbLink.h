@@ -33,6 +33,8 @@ struct BoxConfig
   uint8_t longpollWaitS = 50;
   /** ประหยัดไฟ Wi-Fi (modem sleep) — ค่าเริ่มต้นปิด (เสถียรกว่าบน Wi-Fi อ่อน) · เซิร์ฟเวอร์ตั้งเฉพาะตู้ที่สัญญาณดี */
   bool wifiPowerSave = false;
+  /** true = หลับลึกนอกเวลาตรวจ (ปิด Wi-Fi + CPU) ตื่นก่อนต้นช่วงตรวจ · false (ค่าเริ่มต้น) = ถือ long-poll ตลอด */
+  bool sleepOutsideWindow = false;
 };
 /** config ปัจจุบัน (ไลบรารีอัปเดตเองเมื่อเซิร์ฟเวอร์ส่งมา · ฝั่งแอปโหลดค่าที่จำไว้ตอนเปิดเครื่องด้วย linkParseConfig) */
 extern BoxConfig boxConfig;
@@ -83,6 +85,8 @@ struct LinkHooks
   void (*wifiReset)() = nullptr;
   /** แอดมินกด "กลับสแตนบาย" ในเว็บ (ไลบรารี ack เซิร์ฟเวอร์แล้ว): ตั้งให้ถือ long-poll ตลอด ไม่หลับลึกนอกเวลาตรวจ · บันทึกค่าถาวร */
   void (*standby)() = nullptr;
+  /** config จากเซิร์ฟเวอร์เปลี่ยน (รวม wifiPowerSave) — ฮาร์ดแวร์ตัดสินเองว่าจะเปิด/ปิด Wi-Fi modem sleep (เช่นโหมดอัตโนมัติตามสัญญาณ) · ไม่ใส่ = ใช้ค่า boxConfig.wifiPowerSave ตรง ๆ */
+  void (*wifiPowerSaveChanged)() = nullptr;
 };
 
 /** เรียกครั้งเดียวใน setup() ก่อนใช้ฟังก์ชันอื่น · fwVersion = เวอร์ชันที่รายงานเซิร์ฟเวอร์ (ต้องตรงกับชื่อไฟล์ที่อัปโหลด OTA) */
@@ -129,6 +133,8 @@ bool linkInstallFirmware(const String &version, size_t size, const String &sha25
 void linkLanOtaStart(const String &hostname);
 /** true ระหว่างกำลังรับเฟิร์มแวร์ทาง LAN — ลูปหลักควรหยุดคุยกับเซิร์ฟเวอร์ */
 bool linkLanOtaBusy();
+/** หยุดรับแฟลชผ่าน LAN (ปิด ArduinoOTA + งานตื่นทุก 20 ms ที่กินไฟ) — ภาคสนามเปิดแค่ช่วงแรกหลังเปิดเครื่อง · เรียกซ้ำได้ */
+void linkLanOtaStop();
 
 // ── ระดับล่าง (ปกติไม่ต้องใช้ — ไว้ทดสอบ/เพิ่ม endpoint) ─────────────────────────
 struct LinkResponse

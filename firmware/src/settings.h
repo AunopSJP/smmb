@@ -18,6 +18,7 @@ struct Settings
   String camSize = "qvga"; // qvga | vga | svga | xga (ปรับด้วยคำสั่ง cam size)
   uint8_t camXclk = 20;    // MHz — โหมด JPEG ใช้ 20 ได้ (ข้อมูลน้อย) · โหมดเทาดิบต้อง 10
   int8_t camAe = 0;        // -2..2 ลดค่าลบ = ภาพมืดลง (กันจอมือถือสว่างจนแสงเกิน)
+  uint8_t psMode = 0;      // Wi-Fi modem sleep: 0 = อัตโนมัติ (เปิดเมื่อสัญญาณแรง ปิดเองถ้าต่อล้มเหลว) · 1 = เปิดเสมอ · 2 = ปิดเสมอ (ค่าเซิร์ฟเวอร์ wifi_power_save=true บังคับเปิดทุกกรณี)
   bool debugCam = false;   // true = เปิดหน้าเว็บดูภาพกล้อง (ทดสอบเท่านั้น · debugview.h)
 };
 

@@ -10,12 +10,20 @@
 
 static volatile bool busy = false;
 static bool started = false;
+static volatile bool stopRequested = false;
 
 // long-poll ถือสายได้นานกว่า 10 วิ (เวลารอคำเชิญของ espota) → รับ OTA ในงานแยก ไม่ผูกกับลูปหลัก
 static void otaTask(void *)
 {
   for (;;)
   {
+    if (stopRequested && !busy)
+    {
+      ArduinoOTA.end(); // ปิดพอร์ต/mDNS แล้วจบงานนี้ (ไม่ตื่นทุก 20 ms อีก)
+      started = false;
+      stopRequested = false;
+      vTaskDelete(nullptr);
+    }
     ArduinoOTA.handle();
     vTaskDelay(pdMS_TO_TICKS(20));
   }
@@ -52,3 +60,9 @@ void linkLanOtaStart(const String &hostname)
 }
 
 bool linkLanOtaBusy() { return busy; }
+
+void linkLanOtaStop()
+{
+  if (started)
+    stopRequested = true; // งาน otaTask ปิดตัวเองในรอบถัดไป
+}

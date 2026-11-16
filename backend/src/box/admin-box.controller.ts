@@ -50,6 +50,8 @@ class BoxConfigOverrideDto {
   @IsOptional() @IsInt() @Min(CONFIG_LIMITS.longpoll_wait_s[0]) @Max(CONFIG_LIMITS.longpoll_wait_s[1]) longpoll_wait_s?: number;
   /** ประหยัดไฟ Wi-Fi ของตู้นี้ (ค่ากลางเป็นปิดเสมอ — ตั้งเฉพาะตู้ที่สัญญาณดี) */
   @IsOptional() @IsBoolean() wifi_power_save?: boolean;
+  /** หลับลึกนอกเวลาตรวจ (ประหยัดไฟมาก · นอกเวลาตรวจตู้รับคำสั่งแอดมินไม่ได้) */
+  @IsOptional() @IsBoolean() sleep_outside_window?: boolean;
 }
 
 class UnbindDto {

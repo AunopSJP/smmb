@@ -76,6 +76,8 @@ export interface BoxConfigOverride {
   longpoll_wait_s: number;
   /** ประหยัดไฟ Wi-Fi ของตู้นี้ (ไม่ตั้ง = ปิด) */
   wifi_power_save: boolean;
+  /** หลับลึกนอกเวลาตรวจ (ไม่ตั้ง = ปิด) */
+  sleep_outside_window: boolean;
 }
 
 export interface BoxConfig {
@@ -85,6 +87,7 @@ export interface BoxConfig {
   flash_when_dark: boolean;
   longpoll_wait_s: number;
   wifi_power_save?: boolean;
+  sleep_outside_window?: boolean;
   windows?: [string, string][];
 }
 

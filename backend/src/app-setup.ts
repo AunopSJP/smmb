@@ -120,6 +120,12 @@ export function configureApp(app: NestExpressApplication): void {
   if (trustProxy !== false) app.set('trust proxy', trustProxy);
   app.disable('x-powered-by');
   app.use(serverTiming());
+  // ทุกคำตอบของ API ห้ามถูกแคช (เบราว์เซอร์/พร็อกซี/CDN) — ข้อมูลเป็นรายบัญชีและต้องสดเสมอ
+  // (เดิมมีแค่ ETag ไม่มี Cache-Control → หลังแก้ข้อมูลแล้วรีเฟรช อาจเห็นของเก่าจากแคชระหว่างทาง) · route ที่ต้องแคชจริง (tile แผนที่) ตั้ง header ทับเอง
+  app.use((_req: express.Request, res: express.Response, next: express.NextFunction) => {
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  });
   const prefix = config.get('API_PATH_PREFIX', { infer: true });
   if (prefix) app.use(stripPathPrefix(prefix)); // ต้องอยู่ก่อน express.raw ของ /v1/box
 

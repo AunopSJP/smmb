@@ -17,6 +17,8 @@ void settingsLoad() {
   settings.secret = prefs.getString("secret", "");
   settings.sleep = prefs.getBool("dsleep", false);  // ค่าเริ่มต้น = ไม่หลับลึก (คีย์ใหม่ — ค่า "sleep" เก่าที่เคยเป็น true ไม่ถูกใช้)
   settings.debugCam = prefs.getBool("dbgcam", false);
+  settings.psMode = prefs.getUChar("psmode", 0);
+  if (settings.psMode > 2) settings.psMode = 0;
   // โปรไฟล์ค่ากล้อง 2 = ตามสเก็ตช์ esp32-cam-qvga15 (JPEG QVGA q12 20 MHz sharp 0) — ค่าที่จำไว้จากรุ่นทดลองก่อนหน้าไม่ถูกใช้
   if (prefs.getUChar("camprof", 0) == 2) {
     settings.camSize = prefs.getString("camsz", "qvga");
@@ -43,6 +45,7 @@ void settingsSave() {
   prefs.putString("secret", settings.secret);
   prefs.putBool("dsleep", settings.sleep);
   prefs.putBool("dbgcam", settings.debugCam);
+  prefs.putUChar("psmode", settings.psMode);
   prefs.putUChar("camprof", 2);
   prefs.putString("camsz", settings.camSize);
   prefs.putUChar("camxc", settings.camXclk);

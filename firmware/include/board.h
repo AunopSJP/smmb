@@ -1,7 +1,7 @@
 #pragma once
 // ขาและค่าคงที่ของบอร์ด ESP32-CAM (AI-Thinker) — แก้ที่นี่ที่เดียวถ้าต่อวงจรต่างไป
 
-#define FW_VERSION "0.2.15"
+#define FW_VERSION "0.2.17"
 
 // เสียง: GPIO13 (ผู้ใช้ต่อ 2026-10-28)
 // วงจร 2026-10-29: GPIO13 → TRIG ของ DUAL MOSFET OUT → ตัวส่งเสียง LTE-5061

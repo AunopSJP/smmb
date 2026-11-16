@@ -147,11 +147,20 @@ import { LOW_BATTERY_PCT, boxBadge, seenText, SLOT_LABEL } from './admin-box-sha
             <label class="field">
               <span>{{ i18n.t({ th: 'ประหยัดไฟ Wi-Fi ของตู้', en: 'Wi-Fi power saving' }) }} · {{ b.config.config['wifi_power_save'] ? i18n.t({ th: 'เปิด', en: 'on' }) : i18n.t({ th: 'ปิด', en: 'off' }) }}</span>
               <select [value]="ovPs()" (change)="ovPs.set($any($event.target).value)">
-                <option value="">{{ i18n.t({ th: 'ใช้ค่ากลาง (ปิด)', en: 'Shared value (off)' }) }}</option>
-                <option value="on">{{ i18n.t({ th: 'เปิด — ตู้ที่สัญญาณ Wi-Fi ดี (กินไฟน้อยลงมาก)', en: 'On — boxes with a good Wi-Fi signal (much lower power)' }) }}</option>
+                <option value="">{{ i18n.t({ th: 'ใช้ค่ากลาง (ปิด · เฟิร์มแวร์ 0.2.16+ ตู้ตัดสินเองตามสัญญาณ)', en: 'Shared value (off · firmware 0.2.16+ decides by signal strength)' }) }}</option>
+                <option value="on">{{ i18n.t({ th: 'เปิด — บังคับเปิดเสมอ (กินไฟน้อยลงมาก · ใช้กับตู้ที่สัญญาณ Wi-Fi ดี)', en: 'On — always on (much lower power · for boxes with a good Wi-Fi signal)' }) }}</option>
                 <option value="off">{{ i18n.t({ th: 'ปิด — ตู้ที่สัญญาณอ่อน (เสถียรกว่า)', en: 'Off — boxes with a weak signal (more stable)' }) }}</option>
               </select>
               <small>{{ i18n.t({ th: 'ตู้ยังตื่นทันทีเมื่อสแกน · ถ้าเปิดแล้วตู้หลุดออนไลน์บ่อย ให้ปิด', en: 'The box still wakes on a scan · turn it off if the box drops offline' }) }}</small>
+            </label>
+            <label class="field">
+              <span>{{ i18n.t({ th: 'หลับลึกนอกเวลาตรวจ', en: 'Deep sleep outside patrol hours' }) }} · {{ b.config.config['sleep_outside_window'] ? i18n.t({ th: 'เปิด', en: 'on' }) : i18n.t({ th: 'ปิด', en: 'off' }) }}</span>
+              <select [value]="ovSleep()" (change)="ovSleep.set($any($event.target).value)">
+                <option value="">{{ i18n.t({ th: 'ใช้ค่ากลาง (ปิด · ตู้ตื่นตลอด)', en: 'Shared value (off · box stays awake)' }) }}</option>
+                <option value="on">{{ i18n.t({ th: 'เปิด — ปิด Wi-Fi นอกเวลาตรวจ ตื่นก่อนเริ่มตรวจ 1 นาที (กินไฟน้อยลงมาก)', en: 'On — Wi-Fi off outside patrol hours, wakes 1 min before (much lower power)' }) }}</option>
+                <option value="off">{{ i18n.t({ th: 'ปิด — ตื่นตลอดเวลา', en: 'Off — always awake' }) }}</option>
+              </select>
+              <small>{{ i18n.t({ th: 'นอกเวลาตรวจตู้จะไม่รับคำสั่งจากหน้านี้ (เสียง/สแตนบาย/ตั้งค่า) จนกว่าจะตื่นรอบถัดไป · เปิดเครื่องใหม่ตื่น 15 นาทีให้ช่างทดสอบ · ตู้ใหม่รับค่านี้ตอนตื่นรอบถัดไป', en: 'Outside patrol hours the box ignores commands from this page (beep/standby/config) until its next wake-up · a fresh power-on stays awake 15 min for the installer · the box applies this on its next wake-up' }) }}</small>
             </label>
             @if (ovError(); as e) {
               <p class="danger-text small" role="alert">{{ i18n.t(e) }}</p>
@@ -408,6 +417,7 @@ export class AdminBox implements OnInit {
   protected readonly ovLongpoll = signal('');
   protected readonly ovFlash = signal('');
   protected readonly ovPs = signal('');
+  protected readonly ovSleep = signal('');
   protected readonly ovError = signal<Tr | null>(null);
   protected readonly savingOverride = signal(false);
   private ovLoadedFor: string | null = null;
@@ -471,6 +481,7 @@ export class AdminBox implements OnInit {
     this.ovLongpoll.set(o.longpoll_wait_s === undefined ? '' : String(o.longpoll_wait_s));
     this.ovFlash.set(o.flash_when_dark === undefined ? '' : o.flash_when_dark ? 'on' : 'off');
     this.ovPs.set(o.wifi_power_save === undefined ? '' : o.wifi_power_save ? 'on' : 'off');
+    this.ovSleep.set(o.sleep_outside_window === undefined ? '' : o.sleep_outside_window ? 'on' : 'off');
   }
 
   /** PUT /admin/boxes/:id/config — ส่งเฉพาะช่องที่กรอก (ช่องว่าง = ใช้ค่ากลาง) · ตู้ได้ค่าใหม่ทันทีที่ long-poll */
@@ -498,6 +509,7 @@ export class AdminBox implements OnInit {
     if (longpoll !== undefined) body.longpoll_wait_s = longpoll;
     if (this.ovFlash()) body.flash_when_dark = this.ovFlash() === 'on';
     if (this.ovPs()) body.wifi_power_save = this.ovPs() === 'on';
+    if (this.ovSleep()) body.sleep_outside_window = this.ovSleep() === 'on';
     this.savingOverride.set(true);
     try {
       await this.api.setBoxConfig(id, body);

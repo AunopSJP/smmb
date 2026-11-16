@@ -214,11 +214,18 @@ void flashOff() {
   flashOn = false;
 }
 
+/** PWDN = HIGH → เซนเซอร์ OV2640 หลับ (กินไฟต่ำมาก) · esp_camera_init ดึงลง LOW เองตอนเปิดกล้อง */
+void cameraSensorSleep() {
+  pinMode(CAM_PIN_PWDN, OUTPUT);
+  digitalWrite(CAM_PIN_PWDN, HIGH);
+}
+
 void cameraStop() {
   flashOff();
   if (!running || held) return;
   esp_camera_deinit();
   running = false;
+  cameraSensorSleep();
 }
 
 bool cameraAutoFlash(bool allowed) {

@@ -10,6 +10,8 @@ export interface BoxConfigDefaults {
   longpoll_wait_s: number;
   /** ✅ 2026-11-06 โหมดประหยัดไฟของ Wi-Fi ตู้ (modem sleep) — ตู้ถือ long-poll ตลอดอยู่แล้ว เปิดแล้วกินไฟน้อยลงมาก แต่บน Wi-Fi อ่อนอาจทำให้แพ็กเก็ตหาย · ค่าเริ่มต้นปิด (ตั้งเฉพาะตู้ที่สัญญาณดี) */
   wifi_power_save: boolean;
+  /** ✅ 2026-11-16 หลับลึกนอกเวลาตรวจ (ปิด Wi-Fi + CPU) ตื่นก่อนต้นช่วงตรวจ 60 วิ — กินไฟ ~6 mA แทน ~300 mA · แลกกับ: นอกเวลาตรวจตู้รับคำสั่งจากแอดมิน (เสียง/สแตนบาย/ตั้งค่า) ไม่ได้ จนกว่าจะตื่นรอบถัดไป · ค่าเริ่มต้นปิด */
+  sleep_outside_window: boolean;
 }
 
 /** สิ่งที่ตู้ได้ใน `config` (โปรโตคอล §2.1) */
@@ -34,6 +36,7 @@ export const DEFAULT_CONFIG: BoxConfigDefaults = {
   flash_when_dark: true,
   longpoll_wait_s: 50,
   wifi_power_save: false,
+  sleep_outside_window: false,
 };
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -44,6 +47,7 @@ export function pickOverride(raw: Record<string, unknown>): Partial<BoxConfigDef
   if (typeof raw.report_at === 'string' && HHMM.test(raw.report_at)) out.report_at = raw.report_at;
   if (typeof raw.flash_when_dark === 'boolean') out.flash_when_dark = raw.flash_when_dark;
   if (typeof raw.wifi_power_save === 'boolean') out.wifi_power_save = raw.wifi_power_save;
+  if (typeof raw.sleep_outside_window === 'boolean') out.sleep_outside_window = raw.sleep_outside_window;
   for (const key of ['scan_timeout_s', 'max_attempts', 'longpoll_wait_s'] as const) {
     const v = raw[key];
     const [min, max] = CONFIG_LIMITS[key];
@@ -59,6 +63,7 @@ export function resolveDefaults(...layers: Record<string, unknown>[]): BoxConfig
     if (typeof layer.report_at === 'string' && HHMM.test(layer.report_at)) out.report_at = layer.report_at;
     if (typeof layer.flash_when_dark === 'boolean') out.flash_when_dark = layer.flash_when_dark;
     if (typeof layer.wifi_power_save === 'boolean') out.wifi_power_save = layer.wifi_power_save;
+    if (typeof layer.sleep_outside_window === 'boolean') out.sleep_outside_window = layer.sleep_outside_window;
     for (const key of ['scan_timeout_s', 'max_attempts', 'longpoll_wait_s'] as const) {
       const v = layer[key];
       const [min, max] = CONFIG_LIMITS[key];
@@ -104,6 +109,7 @@ export function configVersion(config: BoxConfig, generation = 0): number {
     config.longpoll_wait_s,
     // ใส่เฉพาะตอนเปิด → config_ver ของตู้ที่ไม่ได้ตั้งไม่เปลี่ยน (ไม่ต้องดึงค่าใหม่ทั้งฝูง)
     ...(config.wifi_power_save ? [true] : []),
+    ...(config.sleep_outside_window ? ['sleep'] : []),
   ]);
   const n = parseInt(createHash('sha256').update(canonical).digest('hex').slice(0, 8), 16) & 0x7fffffff;
   return n === 0 ? 1 : n;
