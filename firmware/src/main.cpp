@@ -115,6 +115,7 @@ static uint32_t secondsToNextEvent(uint32_t now)
 #define TX_LOW_OFF_RSSI -66       // อ่อนกว่านี้ → กลับไป 19.5 dBm
 
 static bool lanOtaForced = false; // `ota on` ทาง serial
+static bool syncedThisWake = false; // ซิงก์นาฬิกาแล้วในรอบตื่นนี้ (รีเซ็ตทุกครั้งที่ตื่นจากหลับลึก)
 static bool txLow = false;
 static unsigned long txBlockUntil = 0; // millis() · ห้ามลดกำลังส่งจนถึงเวลานี้ (เพิ่งมีปัญหา)
 
@@ -352,7 +353,12 @@ static void sleepUntilNextEvent()
     }
     return;
   }
-  Serial.printf("[sleep] deep sleep %u s\n", s);
+  // นาฬิกาภายในของ ESP32 (RC ~150 kHz ไม่มีแบตนาฬิกา) เพี้ยนได้ ~1–3% ตอนหลับนาน (หลับ 14 ชม. เพี้ยนได้ 8–25 นาที > เผื่อ 3 นาที)
+  // จึงหลับ "ครึ่งทาง": ตื่นมาซิงก์เวลากับเซิร์ฟเวอร์ (X-Server-Time) แล้วคำนวณใหม่ · รอบสุดท้ายเหลือ ≤ 10 นาที เพี้ยนได้ไม่เกินราวครึ่งนาที
+  uint32_t sleepS = s;
+  if (s > SLEEP_HOP_FINAL_S)
+    sleepS = max<uint32_t>(s / 2, SLEEP_HOP_FINAL_S / 2);
+  Serial.printf("[sleep] deep sleep %u s (next event in %u s)\n", sleepS, s);
   Serial.flush();
   cameraStop();
   buzzerHoldOffForSleep();
@@ -363,7 +369,7 @@ static void sleepUntilNextEvent()
   rtc_gpio_hold_en((gpio_num_t)PIN_FLASH_LED);
   cameraSensorSleep();
   rtc_gpio_hold_en((gpio_num_t)CAM_PIN_PWDN); // เซนเซอร์กล้องหลับตลอดช่วงหลับลึก
-  esp_sleep_enable_timer_wakeup((uint64_t)s * 1000000ULL);
+  esp_sleep_enable_timer_wakeup((uint64_t)sleepS * 1000000ULL);
   esp_deep_sleep_start();
 }
 
@@ -797,6 +803,14 @@ void loop()
   if (shouldListen())
   {
     pollOnce();
+    return;
+  }
+  // จะหลับต่อ: ซิงก์นาฬิกา + รับ config/คำสั่งแอดมิน 1 รอบ (คำขอสั้น wait=1 → ตั้งเวลาจาก X-Server-Time) ก่อนคำนวณเวลาหลับรอบถัดไป
+  if (scheduleSleepEnabled() && !syncedThisWake)
+  {
+    syncedThisWake = true;
+    Serial.println("[sleep] sync clock before sleeping");
+    linkPollOnce(1);
     return;
   }
   sleepUntilNextEvent();

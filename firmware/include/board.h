@@ -1,7 +1,7 @@
 #pragma once
 // ขาและค่าคงที่ของบอร์ด ESP32-CAM (AI-Thinker) — แก้ที่นี่ที่เดียวถ้าต่อวงจรต่างไป
 
-#define FW_VERSION "0.2.17"
+#define FW_VERSION "0.2.18"
 
 // เสียง: GPIO13 (ผู้ใช้ต่อ 2026-10-28)
 // วงจร 2026-10-29: GPIO13 → TRIG ของ DUAL MOSFET OUT → ตัวส่งเสียง LTE-5061
@@ -37,6 +37,7 @@
 
 // โปรโตคอล (docs/HARDWARE_FIRMWARE_GUIDE.md)
 #define WIFI_CONNECT_TIMEOUT_MS 20000
-#define WAKE_BEFORE_WINDOW_S 60   // ตื่นก่อนต้นช่วงเวลาตรวจ
+#define WAKE_BEFORE_WINDOW_S 180  // ตื่นก่อนต้นช่วงเวลาตรวจ 3 นาที (เผื่อต่อ Wi-Fi ช้า + นาฬิกาเพี้ยนเล็กน้อย)
+#define SLEEP_HOP_FINAL_S 600     // เหลือเวลาถึงเหตุการณ์ถัดไปไม่เกินนี้ = หลับรวดเดียว · มากกว่านี้ = หลับครึ่งทาง ตื่นมาซิงก์นาฬิกา แล้วค่อยหลับต่อ
 #define RETRY_IN_WINDOW_MS 30000  // ต่อไม่ได้ระหว่างเวลาตรวจ ลองใหม่ทุก 30 วิ
 #define PORTAL_TIMEOUT_MS (10UL * 60 * 1000)
