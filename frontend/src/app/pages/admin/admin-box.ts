@@ -160,7 +160,12 @@ import { LOW_BATTERY_PCT, boxBadge, seenText, SLOT_LABEL } from './admin-box-sha
                 <option value="on">{{ i18n.t({ th: 'เปิด — ปิด Wi-Fi นอกเวลาตรวจ ตื่นก่อนเริ่มตรวจ 3 นาที (กินไฟน้อยลงมาก)', en: 'On — Wi-Fi off outside patrol hours, wakes 3 min before (much lower power)' }) }}</option>
                 <option value="off">{{ i18n.t({ th: 'ปิด — ตื่นตลอดเวลา (เดโม/ทดสอบ · กินไฟ ~0.3 A)', en: 'Off — always awake (demo/testing · ~0.3 A)' }) }}</option>
               </select>
-              <small>{{ i18n.t({ th: 'นอกเวลาตรวจตู้จะไม่รับคำสั่งจากหน้านี้ (เสียง/สแตนบาย/ตั้งค่า) จนกว่าจะตื่นรอบถัดไป · เปิดเครื่องใหม่ตื่น 15 นาทีให้ช่างทดสอบ · ตู้ตื่นเป็นช่วง ๆ เพื่อซิงก์นาฬิกา · ตู้รับค่านี้ตอนตื่นรอบถัดไป', en: 'Outside patrol hours the box ignores commands from this page (beep/standby/config) until its next wake-up · a fresh power-on stays awake 15 min for the installer · it wakes now and then to sync its clock · the box applies this on its next wake-up' }) }}</small>
+              <small>{{ i18n.t({ th: 'นอกเวลาตรวจตู้จะไม่รับคำสั่งจากหน้านี้ (เสียง/สแตนบาย/ตั้งค่า) จนกว่าจะตื่นรอบถัดไป · เปิดเครื่องใหม่ตื่น 5 นาทีให้ช่างทดสอบ · ตู้ตื่นเป็นช่วง ๆ เพื่อซิงก์นาฬิกา · ตู้รับค่านี้ตอนตื่นรอบถัดไป', en: 'Outside patrol hours the box ignores commands from this page (beep/standby/config) until its next wake-up · a fresh power-on stays awake 5 min for the installer · it wakes now and then to sync its clock · the box applies this on its next wake-up' }) }}</small>
+            </label>
+            <label class="field">
+              <span>{{ i18n.t({ th: 'เพดานเวลาตรวจรวมต่อวัน (ชม.)', en: 'Patrol hours limit per day (h)' }) }}</span>
+              <input type="number" inputmode="numeric" min="1" max="24" [value]="ovPatrol()" (input)="ovPatrol.set($any($event.target).value)" [placeholder]="i18n.t({ th: 'ว่าง = ค่ากลางของระบบ', en: 'empty = system default' })" />
+              <small>{{ i18n.t({ th: 'หัวหน้าตั้งเวลาตรวจ/เพิ่มบ้านเข้าโซนไม่ได้ถ้าทำให้ตู้นี้ตรวจรวมเกินเพดาน (ตู้ตื่นกินไฟมาก) · ตู้เดโมที่ต้องตื่นทั้งวันขยายเป็น 24', en: 'Heads cannot set patrol hours or add this house to a zone if the box would exceed this limit (an awake box uses a lot of power) · demo boxes that must stay awake can be raised to 24' }) }}</small>
             </label>
             @if (ovError(); as e) {
               <p class="danger-text small" role="alert">{{ i18n.t(e) }}</p>
@@ -418,6 +423,7 @@ export class AdminBox implements OnInit {
   protected readonly ovFlash = signal('');
   protected readonly ovPs = signal('');
   protected readonly ovSleep = signal('');
+  protected readonly ovPatrol = signal('');
   protected readonly ovError = signal<Tr | null>(null);
   protected readonly savingOverride = signal(false);
   private ovLoadedFor: string | null = null;
@@ -482,6 +488,7 @@ export class AdminBox implements OnInit {
     this.ovFlash.set(o.flash_when_dark === undefined ? '' : o.flash_when_dark ? 'on' : 'off');
     this.ovPs.set(o.wifi_power_save === undefined ? '' : o.wifi_power_save ? 'on' : 'off');
     this.ovSleep.set(o.sleep_outside_window === undefined ? '' : o.sleep_outside_window ? 'on' : 'off');
+    this.ovPatrol.set(o.patrol_hours_limit === undefined ? '' : String(o.patrol_hours_limit));
   }
 
   /** PUT /admin/boxes/:id/config — ส่งเฉพาะช่องที่กรอก (ช่องว่าง = ใช้ค่ากลาง) · ตู้ได้ค่าใหม่ทันทีที่ long-poll */
@@ -510,6 +517,12 @@ export class AdminBox implements OnInit {
     if (this.ovFlash()) body.flash_when_dark = this.ovFlash() === 'on';
     if (this.ovPs()) body.wifi_power_save = this.ovPs() === 'on';
     if (this.ovSleep()) body.sleep_outside_window = this.ovSleep() === 'on';
+    const patrol = this.ovPatrol().trim() === '' ? undefined : Number(this.ovPatrol());
+    if (patrol !== undefined && (!Number.isInteger(patrol) || patrol < 1 || patrol > 24)) {
+      this.ovError.set({ th: 'เพดานเวลาตรวจต้องเป็นจำนวนเต็ม 1–24 ชั่วโมง', en: 'Patrol hours limit must be a whole number from 1 to 24' });
+      return;
+    }
+    if (patrol !== undefined) body.patrol_hours_limit = patrol;
     this.savingOverride.set(true);
     try {
       await this.api.setBoxConfig(id, body);

@@ -52,6 +52,8 @@ class BoxConfigOverrideDto {
   @IsOptional() @IsBoolean() wifi_power_save?: boolean;
   /** หลับลึกนอกเวลาตรวจ (ประหยัดไฟมาก · นอกเวลาตรวจตู้รับคำสั่งแอดมินไม่ได้) */
   @IsOptional() @IsBoolean() sleep_outside_window?: boolean;
+  /** เพดานเวลาตรวจรวมต่อวันของตู้นี้ (ชม. · เช่น ตู้เดโมขยายเป็น 24) */
+  @IsOptional() @IsInt() @Min(1) @Max(24) patrol_hours_limit?: number;
 }
 
 class UnbindDto {

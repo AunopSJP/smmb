@@ -31,6 +31,8 @@ export interface Env {
    * จึงตรวจลายเซ็นได้ · nginx ห้าม rewrite/ตัด path (CODEX_SERVER_SETUP 9.4)
    */
   API_PATH_PREFIX: string;
+  /** ✅ 2026-11-16 เพดานเวลาตรวจรวมต่อวันต่อตู้ (ชั่วโมง · รวมทุกโซนที่ตู้อยู่ ช่วงที่ทับกันนับครั้งเดียว) — ตู้ตื่น ~0.3 A ทุกชั่วโมงในช่วงตรวจ · แอดมินทับต่อตู้ได้ (config_override.patrol_hours_limit) · e2e ตั้ง 24 */
+  PATROL_HOURS_LIMIT: number;
 }
 
 const NODE_ENVS = ['development', 'test', 'production'] as const;
@@ -91,7 +93,9 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     SKIP_PUSH_REQUIRED: str('SKIP_PUSH_REQUIRED', '') === '1',
     ALLOW_MULTI_INSTANCE: str('ALLOW_MULTI_INSTANCE', '') === '1',
     API_PATH_PREFIX: str('API_PATH_PREFIX', '').replace(/\/+$/, ''),
+    PATROL_HOURS_LIMIT: posInt('PATROL_HOURS_LIMIT', 4),
   };
+  if (env.PATROL_HOURS_LIMIT > 24) errors.push('PATROL_HOURS_LIMIT must be between 1 and 24');
   if (env.API_PATH_PREFIX && !/^\/[A-Za-z0-9._~-]+(\/[A-Za-z0-9._~-]+)*$/.test(env.API_PATH_PREFIX)) errors.push('API_PATH_PREFIX must look like /smmb-api');
   if (env.SKIP_PUSH_REQUIRED && env.NODE_ENV === 'production') errors.push('SKIP_PUSH_REQUIRED is not allowed in production');
   if (env.BOX_MASTER_KEY && env.BOX_MASTER_KEY === env.QR_SIGNING_KEY) errors.push('BOX_MASTER_KEY and QR_SIGNING_KEY must differ');

@@ -68,6 +68,8 @@ export interface Zone {
   /** พื้นที่ที่โซนดูแล (null = ยังไม่ตั้ง → ค้นบ้านไม่ได้) */
   area: { province: string; district: string; subdistrict: string | null } | null;
   is_mine: boolean;
+  /** เพดานเวลาตรวจรวมต่อวันต่อตู้ (ชม.) */
+  patrol_limit_hours?: number;
   updated_at: string;
 }
 

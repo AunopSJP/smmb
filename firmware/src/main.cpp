@@ -83,7 +83,7 @@ static uint32_t secondsToNextEvent(uint32_t now)
 {
   uint16_t m = localMinute(now);
   uint32_t secOfDay = (now + TZ_OFFSET_S) % 86400;
-  uint32_t best = 24 * 3600;
+  uint32_t best = 24 * 1800;
   auto consider = [&](uint16_t targetMin, int32_t earlyS)
   {
     int32_t target = (int32_t)targetMin * 60 - earlyS;
@@ -106,15 +106,15 @@ static uint32_t secondsToNextEvent(uint32_t now)
 // 2) Wi-Fi modem sleep แบบอัตโนมัติ: เปิดเมื่อสัญญาณแรงพอ · ปิดเองเมื่อสัญญาณอ่อน หรือถาม long-poll ล้มเหลวติดกัน
 #define CPU_IDLE_MHZ 160
 #define CPU_BUSY_MHZ 240
-#define PS_ON_RSSI -70            // สัญญาณแรงกว่านี้ → เปิด modem sleep
-#define PS_OFF_RSSI -76           // อ่อนกว่านี้ → ปิด (ห่างจากค่าเปิด 6 dB กันสลับไปมา)
-#define PS_FAIL_LIMIT 2           // long-poll ล้มเหลวติดกันกี่ครั้งถึงถือว่า modem sleep ใช้ไม่ได้บน Wi-Fi นี้
-#define PS_PENALTY_MS 1800000UL   // ปิด modem sleep 30 นาทีหลังล้มเหลว แล้วลองใหม่
+#define PS_ON_RSSI -70                       // สัญญาณแรงกว่านี้ → เปิด modem sleep
+#define PS_OFF_RSSI -76                      // อ่อนกว่านี้ → ปิด (ห่างจากค่าเปิด 6 dB กันสลับไปมา)
+#define PS_FAIL_LIMIT 2                      // long-poll ล้มเหลวติดกันกี่ครั้งถึงถือว่า modem sleep ใช้ไม่ได้บน Wi-Fi นี้
+#define PS_PENALTY_MS 1800000UL              // ปิด modem sleep 30 นาทีหลังล้มเหลว แล้วลองใหม่
 #define LAN_OTA_WINDOW_MS (15UL * 60 * 1000) // แฟลชผ่าน LAN ได้ใน 15 นาทีแรกหลังเปิดเครื่อง
-#define TX_LOW_ON_RSSI -58        // สัญญาณแรงกว่านี้ → ลดกำลังส่งเหลือ 11 dBm (กระแสพุ่งตอนส่งต่ำลง)
-#define TX_LOW_OFF_RSSI -66       // อ่อนกว่านี้ → กลับไป 19.5 dBm
+#define TX_LOW_ON_RSSI -58                   // สัญญาณแรงกว่านี้ → ลดกำลังส่งเหลือ 11 dBm (กระแสพุ่งตอนส่งต่ำลง)
+#define TX_LOW_OFF_RSSI -66                  // อ่อนกว่านี้ → กลับไป 19.5 dBm
 
-static bool lanOtaForced = false; // `ota on` ทาง serial
+static bool lanOtaForced = false;   // `ota on` ทาง serial
 static bool syncedThisWake = false; // ซิงก์นาฬิกาแล้วในรอบตื่นนี้ (รีเซ็ตทุกครั้งที่ตื่นจากหลับลึก)
 static bool txLow = false;
 static unsigned long txBlockUntil = 0; // millis() · ห้ามลดกำลังส่งจนถึงเวลานี้ (เพิ่งมีปัญหา)
@@ -123,7 +123,8 @@ static bool psApplied = false;
 static uint8_t psFails = 0;
 static unsigned long psPenaltyUntil = 0; // millis() · 0 = ไม่มีโทษ
 
-static const char *psModeName() { return settings.psMode == 0 ? "auto" : settings.psMode == 1 ? "on" : "off"; }
+static const char *psModeName() { return settings.psMode == 0 ? "auto" : settings.psMode == 1 ? "on"
+                                                                                              : "off"; }
 
 /** ควรเปิด Wi-Fi modem sleep ไหมตอนนี้ */
 static bool psWanted()
@@ -354,10 +355,11 @@ static void sleepUntilNextEvent()
     return;
   }
   // นาฬิกาภายในของ ESP32 (RC ~150 kHz ไม่มีแบตนาฬิกา) เพี้ยนได้ ~1–3% ตอนหลับนาน (หลับ 14 ชม. เพี้ยนได้ 8–25 นาที > เผื่อ 3 นาที)
+  // เพดาน 30 นาทีต่อรอบ: ถ้าหลับครึ่งทางยาวหลายชั่วโมง ตู้จะไม่รู้เลยว่าหัวหน้าเพิ่งเปลี่ยนเวลาตรวจ (รับ config ได้ตอนตื่นซิงก์เท่านั้น)
   // จึงหลับ "ครึ่งทาง": ตื่นมาซิงก์เวลากับเซิร์ฟเวอร์ (X-Server-Time) แล้วคำนวณใหม่ · รอบสุดท้ายเหลือ ≤ 10 นาที เพี้ยนได้ไม่เกินราวครึ่งนาที
   uint32_t sleepS = s;
   if (s > SLEEP_HOP_FINAL_S)
-    sleepS = max<uint32_t>(s / 2, SLEEP_HOP_FINAL_S / 2);
+    sleepS = min<uint32_t>(max<uint32_t>(s / 2, SLEEP_HOP_FINAL_S / 2), SLEEP_HOP_MAX_S);
   Serial.printf("[sleep] deep sleep %u s (next event in %u s)\n", sleepS, s);
   Serial.flush();
   cameraStop();
@@ -485,7 +487,8 @@ static void runCommand(String line)
   {
     if (arg == "auto" || arg == "on" || arg == "off")
     {
-      settings.psMode = arg == "auto" ? 0 : arg == "on" ? 1 : 2;
+      settings.psMode = arg == "auto" ? 0 : arg == "on" ? 1
+                                                        : 2;
       settingsSave();
       psPenaltyUntil = 0;
       psFails = 0;
@@ -695,10 +698,10 @@ static void waitWithCli(unsigned long ms)
 // ── setup / loop ───────────────────────────────────────────────────────
 void setup()
 {
-  setCpuFrequencyMhz(CPU_IDLE_MHZ); // ประหยัดไฟ: รอที่ 160 MHz (กล้อง/สแกนเปลี่ยนเป็น 240 เอง)
+  setCpuFrequencyMhz(CPU_IDLE_MHZ);            // ประหยัดไฟ: รอที่ 160 MHz (กล้อง/สแกนเปลี่ยนเป็น 240 เอง)
   rtc_gpio_hold_dis((gpio_num_t)CAM_PIN_PWDN); // ปลดล็อกจากตอนหลับลึก
-  cameraSensorSleep(); // เซนเซอร์กล้องกินไฟแม้ไม่ได้ใช้ ถ้าขา PWDN ลอย — สั่งให้หลับตั้งแต่เปิดเครื่อง
-  buzzerInit(); // ตั้งขา 13 ให้ LOW เร็วที่สุด — ช่วงรีเซ็ตขาลอย ไซเรนอาจดังแว้บ
+  cameraSensorSleep();                         // เซนเซอร์กล้องกินไฟแม้ไม่ได้ใช้ ถ้าขา PWDN ลอย — สั่งให้หลับตั้งแต่เปิดเครื่อง
+  buzzerInit();                                // ตั้งขา 13 ให้ LOW เร็วที่สุด — ช่วงรีเซ็ตขาลอย ไซเรนอาจดังแว้บ
   Serial.begin(115200);
   rtc_gpio_hold_dis((gpio_num_t)PIN_FLASH_LED);
   pinMode(PIN_FLASH_LED, OUTPUT);
@@ -742,10 +745,17 @@ void setup()
     linkBeepErrorQuiet();
     if (fromSleep)
     {
-      // ตื่นมาแล้วต่อไม่ได้ → หลับแล้วลองรอบถัดไป
-      sleepUntilNextEvent();
-      return;
+      // ตื่นมาแล้วต่อไม่ได้ → หลับแล้วลองรอบถัดไป · แต่ถ้าอยู่ในช่วงที่ต้องตื่นแล้ว (ก่อนต้นช่วง 3 นาที–จบช่วง) ห้ามหลับ:
+      // เดิมหลับต่อ ~30 นาทีจนข้ามช่วงตรวจทั้งช่วง → ปล่อยให้ loop() ลองต่อใหม่ทุก 30 วิ
+      const uint32_t t = nowUtc();
+      if (!(t && inListenTime(t)))
+      {
+        sleepUntilNextEvent();
+        return;
+      }
+      Serial.println("[wifi] still in listen time — staying awake and retrying every 30 s");
     }
+    else
     // เปิดเครื่องแล้วต่อ Wi-Fi เดิมไม่ได้ → โหมดตั้งค่า (ระหว่างนั้นยังลองต่อ Wi-Fi เดิมได้จากหน้าเว็บ)
     if (!runSetupPortal(PORTAL_TIMEOUT_MS))
       ESP.restart();

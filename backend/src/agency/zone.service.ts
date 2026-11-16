@@ -1,12 +1,14 @@
 import { NotificationService } from '../push/notification.service.js';
 import { HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { Env } from '../config/env.js';
 import pg from 'pg';
 import { AppError } from '../common/http-exception.filter.js';
 import { PG_POOL } from '../db/db.module.js';
 import { PlaceService } from '../place/place.service.js';
 import { isPgError, PG_UNIQUE_VIOLATION, withTx, type Db } from '../db/tx.js';
 import { BoxConfigService } from '../box/box-config.service.js';
-import type { BoxStatus } from '../box/box-config.js';
+import { exceedsPatrolLimit, windowMinutes, type BoxStatus } from '../box/box-config.js';
 import { likeContains } from '../common/like.js';
 import { AgencyService, type MemberDto } from './agency.service.js';
 
@@ -27,6 +29,8 @@ export interface ZoneDto {
   officers_count: number;
   /** พื้นที่ครอบคลุม (null = ยังไม่ตั้ง → เพิ่มบ้านไม่ได้) · ✅ 2026-11-06 */
   area: ZoneArea | null;
+  /** เพดานเวลาตรวจรวมต่อวันต่อตู้ (ชม.) — บันทึกเวลาตรวจ/เพิ่มบ้านที่ทำให้ตู้เกินเพดาน = 400 PATROL_HOURS_LIMIT */
+  patrol_limit_hours: number;
   /** หัวหน้าคนที่เรียกอยู่ในโซนนี้ (ป้าย "โซนที่ฉันอยู่" — ตรวจตู้ได้เฉพาะโซนนี้) */
   is_mine: boolean;
   updated_at: string;
@@ -137,7 +141,53 @@ export class ZoneService {
     private readonly boxConfigs: BoxConfigService,
     private readonly notifications: NotificationService,
     private readonly place: PlaceService,
+    private readonly config: ConfigService<Env, true>,
   ) {}
+
+  private get patrolLimitDefault(): number {
+    return this.config.get('PATROL_HOURS_LIMIT', { infer: true });
+  }
+
+  /**
+   * ✅ 2026-11-16 เพดานเวลาตรวจรวมต่อวันต่อตู้ (ตู้ตื่นเฉพาะช่วงตรวจ — กินไฟ ~0.3 A) · คิดรวมทุกโซน/หน่วยงานที่ตู้อยู่ (ช่วงทับกันนับครั้งเดียว)
+   * ปฏิเสธเฉพาะตู้ที่ "เกินเพดานและมากกว่าเดิม" · แอดมินทับเพดานต่อตู้ได้ (config_override.patrol_hours_limit)
+   * zoneId = โซนที่กำลังแก้ (ไม่นับเวลาเดิมของโซนนี้ แล้วใส่ before/after แทน)
+   */
+  private async assertPatrolLimit(db: Db, boxIds: string[], zoneId: string, before: [string, string][], after: [string, string][]): Promise<void> {
+    if (!boxIds.length) return;
+    const { rows } = await db.query<{ box_id: string; s: string; e: string }>(
+      `SELECT zb.box_id, to_char(w.start_time, 'HH24:MI') AS s, to_char(w.end_time, 'HH24:MI') AS e
+       FROM app.zone_box_tb zb
+       JOIN app.zone_tb z ON z.zone_id = zb.zone_id AND z.deleted_date IS NULL
+       JOIN app.zone_window_tb w ON w.zone_id = z.zone_id
+       WHERE zb.box_id = ANY($1::text[]) AND z.zone_id <> $2::uuid`,
+      [boxIds, zoneId],
+    );
+    const others = new Map<string, [string, string][]>();
+    for (const r of rows) others.set(r.box_id, [...(others.get(r.box_id) ?? []), [r.s, r.e]]);
+    const { rows: limits } = await db.query<{ box_id: string; lim: number | null }>(
+      `SELECT box_id, (config_override->>'patrol_hours_limit')::int AS lim FROM app.box_tb WHERE box_id = ANY($1::text[])`,
+      [boxIds],
+    );
+    const limitOf = new Map(limits.map((l) => [l.box_id, l.lim ?? this.patrolLimitDefault]));
+    const over: { id: string; limit: number }[] = [];
+    for (const id of boxIds) {
+      const o = others.get(id) ?? [];
+      const limit = limitOf.get(id) ?? this.patrolLimitDefault;
+      if (exceedsPatrolLimit(windowMinutes([...o, ...before]), windowMinutes([...o, ...after]), limit)) over.push({ id, limit });
+    }
+    if (over.length) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'PATROL_HOURS_LIMIT', `patrol hours per box are limited to ${over[0].limit} h/day (over: ${over.map((o) => o.id).join(', ')})`);
+    }
+  }
+
+  private async windowsOf(db: Db, zoneId: string): Promise<[string, string][]> {
+    const { rows } = await db.query<{ s: string; e: string }>(
+      `SELECT to_char(start_time, 'HH24:MI') AS s, to_char(end_time, 'HH24:MI') AS e FROM app.zone_window_tb WHERE zone_id = $1::uuid`,
+      [zoneId],
+    );
+    return rows.map((r) => [r.s, r.e] as [string, string]);
+  }
 
   /** ตรวจพื้นที่โซนกับตารางพื้นที่กลาง → ชื่อมาตรฐาน (ไม่ตรง → 400 PLACE_INVALID) · ต้องเรียกก่อนเปิด transaction */
   private async canonArea(a: ZoneArea | null): Promise<ZoneArea | null> {
@@ -174,6 +224,12 @@ export class ZoneService {
         if (rows.length !== ids.length) {
           throw new AppError(HttpStatus.BAD_REQUEST, 'HOUSE_NOT_FOUND', 'every box must exist and be bound to an owner');
         }
+        // ✅ 2026-11-16 ตู้ที่เพิ่มเข้าโซนนี้ใหม่ต้องไม่ทำให้เวลาตรวจรวมต่อวันเกินเพดาน (ตู้ที่อยู่ในโซนแล้วไม่ถูกเช็ก)
+        const { rows: fresh } = await db.query<{ box_id: string }>(
+          `SELECT x AS box_id FROM unnest($1::text[]) AS x WHERE NOT EXISTS (SELECT 1 FROM app.zone_box_tb zb WHERE zb.zone_id = $2 AND zb.box_id = x)`,
+          [ids, zoneId],
+        );
+        await this.assertPatrolLimit(db, fresh.map((f) => f.box_id), zoneId, [], await this.windowsOf(db, zoneId));
         // ✅ 2026-11-16 บ้านที่จะเพิ่มใหม่ต้องข้อมูลครบ (บ้านที่อยู่ในโซนอยู่แล้วไม่ถูกเช็ก — เอาออกได้เสมอ)
         const { rows: incomplete } = await db.query<{ box_id: string }>(
           `SELECT b.box_id FROM app.box_tb b
@@ -348,6 +404,10 @@ export class ZoneService {
         await db.query(`UPDATE app.zone_tb SET province = $2, district = $3, subdistrict = $4 WHERE zone_id = $1`, [zoneId, a?.province ?? null, a?.district ?? null, a?.subdistrict ?? null]);
       }
       if (list) {
+        const current = await this.windowsOf(db, zoneId);
+        // เวลาตรวจเปลี่ยนจริง → ตู้ในโซนนี้ต้องไม่เกินเพดานเวลาตรวจต่อวัน (ไม่เปลี่ยน/ย่อลง = ผ่านเสมอ)
+        const { rows: inZone } = await db.query<{ box_id: string }>(`SELECT box_id FROM app.zone_box_tb WHERE zone_id = $1`, [zoneId]);
+        await this.assertPatrolLimit(db, inZone.map((b) => b.box_id), zoneId, current, list);
         await db.query(`DELETE FROM app.zone_window_tb WHERE zone_id = $1`, [zoneId]);
         await this.writeWindows(db, zoneId, list);
         // แตะ updated_date ของโซน (ตู้ในโซนรับเวลาตรวจใหม่ตอนรายงานรายวัน — เฟส 2)
@@ -503,6 +563,7 @@ export class ZoneService {
       houses_count: r.houses_count,
       officers_count: r.officers_count,
       area: r.province && r.district ? { province: r.province, district: r.district, subdistrict: r.subdistrict } : null,
+      patrol_limit_hours: this.patrolLimitDefault,
       is_mine: r.is_mine,
       updated_at: r.updated_date.toISOString(),
     }));

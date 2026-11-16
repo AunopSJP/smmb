@@ -76,8 +76,10 @@ export interface BoxConfigOverride {
   longpoll_wait_s: number;
   /** ประหยัดไฟ Wi-Fi ของตู้นี้ (ไม่ตั้ง = ปิด) */
   wifi_power_save: boolean;
-  /** หลับลึกนอกเวลาตรวจ (ไม่ตั้ง = ปิด) */
+  /** หลับลึกนอกเวลาตรวจ (ไม่ตั้ง = เปิดตามค่ากลาง) */
   sleep_outside_window: boolean;
+  /** เพดานเวลาตรวจรวมต่อวันของตู้นี้ (ชม. · ไม่ตั้ง = ค่ากลางของระบบ) */
+  patrol_hours_limit: number;
 }
 
 export interface BoxConfig {

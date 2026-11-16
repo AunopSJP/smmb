@@ -12,6 +12,8 @@ export interface BoxConfigDefaults {
   wifi_power_save: boolean;
   /** ✅ 2026-11-16 หลับลึกนอกเวลาตรวจ (ปิด Wi-Fi + CPU) ตื่นก่อนต้นช่วงตรวจ 60 วิ — กินไฟ ~6 mA แทน ~300 mA · แลกกับ: นอกเวลาตรวจตู้รับคำสั่งจากแอดมิน (เสียง/สแตนบาย/ตั้งค่า) ไม่ได้ จนกว่าจะตื่นรอบถัดไป · ค่าเริ่มต้นเปิด (✅ 2026-11-16) · ตู้ตื่นก่อนต้นช่วง 3 นาที + ซิงก์นาฬิกาเป็นช่วง ๆ ตอนหลับนาน */
   sleep_outside_window: boolean;
+  /** เพดานเวลาตรวจรวมต่อวันของตู้นี้ (ชม.) — ใช้ตอนหัวหน้าบันทึกเวลาตรวจ/เพิ่มบ้านเข้าโซน · ไม่ส่งให้ตู้ · ไม่ตั้ง = ค่า env PATROL_HOURS_LIMIT */
+  patrol_hours_limit?: number;
 }
 
 /** สิ่งที่ตู้ได้ใน `config` (โปรโตคอล §2.1) */
@@ -48,6 +50,7 @@ export function pickOverride(raw: Record<string, unknown>): Partial<BoxConfigDef
   if (typeof raw.flash_when_dark === 'boolean') out.flash_when_dark = raw.flash_when_dark;
   if (typeof raw.wifi_power_save === 'boolean') out.wifi_power_save = raw.wifi_power_save;
   if (typeof raw.sleep_outside_window === 'boolean') out.sleep_outside_window = raw.sleep_outside_window;
+  if (Number.isInteger(raw.patrol_hours_limit) && (raw.patrol_hours_limit as number) >= 1 && (raw.patrol_hours_limit as number) <= 24) out.patrol_hours_limit = raw.patrol_hours_limit as number;
   for (const key of ['scan_timeout_s', 'max_attempts', 'longpoll_wait_s'] as const) {
     const v = raw[key];
     const [min, max] = CONFIG_LIMITS[key];
@@ -113,6 +116,16 @@ export function configVersion(config: BoxConfig, generation = 0): number {
   ]);
   const n = parseInt(createHash('sha256').update(canonical).digest('hex').slice(0, 8), 16) & 0x7fffffff;
   return n === 0 ? 1 : n;
+}
+
+/** รวมนาทีตรวจต่อวัน (ช่วงที่ทับกันนับครั้งเดียว) */
+export function windowMinutes(windows: [string, string][]): number {
+  return mergeWindows(windows).reduce((n, [s, e]) => n + Number(e.slice(0, 2)) * 60 + Number(e.slice(3, 5)) - (Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5))), 0);
+}
+
+/** เกินเพดานเวลาตรวจต่อวันไหม — ปฏิเสธเฉพาะเมื่อ "เกินเพดานและมากกว่าเดิม" (ตู้/โซนเดิมที่เกินอยู่แล้ว แก้ชื่อหรือย่อเวลาลงยังทำได้ ไม่ติดทางตัน) */
+export function exceedsPatrolLimit(beforeMin: number, afterMin: number, limitHours: number): boolean {
+  return afterMin > limitHours * 60 && afterMin > beforeMin;
 }
 
 /** เวลาท้องถิ่น (นาทีตั้งแต่เที่ยงคืน) ของเขตเวลาที่ให้ */

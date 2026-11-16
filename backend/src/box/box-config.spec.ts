@@ -3,7 +3,9 @@ import {
   configVersion,
   DEFAULT_CONFIG,
   localMinutes,
+  exceedsPatrolLimit,
   mergeWindows,
+  windowMinutes,
   minutesIntoWindow,
   resolveDefaults,
   type BoxConfig,
@@ -117,5 +119,23 @@ describe('judgeTest (test job: any readable QR passes)', () => {
     expect(judgeTest(3, false, null, 3)).toMatchObject({ status: 'fail' });
     expect(judgeTest(2, true, 'hello', 3)).toMatchObject({ status: 'pass' });
     expect(judgeTest(1, true, '', 3)).toMatchObject({ status: 'retry' });
+  });
+});
+
+describe('patrol hours limit (เพดานเวลาตรวจรวมต่อวันต่อตู้)', () => {
+  it('counts merged minutes — overlapping windows from different zones count once', () => {
+    expect(windowMinutes([])).toBe(0);
+    expect(windowMinutes([['06:00', '09:00']])).toBe(180);
+    expect(windowMinutes([['06:00', '09:00'], ['08:00', '10:00']])).toBe(240);
+    expect(windowMinutes([['00:00', '23:59']])).toBe(1439);
+  });
+
+  it('rejects only when over the limit AND larger than before (no dead end for already-long zones)', () => {
+    expect(exceedsPatrolLimit(0, 240, 4)).toBe(false); // เท่าเพดานพอดี ผ่าน
+    expect(exceedsPatrolLimit(0, 241, 4)).toBe(true); // เกิน และมากกว่าเดิม
+    expect(exceedsPatrolLimit(1439, 1439, 4)).toBe(false); // โซนทั้งวันเดิม แก้ชื่อ/เวลาเท่าเดิม ผ่าน
+    expect(exceedsPatrolLimit(1439, 600, 4)).toBe(false); // ย่อลง (ยังเกินเพดาน) ผ่าน
+    expect(exceedsPatrolLimit(300, 301, 4)).toBe(true); // เกินแล้วยังเพิ่มอีก ปฏิเสธ
+    expect(exceedsPatrolLimit(0, 1439, 24)).toBe(false); // แอดมินขยายเป็น 24 ผ่าน
   });
 });

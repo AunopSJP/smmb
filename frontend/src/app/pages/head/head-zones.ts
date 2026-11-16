@@ -25,6 +25,7 @@ const ZONE_ERROR: Record<string, Tr> = {
   HOUSE_NOT_FOUND: { th: 'เพิ่มไม่ได้ เพราะมีบ้านที่ไม่พบหรือยังไม่ผูกตู้ — ค้นบ้านใหม่แล้วเลือกอีกครั้ง', en: 'Can’t add: a house was not found or has no mailbox yet — search again and re-select' },
   HOUSE_INCOMPLETE: { th: 'เพิ่มไม่ได้ เพราะมีบ้านที่ข้อมูลยังไม่ครบ (ที่อยู่ / จังหวัด-เขต-แขวง / หมุด) — ให้เจ้าของบ้านกรอกให้ครบก่อน', en: 'Can’t add: a house has incomplete details (address / province-district-subdistrict / pin) — ask the owner to complete them first' },
   PLACE_INVALID: { th: 'พื้นที่ไม่ตรงรายชื่อมาตรฐาน — เลือกจังหวัด เขต/อำเภอ แขวง/ตำบลจากรายการ', en: 'Area is not in the standard list — pick province, district and subdistrict from the dropdowns' },
+  PATROL_HOURS_LIMIT: { th: 'เวลาตรวจรวมต่อวันของบางตู้จะเกินเพดาน (ตู้ตื่นกินไฟมาก) — ลดเวลาตรวจลง หรือให้แอดมินขยายเพดานของตู้นั้น', en: 'A box would exceed its daily patrol-hours limit (an awake box uses a lot of power) — shorten the hours, or ask the admin to raise that box’s limit' },
   OFFICER_NOT_MEMBER: { th: 'เพิ่มไม่ได้ เพราะมีคนที่ไม่ได้เป็นสมาชิกของหน่วยงาน — โหลดรายชื่อใหม่แล้วเลือกอีกครั้ง', en: 'Can’t add: someone is not a member of this agency — reload the list and re-select' },
 };
 
@@ -232,7 +233,7 @@ export class HeadZones implements OnInit {
             <button type="button" class="btn secondary small-btn" (click)="addWindow()">{{ i18n.t({ th: 'เพิ่ม', en: 'Add' }) }}</button>
           </div>
         }
-        <p class="muted small">{{ i18n.t({ th: 'ทั้งวัน = 00:00–23:59 · ข้ามเที่ยงคืนให้แยก 2 ช่วง', en: 'All day = 00:00–23:59 · split overnight into 2 windows' }) }}</p>
+        <p class="muted small">{{ i18n.t({ th: 'ข้ามเที่ยงคืนให้แยก 2 ช่วง', en: 'Split overnight into 2 windows' }) }}@if (zone()?.patrol_limit_hours; as lim) { · {{ i18n.t({ th: 'ตู้ตื่นเฉพาะช่วงตรวจ (ประหยัดไฟ) — รวมไม่เกิน ', en: 'Boxes are awake only in these hours (saves power) — at most ' }) }}{{ lim }} {{ i18n.t({ th: 'ชม./วัน ต่อตู้', en: 'h/day per box' }) }} }</p>
         @if (windows().length) {
           <p class="muted small adv-only">{{ windows().length }}/{{ maxWindows }} {{ i18n.t({ th: 'ช่วง', en: 'windows' }) }} · {{ durationText() }}</p>
         }

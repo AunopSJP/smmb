@@ -361,7 +361,7 @@ describe('Inspections (e2e)', () => {
     await as(admin.cookie).post('/api/v1/admin/boxes/BX-99999999/device-secret').expect(404);
 
     const boot = await box(b, 'POST', '/v1/box/boot', { fw: 't', config_ver: 0 }).expect(200);
-    expect(boot.body.awake_s).toBe(900);
+    expect(boot.body.awake_s).toBe(300);
     const report = await box(b, 'POST', '/v1/box/report', { fw: 't', config_ver: boot.body.config_ver }).expect(200);
     expect(report.body.awake_s).toBeUndefined();
   });
