@@ -5,6 +5,7 @@ import { newGroupCode } from '../common/codes.js';
 import { AuditService } from '../common/audit.service.js';
 import { AppError } from '../common/http-exception.filter.js';
 import { PG_POOL } from '../db/db.module.js';
+import { PlaceService } from '../place/place.service.js';
 import { isPgError, PG_UNIQUE_VIOLATION, withTx, type Db } from '../db/tx.js';
 import { NotificationService } from '../push/notification.service.js';
 
@@ -108,6 +109,7 @@ export class AgencyService {
     private readonly account: AccountService,
     private readonly notifications: NotificationService,
     private readonly audit: AuditService,
+    private readonly place: PlaceService,
   ) {}
 
   /** หัวหน้าเห็นได้แม้หน่วยงานยังรออนุมัติ/ถูกปฏิเสธ (L02 / L02-b) · ไม่ใช่หัวหน้า → 404 */
@@ -167,7 +169,13 @@ export class AgencyService {
   /**
    * แก้ข้อมูลหน่วยงาน — ส่งมาเฉพาะที่เปลี่ยน · ค่าว่าง ('') = ล้าง (ยกเว้น contact) · พิกัด lat/lng ต้องมาคู่กัน (null ทั้งคู่ = ล้างหมุด)
    */
-  async updateProfile(agencyId: string, patch: AgencyProfilePatch): Promise<void> {
+  async updateProfile(agencyId: string, rawPatch: AgencyProfilePatch): Promise<void> {
+    let patch = rawPatch;
+    // จังหวัด/เขต/แขวง เปลี่ยนเป็นชุดเดียว: ตรวจกับตารางพื้นที่กลาง (ไม่ตรง → 400 PLACE_INVALID) แล้วเก็บชื่อมาตรฐาน
+    if (rawPatch.province !== undefined || rawPatch.district !== undefined || rawPatch.subdistrict !== undefined) {
+      const r = await this.place.resolve(rawPatch);
+      patch = { ...rawPatch, province: r.province ?? '', district: r.district ?? '', subdistrict: r.subdistrict ?? '' };
+    }
     const cols = ['contact', 'address', 'subdistrict', 'district', 'province', 'postal_code', 'phone', 'email', 'contact_person', 'coverage_note'] as const;
     const sets: string[] = [];
     const params: unknown[] = [agencyId];

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, model } from '@angular/core';
 import { I18n } from '../core/i18n';
 import { MapPin, type LatLng } from './map-pin';
+import { PlacePicker, type PlaceChange } from './place-picker';
 
 /**
  * ข้อมูลหน่วยงานที่ละเอียดขึ้น (✅ 2026-11-06) — ใช้ตอนสมัครหน่วยงาน (L01) และหน้าแก้ข้อมูลหน่วยงานของหัวหน้า (L10)
@@ -60,24 +61,11 @@ export function agencyDetailPayload(f: AgencyDetailForm, clearEmpty = false): Re
 
 @Component({
   selector: 'app-agency-fields',
-  imports: [MapPin],
+  imports: [MapPin, PlacePicker],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
+    <app-place-picker [province]="value().province" [district]="value().district" [subdistrict]="value().subdistrict" [subdistrictRequired]="false" [tried]="tried()" (changed)="setPlace($event)" />
     <div class="form-grid">
-      <label class="field">
-        <span>{{ i18n.t({ th: 'แขวง / ตำบล (ไม่บังคับ)', en: 'Subdistrict (optional)' }) }}</span>
-        <input maxlength="100" [value]="value().subdistrict" (input)="set('subdistrict', $any($event.target).value)" />
-      </label>
-      <label class="field" [class.invalid]="tried() && !value().district.trim()">
-        <span>{{ i18n.t({ th: 'เขต / อำเภอ', en: 'District' }) }}</span>
-        <input maxlength="100" [value]="value().district" (input)="set('district', $any($event.target).value)" />
-      </label>
-    </div>
-    <div class="form-grid">
-      <label class="field" [class.invalid]="tried() && !value().province.trim()">
-        <span>{{ i18n.t({ th: 'จังหวัด', en: 'Province' }) }}</span>
-        <input maxlength="100" autocomplete="address-level1" [value]="value().province" (input)="set('province', $any($event.target).value)" />
-      </label>
       <label class="field" [class.invalid]="tried() && !postalOk()">
         <span>{{ i18n.t({ th: 'รหัสไปรษณีย์', en: 'Postal code' }) }}</span>
         <input inputmode="numeric" maxlength="5" autocomplete="postal-code" [value]="value().postal_code" (input)="set('postal_code', $any($event.target).value.replace(/\\D/g, ''))" />
@@ -123,5 +111,10 @@ export class AgencyFields {
 
   protected set<K extends keyof AgencyDetailForm>(key: K, v: AgencyDetailForm[K]): void {
     this.value.update((p) => ({ ...p, [key]: v }));
+  }
+
+  /** เลือกพื้นที่จาก dropdown — เติมรหัสไปรษณีย์ให้เมื่อเลือกแขวง/ตำบลแล้ว */
+  protected setPlace(c: PlaceChange): void {
+    this.value.update((p) => ({ ...p, province: c.province, district: c.district, subdistrict: c.subdistrict, postal_code: c.postal || p.postal_code }));
   }
 }

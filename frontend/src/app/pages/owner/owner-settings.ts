@@ -11,6 +11,7 @@ import { I18n, type Tr } from '../../core/i18n';
 import { screenUrl } from '../../screens/registry';
 import { BoxPicker } from '../../shared/box-picker';
 import { MapPin, type LatLng } from '../../shared/map-pin';
+import { PlacePicker, type PlaceChange } from '../../shared/place-picker';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { MyDataLink } from '../../shared/my-data-link';
@@ -24,7 +25,7 @@ import { bkkClock } from '../../core/time';
 
 @Component({
   selector: 'app-owner-settings',
-  imports: [RouterLink, PageHeader, Icon, AccountActions, PushStatus, MapPin, ProfileExtras, BoxPicker, LoadError, MyDataLink],
+  imports: [RouterLink, PageHeader, Icon, AccountActions, PushStatus, MapPin, PlacePicker, ProfileExtras, BoxPicker, LoadError, MyDataLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
@@ -212,14 +213,7 @@ import { bkkClock } from '../../core/time';
                 }
                 <label class="field"><span>{{ i18n.t({ th: 'ที่อยู่ (ซอย / ถนน / หมู่)', en: 'Address (soi / road / moo)' }) }}</span>
                   <input maxlength="200" [value]="addr().line" (input)="setAddr('line', $any($event.target).value)" /></label>
-                <div class="two">
-                  <label class="field"><span>{{ i18n.t({ th: 'แขวง / ตำบล', en: 'Subdistrict' }) }}</span>
-                    <input maxlength="100" [value]="addr().subdistrict" (input)="setAddr('subdistrict', $any($event.target).value)" /></label>
-                  <label class="field"><span>{{ i18n.t({ th: 'เขต / อำเภอ', en: 'District' }) }}</span>
-                    <input maxlength="100" [value]="addr().district" (input)="setAddr('district', $any($event.target).value)" /></label>
-                </div>
-                <label class="field"><span>{{ i18n.t({ th: 'จังหวัด', en: 'Province' }) }}</span>
-                  <input maxlength="100" [value]="addr().province" (input)="setAddr('province', $any($event.target).value)" /></label>
+                <app-place-picker [province]="addr().province" [district]="addr().district" [subdistrict]="addr().subdistrict" (changed)="setPlace($event)" />
                 <app-map-pin [editable]="true" [(value)]="pin" />
                 <div class="two">
                   <button type="button" class="btn secondary" (click)="editingAddr.set(false)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
@@ -681,6 +675,11 @@ export class OwnerSettings {
 
   protected setAddr(key: keyof BoxAddress, v: string): void {
     this.addr.update((a) => ({ ...a, [key]: v }));
+  }
+
+  /** เลือกพื้นที่จาก dropdown (จังหวัด → เขต/อำเภอ → แขวง/ตำบล) */
+  protected setPlace(c: PlaceChange): void {
+    this.addr.update((a) => ({ ...a, province: c.province, district: c.district, subdistrict: c.subdistrict }));
   }
 
   /** PATCH /boxes/:box_id ที่อยู่ + หมุด */

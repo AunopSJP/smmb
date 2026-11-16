@@ -4,6 +4,7 @@ import pg from 'pg';
 import { AppError } from '../common/http-exception.filter.js';
 import { PG_POOL } from '../db/db.module.js';
 import { isPgError, PG_CHECK_VIOLATION, PG_UNIQUE_VIOLATION, withTx, type Db } from '../db/tx.js';
+import { PlaceService } from '../place/place.service.js';
 import { NotificationService } from '../push/notification.service.js';
 import { COUNTER_STORE, type CounterStore } from '../rate-limit/rate-limit.store.js';
 import type {
@@ -82,16 +83,27 @@ export class AuthService {
     private readonly me: MeService,
     private readonly account: AccountService,
     private readonly notifications: NotificationService,
+    private readonly place: PlaceService,
   ) {}
+
+  /**
+   * ตรวจที่อยู่กับตารางพื้นที่กลาง แล้วคืนชื่อมาตรฐาน (undefined = ไม่ระบุ) — 400 PLACE_INVALID ถ้าไม่ตรงตาราง
+   * ต้องเรียก **ก่อนเปิด transaction** (โหมด mock มี connection เดียว · ครั้งแรกอ่านตารางผ่าน pool)
+   */
+  private async canonPlace(a: { province?: string; district?: string; subdistrict?: string }): Promise<{ province?: string; district?: string; subdistrict?: string }> {
+    const r = await this.place.resolve(a);
+    return { province: r.province ?? undefined, district: r.district ?? undefined, subdistrict: r.subdistrict ?? undefined };
+  }
 
   // ── สมัคร ────────────────────────────────────────────────────────────────
 
   /** เจ้าของบ้าน: บัญชี + บทบาท owner + แพ็ก free + ยอมรับข้อตกลง ใน transaction เดียว */
   async signupOwner(dto: SignupOwnerDto, meta: ClientMeta): Promise<SessionResult> {
     const hash = await this.passwords.hash(dto.password);
+    const place = await this.canonPlace(dto);
     return withTx(this.pool, async (db) => {
       await this.terms.assertCurrent(db, dto.terms_version);
-      const userId = await this.insertUser(db, { name: dto.name, phone: dto.phone, houseNo: dto.house_no, area: dto.area, profile: dto, extras: dto.profile, hash });
+      const userId = await this.insertUser(db, { name: dto.name, phone: dto.phone, houseNo: dto.house_no, area: dto.area, profile: { ...dto, ...place }, extras: dto.profile, hash });
       await db.query(`INSERT INTO app.user_role_tb (user_id, role) VALUES ($1, 'owner')`, [userId]);
       await this.account.giveDefaultPlan(db, userId);
       await this.terms.accept(db, userId, dto.terms_version, meta);
@@ -128,6 +140,7 @@ export class AuthService {
   /** หน่วยงาน: หน่วยงาน (pending) + หัวหน้าคนแรก · บทบาท officer ได้ตอนแอดมินอนุมัติ */
   async signupAgency(dto: SignupAgencyDto, meta: ClientMeta): Promise<SessionResult> {
     const hash = await this.passwords.hash(dto.head.password);
+    const place = await this.canonPlace(dto.agency);
     const result = await withTx(this.pool, async (db) => {
       await this.terms.assertCurrent(db, dto.terms_version);
       const userId = await this.insertUser(db, { name: dto.head.name, phone: dto.head.phone, extras: dto.head.profile, hash });
@@ -136,7 +149,7 @@ export class AuthService {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING agency_id`,
         [
           dto.agency.name, dto.agency.type, dto.agency.contact, dto.agency.address ?? null, dto.agency.registration_no ?? null,
-          dto.agency.subdistrict ?? null, dto.agency.district ?? null, dto.agency.province ?? null, dto.agency.postal_code ?? null,
+          place.subdistrict ?? null, place.district ?? null, place.province ?? null, dto.agency.postal_code ?? null,
           dto.agency.phone ?? null, dto.agency.email ?? null, dto.agency.contact_person ?? null, dto.agency.coverage_note ?? null,
           dto.agency.lat ?? null, dto.agency.lng ?? null,
         ],
@@ -161,6 +174,7 @@ export class AuthService {
   // ── เพิ่มบทบาทให้บัญชีที่มีอยู่ (1 เบอร์หลายบทบาท) ─────────────────────────
 
   async addOwnerRole(userId: string, sessionId: string, dto: AddOwnerRoleDto, meta: ClientMeta): Promise<Me> {
+    const place = await this.canonPlace(dto);
     return withTx(this.pool, async (db) => {
       await this.terms.assertCurrent(db, dto.terms_version);
       await this.lockUser(db, userId);
@@ -176,7 +190,7 @@ export class AuthService {
            address_line = $4, subdistrict = $5, district = $6, province = $7, house_lat = $8, house_lng = $9,
            emergency_name = $10, emergency_phone = $11, profile = profile || $12::jsonb, perm_version = perm_version + 1
          WHERE user_id = $1`,
-        [userId, dto.house_no, dto.area ?? null, ...profileParams(dto), JSON.stringify(dto.profile ?? {})],
+        [userId, dto.house_no, dto.area ?? null, ...profileParams({ ...dto, ...place }), JSON.stringify(dto.profile ?? {})],
       );
       await this.account.giveDefaultPlan(db, userId);
       await this.terms.accept(db, userId, dto.terms_version, meta);

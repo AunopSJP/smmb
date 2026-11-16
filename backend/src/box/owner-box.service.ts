@@ -4,6 +4,7 @@ import pg from 'pg';
 import { AppError } from '../common/http-exception.filter.js';
 import type { Env } from '../config/env.js';
 import { PG_POOL } from '../db/db.module.js';
+import { PlaceService } from '../place/place.service.js';
 import { withTx, type Db } from '../db/tx.js';
 import { CodeAttempts } from '../rate-limit/code-attempts.js';
 import type { BoxStatus } from './box-config.js';
@@ -102,6 +103,7 @@ export class OwnerBoxService {
     private readonly codes: CodeAttempts,
     private readonly sos: SosService,
     private readonly hub: JobHub,
+    private readonly place: PlaceService,
   ) {}
 
   /** หน้าหลักเจ้าของบ้าน (H03) — ตู้ของคนอื่น → 404 */
@@ -313,7 +315,16 @@ export class OwnerBoxService {
   }
 
   /** ตั้งชื่อตู้ / ย่าน — ตู้ของคนอื่น → 404 · area = '' ล้างค่า · ไม่ส่งฟิลด์ = ไม่แตะ */
-  async update(userId: string, boxId: string, patch: BoxPatch): Promise<BoxSummary> {
+  async update(userId: string, boxId: string, rawPatch: BoxPatch): Promise<BoxSummary> {
+    let patch = rawPatch;
+    // จังหวัด/เขต/แขวง เปลี่ยนเป็นชุดเดียว: ตรวจกับตารางพื้นที่กลาง (ไม่ตรง → 400 PLACE_INVALID) แล้วเก็บชื่อมาตรฐาน · ว่างทั้งหมด = ล้างที่อยู่ส่วนนี้
+    if (rawPatch.province !== undefined || rawPatch.district !== undefined || rawPatch.subdistrict !== undefined) {
+      // ตู้ของคนอื่น → 404 ก่อนเสมอ (กฎขอบเขตข้อมูล) ไม่ให้ตรวจพื้นที่แล้วตอบ 400 จนรู้ว่าตู้นั้นมีอยู่
+      const mine = await this.pool.query(`SELECT 1 FROM app.box_tb WHERE box_id = $1 AND owner_user_id = $2`, [boxId, userId]);
+      if (!mine.rowCount) throw new NotFoundException();
+      const r = await this.place.resolve(rawPatch);
+      patch = { ...rawPatch, province: r.province ?? '', district: r.district ?? '', subdistrict: r.subdistrict ?? '' };
+    }
     const { rowCount } = await this.pool.query(
       `UPDATE app.box_tb SET
          name = coalesce($3, name),

@@ -45,9 +45,10 @@ test('เจ้าหน้าที่สมัคร: เลขประจำ
 
   await page.getByLabel('บ้านเลขที่', { exact: true }).fill('45/6');
   await page.getByLabel('ที่อยู่ (ซอย').fill('ซอยทดสอบ 2');
-  await page.getByLabel('แขวง / ตำบล').fill('บางนา');
-  await page.getByLabel('เขต / อำเภอ').fill('บางนา');
-  await page.getByLabel('จังหวัด').fill('กรุงเทพมหานคร');
+  // พื้นที่เลือกจาก dropdown (จังหวัด → เขต/อำเภอ → แขวง/ตำบล) ไม่ใช่พิมพ์เอง
+  await page.getByLabel('จังหวัด').selectOption({ label: 'กรุงเทพมหานคร' });
+  await page.getByLabel('เขต / อำเภอ').selectOption({ label: 'บางนา' });
+  await page.getByLabel('แขวง / ตำบล').selectOption({ label: 'บางนาเหนือ' });
   await page.getByLabel('รหัสไปรษณีย์').fill('10260');
   await next(page).click();
 
@@ -90,8 +91,8 @@ test('สมัครหน่วยงาน 4 ขั้น: ขั้นไห
   await next(page).click(); // ขั้นนี้บังคับ เขต/อำเภอ จังหวัด และเบอร์หน่วยงาน
   await expect(page.getByRole('alert').first()).toContainText('ที่ตั้ง');
   await expect(page.getByText('ขั้น 3 จาก 4')).toBeVisible();
-  await page.getByLabel('เขต / อำเภอ').fill('เมือง');
-  await page.getByLabel('จังหวัด').fill('เชียงใหม่');
+  await page.getByLabel('จังหวัด').selectOption({ label: 'เชียงใหม่' });
+  await page.getByLabel('เขต / อำเภอ').selectOption({ label: 'เมืองเชียงใหม่' });
   await page.getByLabel('เบอร์โทรหน่วยงาน').fill('021112222');
   await next(page).click();
 

@@ -18,9 +18,10 @@ test('เจ้าของบ้านสมัคร ผูกตู้ ตั
   await expect(page.getByText('ขั้น 2 จาก 4')).toBeVisible();
   await page.getByLabel('บ้านเลขที่', { exact: true }).fill('12/3');
   await page.getByLabel('ที่อยู่ (ซอย').fill('ซอยทดสอบ 1');
-  await page.getByLabel('แขวง / ตำบล').fill('บางนา');
-  await page.getByLabel('เขต / อำเภอ').fill('บางนา');
-  await page.getByLabel('จังหวัด').fill('กรุงเทพมหานคร');
+  // พื้นที่เลือกจาก dropdown (จังหวัด → เขต/อำเภอ → แขวง/ตำบล) ไม่ใช่พิมพ์เอง
+  await page.getByLabel('จังหวัด').selectOption({ label: 'กรุงเทพมหานคร' });
+  await page.getByLabel('เขต / อำเภอ').selectOption({ label: 'บางนา' });
+  await page.getByLabel('แขวง / ตำบล').selectOption({ label: 'บางนาเหนือ' });
   await page.getByLabel('รหัสไปรษณีย์').fill('10260');
   await next().click();
 

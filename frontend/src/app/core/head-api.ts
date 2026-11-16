@@ -105,6 +105,10 @@ export interface HouseHit {
   /** พิกัดบ้าน (null = ยังไม่ปักหมุด) */
   lat?: number | null;
   lng?: number | null;
+  /** ✅ 2026-11-16 ข้อมูลบ้านครบ (ที่อยู่ + จังหวัด/เขต/แขวงตรงรายชื่อมาตรฐาน + หมุด) — ไม่ครบเพิ่มเข้าโซนไม่ได้ */
+  complete?: boolean;
+  /** สิ่งที่ยังขาด: address = ที่อยู่ซอย/ถนน · place = จังหวัด/เขต/แขวง · pin = หมุดบ้าน */
+  missing?: ('address' | 'place' | 'pin')[];
 }
 
 export const AGENCY_TYPE_LABEL: Record<AgencyType, { th: string; en: string }> = {
@@ -186,12 +190,13 @@ export class HeadApi {
   }
   /** ไม่ใส่คำค้น = บ้านที่ยังไม่มีหน่วยงานไหนดูแล */
   /** unzoned: เฉพาะบ้านที่ยังไม่มีใครดูแล · online: เฉพาะตู้ออนไลน์ (api.md §8.3) */
-  searchHouses(q = '', opt: { unzoned?: boolean; online?: boolean; zone?: string } = {}): Promise<{ data: HouseHit[]; total: number }> {
+  searchHouses(q = '', opt: { unzoned?: boolean; online?: boolean; zone?: string; suggest?: boolean } = {}): Promise<{ data: HouseHit[]; total: number }> {
     const p = new URLSearchParams();
     if (opt.zone) p.set('zone', opt.zone);
     if (q) p.set('q', q);
     if (opt.unzoned !== undefined) p.set('unzoned', opt.unzoned ? '1' : '0');
     if (opt.online) p.set('online', '1');
+    if (opt.suggest) p.set('suggest', '1');
     const qs = p.toString();
     return firstValueFrom(this.http.get<HouseHit[]>(`/api/v1/agency/houses/search${qs ? `?${qs}` : ''}`, { observe: 'response' })).then((r) => ({
       data: r.body ?? [],

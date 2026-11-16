@@ -50,6 +50,8 @@ class HouseSearchQuery {
   @IsOptional() @IsIn(['0', '1']) online?: '0' | '1';
   /** ระบุโซนที่กำลังเพิ่มบ้าน → เห็นเฉพาะบ้านที่อยู่ในพื้นที่ของโซนนั้น · โซนไม่ใช่ของหน่วยงาน 404 */
   @IsOptional() @IsUUID() zone?: string;
+  /** ✅ 2026-11-16 '1' = บ้านแนะนำของโซน (ต้องส่ง zone) — ข้อมูลครบ อยู่ในพื้นที่โซน ยังไม่อยู่ในโซนนี้ · บ้านที่ยังไม่มีใครดูแลขึ้นก่อน */
+  @IsOptional() @IsIn(['0', '1']) suggest?: '0' | '1';
 }
 
 class SetOfficersDto {
@@ -71,6 +73,7 @@ export class HouseController {
       unzoned: q.unzoned === undefined ? undefined : q.unzoned === '1',
       online: q.online === '1',
       zoneId: q.zone,
+      suggest: q.suggest === '1',
     });
     // body ยังเป็น array ตามสัญญาเดิม — จำนวนทั้งหมดส่งใน header (ไม่ตัด 20 แล้วหลอกว่า "พบ 20")
     res.setHeader('X-Total-Count', String(result.total));

@@ -15,6 +15,7 @@ import { DbModule } from './db/db.module.js';
 import { AuditModule } from './common/audit.service.js';
 import { HealthController } from './health/health.controller.js';
 import { MapModule } from './map/map.module.js';
+import { PlaceModule } from './place/place.module.js';
 import { PushModule } from './push/push.module.js';
 import { SupportModule } from './support/support.module.js';
 
@@ -36,6 +37,7 @@ import { SupportModule } from './support/support.module.js';
     RiderModule,
     SosModule,
     MapModule,
+    PlaceModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: AllExceptionsFilter }],

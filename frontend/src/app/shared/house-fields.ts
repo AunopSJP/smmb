@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, input, model } from '@angul
 import { I18n } from '../core/i18n';
 import { normalizePhone } from '../core/mock/auth-demo';
 import { MapPin, type LatLng } from './map-pin';
+import { PlacePicker, type PlaceChange } from './place-picker';
 import { emptyExtras, extrasPayload, extrasValid, ProfileExtras, type ExtrasForm } from './profile-extras';
 
 /** ข้อมูลบ้านที่ละเอียดขึ้น (api.md §2.1 · ✅ 2026-11-04) — ใช้ใน A06 สมัคร และ A15 เพิ่มบทบาทเจ้าของบ้าน */
@@ -70,7 +71,7 @@ export function houseProfilePayload(p: HouseProfileForm): Record<string, unknown
 
 @Component({
   selector: 'app-house-fields',
-  imports: [MapPin, ProfileExtras],
+  imports: [MapPin, ProfileExtras, PlacePicker],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="form-section">
@@ -79,20 +80,7 @@ export function houseProfilePayload(p: HouseProfileForm): Record<string, unknown
       <span>{{ i18n.t({ th: 'ที่อยู่ (ซอย / ถนน / หมู่)', en: 'Address (soi / road / moo)' }) }}</span>
       <input maxlength="200" autocomplete="address-line2" [placeholder]="i18n.t({ th: 'เช่น ซอยสุขใจ 3 ถนนพหลโยธิน', en: 'e.g. Soi Sukjai 3, Phahonyothin Rd' })" [value]="value().address_line" (input)="set('address_line', $any($event.target).value)" />
     </label>
-    <div class="form-grid">
-      <label class="field" [class.invalid]="tried() && !value().subdistrict.trim()">
-        <span>{{ i18n.t({ th: 'แขวง / ตำบล', en: 'Subdistrict' }) }}</span>
-        <input maxlength="100" [value]="value().subdistrict" (input)="set('subdistrict', $any($event.target).value)" />
-      </label>
-      <label class="field" [class.invalid]="tried() && !value().district.trim()">
-        <span>{{ i18n.t({ th: 'เขต / อำเภอ', en: 'District' }) }}</span>
-        <input maxlength="100" [value]="value().district" (input)="set('district', $any($event.target).value)" />
-      </label>
-    </div>
-    <label class="field" [class.invalid]="tried() && !value().province.trim()">
-      <span>{{ i18n.t({ th: 'จังหวัด', en: 'Province' }) }}</span>
-      <input maxlength="100" autocomplete="address-level1" [value]="value().province" (input)="set('province', $any($event.target).value)" />
-    </label>
+    <app-place-picker [province]="value().province" [district]="value().district" [subdistrict]="value().subdistrict" [tried]="tried()" (changed)="setPlace($event)" />
 
     <div class="field">
       <span>{{ i18n.t({ th: 'ปักหมุดบ้าน (แนะนำ)', en: 'Pin your house (recommended)' }) }}</span>
@@ -148,5 +136,16 @@ export class HouseFields {
 
   protected set<K extends keyof HouseProfileForm>(key: K, v: HouseProfileForm[K]): void {
     this.value.update((p) => ({ ...p, [key]: v }));
+  }
+
+  /** เลือกพื้นที่จาก dropdown — เติมรหัสไปรษณีย์ให้เมื่อเลือกแขวง/ตำบลแล้ว */
+  protected setPlace(c: PlaceChange): void {
+    this.value.update((p) => ({
+      ...p,
+      province: c.province,
+      district: c.district,
+      subdistrict: c.subdistrict,
+      extras: c.postal ? { ...p.extras, postal_code: c.postal } : p.extras,
+    }));
   }
 }

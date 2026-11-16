@@ -1122,8 +1122,8 @@ describe('Boxes (e2e)', () => {
     it('owner box keeps address + pin; pairs are validated; other owners get 404', async () => {
       const { b, owner } = await boundBox('94/4');
       const patch = (id: string, body: object) => http().patch(`/api/v1/boxes/${id}`).set('Cookie', owner.cookie).send(body);
-      const res = await patch(b.box_id, { address_line: 'ซอย 3', subdistrict: 'ลาดยาว', district: 'จตุจักร', province: 'กรุงเทพฯ', lat: 13.812345, lng: 100.561234 }).expect(200);
-      expect(res.body.address).toEqual({ line: 'ซอย 3', subdistrict: 'ลาดยาว', district: 'จตุจักร', province: 'กรุงเทพฯ' });
+      const res = await patch(b.box_id, { address_line: 'ซอย 3', subdistrict: 'ลาดยาว', district: 'จตุจักร', province: 'กรุงเทพมหานคร', lat: 13.812345, lng: 100.561234 }).expect(200);
+      expect(res.body.address).toEqual({ line: 'ซอย 3', subdistrict: 'ลาดยาว', district: 'จตุจักร', province: 'กรุงเทพมหานคร' });
       expect(res.body.location).toEqual({ lat: 13.812345, lng: 100.561234 });
       await patch(b.box_id, { lat: 13.8 }).expect(400);
       await patch(b.box_id, { clear_location: true, lat: 1, lng: 1 }).expect(400);

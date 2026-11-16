@@ -71,6 +71,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         await this.safely('cleanup', () => this.cleanup());
         await this.safely('anonymize', () => this.anonymizeDeleted());
         await this.safely('plans', () => this.watchPlans());
+        await this.safely('addresses', () => this.watchAddresses());
       }
       if (bangkokHour(now) >= HEALTH_HOUR && this.lastHealthDay !== bangkokDay(now)) {
         this.lastHealthDay = bangkokDay(now);
@@ -146,6 +147,25 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     const admins = await this.adminIds();
     for (const r of rows) {
       await this.notifications.notify(admins, { type: 'box_silent_26h', data: { box_id: r.box_id }, link: `/admin/boxes/detail?id=${r.box_id}`, tag: `silent-${r.box_id}` }).catch(this.warn);
+    }
+    return rows.length;
+  }
+
+  // ── ที่อยู่บ้านไม่ครบ ───────────────────────────────────────────────────
+
+  /**
+   * บ้านเก่าที่ยังไม่มีที่อยู่ / ชื่อพื้นที่ไม่ตรงตารางกลาง / ไม่มีหมุด → แจ้งเจ้าของครั้งเดียวต่อตู้ให้ไปกรอกใหม่
+   * (ถ้าแก้ครบแล้วทีหลังไม่แจ้งอีก · เพิ่มบ้านเข้าโซนไม่ได้จนกว่าจะครบ)
+   */
+  async watchAddresses(): Promise<number> {
+    const { rows } = await this.pool.query<{ box_id: string; owner_user_id: string }>(
+      `UPDATE app.box_tb b SET address_notified_date = now()
+       WHERE b.owner_user_id IS NOT NULL AND b.address_notified_date IS NULL
+         AND NOT (coalesce(b.address_line, '') <> '' AND b.lat IS NOT NULL AND app.place_standard(b.province, b.district, b.subdistrict))
+       RETURNING b.box_id, b.owner_user_id`,
+    );
+    for (const r of rows) {
+      await this.notifications.notify([r.owner_user_id], { type: 'address_incomplete', data: { box_id: r.box_id }, link: '/home/settings', tag: `address-${r.box_id}` }).catch(this.warn);
     }
     return rows.length;
   }

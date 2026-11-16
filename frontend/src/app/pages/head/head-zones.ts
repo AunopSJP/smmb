@@ -10,6 +10,7 @@ import { HousesMap, type HouseMapPoint } from '../../shared/houses-map';
 import { EmptyState, LoadError, LoadingRows } from '../../shared/state-view';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
+import { PlacePicker, type PlaceChange } from '../../shared/place-picker';
 import { liveRefresh } from '../../core/live-refresh';
 
 // หัวหน้า: L06 โซนทั้งหมด · L07 แก้โซน (ชื่อ · เวลาตรวจ · บ้าน · เจ้าหน้าที่) — ใช้ API จริง (api.md §8.3)
@@ -22,6 +23,8 @@ const ZONE_ERROR: Record<string, Tr> = {
   WINDOWS_INVALID: { th: 'เวลาตรวจไม่ถูกต้อง (ไม่ทับกัน · เริ่มก่อนจบ · ไม่ข้ามเที่ยงคืน · ไม่เกิน 4 ช่วง)', en: 'Invalid patrol hours (no overlap · start before end · no midnight crossing · max 4)' },
   ZONE_NAME_TAKEN: { th: 'มีโซนชื่อนี้แล้ว', en: 'A zone with this name exists' },
   HOUSE_NOT_FOUND: { th: 'เพิ่มไม่ได้ เพราะมีบ้านที่ไม่พบหรือยังไม่ผูกตู้ — ค้นบ้านใหม่แล้วเลือกอีกครั้ง', en: 'Can’t add: a house was not found or has no mailbox yet — search again and re-select' },
+  HOUSE_INCOMPLETE: { th: 'เพิ่มไม่ได้ เพราะมีบ้านที่ข้อมูลยังไม่ครบ (ที่อยู่ / จังหวัด-เขต-แขวง / หมุด) — ให้เจ้าของบ้านกรอกให้ครบก่อน', en: 'Can’t add: a house has incomplete details (address / province-district-subdistrict / pin) — ask the owner to complete them first' },
+  PLACE_INVALID: { th: 'พื้นที่ไม่ตรงรายชื่อมาตรฐาน — เลือกจังหวัด เขต/อำเภอ แขวง/ตำบลจากรายการ', en: 'Area is not in the standard list — pick province, district and subdistrict from the dropdowns' },
   OFFICER_NOT_MEMBER: { th: 'เพิ่มไม่ได้ เพราะมีคนที่ไม่ได้เป็นสมาชิกของหน่วยงาน — โหลดรายชื่อใหม่แล้วเลือกอีกครั้ง', en: 'Can’t add: someone is not a member of this agency — reload the list and re-select' },
 };
 
@@ -182,7 +185,7 @@ export class HeadZones implements OnInit {
 
 @Component({
   selector: 'app-head-zone-edit',
-  imports: [PageHeader, RouterLink, LoadError, EmptyState, HousesMap],
+  imports: [PageHeader, RouterLink, LoadError, EmptyState, HousesMap, PlacePicker],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './head-zone-edit.scss',
   template: `
@@ -205,18 +208,7 @@ export class HeadZones implements OnInit {
         <fieldset class="stack area" id="zone-area">
           <legend><strong>{{ i18n.t({ th: 'พื้นที่ที่โซนนี้ดูแล', en: 'Area this zone covers' }) }}</strong></legend>
           <span class="muted small easy-hide">{{ i18n.t({ th: 'ตอนเพิ่มบ้าน จะเห็นเฉพาะบ้านที่อยู่ในพื้นที่นี้', en: 'When adding houses you will only see houses inside this area' }) }}</span>
-          <label class="field">
-            <span>{{ i18n.t({ th: 'จังหวัด', en: 'Province' }) }}</span>
-            <input maxlength="100" autocomplete="off" [value]="province()" (input)="province.set($any($event.target).value)" />
-          </label>
-          <label class="field">
-            <span>{{ i18n.t({ th: 'เขต / อำเภอ', en: 'District' }) }}</span>
-            <input maxlength="100" autocomplete="off" [value]="district()" (input)="district.set($any($event.target).value)" />
-          </label>
-          <label class="field easy-hide">
-            <span>{{ i18n.t({ th: 'แขวง / ตำบล (ไม่บังคับ)', en: 'Sub-district (optional)' }) }}</span>
-            <input maxlength="100" autocomplete="off" [value]="subdistrict()" (input)="subdistrict.set($any($event.target).value)" />
-          </label>
+          <app-place-picker [province]="province()" [district]="district()" [subdistrict]="subdistrict()" [subdistrictRequired]="false" (changed)="setArea($event)" />
           @if (zone()?.area; as a) {
             <p class="muted small mono adv-only">{{ a.subdistrict || '—' }} / {{ a.district }} / {{ a.province }}</p>
           }
@@ -312,11 +304,14 @@ export class HeadZones implements OnInit {
             <label class="chip-toggle"><input type="checkbox" [checked]="onlyUnzoned()" (change)="onlyUnzoned.set($any($event.target).checked); refilter()" />{{ i18n.t({ th: 'ยังไม่มีใครดูแล', en: 'Not covered yet' }) }}</label>
             <label class="chip-toggle"><input type="checkbox" [checked]="onlyOnline()" (change)="onlyOnline.set($any($event.target).checked); refilter()" />{{ i18n.t({ th: 'ตู้ออนไลน์', en: 'Box online' }) }}</label>
           </div>
-          <button type="button" class="btn secondary small-btn browse" [disabled]="searching()" (click)="browse()">
+          <button type="button" class="btn small-btn browse" [disabled]="searching()" (click)="suggest()">
+            {{ i18n.t({ th: 'บ้านที่แนะนำ (ข้อมูลครบ ในพื้นที่โซน)', en: 'Suggested houses (complete, inside this area)' }) }}
+          </button>
+          <button type="button" class="btn secondary small-btn browse easy-hide" [disabled]="searching()" (click)="browse()">
             {{ i18n.t({ th: 'ดูบ้านที่ยังไม่มีใครดูแล', en: 'Show houses nobody covers yet' }) }}
           </button>
           @if (searchFailed()) {
-            <app-load-error (retry)="mode() === 'browse' ? browse() : search()" />
+            <app-load-error (retry)="rerun()" />
           } @else if (searched()) {
             <div class="result-head">
               <span class="muted small">{{ i18n.t({ th: 'พบ ', en: 'Found ' }) }}{{ hits().length }}{{ hitTotal() > hits().length ? ' / ' + hitTotal() : '' }}{{ i18n.t({ th: ' หลัง', en: ' houses' }) }}{{ picked().size ? i18n.t({ th: ' · เลือก ', en: ' · selected ' }) + picked().size : '' }}</span>
@@ -343,6 +338,9 @@ export class HeadZones implements OnInit {
                     <strong>{{ h.house_no ?? h.box_id }}</strong>
                     @if (h.area) { <span class="chip">{{ h.area }}</span> }
                     <span class="muted small block">{{ h.box_id }}{{ h.box_name ? ' · ' + h.box_name : '' }}{{ h.locality ? ' · ' + h.locality : '' }}</span>
+                    @if (h.complete === false) {
+                      <span class="warn-text small block">{{ i18n.t({ th: 'ข้อมูลไม่ครบ — ยังเพิ่มเข้าโซนไม่ได้: ', en: 'Incomplete — cannot be added yet: ' }) }}{{ missingText(h) }}</span>
+                    }
                     <span class="muted small block">
                       {{ statusText(h) }} ·
                       @if (!h.zones.length) {
@@ -362,7 +360,9 @@ export class HeadZones implements OnInit {
             </div>
             @if (!hits().length) {
               <p class="muted small">
-                {{ mode() === 'browse'
+                {{ mode() === 'suggest'
+                  ? i18n.t({ th: 'ไม่มีบ้านแนะนำ — ยังไม่มีบ้านที่ข้อมูลครบในพื้นที่โซนนี้ (บ้านที่ข้อมูลไม่ครบจะไม่ถูกแนะนำ) · ลองพิมพ์ค้นบ้านเอง', en: 'No suggestions — no complete houses in this zone area yet (incomplete houses are not suggested) · try searching' })
+                  : mode() === 'browse'
                   ? i18n.t({ th: 'ไม่มีบ้านที่รอเพิ่มแล้ว — ทุกหลังที่เจ้าของผูกตู้แล้วมีหน่วยงานดูแลอยู่', en: 'Nothing waiting — every bound house is already covered' })
                   : i18n.t({ th: 'ไม่พบ — ค้นได้เฉพาะตู้ที่เจ้าของบ้านผูกแล้ว (ตรวจสอบว่าเจ้าของผูกตู้แล้ว และพิมพ์บ้านเลขที่ตรงกับที่เจ้าของกรอก)', en: 'Nothing found — only boxes already bound by an owner (check the owner has bound it and the number matches what they entered)' }) }}
               </p>
@@ -503,6 +503,13 @@ export class HeadZoneEdit {
   protected readonly province = signal('');
   protected readonly district = signal('');
   protected readonly subdistrict = signal('');
+
+  /** เลือกพื้นที่โซนจาก dropdown (จังหวัด → เขต/อำเภอ → แขวง/ตำบล) */
+  protected setArea(c: PlaceChange): void {
+    this.province.set(c.province);
+    this.district.set(c.district);
+    this.subdistrict.set(c.subdistrict);
+  }
   protected readonly from = signal('06:00');
   protected readonly to = signal('09:00');
   protected readonly error = signal<Tr | null>(null);
@@ -513,9 +520,9 @@ export class HeadZoneEdit {
   protected readonly searched = signal(false);
   protected readonly onlyUnzoned = signal(false);
   protected readonly onlyOnline = signal(false);
-  protected readonly mode = signal<'search' | 'browse'>('search');
+  protected readonly mode = signal<'search' | 'browse' | 'suggest'>('search');
   protected readonly searchedFor = signal('');
-  protected readonly addable = computed(() => this.hits().filter((h) => !this.inZone(h.box_id) && !this.pendingHere(h.box_id)));
+  protected readonly addable = computed(() => this.hits().filter((h) => this.selectable(h)));
   /** ติ๊กบ้านหลายหลังแล้วส่งคำขอครั้งเดียว (แทนการกด + ทีละหลัง) */
   protected readonly picked = signal<Set<string>>(new Set());
   protected readonly searching = signal(false);
@@ -591,7 +598,7 @@ export class HeadZoneEdit {
       // เปิดโซนครั้งแรก → โชว์บ้านที่ยังไม่มีใครดูแลเลย (ไม่ต้องกดปุ่มก่อน)
       if (!this.autoBrowsed && z.area) {
         this.autoBrowsed = true;
-        void this.browse();
+        void this.suggest();
       }
     } catch {
       void this.router.navigateByUrl(screenUrl('L06'));
@@ -689,10 +696,41 @@ export class HeadZoneEdit {
     }
   }
 
+  /** ✅ 2026-11-16 บ้านที่แนะนำ: ข้อมูลครบ อยู่ในพื้นที่โซน ยังไม่อยู่ในโซนนี้ · บ้านที่ยังไม่มีใครดูแลขึ้นก่อน */
+  protected async suggest(): Promise<void> {
+    this.mode.set('suggest');
+    this.picked.set(new Set());
+    this.searching.set(true);
+    this.searchFailed.set(false);
+    try {
+      const r = await this.api.searchHouses('', { suggest: true, online: this.onlyOnline(), zone: this.zone()?.id });
+      this.hits.set(r.data);
+      this.hitTotal.set(r.total);
+    } catch {
+      this.hits.set([]);
+      this.hitTotal.set(0);
+      this.searchFailed.set(true);
+    } finally {
+      this.searched.set(true);
+      this.searching.set(false);
+    }
+  }
+
+  /** รันรอบเดิมซ้ำ (ลองใหม่ / เปลี่ยนตัวกรอง) */
+  protected rerun(): void {
+    void (this.mode() === 'suggest' ? this.suggest() : this.mode() === 'browse' ? this.browse() : this.search());
+  }
+
+  /** ข้อมูลที่ยังขาดของบ้าน เป็นข้อความอ่านง่าย */
+  protected missingText(h: HouseHit): string {
+    const label = { address: { th: 'ที่อยู่', en: 'address' }, place: { th: 'จังหวัด/เขต/แขวง', en: 'province/district/subdistrict' }, pin: { th: 'หมุดบ้าน', en: 'pin' } } as const;
+    return (h.missing ?? []).map((m) => this.i18n.t(label[m])).join(', ');
+  }
+
   /** เปลี่ยนตัวกรอง → ค้นรอบเดิมใหม่ */
   protected refilter(): void {
     if (!this.searched()) return;
-    void (this.mode() === 'browse' ? this.browse() : this.search());
+    this.rerun();
   }
 
   protected activeCount(houses: { pending: boolean }[]): number {
@@ -731,7 +769,8 @@ export class HeadZoneEdit {
 
   /** เลือกได้เฉพาะบ้านที่ยังไม่อยู่ในโซนนี้และยังไม่มีคำขอค้าง */
   protected selectable(h: HouseHit): boolean {
-    return !this.inZone(h.box_id) && !this.pendingHere(h.box_id);
+    // ข้อมูลบ้านไม่ครบ = เลือกไม่ได้ (เซิร์ฟเวอร์ก็ปฏิเสธด้วย HOUSE_INCOMPLETE)
+    return !this.inZone(h.box_id) && !this.pendingHere(h.box_id) && h.complete !== false;
   }
 
   protected togglePick(boxId: string): void {
