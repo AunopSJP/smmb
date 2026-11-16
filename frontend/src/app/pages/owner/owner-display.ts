@@ -27,7 +27,7 @@ import { PageHeader } from '../../shared/page-header';
       <div class="modes" role="radiogroup" [attr.aria-label]="i18n.t({ th: 'โหมดการแสดงผล', en: 'Display mode' })">
         @for (m of modeOptions; track m.value) {
           <button type="button" role="radio" class="mode" [class.on]="display.mode() === m.value" [attr.aria-checked]="display.mode() === m.value" (click)="display.setMode(m.value)">
-            <span class="thumb" [attr.data-m]="m.value" aria-hidden="true"><i class="g"></i><i></i><i></i><i></i><i></i><i class="r"></i></span>
+            <span class="thumb" [attr.data-m]="m.value" aria-hidden="true"><span class="th-top"><b></b><em></em></span><span class="th-hero"><u></u><s></s><s></s></span><span class="th-rows"><i></i><i></i><i></i><i></i></span><span class="th-btn"></span></span>
             <span class="mtxt">
               <strong>{{ i18n.t(m.label) }}@if (display.mode() === m.value) {<span class="tick" aria-hidden="true"><app-icon name="check" [size]="14" /></span>}</strong>
               <span class="muted small block easy-hide">{{ i18n.t(m.hint) }}</span>
@@ -141,46 +141,88 @@ import { PageHeader } from '../../shared/page-header';
       background: var(--action-bg);
       color: var(--action-fg);
     }
+    /* รูปตัวอย่างโหมด: หน้าจอจำลองเล็ก ๆ — หัว · การ์ดสถานะ · รายการ · ปุ่ม SOS (ปริมาณรายละเอียดต่างกันตามโหมด) */
     .thumb {
+      --tb: color-mix(in srgb, var(--text-muted) 38%, transparent);
       display: flex;
       flex-direction: column;
-      gap: 5px;
+      gap: 4px;
       flex: none;
-      inline-size: 64px;
-      padding: 8px;
+      inline-size: 68px;
+      block-size: 92px;
+      padding: 6px;
       border-radius: 12px;
       background: var(--bg);
       border: 1px solid var(--line);
-      i {
+      overflow: hidden;
+      i, b, em, u, s {
         display: block;
-        block-size: 8px;
         border-radius: 3px;
-        background: var(--line-strong);
+        text-decoration: none;
       }
-      i.g {
-        block-size: 16px;
-        background: var(--ok);
+      .th-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        b { inline-size: 18px; block-size: 4px; background: var(--tb); }
+        em { inline-size: 6px; block-size: 6px; border-radius: 50%; background: var(--tb); }
       }
-      i.r {
-        margin-block-start: auto;
+      .th-hero {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        column-gap: 5px;
+        row-gap: 3px;
+        padding: 5px;
+        border-radius: 7px;
+        background: color-mix(in srgb, var(--ok) 22%, var(--surface));
+        u { grid-row: span 2; inline-size: 14px; block-size: 14px; border-radius: 50%; background: var(--ok); }
+        s { block-size: 4px; background: color-mix(in srgb, var(--ok) 60%, var(--text-muted)); }
+        s:last-child { inline-size: 70%; }
+      }
+      .th-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        flex: 1;
+        min-block-size: 0;
+        i {
+          position: relative;
+          block-size: 7px;
+          background: var(--tb);
+        }
+        i::after {
+          content: '';
+          position: absolute;
+          inset-block: 2px;
+          inset-inline-end: 3px;
+          inline-size: 9px;
+          border-radius: 2px;
+          background: color-mix(in srgb, var(--bg) 70%, transparent);
+        }
+      }
+      .th-btn {
+        block-size: 14px;
+        border-radius: 7px;
         background: var(--sos);
-        block-size: 8px;
       }
     }
-    /* ง่าย: ก้อนใหญ่น้อยชิ้น · ปกติ: กลาง · ละเอียด: บางหลายแถว */
+    /* ง่าย: การ์ดใหญ่ รายการน้อย ปุ่มใหญ่ · ปกติ: กลาง ๆ · ละเอียด: ทุกอย่างเล็กลงแต่เห็นหลายแถว */
     .thumb[data-m='easy'] {
-      i:nth-child(n + 4):not(.r) {
-        display: none;
-      }
-      i.r {
-        block-size: 20px;
-      }
+      .th-top { display: none; }
+      .th-hero { padding-block: 9px; u { inline-size: 20px; block-size: 20px; } s { block-size: 5px; } }
+      .th-rows i { block-size: 12px; }
+      .th-rows i:nth-child(n + 2) { display: none; }
+      .th-btn { block-size: 26px; border-radius: 9px; }
     }
-    .thumb[data-m='default'] i:nth-child(5):not(.r) {
-      display: none;
+    .thumb[data-m='default'] {
+      .th-rows i:nth-child(n + 3) { display: none; }
     }
-    .thumb[data-m='advanced'] i:not(.g):not(.r) {
-      block-size: 5px;
+    .thumb[data-m='advanced'] {
+      gap: 3px;
+      .th-hero { padding: 3px 4px; u { inline-size: 9px; block-size: 9px; } s { block-size: 3px; } }
+      .th-rows { gap: 2px; i { block-size: 5px; } i::after { inset-block: 1px; inline-size: 12px; } }
+      .th-btn { block-size: 9px; border-radius: 4px; }
     }
     .t {
       inline-size: 20px;
