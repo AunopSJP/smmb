@@ -22,6 +22,8 @@
 | `SPEAKER-NOTES-detailed.md` | notes ฉบับละเอียด |
 | `qa-detailed/` | ภาพตรวจเด็คฉบับละเอียด |
 
+> เด็ค internal ใช้ภาพจาก `ux-redesign/shots` ซึ่งเก่ากว่าภาพปัจจุบัน — ถ้าจะนำไปใช้ภายนอกให้เปลี่ยนเป็น `assets/shots/current/` ก่อน
+
 ## เปิดนำเสนอ
 
 1. เปิด `smmb-deck.html` ด้วย Chrome
