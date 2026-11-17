@@ -201,8 +201,8 @@ bool cameraStart() {
     sen->set_hmirror(sen, (settings.camFlip >> 1) & 1);
   }
   running = true;
-  // ทิ้ง 2 เฟรมแรก (รับแสงยังไม่นิ่ง)
-  for (int i = 0; i < 2; i++) {
+  // ทิ้ง 8 เฟรมแรก: เซนเซอร์เพิ่งตื่น ปรับแสงอัตโนมัติยังไม่นิ่ง — cameraAutoFlash วัดความสว่างจากเฟรมถัดไป (ทิ้งแค่ 2 ค่าที่วัดเชื่อไม่ได้)
+  for (int i = 0; i < 8; i++) {
     camera_fb_t* fb = esp_camera_fb_get();
     if (fb) esp_camera_fb_return(fb);
   }
@@ -301,8 +301,10 @@ static bool scanFrame(const GrayImg& g, struct quirc* decoder, bool fullFrame, S
   struct quirc* previous = qr;
   qr = decoder;
   const bool decoded = decodeAll(text);
-  if (!decoded) {
-    // บางเลนส์ให้ภาพกลับซ้าย-ขวา จึงลองถอดภาพกลับด้านอีกครั้ง
+  // ภาพกลับซ้าย-ขวาเกิดเฉพาะเมื่อกลับแกนเดียว (camFlip 1 หรือ 2) · 0 และ 3 (หมุน 180°) quirc ถอดได้เอง
+  // ไม่กรอง = รัน quirc ซ้ำทั้งภาพทุกเฟรมที่เห็น QR แต่ยังถอดไม่ออก → เฟรมเรตหายครึ่งตอนที่ QR อยู่หน้ากล้องพอดี
+  const bool mirrored = settings.camFlip == 1 || settings.camFlip == 2;
+  if (!decoded && mirrored) {
     image = quirc_begin(decoder, &width, &height);
     for (int y = 0; y < height; y++) {
       uint8_t* row = image + static_cast<size_t>(y) * width;
@@ -354,7 +356,7 @@ QrRead cameraScanQr(uint32_t timeoutMs) {
   ScanGuard guard;
   const uint32_t start = millis();
   int frames = 0, framesWithShape = 0;
-  uint32_t lastPreviewAt = 0;
+  uint32_t lastPreviewAt = start;  // ภาพแรกส่งหลังสแกนไปแล้ว 1 ช่วง
   quirc_decode_error_t lastErr = QUIRC_SUCCESS;
   while (millis() - start < timeoutMs) {
     camera_fb_t* fb = esp_camera_fb_get();
@@ -364,7 +366,6 @@ QrRead cameraScanQr(uint32_t timeoutMs) {
     }
     frames++;
     if (previewSink && millis() - lastPreviewAt >= previewIntervalMs) {
-      lastPreviewAt = millis();
       if (fb->format == PIXFORMAT_JPEG) {
         previewSink(fb->buf, fb->len);  // JPEG ของเซนเซอร์ส่งตรง ไม่เข้ารหัสซ้ำ
       } else {
@@ -375,6 +376,8 @@ QrRead cameraScanQr(uint32_t timeoutMs) {
           free(jpg);
         }
       }
+      // นับช่วงจาก "ส่งเสร็จ": การส่ง 1 ภาพ (HTTPS ใหม่) กิน 2–4 วิ ถ้านับจากตอนเริ่มส่ง จะถึงกำหนดส่งอีกทันที กล้องแทบไม่ได้อ่าน QR
+      lastPreviewAt = millis();
     }
     String text;
     bool found = false;

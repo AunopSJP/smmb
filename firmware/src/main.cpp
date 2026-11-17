@@ -211,7 +211,9 @@ static bool wifiConnect()
   WiFi.mode(WIFI_STA);
   // modem sleep (0.2.16 โหมดอัตโนมัติ): บน Wi-Fi อ่อนโหมดประหยัดไฟเคยทำให้แพ็กเก็ตหายจน TLS ค้าง (ตู้หลุดออนไลน์)
   // จึงเปิดเฉพาะเมื่อสัญญาณแรง และปิดเองถ้าล้มเหลว · เซิร์ฟเวอร์บังคับเปิดได้ (config `wifi_power_save`) · ตู้ยังตื่นทันทีเมื่อสแกน
-  txLow = false; // ต่อใหม่ → กำลังส่งกลับค่าเริ่มต้น
+  // ต่อใหม่ → คืนกำลังส่งเต็มจริง ๆ (ค่าที่ลดไว้ค้างอยู่ในวิทยุข้ามการหลุด/ต่อใหม่ — ถ้าแค่ล้างตัวแปร ตู้จะส่งเบาต่อโดยไม่มีทางกู้คืน)
+  WiFi.setTxPower(WIFI_POWER_19_5dBm);
+  txLow = false;
   applyWifiPs(true);
   if (wifiJoin(nullptr))
   {
@@ -742,7 +744,10 @@ void setup()
 
   if (!wifiConnect())
   {
-    linkBeepErrorQuiet();
+    // ตื่นจากหลับลึกแล้วต่อไม่ได้ → ไม่ร้อง: ตัวจำ "เว้น 10 นาที" หายทุกครั้งที่หลับลึก Wi-Fi บ้านล่มทั้งคืนไซเรนจะดังทุกรอบตื่น
+    // (ถ้าอยู่ในช่วงที่ต้องตื่น loop() จะร้องให้เองครั้งเดียวตอนลองต่อใหม่)
+    if (!fromSleep)
+      linkBeepErrorQuiet();
     if (fromSleep)
     {
       // ตื่นมาแล้วต่อไม่ได้ → หลับแล้วลองรอบถัดไป · แต่ถ้าอยู่ในช่วงที่ต้องตื่นแล้ว (ก่อนต้นช่วง 3 นาที–จบช่วง) ห้ามหลับ:
@@ -756,9 +761,9 @@ void setup()
       Serial.println("[wifi] still in listen time — staying awake and retrying every 30 s");
     }
     else
-    // เปิดเครื่องแล้วต่อ Wi-Fi เดิมไม่ได้ → โหมดตั้งค่า (ระหว่างนั้นยังลองต่อ Wi-Fi เดิมได้จากหน้าเว็บ)
-    if (!runSetupPortal(PORTAL_TIMEOUT_MS))
-      ESP.restart();
+      // เปิดเครื่องแล้วต่อ Wi-Fi เดิมไม่ได้ → โหมดตั้งค่า (ระหว่างนั้นยังลองต่อ Wi-Fi เดิมได้จากหน้าเว็บ)
+      if (!runSetupPortal(PORTAL_TIMEOUT_MS))
+        ESP.restart();
   }
 
   if (!fromSleep || !clockSet())

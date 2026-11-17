@@ -69,7 +69,11 @@ struct SignedHttp
     const String sig = linkSign(c.secret, method, signedPath, ts, nonce, body);
     const bool https = c.url.startsWith("https://");
     if (https)
+    {
       secure.setCACert(LINK_CA_ROOTS);
+      // ค่าเริ่มต้นของ core คือ 120 วิ — handshake ค้างบน Wi-Fi อ่อนทำตู้เงียบ 2 นาที และค้างสองคำขอติดกัน = watchdog รีเซ็ตกลางงาน
+      secure.setHandshakeTimeout(12);
+    }
     if (!(https ? http.begin(secure, url) : http.begin(plain, url)))
       return false;
     http.setReuse(false); // Connection: close — ให้เซิร์ฟเวอร์ปิดหลังตอบ ไม่ค้าง keep-alive

@@ -534,6 +534,11 @@ LinkPoll linkPollOnce(uint8_t maxWaitS)
     wait = 1;
   const LinkResponse r =
       linkRequest("GET", "/v1/box/jobs?wait=" + String(wait) + "&config_ver=" + String(boxConfig.ver), "", (uint32_t)wait * 1000 + 10000);
+  // คำขอซิงก์สั้น (wait ≤ 2): ตั้งนาฬิกาเสมอ — linkRequest ข้ามคำขอที่นานเกิน 5 วิ ซึ่งนับรวม TLS handshake
+  // บน Wi-Fi ช้าจึงไม่ได้ซิงก์เลยและนาฬิกาเพี้ยนสะสมข้ามรอบหลับ · X-Server-Time ประทับตอนเซิร์ฟเวอร์เริ่มรับคำขอ (หลัง handshake)
+  // 204 = รอครบ wait วิ แล้วจึงตอบ → เวลาจริง ≈ ค่าที่ประทับ + wait
+  if (wait <= 2 && r.serverTime && (r.status == 204 || r.status == 200))
+    clockSetFrom(r.serverTime + (r.status == 204 ? wait : 0));
   Serial.printf("[poll] %d · heap %u · rssi %d · up %lus\n", r.status, (unsigned)ESP.getFreeHeap(), WiFi.RSSI(), millis() / 1000);
   if (r.status == 204)
     return LinkPoll::Idle;
