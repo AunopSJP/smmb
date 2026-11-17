@@ -100,6 +100,163 @@ static uint32_t secondsToNextEvent(uint32_t now)
   return max<uint32_t>(best, 30);
 }
 
+// ── บันทึกการตัดสินใจของรอบตื่น (0.2.22) ───────────────────────────────────
+// ไว้ตามหาว่า "ทำไมพ้นเวลาตรวจแล้วตู้ยังไม่หลับ" โดยไม่ต้องต่อ serial: จดเหตุการณ์สำคัญลง RTC memory (รอดการหลับลึก · หายเมื่อไฟดับ)
+// แล้วส่งเป็น event `awake_trace` ก่อนหลับในรอบตื่นที่เคยถือ long-poll (หรือทันทีที่ตู้ตื่นค้างด้วยเหตุผลที่ไม่ใช่ช่วงตรวจ)
+// เปิดดูที่เว็บแอดมิน D04 "รายงานจากตู้ล่าสุด" · ทุกบรรทัดมีเวลาในตู้ (เวลาไทย) กำกับ — เทียบกับนาฬิกาจริงก็รู้ว่าตู้เพี้ยนเท่าไร
+// ปิดทั้งหมดได้ด้วย SMMB_TRACE 0 ใน board.h
+#if SMMB_TRACE
+#define TRACE_MAX 40
+struct TraceEntry
+{
+  uint32_t utc; // เวลาในตู้ตอนจด (0 = ยังไม่ได้ตั้งนาฬิกา)
+  char tag;     // ชนิดเหตุการณ์: W ตื่น · L สถานะ "ต้องถือสายไหม" เปลี่ยน · P long-poll ผิดปกติ · S ซิงก์นาฬิกา · D หลับลึก · E ข้อผิดพลาด
+  int16_t a, b, c, d;
+};
+RTC_DATA_ATTR static TraceEntry traceBuf[TRACE_MAX];
+RTC_DATA_ATTR static uint16_t traceHead = 0;   // ช่องที่จะเขียนถัดไป (วนทับของเก่าสุด)
+RTC_DATA_ATTR static uint16_t traceCount = 0;  // รายการที่ยังไม่ได้ส่ง (≤ TRACE_MAX)
+RTC_DATA_ATTR static bool traceNeedSend = false; // มีรอบตื่นที่ถือสายแล้ว ควรส่งก่อนหลับ
+static bool listenedThisWake = false;
+static int lastListenKey = -1;           // (ถือสายไหม, เหตุผล) ครั้งล่าสุดที่จด — จดเมื่อเปลี่ยนเท่านั้น
+static uint16_t pollsThisWake = 0;       // long-poll ที่ทำไปในรอบตื่นนี้
+static unsigned long lastPollEndMs = 0;  // millis() ตอนถามเซิร์ฟเวอร์ครั้งล่าสุดจบ (0 = ยังไม่เคยในรอบนี้)
+
+static int16_t c16(long v) { return (int16_t)constrain(v, -32000L, 32000L); }
+
+/** วินาทีนับจากถามเซิร์ฟเวอร์ครั้งล่าสุดจบ (-1 = ยังไม่เคยในรอบตื่นนี้) */
+static long lastPollAgeS() { return lastPollEndMs ? (long)((millis() - lastPollEndMs) / 1000) : -1; }
+
+/** ทำไมตู้ต้องถือสาย (บิต): 1 ปิดโหมดหลับ · 2 ตัวนับตื่นค้าง (awakeUntil) ยังไม่หมด · 4 อยู่ในช่วงตื่น (ก่อนต้นช่วง–จบช่วง) · 8 ยังไม่มีนาฬิกา */
+static uint8_t listenWhy(uint32_t now)
+{
+  uint8_t w = 0;
+  if (!scheduleSleepEnabled())
+    w |= 1;
+  if (!now)
+    w |= 8;
+  else
+  {
+    if (now < linkRtc.awakeUntil)
+      w |= 2;
+    if (inListenTime(now))
+      w |= 4;
+  }
+  return w;
+}
+
+/** แปลงรายการเป็นข้อความอ่านง่าย (ใช้ทั้งพิมพ์ serial และส่งขึ้นเซิร์ฟเวอร์ · มีแต่ a-z 0-9 = : . - ช่องว่าง → ใส่ใน JSON ได้ไม่ต้อง escape) */
+static void traceRender(const TraceEntry &e, char *out, size_t n)
+{
+  char ts[10] = "--:--:--";
+  if (e.utc)
+  {
+    const uint32_t s = (e.utc + TZ_OFFSET_S) % 86400;
+    snprintf(ts, sizeof ts, "%02u:%02u:%02u", (unsigned)(s / 3600), (unsigned)((s / 60) % 60), (unsigned)(s % 60));
+  }
+  switch (e.tag)
+  {
+  case 'W': // a=เหตุผลรีเซ็ต (ESP_RST_*: 1 ไฟเข้า · 5 หลับลึก…) b=ตัวนับตื่นค้างเหลือ (วิ) c=บิต: 1 อยู่ในเวลาตรวจ 2 อยู่ในช่วงตื่น 4 โหมดหลับเปิด 8 มีนาฬิกา · d=จำนวนครั้งที่ตื่น
+    snprintf(out, n, "%s wake rst=%d awake=%ds win=%d lis=%d sleepon=%d clk=%d n=%d", ts, e.a, e.b, e.c & 1, (e.c >> 1) & 1, (e.c >> 2) & 1, (e.c >> 3) & 1, e.d);
+    break;
+  case 'L': // a=ถือสายไหม b=เหตุผล (บิตตาม listenWhy) c=วินาทีนับจากถามครั้งล่าสุด d=จำนวน poll ในรอบนี้
+  {
+    char why[8] = "";
+    size_t k = 0;
+    if (e.b & 1) why[k++] = 's'; // sleep off
+    if (e.b & 2) why[k++] = 'a'; // awakeUntil
+    if (e.b & 4) why[k++] = 'l'; // listen time
+    if (e.b & 8) why[k++] = 'c'; // no clock
+    why[k] = 0;
+    snprintf(out, n, "%s listen=%d why=%s lastpoll=%ds polls=%d", ts, e.a, k ? why : "none", e.c, e.d);
+    break;
+  }
+  case 'P': // a=ผล (0 ไม่มีงาน 1 ได้งาน 2 401 3 ต่อไม่ได้) b=ใช้เวลา (หน่วย 0.1 วิ)
+    snprintf(out, n, "%s poll res=%d took=%d.%ds", ts, e.a, e.b / 10, e.b % 10);
+    break;
+  case 'S': // a=ผลต่างนาฬิกา (วิ · + = ตู้ช้ากว่าเซิร์ฟเวอร์) b=มีค่าเทียบไหม c=ผล poll d=ใช้เวลา (0.1 วิ)
+    snprintf(out, n, "%s sync delta=%ds ref=%d res=%d took=%d.%ds", ts, e.a, e.b, e.c, e.d / 10, e.d % 10);
+    break;
+  case 'D': // a=หลับกี่วิ b=อีกกี่วิถึงเหตุการณ์ถัดไป c=วินาทีนับจากถามครั้งล่าสุด d=จำนวน poll ในรอบนี้
+    snprintf(out, n, "%s sleep s=%d next=%ds lastpoll=%ds polls=%d", ts, e.a, e.b, e.c, e.d);
+    break;
+  default: // E: a=รหัส (1 Wi-Fi หลุดและต่อใหม่ไม่ได้) b=WiFi.status()
+    snprintf(out, n, "%s err code=%d wifi=%d", ts, e.a, e.b);
+    break;
+  }
+}
+
+static void traceAdd(char tag, long a = 0, long b = 0, long c = 0, long d = 0)
+{
+  TraceEntry &e = traceBuf[traceHead];
+  e.utc = nowUtc();
+  e.tag = tag;
+  e.a = c16(a);
+  e.b = c16(b);
+  e.c = c16(c);
+  e.d = c16(d);
+  traceHead = (traceHead + 1) % TRACE_MAX;
+  if (traceCount < TRACE_MAX)
+    traceCount++;
+  char line[96];
+  traceRender(e, line, sizeof line);
+  Serial.printf("[tr] %s\n", line);
+}
+
+/** ส่งรายการที่ค้างเป็น event awake_trace (ต้องต่อ Wi-Fi อยู่) · ส่งสำเร็จแล้วล้างทิ้ง · ไม่ได้ก็เก็บไว้ส่งรอบหน้า */
+static bool traceFlush()
+{
+  if (!traceNeedSend || !traceCount || WiFi.status() != WL_CONNECTED)
+    return false;
+  String body = String("{\"type\":\"awake_trace\",\"fw\":\"") + FW_VERSION + "\",\"now\":" + String(nowUtc()) + ",\"trace\":[";
+  const uint16_t start = (traceHead + TRACE_MAX - traceCount) % TRACE_MAX;
+  for (uint16_t i = 0; i < traceCount; i++)
+  {
+    char line[96];
+    traceRender(traceBuf[(start + i) % TRACE_MAX], line, sizeof line);
+    if (i)
+      body += ',';
+    body += '"';
+    body += line;
+    body += '"';
+  }
+  body += "]}";
+  if (!linkEventRaw(body, 4000))
+    return false;
+  traceCount = 0;
+  traceNeedSend = false;
+  return true;
+}
+
+/** เรียกทุกรอบของ loop(): จดเมื่อ "ต้องถือสายไหม + เพราะอะไร" เปลี่ยน · ตื่นค้างด้วยเหตุผลที่ไม่ใช่ช่วงตื่น = ส่งขึ้นเซิร์ฟเวอร์ทันที (เผื่อตู้ไม่หลับเลย) */
+static void traceListenState(uint32_t now)
+{
+  const bool listen = shouldListen();
+  const uint8_t why = listenWhy(now);
+  const int key = (listen ? 16 : 0) | why;
+  if (key == lastListenKey)
+    return;
+  lastListenKey = key;
+  traceAdd('L', listen, why, lastPollAgeS(), pollsThisWake);
+  if (listen)
+  {
+    listenedThisWake = true;
+    traceNeedSend = true;
+    if (!(why & 4))
+      traceFlush();
+  }
+}
+
+/** จบ long-poll 1 รอบ (res = LinkPoll) — จดเฉพาะผลผิดปกติ หรือรอนานเกินปกติ (ปกติ 25 วิ + จับมือ TLS) */
+static void tracePollDone(int res, unsigned long ms)
+{
+  pollsThisWake++;
+  lastPollEndMs = millis();
+  if (res != 0 || ms > 40000UL)
+    traceAdd('P', res, ms / 100);
+}
+#endif
+
 // ── ประหยัดไฟ (0.2.16) ───────────────────────────────────────────────────
 // ตู้ที่รอ long-poll เฉย ๆ เคยกิน ~0.2–0.5 A: วิทยุ Wi-Fi เปิดรับตลอด + CPU 240 MHz ตลอด
 // 1) CPU: รอที่ 160 MHz (Wi-Fi ต้อง ≥ 80) · เปิดกล้อง/สแกน QR ใช้ 240 MHz แล้วกลับมา 160 (APB 80 MHz เท่ากัน → Serial ไม่เพี้ยน)
@@ -317,7 +474,14 @@ static void waitWithCli(unsigned long ms);
 static void pollOnce()
 {
   // เปิดหน้าดูกล้องอยู่ → ถือ long-poll สั้น ๆ เพื่อให้เว็บเซิร์ฟเวอร์ของตู้ตอบทัน
-  switch (linkPollOnce(settings.debugCam ? 3 : 25))
+#if SMMB_TRACE
+  const unsigned long pollStartMs = millis();
+#endif
+  const LinkPoll pollRes = linkPollOnce(settings.debugCam ? 3 : 25);
+#if SMMB_TRACE
+  tracePollDone((int)pollRes, millis() - pollStartMs);
+#endif
+  switch (pollRes)
   {
   case LinkPoll::Idle:
   case LinkPoll::Handled:
@@ -363,6 +527,11 @@ static void sleepUntilNextEvent()
   if (s > SLEEP_HOP_FINAL_S)
     sleepS = min<uint32_t>(max<uint32_t>(s / 2, SLEEP_HOP_FINAL_S / 2), SLEEP_HOP_MAX_S);
   Serial.printf("[sleep] deep sleep %u s (next event in %u s)\n", sleepS, s);
+#if SMMB_TRACE
+  // จดการตัดสินใจหลับ + ส่งบันทึกของรอบตื่นนี้ขึ้นเซิร์ฟเวอร์ (ขณะ Wi-Fi ยังเปิด · เสียเวลา ~1–3 วิ ก่อนไฟตก)
+  traceAdd('D', sleepS, s, lastPollAgeS(), pollsThisWake);
+  traceFlush();
+#endif
   Serial.flush();
   cameraStop();
   buzzerHoldOffForSleep();
@@ -720,6 +889,15 @@ void setup()
 
   const bool fromSleep = esp_reset_reason() == ESP_RST_DEEPSLEEP;
 
+#if SMMB_TRACE
+  {
+    // จดสภาพตอนตื่น: เหตุผลรีเซ็ต · ตัวนับตื่นค้างเหลือ · อยู่ในเวลาตรวจ/ช่วงตื่นไหม · โหมดหลับเปิดไหม · มีนาฬิกาไหม
+    const uint32_t t = nowUtc();
+    traceAdd('W', (int)esp_reset_reason(), (t && linkRtc.awakeUntil > t) ? (long)(linkRtc.awakeUntil - t) : 0,
+             (t && inWindow(t) ? 1 : 0) | (t && inListenTime(t) ? 2 : 0) | (scheduleSleepEnabled() ? 4 : 0) | (t ? 8 : 0), linkRtc.wakeCount);
+  }
+#endif
+
   // ให้เวลาพิมพ์คำสั่งตั้งค่าตอนเปิดเครื่อง (เช่น url / box / secret) ก่อนเริ่มทำงาน
   if (!fromSleep)
     waitWithCli(1500);
@@ -797,6 +975,9 @@ void loop()
   }
   if (WiFi.status() != WL_CONNECTED && !wifiConnect())
   {
+#if SMMB_TRACE
+    traceAdd('E', 1, (int)WiFi.status()); // Wi-Fi หลุดและต่อใหม่ไม่ได้ (ตื่นค้างรอลองใหม่ ไม่ได้หลับ)
+#endif
     linkBeepErrorQuiet(); // Wi-Fi บ้านล่มทั้งคืน → ไม่ร้องทุกครึ่งนาที
     waitWithCli(RETRY_IN_WINDOW_MS);
     return;
@@ -815,6 +996,9 @@ void loop()
     sendReport();
     return;
   }
+#if SMMB_TRACE
+  traceListenState(now); // จดเมื่อสถานะ "ต้องถือสายไหม + เพราะอะไร" เปลี่ยน
+#endif
   if (shouldListen())
   {
     pollOnce();
@@ -825,7 +1009,16 @@ void loop()
   {
     syncedThisWake = true;
     Serial.println("[sleep] sync clock before sleeping");
+#if SMMB_TRACE
+    const unsigned long syncStartMs = millis();
+    linkLastClockDeltaValid = false; // ให้รู้ว่ารอบนี้ได้ค่าเทียบนาฬิกาใหม่จริงไหม
+    const LinkPoll syncRes = linkPollOnce(1);
+    const unsigned long syncMs = millis() - syncStartMs;
+    lastPollEndMs = millis();
+    traceAdd('S', linkLastClockDeltaValid ? linkLastClockDeltaS : 0, linkLastClockDeltaValid, (int)syncRes, syncMs / 100);
+#else
     linkPollOnce(1);
+#endif
     return;
   }
   sleepUntilNextEvent();

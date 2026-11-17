@@ -8,6 +8,8 @@
 #include "link_internal.h"
 
 BoxConfig boxConfig;
+int32_t linkLastClockDeltaS = 0;     // ผลต่างนาฬิกาตอนซิงก์ล่าสุด (ดู SmmbLink.h)
+bool linkLastClockDeltaValid = false;
 RTC_DATA_ATTR LinkRtc linkRtc;
 LinkHooks linkHooks;
 const char *linkFw = "0.0.0";
@@ -170,6 +172,14 @@ void linkEvent(const char *type, const char *jobId)
   if (jobId)
     doc["job_id"] = jobId;
   postEvent(doc, 1500);
+}
+
+bool linkEventRaw(const String &jsonBody, uint32_t timeoutMs)
+{
+  const LinkResponse r = linkRequest("POST", "/v1/box/events", jsonBody, timeoutMs);
+  if (r.status != 200)
+    Serial.printf("[diag] raw event delivery failed (%d)\n", r.status);
+  return r.status == 200;
 }
 
 /** ตอบรับคำสั่ง — ต้องสำเร็จก่อนทำคำสั่งเสมอ (ไม่งั้นเซิร์ฟเวอร์ไม่รู้ว่าตู้รับแล้ว) */
@@ -538,7 +548,13 @@ LinkPoll linkPollOnce(uint8_t maxWaitS)
   // บน Wi-Fi ช้าจึงไม่ได้ซิงก์เลยและนาฬิกาเพี้ยนสะสมข้ามรอบหลับ · X-Server-Time ประทับตอนเซิร์ฟเวอร์เริ่มรับคำขอ (หลัง handshake)
   // 204 = รอครบ wait วิ แล้วจึงตอบ → เวลาจริง ≈ ค่าที่ประทับ + wait
   if (wait <= 2 && r.serverTime && (r.status == 204 || r.status == 200))
-    clockSetFrom(r.serverTime + (r.status == 204 ? wait : 0));
+  {
+    const uint32_t truth = r.serverTime + (r.status == 204 ? wait : 0);
+    const uint32_t before = nowUtc(); // เวลาในตู้ก่อนตั้ง — จดผลต่างไว้ให้ฝั่งแอปวินิจฉัยนาฬิกาเพี้ยน (ความละเอียด ±1–2 วิ จากเวลาเดินทางของคำขอ)
+    linkLastClockDeltaValid = before != 0;
+    linkLastClockDeltaS = before ? (int32_t)(truth - before) : 0;
+    clockSetFrom(truth);
+  }
   Serial.printf("[poll] %d · heap %u · rssi %d · up %lus\n", r.status, (unsigned)ESP.getFreeHeap(), WiFi.RSSI(), millis() / 1000);
   if (r.status == 204)
     return LinkPoll::Idle;

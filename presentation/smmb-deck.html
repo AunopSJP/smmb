@@ -1,0 +1,2354 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="author" content="SMMB — Smart Mailbox" />
+<meta name="description" content="SMMB · ภาพรวมระบบตู้จดหมายอัจฉริยะสำหรับหมู่บ้าน: การตรวจที่พิสูจน์ได้, SOS, ไรเดอร์, ฮาร์ดแวร์ และสถานะจริง" />
+<title>SMMB — Smart Mailbox · ภาพรวมระบบ</title>
+<link rel="stylesheet" href="./assets/fonts/fonts.css" />
+<style>
+  /* ─────────────────────────────────────────────────────────────
+     SMMB deck · 1280×720 (16:9)
+     โทเคนสีเดียวกับเว็บแอป: แดงหม่น #9a2f36 บนกระดาษอุ่น
+     ───────────────────────────────────────────────────────────── */
+  :root {
+    --bg: #f3eee5;
+    --fg: #17120f;
+    --muted: #6e655d;
+    --faint: #98908a;
+    --card: #fffdf9;
+    --red: #9a2f36;
+    --red-2: #c4545c;
+    --red-3: #d98a8f;
+    --green: #157347;
+    --amber: #b45309;
+    --line: rgba(23, 18, 15, 0.14);
+    --line-strong: rgba(23, 18, 15, 0.3);
+    --sans: 'IBM Plex Sans Thai', 'Leelawadee UI', Tahoma, sans-serif;
+    --mono: 'IBM Plex Mono', Consolas, monospace;
+  }
+  .dark {
+    --bg: #14100f;
+    --fg: #f3eee5;
+    --muted: #a79b91;
+    --faint: #756b64;
+    --card: #1d1714;
+    --line: rgba(243, 238, 229, 0.16);
+    --line-strong: rgba(243, 238, 229, 0.32);
+    --red-3: #e3a3a7;
+  }
+  .paper {
+    --bg: #f3eee5;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: #0b0908;
+    font-family: var(--sans);
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+  }
+
+  /* ── เวทีกลางจอ ────────────────────────────────────────────── */
+  #deck {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 1280px;
+    height: 720px;
+    transform-origin: center center;
+  }
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: none;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--fg);
+  }
+  .slide.active { display: block; }
+
+  .rail,
+  .foot {
+    position: absolute;
+    left: 64px;
+    right: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.17em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .rail { top: 26px; color: var(--muted); }
+  .foot { bottom: 22px; color: var(--muted); }
+  /* บริบทภาษาไทยใช้ sans — mono + letter-spacing ทำให้ไทยอ่านยาก */
+  .rail > span:last-child,
+  .foot > span:first-child {
+    font-family: var(--sans);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: none;
+  }
+  .rail .brand { color: var(--fg); letter-spacing: 0.15em; }
+  .rail .brand b { color: var(--red); font-weight: 600; }
+  .rail .rule {
+    flex: 1;
+    height: 1px;
+    margin: 0 22px;
+    background: var(--line);
+  }
+  .pnum { color: var(--muted); }
+  .pnum b { color: var(--fg); font-weight: 500; }
+
+  .stage {
+    position: absolute;
+    left: 64px;
+    right: 64px;
+    top: 70px;
+    bottom: 52px;
+  }
+
+  /* ── ตัวอักษร ──────────────────────────────────────────────── */
+  .eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .eyebrow::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    background: var(--red);
+    flex: none;
+  }
+  .dark .eyebrow::before { background: var(--red-2); }
+  h2.title {
+    margin: 16px 0 0;
+    font-size: 44px;
+    line-height: 1.34;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    text-wrap: balance;
+  }
+  h2.title.sm { font-size: 39px; }
+  .em { color: var(--red); }
+  .dark .em { color: var(--red-3); }
+  .lead {
+    margin: 16px 0 0;
+    max-width: 620px;
+    font-size: 16px;
+    line-height: 1.78;
+    color: var(--muted);
+    text-wrap: pretty;
+  }
+  .lead strong { color: var(--fg); font-weight: 500; }
+  .tiny {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.7;
+    letter-spacing: 0.04em;
+    color: var(--faint);
+  }
+  .note {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  /* ── ของใช้ร่วม ─────────────────────────────────────────────── */
+  .hair { height: 1px; background: var(--line); }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--line-strong);
+    padding: 7px 11px;
+    font-size: 12px;
+    line-height: 1.2;
+    color: var(--fg);
+    white-space: nowrap;
+  }
+  .chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
+  .chip .dot.g { background: var(--green); }
+  .chip .dot.a { background: var(--amber); }
+  .phone {
+    position: relative;
+    flex: none;
+    background: #0c0a09;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 22px;
+    padding: 5px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  }
+  .phone img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 17px;
+  }
+  .phone::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 8px;
+    width: 34px;
+    height: 4px;
+    margin-left: -17px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.16);
+  }
+  .cap {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  /* QR ลาย décor (สร้างด้วย JS) */
+  .qr {
+    display: grid;
+    grid-template-columns: repeat(21, 1fr);
+    background: #fff;
+    padding: 9px;
+    width: 132px;
+    aspect-ratio: 1;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+  }
+  .qr i { display: block; aspect-ratio: 1; background: transparent; }
+  .qr i.on { background: #17120f; }
+
+  /* ── 1 · ปก ────────────────────────────────────────────────── */
+  .cover .stage { top: 0; bottom: 0; }
+  .cover-title {
+    margin: 22px 0 0;
+    font-size: 63px;
+    line-height: 1.3;
+    font-weight: 600;
+    letter-spacing: -0.012em;
+  }
+  .cover-title span { display: block; }
+  .cover-left {
+    position: absolute;
+    left: 0;
+    top: 128px;
+    bottom: 34px;
+    width: 690px;
+  }
+  .cover-sub {
+    margin-top: 18px;
+    width: 520px;
+    font-size: 14.5px;
+    line-height: 1.78;
+    color: var(--muted);
+  }
+  .cover-stats {
+    position: absolute;
+    left: 0;
+    bottom: 46px;
+    display: flex;
+    gap: 40px;
+  }
+  .cover-stats div { border-left: 1px solid var(--line-strong); padding-left: 14px; }
+  .cover-stats b {
+    display: block;
+    font-family: var(--mono);
+    font-size: 26px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+  .cover-stats span {
+    display: block;
+    margin-top: 4px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .cover-visual {
+    position: absolute;
+    right: -6px;
+    top: 18px;
+    width: 470px;
+    height: 560px;
+  }
+  .disc {
+    position: absolute;
+    left: 20px;
+    top: 26px;
+    width: 470px;
+    height: 470px;
+    border-radius: 50%;
+    background: #8e2a31;
+  }
+  .disc::before,
+  .disc::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+  }
+  .disc::before { inset: 26px; }
+  .disc::after { inset: 62px; border-color: rgba(255, 255, 255, 0.09); }
+  .cover-ph-a { position: absolute; left: 6px; top: 52px; width: 226px; transform: rotate(-6.5deg); }
+  .cover-ph-b { position: absolute; right: 6px; top: 138px; width: 218px; transform: rotate(5deg); }
+  .cover .rail, .cover .foot { color: #8e827a; }
+  .cover .rail .brand { color: var(--fg); }
+  .cover .pnum b { color: var(--fg); }
+
+  /* ── 2 · โจทย์ ─────────────────────────────────────────────── */
+  .need {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 14px;
+    padding: 15px 0;
+    border-top: 1px solid var(--line);
+  }
+  .need:last-child { border-bottom: 1px solid var(--line); }
+  .need .n {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--red);
+    padding-top: 4px;
+  }
+  .need h3 { margin: 0; font-size: 16px; font-weight: 600; }
+  .need p { margin: 5px 0 0; font-size: 13px; line-height: 1.65; color: var(--muted); }
+  .signbook {
+    position: absolute;
+    right: 22px;
+    top: 34px;
+    width: 372px;
+    padding: 26px 28px 30px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    box-shadow: 0 22px 46px rgba(23, 18, 15, 0.14);
+    transform: rotate(2.1deg);
+  }
+  .signbook .sb-head {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line-strong);
+  }
+  .sb-row {
+    display: grid;
+    grid-template-columns: 1fr 0.8fr 1.4fr;
+    gap: 10px;
+    align-items: center;
+    padding: 15px 0 10px;
+    border-bottom: 1px solid var(--line);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .sb-row svg { display: block; width: 100%; height: 20px; color: var(--fg); opacity: 0.82; }
+  .stamp {
+    position: absolute;
+    right: -34px;
+    bottom: -30px;
+    width: 128px;
+    height: 128px;
+    border: 2px solid var(--red);
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--red);
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.3;
+    transform: rotate(-13deg);
+    background: rgba(154, 47, 54, 0.05);
+  }
+  .stamp::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border: 1px dashed rgba(154, 47, 54, 0.6);
+    border-radius: 50%;
+  }
+  .stamp small {
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 0.14em;
+    font-weight: 500;
+  }
+
+  /* ── 3 · หลักคิด ───────────────────────────────────────────── */
+  .equation { position: absolute; right: 0; top: 30px; width: 452px; }
+  .eq-card {
+    border: 1px solid var(--line-strong);
+    background: var(--card);
+    padding: 15px 18px 16px;
+  }
+  .eq-card .lab {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .eq-card h4 { margin: 7px 0 0; font-size: 18px; font-weight: 600; }
+  .eq-card p { margin: 5px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--muted); }
+  .eq-card.result { border-color: var(--red); background: var(--red); color: #fff8f0; }
+  .eq-card.result .lab { color: #efc9cb; }
+  .eq-card.result p { color: #f3d4d5; }
+  .eq-sign {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 19px;
+    color: var(--red);
+  }
+  .verify-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
+  .verify-chips .chip { font-size: 11px; padding: 6px 9px; }
+  .qr-legend {
+    position: absolute;
+    left: 0;
+    top: 330px;
+    width: 566px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0 18px;
+  }
+  .qr-legend div {
+    border-top: 1px solid var(--line);
+    padding-top: 10px;
+  }
+  .qr-legend span {
+    display: block;
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .qr-legend b { display: block; margin-top: 5px; font-size: 13px; font-weight: 500; line-height: 1.5; }
+  .qr-legend p { margin: 4px 0 0; font-size: 11px; line-height: 1.6; color: var(--muted); }
+  .quote {
+    position: absolute;
+    left: 0;
+    bottom: 78px;
+    width: 560px;
+    border-left: 2px solid var(--red);
+    padding: 2px 0 2px 18px;
+    font-size: 14.5px;
+    line-height: 1.8;
+    color: var(--muted);
+  }
+  .quote b { color: var(--fg); font-weight: 500; }
+
+  /* ── 4 · flow ──────────────────────────────────────────────── */
+  .flow {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 172px;
+    display: flex;
+    gap: 20px;
+  }
+  .flow::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 17px;
+    height: 1px;
+    background: var(--line-strong);
+  }
+  .fstep { position: relative; flex: 1; padding-top: 50px; }
+  .fstep .dot {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 1px solid var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--red);
+  }
+  .fstep.last .dot { background: var(--red); color: #fff; border-color: var(--red); }
+  .fstep h4 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.45; }
+  .fstep .t {
+    display: inline-block;
+    margin: 7px 0 0;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--red);
+    border: 1px solid rgba(154, 47, 54, 0.35);
+    padding: 3px 6px;
+  }
+  .fstep p { margin: 9px 0 0; font-size: 12px; line-height: 1.65; color: var(--muted); }
+  .gate {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 2px;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .gate .kicker { width: 150px; flex: none; }
+  .gate .chips { display: flex; gap: 7px; flex-wrap: wrap; }
+  .outcomes {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 432px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  .oc {
+    border-top: 2px solid var(--line-strong);
+    padding-top: 10px;
+  }
+  .oc.pass { border-color: var(--green); }
+  .oc.retry { border-color: var(--amber); }
+  .oc.fail { border-color: var(--red); }
+  .oc.snap { border-color: var(--line-strong); }
+  .oc span {
+    display: block;
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: 0.16em;
+    color: var(--faint);
+  }
+  .oc b { display: block; margin-top: 5px; font-size: 13.5px; font-weight: 600; line-height: 1.45; }
+  .oc small { display: block; margin-top: 3px; font-size: 10.5px; line-height: 1.55; color: var(--muted); }
+
+  /* ── 5 · สถาปัตยกรรม ──────────────────────────────────────── */
+  .arch { position: absolute; left: 0; right: 0; top: 150px; height: 400px; }
+  .arch-line { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .node {
+    position: absolute;
+    background: var(--card);
+    border: 1px solid var(--line-strong);
+    padding: 13px 15px;
+  }
+  .node .nt {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .node h4 { margin: 5px 0 0; font-size: 16px; font-weight: 600; }
+  .node ul { margin: 8px 0 0; padding: 0; list-style: none; }
+  .node li {
+    font-size: 11.5px;
+    line-height: 1.9;
+    color: var(--muted);
+    display: flex;
+    gap: 7px;
+  }
+  .node li::before { content: '·'; color: var(--red); }
+  .node.api { border-color: var(--red); border-width: 1.5px; background: var(--card); }
+  .node.api h4 { font-size: 19px; }
+  .api-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; margin-top: 10px; }
+  .api-grid span {
+    display: block;
+    padding: 5px 0;
+    border-top: 1px solid var(--line);
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .api-grid span b { color: var(--fg); font-weight: 500; }
+  .node .big {
+    font-family: var(--mono);
+    font-size: 21px;
+    letter-spacing: -0.02em;
+    margin-top: 3px;
+  }
+  .node .sub { font-size: 10.5px; color: var(--muted); margin-top: 6px; line-height: 1.6; }
+  .arch-note {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: space-between;
+    gap: 30px;
+  }
+  .arch-note p { margin: 0; max-width: 760px; }
+
+  /* ── 6 · บทบาท ────────────────────────────────────────────── */
+  .roles { display: grid; grid-template-columns: 70px 142px 250px 1fr; }
+  .roles .h {
+    padding: 0 0 9px;
+    border-bottom: 1px solid var(--line-strong);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .roles .c {
+    padding: 10px 10px 10px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--muted);
+    align-self: center;
+  }
+  .roles .code {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+    color: var(--red);
+  }
+  .roles .rname { font-size: 13.5px; font-weight: 600; color: var(--fg); }
+  .roles .rname small {
+    display: block;
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    color: var(--faint);
+    margin-top: 2px;
+  }
+  .role-note {
+    position: absolute;
+    left: 0;
+    top: 586px;
+    width: 800px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+  }
+  .role-phone { position: absolute; right: 0; top: 16px; width: 196px; }
+  .role-phone .cap { margin-top: 10px; text-align: center; }
+
+  /* ── 7 · SOS ───────────────────────────────────────────────── */
+  .sos-steps { position: absolute; left: 0; top: 246px; width: 640px; }
+  .sos-step {
+    display: grid;
+    grid-template-columns: 88px 1fr;
+    gap: 18px;
+    padding: 16px 0;
+    border-top: 1px solid var(--line);
+  }
+  .sos-step:last-child { border-bottom: 1px solid var(--line); }
+  .sos-step .time {
+    font-family: var(--mono);
+    font-size: 21px;
+    letter-spacing: -0.02em;
+    color: var(--red-3);
+  }
+  .sos-step .time small {
+    display: block;
+    font-size: 8.5px;
+    letter-spacing: 0.14em;
+    color: var(--faint);
+    margin-top: 2px;
+  }
+  .sos-step h4 { margin: 0; font-size: 16px; font-weight: 600; }
+  .sos-step p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--muted); }
+  .sos-panel {
+    position: absolute;
+    right: 0;
+    top: 36px;
+    width: 410px;
+    height: 464px;
+    border: 1px solid rgba(243, 238, 229, 0.22);
+    background: #8e2a31;
+    padding: 30px 32px;
+    display: flex;
+    flex-direction: column;
+    color: #fff8f0;
+    overflow: hidden;
+  }
+  .sos-panel::before,
+  .sos-panel::after {
+    content: '';
+    position: absolute;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 50%;
+  }
+  .sos-panel::before { width: 360px; height: 360px; left: -80px; top: 120px; }
+  .sos-panel::after { width: 270px; height: 270px; left: -35px; top: 165px; }
+  .sos-panel .k { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.18em; color: #efc9cb; }
+  .sos-word {
+    position: relative;
+    z-index: 1;
+    margin-top: 12px;
+    font-family: var(--mono);
+    font-size: 86px;
+    font-weight: 600;
+    letter-spacing: -0.06em;
+    line-height: 1;
+  }
+  .sos-panel h3 { position: relative; z-index: 1; margin: 12px 0 0; font-size: 22px; font-weight: 600; }
+  .sos-panel p { position: relative; z-index: 1; margin: 8px 0 0; font-size: 12.5px; line-height: 1.7; color: #f3d4d5; }
+  .sos-panel .pills { position: relative; z-index: 1; margin-top: auto; display: grid; gap: 7px; }
+  .sos-panel .pills span {
+    border-top: 1px solid rgba(255, 255, 255, 0.22);
+    padding-top: 7px;
+    font-size: 11.5px;
+    color: #f7e2e2;
+  }
+
+  /* ── 8 · ไรเดอร์ ───────────────────────────────────────────── */
+  .rider-steps { position: absolute; left: 0; top: 240px; width: 700px; }
+  .rst {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 16px;
+    padding: 17px 0;
+    border-top: 1px solid var(--line);
+  }
+  .rst:last-child { border-bottom: 1px solid var(--line); }
+  .rst .n {
+    font-family: var(--mono);
+    font-size: 25px;
+    line-height: 1;
+    color: var(--red);
+    letter-spacing: -0.03em;
+  }
+  .rst h4 { margin: 0; font-size: 17px; font-weight: 600; }
+  .rst p { margin: 5px 0 0; font-size: 12.5px; line-height: 1.65; color: var(--muted); }
+  .rider-side { position: absolute; right: 26px; top: 0; width: 250px; }
+  .rider-side .phone { margin: 0 auto; width: 220px; overflow: hidden; }
+  .rider-side .phone img { height: 330px; object-fit: cover; object-position: top center; }
+  .rider-facts { display: grid; gap: 6px; margin-top: 14px; }
+  .rider-facts span {
+    border: 1px solid var(--line-strong);
+    padding: 7px 10px;
+    font-size: 11.5px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .rider-facts b { font-family: var(--mono); font-weight: 500; color: var(--red); }
+  .rider-note {
+    position: absolute;
+    left: 0;
+    top: 554px;
+    width: 700px;
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+  }
+
+  /* ── 9 · ฮาร์ดแวร์ ─────────────────────────────────────────── */
+  .hw-wrap { position: absolute; left: 0; right: 0; top: 180px; height: 300px; }
+  .specs { position: absolute; left: 0; top: 0; width: 690px; }
+  .spec {
+    display: grid;
+    grid-template-columns: 122px 1fr;
+    gap: 12px;
+    padding: 7px 0;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px;
+    line-height: 1.55;
+  }
+  .spec:last-child { border-bottom: 1px solid var(--line); }
+  .spec dt {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding-top: 3px;
+  }
+  .spec dd { margin: 0; color: var(--muted); }
+  .spec dd b { color: var(--fg); font-weight: 500; }
+  .hw-art { position: absolute; right: 6px; top: -12px; width: 310px; height: 300px; }
+  .hw-art svg { width: 100%; height: 100%; color: var(--fg); }
+  .hw-art .cap { text-align: right; margin-top: -2px; }
+  .energy { position: absolute; left: 0; right: 0; bottom: 0; }
+  .energy .ann { position: relative; height: 18px; margin-bottom: 3px; }
+  .energy .ann span {
+    position: absolute;
+    transform: translateX(-50%);
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: 0.1em;
+    color: var(--red);
+    white-space: nowrap;
+  }
+  .energy .ann span::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 13px;
+    width: 1px;
+    height: 6px;
+    background: var(--red);
+  }
+  .energy .ann span.g { color: var(--green); }
+  .energy .ann span.g::after { background: var(--green); }
+  .energy .bar {
+    position: relative;
+    display: flex;
+    height: 42px;
+    border: 1px solid var(--line-strong);
+    overflow: hidden;
+  }
+  .energy .seg {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .seg.sleep { background: repeating-linear-gradient(135deg, rgba(23,18,15,0.1) 0 1px, transparent 1px 7px); color: var(--faint); }
+  .seg.wake { background: var(--red); color: #fff; }
+  .seg.patrol { background: rgba(21, 115, 71, 0.16); color: var(--green); border-left: 2px solid var(--red); border-right: 1px solid rgba(21,115,71,.3); }
+  .seg.job { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--green); }
+  .energy .axis {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 7px;
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: 0.08em;
+    color: var(--faint);
+  }
+  .energy .legend { display: flex; gap: 16px; margin-top: 9px; font-size: 10.5px; color: var(--muted); }
+  .energy .legend span { display: flex; align-items: center; gap: 6px; }
+  .energy .legend i { width: 9px; height: 9px; display: block; }
+
+  /* ── 10 · ความปลอดภัย ──────────────────────────────────────── */
+  .sec-grid {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 162px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 54px;
+  }
+  .sec {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    gap: 12px;
+    padding: 14px 0 15px;
+    border-top: 1px solid var(--line);
+  }
+  .sec .n { font-family: var(--mono); font-size: 10px; color: var(--red-3); padding-top: 3px; }
+  .sec h4 { margin: 0; font-size: 14.5px; font-weight: 600; line-height: 1.5; }
+  .sec p { margin: 5px 0 0; font-size: 11.5px; line-height: 1.65; color: var(--muted); }
+  .sec-foot {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-top: 1px solid var(--line);
+    padding-top: 13px;
+    display: flex;
+    justify-content: space-between;
+    gap: 30px;
+  }
+  .sec-quote {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 436px;
+    border-left: 2px solid var(--red);
+    padding: 2px 0 2px 20px;
+    font-size: 21px;
+    line-height: 1.6;
+    font-weight: 300;
+    color: var(--fg);
+  }
+  .sec-quote b { font-weight: 600; color: var(--red-3); }
+  .sec-foot p { margin: 0; max-width: 720px; }
+
+  /* ── 11 · UX ───────────────────────────────────────────────── */
+  .ux-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 40px; }
+  .ux-facts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; max-width: 540px; padding-bottom: 6px; }
+  .ux-facts .chip { font-size: 10.5px; padding: 5px 8px; }
+  .collage { position: absolute; left: 0; right: 0; bottom: auto; top: 196px; height: 384px; }
+  .desk {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 625px;
+    height: 384px;
+    background: #17120f;
+    padding: 24px 6px 6px;
+    border-radius: 7px;
+    box-shadow: 0 24px 44px rgba(23, 18, 15, 0.22);
+  }
+  .desk::before {
+    content: '';
+    position: absolute;
+    left: 11px;
+    top: 9px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #c4545c;
+    box-shadow: 12px 0 0 rgba(243, 238, 229, 0.3), 24px 0 0 rgba(243, 238, 229, 0.2);
+  }
+  .desk .url {
+    position: absolute;
+    right: 12px;
+    top: 6px;
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 0.06em;
+    color: rgba(243, 238, 229, 0.45);
+  }
+  .desk img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 0 0;
+    display: block;
+    border-radius: 2px;
+  }
+  .gal { position: absolute; left: 0; bottom: 0; height: 384px; display: flex; align-items: flex-end; gap: 14px; }
+  .gal .item { position: relative; }
+  .gal .item .cap { margin-top: 8px; text-align: center; }
+  .gal .p1 { width: 142px; }
+  .gal .p2 { width: 156px; }
+  .gal .p3 { width: 136px; }
+  .gal .p1 .phone { transform: translateY(-8px) rotate(-2deg); }
+  .gal .p3 .phone { transform: translateY(-16px) rotate(2deg); }
+  .ux-cap {
+    position: absolute;
+    left: 0;
+    bottom: 2px;
+    width: 468px;
+    font-size: 11.5px;
+    line-height: 1.75;
+    color: var(--muted);
+  }
+  .swatches { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
+  .swatches div { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 8.5px; color: var(--faint); }
+  .swatches i { width: 11px; height: 11px; display: block; border: 1px solid var(--line); }
+
+  /* ── 12 · ตัวเลข ───────────────────────────────────────────── */
+  .stats { position: absolute; left: 0; right: 0; top: 158px; display: grid; grid-template-columns: repeat(3, 1fr); }
+  .stat { padding: 24px 26px 26px 0; border-top: 1px solid var(--line-strong); }
+  .stat:nth-child(3n + 2), .stat:nth-child(3n + 3) { padding-left: 26px; border-left: 1px solid var(--line); }
+  .stat:nth-child(n + 4) { border-bottom: 1px solid var(--line); }
+  .stat b {
+    display: block;
+    font-family: var(--mono);
+    font-size: 62px;
+    font-weight: 500;
+    letter-spacing: -0.045em;
+    line-height: 1;
+  }
+  .stat.hi b { color: var(--red-3); }
+  .stat span { display: block; margin-top: 10px; font-size: 14px; font-weight: 500; }
+  .stat small { display: block; margin-top: 5px; font-size: 11px; line-height: 1.55; color: var(--faint); }
+  .stat-foot {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: space-between;
+    gap: 30px;
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+  }
+
+  /* ── 13 · สถานะ ────────────────────────────────────────────── */
+  .status-wrap { position: absolute; left: 0; right: 0; top: 205px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .status-wrap > div {
+    background: rgba(21, 115, 71, 0.045);
+    border-top: 2px solid var(--green);
+    padding: 16px 22px 8px;
+  }
+  .status-wrap > div.bad {
+    background: rgba(180, 83, 9, 0.05);
+    border-top-color: var(--amber);
+  }
+  .st-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line-strong);
+  }
+  .st-head h3 { margin: 0; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 9px; }
+  .st-head h3 i { width: 9px; height: 9px; border-radius: 50%; background: var(--green); display: block; }
+  .st-head.bad h3 i { background: var(--amber); }
+  .st-head span { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; color: var(--faint); }
+  .st-list { list-style: none; margin: 0; padding: 0; }
+  .st-list li {
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+  .st-list li b { color: var(--fg); font-weight: 500; }
+  .st-list .m { color: var(--green); font-weight: 600; }
+  .bad .st-list .m { color: var(--amber); }
+  .status-foot {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+  }
+  .status-quote {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 498px;
+    border-left: 2px solid var(--red);
+    padding-left: 16px;
+    font-size: 19px;
+    line-height: 1.6;
+    color: var(--fg);
+  }
+  .status-quote b { font-weight: 600; color: var(--red); }
+  .live { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; color: var(--green); white-space: nowrap; }
+  .live i { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(21, 115, 71, 0.12); }
+
+  /* ── 14 · roadmap ──────────────────────────────────────────── */
+  .road { position: absolute; left: 0; right: 0; top: 170px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+  .phase { position: relative; padding-top: 26px; }
+  .phase::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 5px;
+    height: 1px;
+    background: var(--line-strong);
+  }
+  .phase::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 1px solid var(--red);
+  }
+  .phase.on::after { background: var(--red); }
+  .phase .pl { font-family: var(--mono); font-size: 9px; letter-spacing: 0.18em; color: var(--red-3); }
+  .phase h3 { margin: 7px 0 0; font-size: 21px; font-weight: 600; line-height: 1.4; }
+  .phase ul { margin: 16px 0 0; padding: 0; list-style: none; }
+  .phase li {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--muted);
+    padding: 7px 0 7px 12px;
+    border-top: 1px solid var(--line);
+    position: relative;
+  }
+  .phase li::before { content: ''; position: absolute; left: 0; top: 14px; width: 4px; height: 1px; background: var(--faint); }
+  .phase .gate2 {
+    margin-top: 14px;
+    border-left: 2px solid var(--red);
+    padding-left: 10px;
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+  .phase .gate2 b { display: block; font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--red-3); margin-bottom: 2px; }
+  .road-note {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 30px;
+  }
+  .road-note .prio {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .road-note .prio i { color: var(--red-3); font-style: normal; }
+  .road-note .scope {
+    margin-left: auto;
+    text-align: right;
+    font-size: 10.5px;
+    line-height: 1.6;
+    color: var(--faint);
+  }
+
+  /* ── 15 · ปิดท้าย ──────────────────────────────────────────── */
+  .end .stage { display: flex; flex-direction: column; justify-content: center; }
+  .end h2 {
+    margin: 20px 0 0;
+    font-size: 64px;
+    line-height: 1.34;
+    font-weight: 600;
+    letter-spacing: -0.014em;
+  }
+  .end h2 span { display: block; }
+  .end .sub { margin: 22px 0 0; font-size: 17px; line-height: 1.7; color: var(--muted); }
+  .end .links {
+    position: absolute;
+    left: 0;
+    bottom: 6px;
+    display: flex;
+    gap: 60px;
+    align-items: flex-end;
+  }
+  .end .links .u { font-family: var(--mono); font-size: 15px; color: var(--fg); border-bottom: 1px solid var(--red); padding-bottom: 4px; }
+  .end .links .r { max-width: 430px; }
+  .end-disc {
+    position: absolute;
+    right: 40px;
+    top: 40px;
+    width: 330px;
+    height: 330px;
+    border: 1px solid var(--line-strong);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .end-disc::before {
+    content: '';
+    position: absolute;
+    inset: 22px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+  }
+  .end-disc .stamp2 {
+    width: 190px;
+    height: 190px;
+    border: 2px solid var(--red-3);
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: var(--red-3);
+    transform: rotate(-9deg);
+  }
+  .end-disc .stamp2 b { font-family: var(--mono); font-size: 32px; letter-spacing: 0.08em; }
+  .end-disc .stamp2 small { font-family: var(--mono); font-size: 7.5px; letter-spacing: 0.12em; }
+  .end .qr { display: none; }
+  .end-cta {
+    position: absolute;
+    right: 0;
+    bottom: 26px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #fffdf9;
+    color: #17120f;
+    padding: 10px 16px 10px 10px;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+  }
+  .end-cta img { width: 82px; height: 82px; display: block; }
+  .end-cta b { display: block; font-size: 14px; font-weight: 600; }
+  .end-cta small {
+    display: block;
+    margin-top: 4px;
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: 0.06em;
+    color: #6e655d;
+  }
+
+  /* ── HUD / โหมดนำเสนอ ─────────────────────────────────────── */
+  #progress {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 2px;
+    background: var(--red-2);
+    width: 0;
+    z-index: 20;
+    transition: width 0.25s ease;
+  }
+  .hud {
+    position: fixed;
+    left: 50%;
+    bottom: 8px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 6px 4px 10px;
+    background: rgba(12, 10, 9, 0.84);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    color: #a99d93;
+    z-index: 20;
+    transition: opacity 0.3s ease;
+  }
+  body.hud-hidden .hud { opacity: 0; pointer-events: none; }
+  .hud .hint { opacity: 0.75; font-family: var(--sans); letter-spacing: 0.04em; }
+  .hud #counter { display: none; }
+  .hud button {
+    appearance: none;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: transparent;
+    color: #e9dfd5;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    padding: 5px 9px;
+    cursor: pointer;
+  }
+  .hud button:hover { border-color: var(--red-2); }
+
+  /* ── พิมพ์ PDF ─────────────────────────────────────────────── */
+  @page { size: 1280px 720px; margin: 0; }
+  @media print {
+    html, body { background: #fff; }
+    #deck { position: static; width: auto; height: auto; transform: none !important; }
+    .slide {
+      position: relative;
+      inset: auto;
+      display: block !important;
+      width: 1280px;
+      height: 720px;
+      break-after: page;
+      page-break-after: always;
+    }
+    .slide:last-child { break-after: auto; page-break-after: auto; }
+    #progress, .hud { display: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<main id="deck">
+
+  <!-- ── 01 · ปก ─────────────────────────────────────────────── -->
+  <section class="slide cover active" data-title="ปก">
+    <div class="rail">
+      <span class="brand"><b>SMMB</b> · SMART MAILBOX</span>
+      <span class="rule"></span>
+      <span>ภาพรวมระบบ · พฤศจิกายน 2026</span>
+    </div>
+    <div class="stage">
+      <div class="cover-left">
+        <div class="eyebrow">ระบบตู้จดหมายอัจฉริยะสำหรับหมู่บ้าน</div>
+        <h1 class="cover-title">
+          <span>ตู้จดหมาย</span>
+          <span class="em">ที่ยืนยันได้ว่า</span>
+          <span>มีคนมาตรวจจริง</span>
+        </h1>
+        <p class="cover-sub">
+          เจ้าหน้าที่ · เจ้าของบ้าน · หัวหน้าหน่วยงาน · แอดมิน · ไรเดอร์
+          ใช้เว็บแอปเดียว — ทุกผลตัดสินที่เซิร์ฟเวอร์ ไม่ใช่ที่ตู้
+        </p>
+        <div class="cover-stats">
+          <div><b>99</b><span>หน้าจอ</span></div>
+          <div><b>05</b><span>บทบาท</span></div>
+          <div><b>03</b><span>โหมดแสดงผล</span></div>
+          <div><b>02</b><span>ภาษา</span></div>
+        </div>
+      </div>
+      <div class="cover-visual">
+        <div class="disc"></div>
+        <div class="phone cover-ph-a"><img src="./assets/shots/role-officer.png" alt="หน้าสรุปเจ้าหน้าที่" /></div>
+        <div class="phone cover-ph-b"><img src="./assets/shots/role-owner.png" alt="ประวัติเจ้าของบ้าน" /></div>
+      </div>
+    </div>
+    <div class="foot">
+      <span>SMMB · internal review</span>
+      <span class="pnum"><b>01</b> / 15</span>
+    </div>
+  </section>
+
+  <!-- ── 02 · โจทย์ ──────────────────────────────────────────── -->
+  <section class="slide" data-title="โจทย์">
+    <div class="rail">
+      <span class="brand"><b>SMMB</b> · SMART MAILBOX</span>
+      <span class="rule"></span>
+      <span>01 · โจทย์</span>
+    </div>
+    <div class="stage">
+      <div class="eyebrow">01 · โจทย์</div>
+      <h2 class="title">การตรวจที่ปลอมได้<br /><span class="em">ไม่ใช่การตรวจ</span></h2>
+      <p class="lead" style="max-width: 660px">
+        สมุดลงชื่อหน้าบ้านพิสูจน์ได้แค่ว่า “มีคนเขียน” —
+        ไม่ได้พิสูจน์ว่าเขายืนอยู่ตรงนั้นจริง ๆ ตอนนั้น
+      </p>
+
+      <div style="position: absolute; left: 0; top: 318px; width: 680px">
+        <div class="need">
+          <div class="n">01</div>
+          <div>
+            <h3>เจ้าหน้าที่ — ยืนยันว่ามาตรวจจริง</h3>
+            <p>ต้องพิสูจน์ว่ามาตรวจจริง ไม่ใช่ถ่ายรูป QR ไปสแกนจากที่อื่น</p>
+          </div>
+        </div>
+        <div class="need">
+          <div class="n">02</div>
+          <div>
+            <h3>ไรเดอร์ — แจ้งส่งของได้ทุกเวลา</h3>
+            <p>ไม่ต้องมีบัญชี ไม่ต้องติดตั้งแอป และไม่เก็บข้อมูลตัวตน</p>
+          </div>
+        </div>
+        <div class="need">
+          <div class="n">03</div>
+          <div>
+            <h3>เจ้าของบ้าน — ขอความช่วยเหลือเร็ว</h3>
+            <p>ส่งถึงเจ้าหน้าที่ในโซนภายในไม่กี่วินาที แม้ไม่มีใครเฝ้ามือถือ</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="signbook">
+        <div class="sb-head"><span>สมุดตรวจบ้าน · 99/9</span><span>หน้า 27</span></div>
+        <div class="sb-row"><span>12 พ.ย.</span><span>13:26</span>
+          <svg viewBox="0 0 120 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 15c8-9 12 4 19-2s10-11 17-3 9 8 16 1 10-9 16-1 8 6 14 0 9-5 14 0"/></svg>
+        </div>
+        <div class="sb-row"><span>11 พ.ย.</span><span>15:26</span>
+          <svg viewBox="0 0 120 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 12c7 4 11-7 18-3s8 9 15 3 11-9 18-2 9 8 16 2 11-7 17-1 9 4 14 0"/></svg>
+        </div>
+        <div class="sb-row"><span>10 พ.ย.</span><span>15:26</span>
+          <svg viewBox="0 0 120 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 14c9-6 12 3 20-3s9-8 16-1 9 7 16 2 11-9 17-2 9 5 15 1 8-4 13 1"/></svg>
+        </div>
+        <div class="sb-row" style="border-bottom: 0"><span>09 พ.ย.</span><span>—</span><span style="color: var(--faint)">ไม่มีรายการ</span></div>
+        <div class="stamp">พิสูจน์ไม่ได้<small>NO PROOF</small></div>
+      </div>
+    </div>
+    <div class="foot">
+      <span>ปัญหาที่ระบบนี้เข้ามาแทน</span>
+      <span class="pnum"><b>02</b> / 15</span>
+    </div>
+  </section>
+
+  <!-- ── 03 · หลักคิด ────────────────────────────────────────── -->
+  <section class="slide dark" data-title="หลักคิด">
+    <div class="rail">
+      <span class="brand"><b>SMMB</b> · SMART MAILBOX</span>
+      <span class="rule"></span>
+      <span>02 · หลักคิด</span>
+    </div>
+    <div class="stage">
+      <div class="eyebrow">02 · หลักคิด</div>
+      <h2 class="title">สอง QR<br /><span class="em">ที่ต้องมาบรรจบกัน</span></h2>
+      <p class="lead" style="width: 560px">
+        QR หน้าตู้พิสูจน์ว่า “ตู้นี้” — QR ประจำตัวพิสูจน์ว่า
+        “คุณอยู่ตรงนี้ เดี๋ยวนี้” ระบบจะผ่านก็ต่อเมื่อทั้งสองอย่างตรงกัน
+        และยังไม่หมดอายุ
+      </p>
+
+      <div class="equation">
+        <div class="eq-card">
+          <div class="lab"><span>01 · หน้าตู้</span><span>TAMPER-EVIDENT</span></div>
+          <h4>QR ประจำตู้</h4>
+          <p>ลายเซ็นของระบบ · ผูกกับตู้ โซน และสถานะเปิดบริการ</p>
+        </div>
+        <div class="eq-sign">+</div>
+        <div class="eq-card">
+          <div class="lab"><span>02 · เจ้าหน้าที่</span><span>15 SECONDS</span></div>
+          <h4>QR ประจำตัว</h4>
+          <p>ออกโดยเซิร์ฟเวอร์ · ผูกกับงานของตู้นั้น · เปลี่ยนทุก ~9 วิ</p>
+        </div>
+        <div class="eq-sign">=</div>
+        <div class="eq-card result">
+          <div class="lab"><span>ผลลัพธ์</span><span>SERVER ONLY</span></div>
+          <h4>ผ่าน / ไม่ผ่าน</h4>
+          <p>ตู้อ่านอย่างเดียว — ไม่มีสิทธิ์ตัดสินผล</p>
+        </div>
+        <div class="verify-chips">
+          <span class="chip"><i class="dot"></i>ลายเซ็นตู้</span>
+          <span class="chip"><i class="dot"></i>j = งานนี้</span>
+          <span class="chip"><i class="dot"></i>u = คนนี้</span>
+          <span class="chip"><i class="dot"></i>ยังไม่หมดอายุ</span>
+        </div>
+      </div>
+
+      <div class="quote">
+        “QR หน้าตู้เป็นกระดาษ ใครถ่ายรูปไปก็สแกนได้”
+        <br /><b>ขั้นที่ตู้ต้องอ่าน QR ของเจ้าหน้าที่ คือสิ่งที่พิสูจน์ว่าคนนั้นอยู่หน้าตู้จริง</b>
+      </div>
+
+      <div class="qr-legend">
+        <div>
+          <span>หน้าตู้</span>
+          <b>ระบุตัวตู้</b>
+          <p>ลายเซ็นระบบ + โซน + สถานะเปิดบริการ</p>
+        </div>
+        <div>
+          <span>ประจำตัว</span>
+          <b>ระบุคนและเวลา</b>
+          <p>ออกใหม่ทุก ~9 วิ · ผูกกับงานของตู้นั้น</p>
+        </div>
+        <div>
+          <span>เซิร์ฟเวอร์</span>
+          <b>จับคู่แล้วตัดสิน</b>
+          <p>ตู้แค่อ่าน — ไม่มีสิทธิ์ให้ผ่านเอง</p>
+        </div>
+      </div>
+    </div>
+    <div class="foot">
+      <span>ทำไมต้องมีสองชั้น</span>
+      <span class="pnum"><b>03</b> / 15</span>
+    </div>
+  </section>
+
+  <!-- ── 04 · flow ตรวจตู้ ───────────────────────────────────── -->
+  <section class="slide" data-title="flow ตรวจตู้">
+    <div class="rail">
+      <span class="brand"><b>SMMB</b> · SMART MAILBOX</span>
+      <span class="rule"></span>
+      <span>03 · หัวใจของระบบ</span>
+    </div>
+    <div class="stage">
+      <div class="eyebrow">03 · หัวใจของระบบ</div>
+      <h2 class="title sm">60 วินาที<br /><span class="em">ของการตรวจหนึ่งครั้ง</span></h2>
+      <div style="position: absolute; right: 0; top: 38px; text-align: right">
+        <div class="kicker">บันทึกทุกครั้ง แม้ไม่ผ่าน</div>
+        <div class="tiny" style="margin-top: 7px">log เป็น append-only · ไม่มี route ลบหรือแก้</div>
+      </div>
+
+      <div class="flow">
+        <div class="fstep">
+          <span class="dot">01</span>
+          <h4>สแกน QR หน้าตู้</h4>
+          <span class="t">0 วิ</span>
+          <p>เซิร์ฟเวอร์เช็กลายเซ็น · โซน · เวลาตรวจ · ตู้เปิดและออนไลน์</p>
+        </div>
+        <div class="fstep">
+          <span class="dot">02</span>
+          <h4>สร้างงาน 60 วินาที</h4>
+          <span class="t">1–3 วิ</span>
+          <p>ตอบ long-poll ที่ตู้ถืออยู่ → ตู้ตื่นทันที ไม่ต้องรอรอบถัดไป</p>
+        </div>
+        <div class="fstep">
+          <span class="dot">03</span>
+          <h4>ตู้พร้อมรับ</h4>
+          <span class="t">≤ 60 วิ</span>
+          <p>เปิดกล้อง + เสียงปี๊บ · แอปขอ QR ประจำตัวจากเซิร์ฟเวอร์</p>
+        </div>
+        <div class="fstep">
+          <span class="dot">04</span>
+          <h4>ยื่น QR ให้กล้องตู้</h4>
+          <span class="t">15 วิ</span>
+          <p>อายุ 15 วินาที · เปลี่ยนทุก ~9 วิ · สแกนพลาดได้ 3 ครั้ง</p>
+        </div>
+        <div class="fstep last">
+          <span class="dot">05</span>
+          <h4>เซิร์ฟเวอร์ตัดสิน</h4>
+          <span class="t">8 วิ</span>
+          <p>ผ่าน → บันทึก + แจ้งเจ้าของ · ไม่ผ่าน → retry หรือแจ้งปัญหาตู้</p>
+        </div>
+      </div>
+
+      <div class="outcomes">
+        <div class="oc pass">
+          <span>PASS</span>
+          <b>บันทึก + แจ้งเจ้าของ</b>
+          <small>เจ้าหน้าที่เห็น “ตรวจแล้ว” และกลับหน้าสรุป</small>
+        </div>
+        <div class="oc retry">
+          <span>RETRY</span>
+          <b>สแกนใหม่ได้ถึง 3 ครั้ง</b>
+          <small>ทุกครั้งลง log · เกิน 3 ครั้งถือว่าไม่ผ่าน</small>
+        </div>
+        <div class="oc fail">
+          <span>FAIL</span>
+          <b>แจ้งปัญหาตู้</b>
+          <small>ถึงเจ้าของบ้านและแอดมิน · ไม่ปิดเงียบ</small>
+        </div>
+        <div class="oc snap">
+          <span>SNAPFACE</span>
+          <b>ยืนยันตัว 8 วินาที</b>
+          <small>ถ่ายหลังผ่าน เวลาสุ่ม · ไม่บอกเจ้าหน้าที่ว่ามีรูป</small>
+        </div>
+      </div>
+
+      <div class="gate">
+        <div class="kicker">ด่านตรวจก่อนปลุกตู้</div>
+        <div class="chips">
+          <span class="chip"><i class="dot"></i>ลายเซ็น QR</span>
+          <span class="chip"><i class="dot"></i>อยู่ในโซน</span>
+          <span class="chip"><i class="dot"></i>ในเวลาตรวจ</span>
+          <span class="chip"><i class="dot"></i>ตู้เปิดบริการ</span>
+          <span class="chip"><i class="dot"></i>ตู้ออนไลน์</span>
+          <span class="chip" style="border-color: var(--red); color: var(--red)">ตู้ไม่เคยตัดสินเอง</span>
+        </div>
+      </div>
+    </div>
+    <div class="foot">
+      <span>Inspection flow · server-side judgement</span>
+      <span class="pnum"><b>04</b> / 15</span>
+    </div>
+  </section>
+
+  <!-- ── 05 · สถาปัตยกรรม ───────────────────────────────────── -->
+  <section class="slide dark" data-title="สถาปัตยกรรม">
+    <div class="rail">
+      <span class="brand"><b>SMMB</b> · SMART MAILBOX</span>
+      <span class="rule"></span>
+      <span>04 · สถาปัตยกรรม</span>
+    </div>
+    <div class="stage">
+      <div class="eyebrow">04 · สถาปัตยกรรม</div>
+      <h2 class="title sm">ทุกคำตอบ<br /><span class="em">มาจากที่เดียว</span></h2>
+      <p class="lead" style="position: absolute; right: 0; top: 34px; width: 480px; margin: 0; text-align: right">
+        self-host บน Ubuntu · nginx + systemd<br />
+        long-poll อยู่ในหน่วยความจำ เพราะรัน backend ตัวเดียว
+      </p>
+
+      <div class="arch">
+        <svg class="arch-line" viewBox="0 0 1152 400" fill="none">
+          <defs>
+            <marker id="ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0.8 L7 4 L0 7.2 Z" fill="rgba(243,238,229,.55)" />
+            </marker>
+          </defs>
+          <g stroke="rgba(243,238,229,.34)" stroke-width="1" stroke-dasharray="4 5">
+            <path d="M268 112 H412" marker-end="url(#ar)" />
+            <path d="M268 305 H412" marker-end="url(#ar)" />
+            <path d="M738 80 H852" marker-end="url(#ar)" />
+            <path d="M738 198 H852" marker-end="url(#ar)" />
+            <path d="M738 314 H852" marker-end="url(#ar)" />
+          </g>
+          <g font-family="'IBM Plex Mono', monospace" font-size="8.5" letter-spacing="1.2" fill="rgba(243,238,229,.5)">
+            <text x="286" y="101">HTTPS · COOKIE SID</text>
+            <text x="286" y="295">HTTPS · HMAC · NONCE</text>
+            <text x="746" y="65">SQL</text>
+            <text x="746" y="183">RATE LIMIT / LOCK</text>
+            <text x="746" y="297">VAPID</text>
+          </g>
+        </svg>
+
+        <div class="node" style="left: 0; top: 43px; width: 268px; height: 146px">
+          <div class="nt">Clients</div>
+          <h4>เว็บแอป PWA</h4>
+          <ul>
+            <li>เจ้าของบ้าน · เจ้าหน้าที่</li>
+            <li>หัวหน้า · แอดมิน · ช่างติดตั้ง</li>
+            <li>ไรเดอร์: /public/*</li>
+          </ul>
+        </div>
+
+        <div class="node" style="left: 0; top: 232px; width: 268px; height: 146px">
+          <div class="nt">Device · firmware 0.2.20</div>
+          <h4>ESP32-CAM + โซลาร์</h4>
+          <ul>
+            <li>อ่าน QR แล้วส่งต่อ</li>
+            <li>HMAC ทุกคำขอ · OTA</li>
+            <li>หลับลึกนอกเวลาตรวจ</li>
+          </ul>
+        </div>
+
+        <div class="node api" style="left: 418px; top: 26px; width: 316px; height: 344px">
+          <div class="nt">Application · NestJS 12</div>
+          <h4 style="font-size: 17px">ศูนย์ตัดสินผล</h4>
+          <div class="api-grid">
+            <span><b>auth</b> · session</span>
+            <span><b>inspection</b> · QR</span>
+            <span><b>sos</b> · escalation</span>
+            <span><b>rider</b> · ticket</span>
+            <span><b>box</b> · long-poll</span>
+            <span><b>push</b> · VAPID</span>
+            <span><b>scheduler</b> · 3 งาน</span>
+            <span><b>admin</b> · audit</span>
+          </div>
+          <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 11px; line-height: 1.65; color: var(--muted)">
+            ทุก endpoint แปลงผ่าน mapper —<br />ไม่มีแถวฐานข้อมูลหลุดออก API ตรง ๆ
+          </div>
+          <div style="margin-top: 14px; font-size: 12px; color: var(--muted)">
+            ผลลัพธ์: <b style="color: var(--green)">pass</b> ·
+            <b style="color: var(--amber)">retry</b> ·
+            <b style="color: var(--red-3)">fail</b> — คิดที่นี่เท่านั้น
+          </div>
+          <div style="position: absolute; left: 15px; right: 15px; bottom: 13px; font-family: var(--mono); font-size: 8.5px; letter-spacing: .1em; color: var(--faint)">
+            SINGLE INSTANCE · JOBHUB IN MEMORY
+          </div>
+        </div>
+
+        <div class="node" style="left: 858px; top: 20px; width: 294px; height: 120px">
+          <div class="nt">PostgreSQL 17 · schema app</div>
+          <h4>ข้อมูลและหลักฐาน</h4>
+          <div class="big">41 ตาราง</div>
+          <div class="sub">log การสแกนเพิ่มได้อย่างเดียว</div>
+        </div>
+
+        <div class="node" style="left: 858px; top: 152px; width: 294px; height: 96px">
+          <div class="nt">Redis 7</div>
+          <h4>ตัวช่วย ไม่ใช่หัวใจ</h4>
+          <div class="sub" style="margin-top: 7px">นับ rate limit / ล็อกบัญชี —<br />ล่มแล้วระบบหลักยังทำงาน</div>
+        </div>
+
+        <div class="node" style="left: 858px; top: 260px; width: 294px; height: 108px">
+          <div class="nt">Web Push · VAPID</div>
+          <h4>แจ้งเตือนช่องทางเดียว</h4>
+          <div class="sub" style="margin-top: 7px">ไม่มี LINE / OTP / SMS<br />เปิดใน LINE → บอกให้เปิด Safari หรือ Chrome</div>
+        </div>
+      </div>
+
+      <div class="arch-note" style="top: 548px">
+        <p class="note">ไม่มี MQTT · ไม่มี OTP · ไม่มีการชำระเงิน · ไม่บันทึกออฟไลน์แล้วซิงก์ทีหลัง — ทุกคำขอจากตู้ถูกเซ็นและตรวจที่เซิร์ฟเวอร์</p>
+        <p class="tiny" style="text-align: right">nginx ตัด prefix /smmb-api แต่ path ที่ตู้เซ็นยังเต็ม</p>
+      </div>
+    </div>
+    <div class="foot">
+      <span>System map · one API, one database, one device protocol</span>
+      <span class="pnum"><b>05</b> / 15</span>
+    </div>
+  </section>
+
+  <!-- ── 06 · บทบาท ─────────────────────────────────────────── -->
+  <section class="slide" data-title="บทบาท">
+    <div class="rail">
+      <span class="brand"><b>SMMB</b> · SMART MAILBOX</span>
+      <span class="rule"></span>
+      <span>05 · บทบาท</span>
+    </div>
+    <div class="stage">
+      <div class="eyebrow">05 · บทบาทและขอบเขต</div>
+      <h2 class="title sm">ห้าบทบาท<br /><span class="em">หนึ่งผลิตภัณฑ์</span></h2>
+      <p class="lead" style="width: 730px; margin-top: 10px">
+        1 เบอร์ = 1 บัญชี และมีได้หลายบทบาท · สิทธิ์ตัดสินที่ route และเซิร์ฟเวอร์
+        ไม่ใช่ที่ปุ่มในหน้าจอ
+      </p>
+
+      <div style="position: absolute; left: 0; top: 242px; width: 880px">
+        <div class="roles">
+          <div class="h">CODE</div><div class="h">บทบาท</div><div class="h">เป็นใคร</div><div class="h">เห็น / ทำอะไรได้</div>
+
+          <div class="c code">OWNER</div>
+          <div class="c rname">เจ้าของบ้าน<small>1 คนหลายตู้</small></div>
+          <div class="c">เจ้าของตู้หน้าบ้าน</div>
+          <div class="c">สถานะ · ประวัติ · SOS · ขอช่าง · เปลี่ยน Wi-Fi · ยอมรับบ้านเข้าโซน</div>
+
+          <div class="c code">OFFICER</div>
+          <div class="c rname">เจ้าหน้าที่<small>ต้องเปิด push</small></div>
+          <div class="c">ตำรวจ / รปภ. ในโซน</div>
+          <div class="c">ตรวจตู้ในโซนและในเวลาตรวจ · รับ SOS · ดูประวัติของตัวเอง</div>
+
+          <div class="c code">HEAD</div>
+          <div class="c rname">หัวหน้าหน่วยงาน<small>officer + is_head</small></div>
+          <div class="c">หัวหน้าที่ตรวจด้วย</div>
+          <div class="c">ทุกโซนของหน่วยงาน · อนุมัติสมาชิก · ตั้งโซน/เวลา/บ้าน · รีเซ็ตรหัสลูกทีม</div>
+
+          <div class="c code">ADMIN</div>
+          <div class="c rname">แอดมิน / ช่าง<small>บทบาทเดียว</small></div>
+          <div class="c">ทีมเราและช่างติดตั้ง</div>
+          <div class="c">ตู้ · QR · หน่วยงาน · ผู้ใช้ · log · แพ็กเกจ · OTA · เปิดดูข้อมูลมี audit</div>
+
+          <div class="c code">RIDER</div>
+          <div class="c rname">ไรเดอร์<small>ไม่มีบัญชี</small></div>
+          <div class="c">ผู้ส่งของทั่วไป</div>
+          <div class="c">แจ้งส่งของผ่าน /public/* · ไม่เก็บชื่อ เบอร์ หรือรูป</div>
+        </div>
+      </div>
+
+      <div class="role-phone">
+        <div class="phone"><img src="./assets/shots/role-officer.png" alt="หน้าสรุปเจ้าหน้าที่" /></div>
+        <div class="cap">officer · ตรวจครบทุกหลัง</div>
+      </div>
+    </div>
+    <div class="foot">
+      <span>Role + scope · 1 phone, many roles</span>
+      <span class="pnum"><b>06</b> / 15</span>
+    </div>
+  </section>
+
+  <!-- ── 07 · SOS ───────────────────────────────────────────── -->
+  <section class="slide dark" data-title="SOS">
+    <div class="rail">
+      <span class="brand"><b>SMMB</b> · SMART MAILBOX</span>
+      <span class="rule"></span>
+      <span>06 · SOS</span>
+    </div>
+    <div class="stage">
+      <div class="eyebrow">06 · เหตุฉุกเฉิน</div>
+      <h2 class="title">SOS ที่ไล่ตาม<br /><span class="em">คนจริง ๆ</span></h2>
+      <p class="lead" style="width: 610px">
+        กดค้าง 3 วินาที — ระบบไล่แจ้งเป็นขั้นจนมีคนรับ
+        หรือจนบอกเจ้าของตามตรงให้โทร <span style="white-space: nowrap">191 / 1669</span>
+      </p>
+
+      <div class="sos-steps">
+        <div class="sos-step">
+          <div class="time">0:00<small>STEP 1</small></div>
+          <div>
+            <h4>เจ้าหน้าที่ในโซน</h4>
+            <p>ส่งถึงคนที่ดูแลบ้านหลังนี้ก่อน — คนแรกที่กดรับเป็นผู้ดูแลเคส และถูกล็อกที่เซิร์ฟเวอร์</p>
+          </div>
+        </div>
+        <div class="sos-step">
+          <div class="time">0:30<small>STEP 2</small></div>
+          <div>
+            <h4>ทุกคนในหน่วยงาน + หัวหน้า</h4>
+            <p>ขยายวงเมื่อยังไม่มีใครรับ · บ้านอยู่หลายหน่วยงาน = แจ้งทุกหน่วยงานพร้อมกัน</p>
+          </div>
+        </div>
+        <div class="sos-step">
+          <div class="time">1:00<small>STEP 3</small></div>
+          <div>
+            <h4>บอกเจ้าของตามตรง</h4>
+            <p>“โทร 191 / 1669 ทันที” — SOS ยังเปิดรอคนรับ ไม่ปิดเองเงียบ ๆ</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="sos-panel">
+        <div class="k">Hold to call for help</div>
+        <div class="sos-word">SOS</div>
+        <h3>กดค้าง 3 วินาที</h3>
+        <p>เจ้าของเห็นชื่อและเบอร์ของคนที่รับเรื่อง — เฉพาะตอนที่ SOS เปิดอยู่</p>
+        <div class="pills">
+          <span>เห็นเบอร์ / ที่อยู่ เฉพาะตอน SOS เปิด</span>
+          <span>ทุกการเปิดดูถูกบันทึกใน data access log</span>
+          <span>บ้านที่ยังไม่มีเจ้าหน้าที่ → บอกให้โทร 191 / 1669 ทันที</span>
+        </div>
+      </div>
+
+      <p class="note" style="position: absolute; left: 0; bottom: 0; width: 640px">
+        SOS ไม่แทน 191 — ข้อตกลงผู้ใช้เขียนเรื่องนี้ไว้ตั้งแต่สมัคร
+        และ SOS ทำงานได้ไม่ขึ้นกับแพ็กเกจ
+      </p>
+    </div>
+    <div class="foot">
+      <span>Escalation 0 / 30 / 60 · first accept wins</span>
+      <span class="pnum"><b>07</b> / 15</span>
+    </div>
+  </section>
+
+  <!-- ── 08 · ไรเดอร์ ───────────────────────────────────────── -->
+  <section class="slide" data-title="ไรเดอร์">
+    <div class="rail">
+      <span class="brand"><b>SMMB</b> · SMART MAILBOX</span>
+      <span class="rule"></span>
+      <span>07 · ไรเดอร์</span>
+    </div>
+    <div class="stage">
+      <div class="eyebrow">07 · ผู้ส่งของ</div>
+      <h2 class="title sm">ส่งของถึงบ้าน<br /><span class="em">โดยไม่ต้องรู้จักคนรับ</span></h2>
+      <p class="lead" style="width: 690px">
+        ไรเดอร์ไม่มีบัญชีและไม่ต้องติดตั้งแอป — เปิดลิงก์จาก QR หน้าตู้
+        แล้วจบในสามขั้น
+      </p>
+
+      <div class="rider-steps">
+        <div class="rst">
+          <div class="n">01</div>
+          <div>
+            <h4>สแกน QR หน้าตู้</h4>
+            <p>หรือพิมพ์รหัสใต้ QR · ใช้ได้ทุกเวลา ไม่ขึ้นกับเวลาตรวจ</p>
+          </div>
+        </div>
+        <div class="rst">
+          <div class="n">02</div>
+          <div>
+            <h4>รับ ticket อายุ 10 นาที</h4>
+            <p>ใช้ได้ครั้งเดียว · จำกัด 5 ครั้งต่อชั่วโมงต่อตู้ · ล็อกแถวตู้ก่อนนับ</p>
+          </div>
+        </div>
+        <div class="rst">
+          <div class="n">03</div>
+          <div>
+            <h4>แจ้งเจ้าของบ้าน</h4>
+            <p>เจ้าของเห็น “มีของมาส่ง” พร้อมเวลา — ไม่เห็นว่าใครเป็นคนส่ง</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rider-side">
+        <div class="phone"><img src="./assets/shots/role-rider.png" alt="หน้าไรเดอร์" /></div>
+        <div class="rider-facts">
+          <span>บัญชีผู้ใช้ <b>ไม่มี</b></span>
+          <span>เก็บตัวตน <b>ไม่เก็บ</b></span>
+          <span>Ticket <b>10 นาที</b></span>
+          <span>ต่อตู้ <b>5 ครั้ง / ชม.</b></span>
+        </div>
+      </div>
+
+      <p class="rider-note note" style="margin: 0">
+        ปุ่มกดหน้าตู้ถูกตัดออกแล้ว — ช่องทางเดียวคือ QR หรือรหัสใต้ QR
+        เพื่อไม่ให้ตู้ต้องมีปุ่มที่สึกหรอและถูกกดเล่น
+      </p>
+    </div>
+    <div class="foot">
+      <span>Zero-account delivery · one-time ticket</span>
+      <span class="pnum"><b>08</b> / 15</span>
+    </div>
+  </section>
+
+  <!-- ── 09 · ฮาร์ดแวร์ ─────────────────────────────────────── -->
+  <section class="slide" data-title="ฮาร์ดแวร์">
+    <div class="rail">
+      <span class="brand"><b>SMMB</b> · SMART MAILBOX</span>
+      <span class="rule"></span>
+      <span>08 · ฮาร์ดแวร์</span>
+    </div>
+    <div class="stage">
+      <div class="eyebrow">08 · ตัวตู้</div>
+      <h2 class="title sm">ตู้ที่อยู่ได้<br /><span class="em">ด้วยแสงแดด</span></h2>
+      <p class="lead" style="width: 640px">
+        ESP32-CAM ทำหน้าที่แค่อ่าน QR แล้วส่งต่อ — งานคิดและตัดสินทั้งหมดอยู่ที่เซิร์ฟเวอร์
+      </p>
+
+      <div class="hw-wrap">
+        <dl class="specs">
+          <div class="spec"><dt>Board</dt><dd><b>ESP32-CAM (AI-Thinker)</b> + กล้อง OV2640</dd></div>
+          <div class="spec"><dt>Power</dt><dd>โซลาร์ <b>2W</b> + 18650 ×2 ขนาน · รองรับไฟบ้าน</dd></div>
+          <div class="spec"><dt>Sleep</dt><dd>หลับลึกนอกเวลาตรวจ · ตื่นก่อนช่วง <b>3 นาที</b></dd></div>
+          <div class="spec"><dt>Link</dt><dd>HTTPS + <b>HMAC ทุกคำขอ</b> · long-poll 5 นาที</dd></div>
+          <div class="spec"><dt>Update</dt><dd>OTA จากหน้าแอดมิน · ค่าตั้งกลาง/รายตู้</dd></div>
+          <div class="spec"><dt>Feedback</dt><dd>เสียงปี๊บ + ไฟส่อง QR · <b>ไม่มี LED สถานะ</b></dd></div>
+        </dl>
+
+        <div class="hw-art">
+          <svg viewBox="0 0 320 340" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round">
+            <!-- แผงโซลาร์ -->
+            <g transform="translate(36 6)">
+              <path d="M0 54 L186 0 L236 56 L48 114 Z" />
+              <path d="M48 40 L188 0 M74 92 L220 50 M95 24 L61 106 M143 12 L109 96 M190 1 L157 87" stroke-width="1" opacity=".55" />
+            </g>
+            <!-- ขั้วต่อ -->
+            <path d="M150 118 L150 142 M168 118 L168 142" stroke-width="1.6" opacity=".7" />
+            <!-- ตัวตู้ -->
+            <rect x="56" y="142" width="208" height="182" rx="7" />
+            <path d="M56 170 H264" opacity=".4" stroke-width="1" />
+            <!-- ช่องจดหมาย -->
+            <rect x="92" y="184" width="136" height="24" rx="12" />
+            <path d="M104 196 H216" stroke-width="1" opacity=".55" />
+            <!-- กล้อง -->
+            <circle cx="160" cy="256" r="30" />
+            <circle cx="160" cy="256" r="13" stroke="#9a2f36" stroke-width="3" />
+            <circle cx="151" cy="247" r="3" fill="currentColor" stroke="none" opacity=".55" />
+            <!-- ลำโพง -->
+            <g fill="currentColor" stroke="none" opacity=".7">
+              <circle cx="110" cy="308" r="2.4" /><circle cx="121" cy="308" r="2.4" /><circle cx="132" cy="308" r="2.4" />
+              <circle cx="110" cy="318" r="2.4" /><circle cx="121" cy="318" r="2.4" /><circle cx="132" cy="318" r="2.4" />
+            </g>
+            <!-- QR sticker -->
+            <rect x="202" y="292" width="42" height="42" stroke="#9a2f36" stroke-width="1.8" />
+            <g fill="#9a2f36" stroke="none">
+              <rect x="208" y="298" width="9" height="9" /><rect x="229" y="298" width="9" height="9" /><rect x="208" y="319" width="9" height="9" />
+              <rect x="224" y="316" width="4" height="4" /><rect x="233" y="326" width="5" height="5" /><rect x="226" y="327" width="3" height="3" />
+            </g>
+            <!-- เงา -->
+            <path d="M44 336 H276" stroke-width="1" opacity=".3" />
+          </svg>
+          <div class="cap">Front view · ไม่มีปุ่มหน้าตู้</div>
+        </div>
+      </div>
+
+      <div class="energy">
+        <div class="ann">
+          <span style="left: 25%">ตื่นก่อน 3 นาที + ซิงก์นาฬิกา</span>
+          <span class="g" style="left: 42%">รับงาน → ถ่ายยืนยัน</span>
+        </div>
+        <div class="bar">
+          <div class="seg sleep" style="width: 25%">หลับลึก</div>
+          <div class="seg patrol" style="width: 50%">อยู่ในเวลาตรวจ · ถือ long-poll<div class="job" style="left: 33%"></div></div>
+          <div class="seg sleep" style="width: 25%">หลับลึก</div>
+        </div>
+        <div class="axis"><span>00:00</span><span>06:00</span><span>18:00</span><span>24:00</span></div>
+        <div class="legend">
+          <span><i style="background: repeating-linear-gradient(135deg, rgba(23,18,15,.35) 0 1px, transparent 1px 4px)"></i>หลับลึก · ไม่รับงาน</span>
+          <span><i style="background: var(--red)"></i>ตื่นก่อน 3 นาที</span>
+          <span><i style="background: rgba(21,115,71,.35)"></i>ช่วงตรวจ · long-poll</span>
+          <span><i style="background: var(--green)"></i>รับงาน → ถ่ายยืนยัน</span>
+          <span style="margin-left: auto; color: var(--faint)">ตัวอย่าง 1 ช่วงตรวจ · รองรับไม่เกิน 4 ช่วง</span>
+        </div>
+      </div>
+    </div>
+    <div class="foot">
+      <span>ESP32-CAM · solar · deep sleep</span>
+      <span class="pnum"><b>09</b> / 15</span>
+    </div>
+  </section>
+
+  <!-- ── 10 · ความปลอดภัย ──────────────────────────────────── -->
+  <section class="slide dark" data-title="ความปลอดภัย">
+    <div class="rail">
+      <span class="brand"><b>SMMB</b> · SMART MAILBOX</span>
+      <span class="rule"></span>
+      <span>09 · ความปลอดภัยและความเป็นส่วนตัว</span>
+    </div>
+    <div class="stage">
+      <div class="eyebrow">09 · ความปลอดภัยและความเป็นส่วนตัว</div>
+      <h2 class="title sm">ความเชื่อใจ<br /><span class="em">สร้างจากกฎที่ตรวจได้</span></h2>
+      <p class="lead" style="position: absolute; right: 0; top: 34px; width: 460px; margin: 0; text-align: right">
+        ไม่ได้บอกว่า “ปลอดภัย” — แต่บอกว่า<br />ทุกข้อมีโค้ดหรือขั้นตอนรองรับ
+      </p>
+
+      <div class="sec-grid">
+        <div class="sec">
+          <div class="n">01</div>
+          <div>
+            <h4>ผลตรวจคิดที่เซิร์ฟเวอร์เท่านั้น</h4>
+            <p>ตู้แค่อ่าน QR แล้วส่งต่อ · ไม่มีการบันทึกออฟไลน์แล้วซิงก์ทีหลัง</p>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="n">02</div>
+          <div>
+            <h4>HMAC-SHA256 ทุกคำขอจากตู้</h4>
+            <p>timestamp ±60 วิ + nonce กัน replay · คีย์แยกต่อ environment</p>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="n">03</div>
+          <div>
+            <h4>log ทุกการสแกนเป็น append-only</h4>
+            <p>แม้ไม่ผ่านก็บันทึก · ไม่มี route ลบหรือแก้ · trigger บังคับในฐานข้อมูล</p>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="n">04</div>
+          <div>
+            <h4>ข้อมูลส่วนบุคคลตัดที่ server</h4>
+            <p>ทุก endpoint แปลงผ่าน mapper · ห้าม SELECT * · มีเทสต์ว่า hash/token ไม่โผล่</p>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="n">05</div>
+          <div>
+            <h4>เบอร์และที่อยู่ เห็นเฉพาะตอน SOS เปิด</h4>
+            <p>ข้ามบทบาทได้เฉพาะเคสที่เปิดอยู่ · ทุกครั้งถูกบันทึกใน data access log</p>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="n">06</div>
+          <div>
+            <h4>เก็บเท่าที่จำเป็น และลบได้จริง</h4>
+            <p>รูป 30 วัน · log 1 ปี · ลบบัญชีพัก 7 วันแล้ว anonymize · แอดมินกู้ได้ภายในช่วงพัก</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec-foot">
+        <p class="note">
+          ออกแบบตามหลัก PDPA: เก็บน้อยที่สุด แจ้งก่อนเก็บ และให้เจ้าของข้อมูลเข้าถึง/ส่งออก/ลบเองได้
+          — ข้อตกลงฉบับจริงยังต้องให้ผู้เชี่ยวชาญกฎหมายตรวจก่อนเปิดใช้
+        </p>
+        <p class="tiny" style="text-align: right; white-space: nowrap">404 สำหรับนอกขอบเขต · ไม่ใช่ 403<br />client ตัดสินจาก code ไม่ใช่ message</p>
+      </div>
+
+      <div class="sec-quote">
+        “ถ้า client ต้องซ่อนข้อมูล แปลว่า server ส่งข้อมูลนั้นไปแล้ว”
+        <br /><b>ระบบนี้จึงตัดข้อมูลส่วนบุคคลที่ server ก่อนออกจากระบบ</b>
+      </div>
+    </div>
+    <div class="foot">
+      <span>Security & privacy · evidence-backed</span>
+      <span class="pnum"><b>10</b> / 15</span>
+    </div>
+  </section>
+
+  <!-- ── 11 · UX/UI ────────────────────────────────────────── -->
+  <section class="slide" data-title="UX / UI">
+    <div class="rail">
+      <span class="brand"><b>SMMB</b> · SMART MAILBOX</span>
+      <span class="rule"></span>
+      <span>10 · UX / UI</span>
+    </div>
+    <div class="stage">
+      <div class="ux-head">
+        <div>
+          <div class="eyebrow">10 · การออกแบบ</div>
+          <h2 class="title sm" style="margin-top: 12px">อ่านออกตั้งแต่ครั้งแรก<br /><span class="em">ที่ 390 ถึง 1440</span></h2>
+        </div>
+        <div class="ux-facts">
+          <span class="chip"><i class="dot"></i>99 หน้าจอ</span>
+          <span class="chip"><i class="dot"></i>3 โหมด</span>
+          <span class="chip"><i class="dot"></i>ไทย / อังกฤษ</span>
+          <span class="chip"><i class="dot"></i>390 · 768 · 1024 · 1440</span>
+          <span class="chip"><i class="dot"></i>โหมดง่าย ปุ่ม ≥ 64px</span>
+          <span class="chip"><i class="dot"></i>ตารางมี filter + group</span>
+        </div>
+      </div>
+
+      <p class="lead" style="position: absolute; left: 0; top: 188px; width: 450px; margin: 0; font-size: 12.5px; line-height: 1.7">
+        3 โหมด: ง่าย · ปกติ · ละเอียด — เลือกความหนาแน่นของข้อมูลตามวัยและงาน
+      </p>
+
+      <div class="collage">
+        <div class="gal">
+          <div class="item p1"><div class="phone"><img src="./assets/shots/role-officer.png" alt="เจ้าหน้าที่" /></div><div class="cap">officer</div></div>
+          <div class="item p2"><div class="phone"><img src="./assets/shots/role-owner.png" alt="เจ้าของบ้าน" /></div><div class="cap">owner</div></div>
+          <div class="item p3"><div class="phone"><img src="./assets/shots/role-rider.png" alt="ไรเดอร์" /></div><div class="cap">rider</div></div>
+        </div>
+
+        <div class="desk">
+          <span class="url">hub.sjp-dev.net/smmb</span>
+          <img src="./assets/shots/admin-dark.png" alt="หน้าภาพรวมแอดมิน โหมดมืด" />
+        </div>
+      </div>
+    </div>
+    <div class="foot">
+      <span>Design system · one token set, three densities</span>
+      <span class="pnum"><b>11</b> / 15</span>
+    </div>
+  </section>
+
+  <!-- ── 12 · ตัวเลข ───────────────────────────────────────── -->
+  <section class="slide dark" data-title="ตัวเลข">
+    <div class="rail">
+      <span class="brand"><b>SMMB</b> · SMART MAILBOX</span>
+      <span class="rule"></span>
+      <span>11 · หลักฐาน</span>
+    </div>
+    <div class="stage">
+      <div class="eyebrow">11 · หลักฐานจาก repo</div>
+      <h2 class="title sm">ตัวเลขที่ตรวจซ้ำได้</h2>
+      <p class="lead" style="position: absolute; right: 0; top: 34px; width: 380px; margin: 0; text-align: right">
+        นับจากซอร์สใน repository<br />17 พฤศจิกายน 2026
+      </p>
+
+      <div class="stats">
+        <div class="stat"><b>99</b><span>หน้าจอ</span><small>registry เดียว สร้าง route อัตโนมัติ</small></div>
+        <div class="stat"><b>155</b><span>REST endpoints</span><small>นับจาก controller decorators</small></div>
+        <div class="stat hi"><b>225</b><span>unit tests</span><small>backend 113 + frontend 112 · รันซ้ำวันนี้</small></div>
+        <div class="stat"><b>170</b><span>e2e tests</span><small>รายงาน 13 พ.ย. 2026</small></div>
+        <div class="stat"><b>45</b><span>migrations</span><small>ล่าสุด 0044 · 41 ตาราง</small></div>
+        <div class="stat"><b>09</b><span>Playwright tests</span><small>เบราว์เซอร์จริง · 5 เส้นทางหลัก</small></div>
+      </div>
+
+      <div class="stat-foot">
+        <p class="tiny" style="margin: 0">unit รันในเครื่องนี้ 17 พ.ย. 2026 · e2e / Playwright อ้างจากรายงาน 13 และ 12 พ.ย. · production health ตอบ 200 (postgres / redis / push = up)</p>
+        <p class="tiny" style="margin: 0; text-align: right">41 ตาราง · 5 บทบาท · 3 โหมด · 2 ภาษา</p>
+      </div>
+    </div>
+    <div class="foot">
+      <span>Numbers, not adjectives</span>
+      <span class="pnum"><b>12</b> / 15</span>
+    </div>
+  </section>
+
+  <!-- ── 13 · สถานะ ────────────────────────────────────────── -->
+  <section class="slide" data-title="สถานะ">
+    <div class="rail">
+      <span class="brand"><b>SMMB</b> · SMART MAILBOX</span>
+      <span class="rule"></span>
+      <span>12 · สถานะจริง</span>
+    </div>
+    <div class="stage">
+      <div class="eyebrow">12 · สถานะจริง</div>
+      <h2 class="title sm">ซอฟต์แวร์ครบแล้ว<br /><span class="em">แต่ยังไม่เปิดนำร่อง</span></h2>
+      <p class="lead" style="width: 660px">
+        ห้าข้อที่เหลือเป็นงานฮาร์ดแวร์และงานปฏิบัติการ — ไม่ใช่คุณภาพของโค้ด
+      </p>
+
+      <div class="status-wrap">
+        <div>
+          <div class="st-head">
+            <h3><i></i>พร้อมแล้ว</h3>
+            <span>software</span>
+          </div>
+          <ul class="st-list">
+            <li><span class="m">✓</span><span>โฟลว์หลัก 5 บทบาทครบ · ต่อ API จริง</span></li>
+            <li><span class="m">✓</span><span>production 200 · postgres / redis / push up</span></li>
+            <li><span class="m">✓</span><span>deploy ขึ้น production · CSP + HSTS เปิด</span></li>
+            <li><span class="m">✓</span><span>unit 225 · e2e 170 · Playwright 9 ผ่าน</span></li>
+            <li><span class="m">✓</span><span>ตู้หลุด 3 นาที · เงียบ 26 ชม. · QR health รายวัน</span></li>
+          </ul>
+        </div>
+        <div class="bad">
+          <div class="st-head bad">
+            <h3><i></i>ยังติดอยู่</h3>
+            <span>hardware / ops</span>
+          </div>
+          <ul class="st-list">
+            <li><span class="m">!</span><span><b>ตู้จริงยังไม่เคยรันกับระบบ</b> — ทดสอบกับตู้จำลองทั้งหมด</span></li>
+            <li><span class="m">!</span><span>Web Push ยังไม่ยืนยันถึงมือถือจริง (SOS พึ่งช่องทางนี้ช่องทางเดียว)</span></li>
+            <li><span class="m">!</span><span>ยังไม่มี backup อัตโนมัติ และไม่เคยซ้อม restore</span></li>
+            <li><span class="m">!</span><span>ยังไม่มี uptime monitor นอกเครื่อง — ล่มกลางคืนไม่มีใครรู้</span></li>
+            <li><span class="m">!</span><span>ยังไม่ตัดสินโดเมนจริง — QR ที่พิมพ์ติดตู้แล้วเปลี่ยนยาก</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="status-quote">
+        “โค้ดพร้อมแล้ว — สิ่งที่ขาดคือ <b>การพิสูจน์กับของจริง</b>”
+      </div>
+
+      <div class="status-foot">
+        <span class="live"><i></i>LIVE · 17 พ.ย. 2026</span>
+        <p class="tiny" style="margin: 0">เกณฑ์เปิดนำร่อง: ตู้จริง 1 หลังผ่านครบวงจร + push ถึงเครื่องจริง + restore ผ่าน 1 ครั้ง + โดเมนนิ่ง</p>
+      </div>
+    </div>
+    <div class="foot">
+      <span>Honest status · blockers are operational</span>
+      <span class="pnum"><b>13</b> / 15</span>
+    </div>
+  </section>
+
+  <!-- ── 14 · roadmap ──────────────────────────────────────── -->
+  <section class="slide dark" data-title="ก้าวต่อไป">
+    <div class="rail">
+      <span class="brand"><b>SMMB</b> · SMART MAILBOX</span>
+      <span class="rule"></span>
+      <span>13 · ก้าวต่อไป</span>
+    </div>
+    <div class="stage">
+      <div class="eyebrow">13 · ก้าวต่อไป</div>
+      <h2 class="title">จากตู้หนึ่งหลัง<br /><span class="em">สู่หมู่บ้านหนึ่งแห่ง</span></h2>
+
+      <div class="road">
+        <div class="phase on">
+          <div class="pl">PHASE A · NOW</div>
+          <h3>พิสูจน์กับตู้จริง</h3>
+          <ul>
+            <li>ประกอบและติดตั้ง 1 ตู้หน้าบ้านจริง</li>
+            <li>กล้อง · เสียง · แบต · Wi-Fi ผ่านช่วงตรวจจริง</li>
+            <li>push ถึงมือถือ Android + iPhone</li>
+            <li>ซ้อม restore ฐานข้อมูล 1 ครั้ง</li>
+          </ul>
+          <div class="gate2"><b>เกณฑ์ผ่าน</b>ตรวจ 20 ครั้งติด ไม่มีงานค้าง</div>
+        </div>
+        <div class="phase">
+          <div class="pl">PHASE B · PILOT</div>
+          <h3>นำร่อง 1 หมู่บ้าน</h3>
+          <ul>
+            <li>ตัดสินโดเมนจริง + พิมพ์ QR ชุดแรก</li>
+            <li>backup อัตโนมัติ + monitor นอกเครื่อง + alert</li>
+            <li>10–20 ตู้ · เจ้าหน้าที่จริง 1 หน่วยงาน</li>
+            <li>เก็บ feedback หน้างาน 4 สัปดาห์</li>
+          </ul>
+          <div class="gate2"><b>เกณฑ์ผ่าน</b>ใช้งานต่อเนื่อง ไม่มีข้อมูลหาย</div>
+        </div>
+        <div class="phase">
+          <div class="pl">PHASE C · SCALE</div>
+          <h3>ขยายอย่างมีวินัย</h3>
+          <ul>
+            <li>หลายหน่วยงาน / หลายโซนพร้อมกัน</li>
+            <li>สมาชิกในบ้าน (H15) · แพ็กเกจ · หลายตู้ต่อบ้าน</li>
+            <li>CI รัน e2e ทุก PR + tag release</li>
+            <li>onboarding หน่วยงานใหม่โดยไม่แก้โค้ด</li>
+          </ul>
+          <div class="gate2"><b>เกณฑ์ผ่าน</b>เพิ่มหน่วยงานใหม่ได้ใน 1 วัน</div>
+        </div>
+      </div>
+
+      <div class="road-note">
+        <span class="kicker">หลักตัดสินเมื่อต้องเลือก</span>
+        <div class="prio">
+          <span>ความเสถียร</span><i>→</i><span>ความเร็วในการพัฒนา</span><i>→</i><span>ความสวยงาม</span>
+        </div>
+        <div class="scope">
+          ไม่ทำในเฟสนี้: RFID · MQTT · LINE · OTP · ชำระเงิน · auto-deploy<br />
+          ยอมรับ tech debt ได้ แต่ต้องมีเกณฑ์ผ่านทุกเฟส
+        </div>
+      </div>
+    </div>
+    <div class="foot">
+      <span>No dates · gates instead</span>
+      <span class="pnum"><b>14</b> / 15</span>
+    </div>
+  </section>
+
+  <!-- ── 15 · ปิดท้าย ──────────────────────────────────────── -->
+  <section class="slide dark end" data-title="ปิดท้าย">
+    <div class="rail">
+      <span class="brand"><b>SMMB</b> · SMART MAILBOX</span>
+      <span class="rule"></span>
+      <span>ขอบคุณ</span>
+    </div>
+    <div class="stage">
+      <div class="eyebrow">SMMB · SMART MAILBOX</div>
+      <h2>
+        <span>ทุกการตรวจมีหลักฐาน</span>
+        <span class="em">ทุกเหตุฉุกเฉินมีคนเห็น</span>
+      </h2>
+      <p class="sub">ระบบตู้จดหมายที่พิสูจน์ได้ว่าบ้านของคุณมีคนดูแล</p>
+
+      <div class="end-disc">
+        <div class="stamp2"><b>SMMB</b><small>SMART MAILBOX · 2026</small></div>
+      </div>
+      <div class="end-cta">
+        <img src="./assets/shots/smmb-qr.png" alt="QR เปิดเว็บ SMMB" />
+        <div>
+          <b>สแกนเปิดเว็บจริง</b>
+          <small>hub.sjp-dev.net/smmb</small>
+        </div>
+      </div>
+
+      <div class="links">
+        <div>
+          <div class="kicker" style="margin-bottom: 6px">ดูของจริง</div>
+          <div class="u">hub.sjp-dev.net/smmb</div>
+        </div>
+        <div class="r">
+          <div class="kicker" style="margin-bottom: 6px">เอกสารอ้างอิง</div>
+          <div class="tiny" style="line-height: 1.9">
+            docs/FLOW_REPORT_2026-11-13.md<br />
+            docs/FLOW_AND_GAPS.md · CLAUDE.md
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot">
+      <span>ขอบคุณ · พร้อมรับคำถาม</span>
+      <span class="pnum"><b>15</b> / 15</span>
+    </div>
+  </section>
+
+</main>
+
+<div class="hud">
+  <span class="hint">← → เลื่อน · F เต็มจอ</span>
+  <button id="prev" type="button">ก่อนหน้า</button>
+  <button id="next" type="button">ถัดไป</button>
+  <span id="counter">01 / 15</span>
+</div>
+
+<script>
+  // ── QR ลาย décor: สร้างรูปแบบคงที่ (ไม่ใช่ QR ที่สแกนได้) ──
+  function paintQR(el) {
+    const n = 21;
+    let s = Number(el.dataset.seed || 1) * 7919 + 13;
+    const rand = () => {
+      s = (s * 1103515245 + 12345) & 0x7fffffff;
+      return s / 0x7fffffff;
+    };
+    const g = Array.from({ length: n }, () => Array(n).fill(0));
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) g[y][x] = rand() > 0.52 ? 1 : 0;
+
+    const finder = (x0, y0) => {
+      for (let y = 0; y < 7; y++) {
+        for (let x = 0; x < 7; x++) {
+          const edge = x === 0 || x === 6 || y === 0 || y === 6;
+          const core = x >= 2 && x <= 4 && y >= 2 && y <= 4;
+          g[y0 + y][x0 + x] = edge || core ? 1 : 0;
+        }
+      }
+      // กันขอบรอบ finder
+      for (let i = -1; i <= 7; i++) {
+        if (y0 + i >= 0 && y0 + i < n) {
+          if (x0 - 1 >= 0) g[y0 + i][x0 - 1] = 0;
+          if (x0 + 7 < n) g[y0 + i][x0 + 7] = 0;
+        }
+        if (x0 + i >= 0 && x0 + i < n) {
+          if (y0 - 1 >= 0) g[y0 - 1][x0 + i] = 0;
+          if (y0 + 7 < n) g[y0 + 7][x0 + i] = 0;
+        }
+      }
+    };
+    finder(0, 0);
+    finder(n - 7, 0);
+    finder(0, n - 7);
+    el.innerHTML = g
+      .flat()
+      .map((v) => `<i class="${v ? 'on' : ''}"></i>`)
+      .join('');
+  }
+  document.querySelectorAll('.qr').forEach(paintQR);
+
+  // ── โหมดนำเสนอ: ย่อ/ขยายให้พอดีจอ ──
+  const deck = document.getElementById('deck');
+  const slides = [...document.querySelectorAll('.slide')];
+  const progress = document.getElementById('progress');
+  const counter = document.getElementById('counter');
+  let index = 0;
+
+  function fit() {
+    const s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    deck.style.transform = `translate(-50%, -50%) scale(${s})`;
+  }
+
+  function show(i, push = true) {
+    index = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((el, n) => el.classList.toggle('active', n === index));
+    progress.style.width = `${((index + 1) / slides.length) * 100}%`;
+    counter.textContent = `${String(index + 1).padStart(2, '0')} / ${slides.length}`;
+    if (push) history.replaceState(null, '', `#${index + 1}`);
+    slides[index].scrollTop = 0;
+  }
+
+  const next = () => show(index + 1);
+  const prev = () => show(index - 1);
+
+  window.addEventListener('resize', fit);
+  window.addEventListener('keydown', (e) => {
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); next(); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); prev(); }
+    else if (e.key === 'Home') { e.preventDefault(); show(0); }
+    else if (e.key === 'End') { e.preventDefault(); show(slides.length - 1); }
+    else if (e.key.toLowerCase() === 'f') {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+      else document.exitFullscreen?.();
+    }
+  });
+  document.getElementById('next').addEventListener('click', next);
+  document.getElementById('prev').addEventListener('click', prev);
+
+  const start = Number((location.hash || '').replace('#', '')) - 1;
+  fit();
+  show(Number.isFinite(start) && start >= 0 ? start : 0, false);
+  window.__show = show;
+  window.__slideCount = slides.length;
+
+  // ซ่อนแถบควบคุมเมื่อไม่ขยับเมาส์ เพื่อไม่บัง footer ของสไลด์
+  let hudTimer;
+  function wakeHud() {
+    document.body.classList.remove('hud-hidden');
+    clearTimeout(hudTimer);
+    hudTimer = setTimeout(() => document.body.classList.add('hud-hidden'), 2600);
+  }
+  window.addEventListener('mousemove', wakeHud);
+  window.addEventListener('keydown', wakeHud);
+  wakeHud();
+
+  // ให้ PDF รอฟอนต์ + รูปโหลดครบ
+  window.__deckReady = Promise.all([
+    document.fonts?.ready,
+    ...[...document.images].map((img) => img.complete ? true : new Promise((r) => { img.onload = img.onerror = r; })),
+  ]).then(() => true);
+</script>
+</body>
+</html>

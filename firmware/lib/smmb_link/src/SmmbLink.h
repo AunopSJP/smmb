@@ -115,6 +115,8 @@ LinkPoll linkPollOnce(uint8_t maxWaitS = 25);
 
 /** POST /v1/box/events แบบสั้น เช่น "camera_error" · jobId ไม่บังคับ */
 void linkEvent(const char *type, const char *jobId = nullptr);
+/** POST /v1/box/events ด้วย JSON ที่ผู้เรียกสร้างเอง (ต้องมี "type" เป็น a-z และ _ ไม่เกิน 40 ตัว · รวมไม่เกิน ~14 KB) · true = เซิร์ฟเวอร์รับแล้ว */
+bool linkEventRaw(const String &jsonBody, uint32_t timeoutMs = 4000);
 
 /** สาเหตุที่รีเซ็ตครั้งล่าสุด (power_on / deep_sleep / brownout / watchdog …) — ส่งไปกับ boot */
 const char *linkResetReason();
@@ -123,6 +125,11 @@ const char *linkResetReason();
 uint32_t nowUtc(); // 0 = ยังไม่เคยตั้ง
 bool clockSet();
 void clockSetFrom(uint32_t serverTime);
+/** ผลต่างนาฬิกาที่เจอตอนซิงก์ครั้งล่าสุดด้วยคำขอสั้น (linkPollOnce wait ≤ 2): เวลาเซิร์ฟเวอร์ − เวลาในตู้ก่อนตั้ง (วินาที)
+ *  + = ตู้ช้ากว่าเซิร์ฟเวอร์ · ไว้วินิจฉัยนาฬิกาเพี้ยนข้ามการหลับลึก · Valid = false ถ้าครั้งนั้นตู้ยังไม่มีนาฬิกา (ไม่มีค่าเทียบ)
+ *  ผู้เรียกควรตั้ง Valid = false ก่อนเรียกซิงก์ เพื่อรู้ว่ารอบนี้ได้ค่าใหม่จริงไหม */
+extern int32_t linkLastClockDeltaS;
+extern bool linkLastClockDeltaValid;
 
 // ── อัปเดตเฟิร์มแวร์ ────────────────────────────────────────────────────────
 /** OTA จากเซิร์ฟเวอร์ (คำสั่ง "ota" ไลบรารีเรียกเอง): โหลด GET /v1/box/firmware/<version> เซ็นลายเซ็น
