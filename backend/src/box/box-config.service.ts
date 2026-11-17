@@ -31,6 +31,14 @@ export interface BoxConfigDefaultsDto {
 export class BoxConfigService {
   constructor(@Inject(PG_POOL) private readonly pool: pg.Pool, private readonly hub: JobHub) {}
 
+  /**
+   * ปลุกตู้ที่ออนไลน์ให้เทียบ config_ver ใหม่ทันที (เวลาตรวจ/บ้านในโซน/ค่ากลางเปลี่ยน) — ตู้ที่หลับอยู่รับค่าตอนตื่นซิงก์รอบถัดไป
+   * เรียกหลัง commit เท่านั้น (ถ้าปลุกก่อน ตู้จะอ่านค่าเก่า)
+   */
+  wakeBoxes(boxIds: string[]): void {
+    for (const id of new Set(boxIds)) this.hub.wake(id);
+  }
+
   async defaults(db: Db = this.pool): Promise<BoxConfigDefaults> {
     const { rows } = await db.query<{ config: Record<string, unknown> }>(`SELECT config FROM app.box_config_tb WHERE box_config_id = 1`);
     return resolveDefaults(rows[0]?.config ?? {});
@@ -52,6 +60,7 @@ export class BoxConfigService {
 
   async setDefaults(config: Omit<BoxConfigDefaults, 'wifi_power_save' | 'sleep_outside_window'>, adminId: string): Promise<BoxConfigDefaultsDto> {
     await this.pool.query(`UPDATE app.box_config_tb SET config = $1, updated_by = $2 WHERE box_config_id = 1`, [config, adminId]);
+    this.hub.wakeAll(); // ตู้ที่ออนไลน์รับค่าใหม่ทันที ไม่ต้องรอรอบ
     return this.defaultsDto();
   }
 

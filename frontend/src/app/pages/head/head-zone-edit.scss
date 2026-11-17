@@ -84,24 +84,28 @@
   color: var(--orange);
   font-weight: 700;
 }
+/* กล่องเพิ่มช่วงเวลาตรวจ — ป้าย เริ่ม/ถึง เห็นบนจอ · ช่องสูง 52px แตะง่าย · ปุ่มเต็มความกว้าง
+   (เดิมเป็น input HH:mm ที่ใช้ flex-wrap แล้วปุ่มตกบรรทัดและช่องเตี้ย 21px) */
 .add-window {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
   gap: 8px;
-
-  input {
-    /* A8: กว้างพอไม่ตัด "06:00" ที่ 390px และขึ้นบรรทัดใหม่ได้แทนการบีบ */
-    flex: 1 1 7.5rem;
-    min-inline-size: 7.5rem;
-    font: inherit;
-    min-block-size: 44px;
-    padding: 6px 8px;
-    border-radius: var(--radius-sm);
-    border: 1.5px solid var(--line);
-    background: var(--surface);
-    color: var(--text);
-  }
+  max-inline-size: 26rem;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 96%, var(--text) 4%);
+}
+.time-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-inline-size: 0;
+}
+.time-label {
+  flex: none;
+  min-inline-size: 3.25rem;
+  font-size: var(--fs-base);
+  font-weight: 700;
 }
 .small-btn {
   inline-size: auto;

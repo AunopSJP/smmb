@@ -1,9 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal, type OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { HouseNav } from '../../core/house-nav';
 import { I18n, type Tr } from '../../core/i18n';
 import { InspectionApi, type OfficerBoxDetail } from '../../core/inspection-api';
 import { Session } from '../../core/session';
-import { fmtWhenSec } from '../../core/time';
+import { DisplaySettings } from '../../core/display-settings';
+import { fmtWhen, fmtWhenSec } from '../../core/time';
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
@@ -36,8 +38,9 @@ const STATUS: Record<OfficerBoxDetail['box']['status'], { label: Tr; icon: IconN
             <strong>{{ i18n.t(s().label) }}</strong>
             <span class="muted small block">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ d.box.house_no }}@if (d.box.area) { · {{ d.box.area }} }</span>
           </div>
+          <!-- โหมดง่ายซ่อนตารางด้านล่าง จึงโชว์แบตที่นี่แทน (โหมดอื่นมีในตารางแล้ว ไม่ซ้ำ) -->
           @if (d.box.battery) {
-            <span class="chip">{{ d.box.battery.pct }}%</span>
+            <span class="chip easy-only">{{ d.box.battery.pct }}%</span>
           }
         </section>
 
@@ -72,10 +75,30 @@ const STATUS: Record<OfficerBoxDetail['box']['status'], { label: Tr; icon: IconN
           <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีประวัติการตรวจ', en: 'No inspection history yet' })" />
         }
 
-        <a class="btn big push-end" [routerLink]="url('O02')">
-          <app-icon name="scan" [size]="22" />
-          {{ i18n.t({ th: 'สแกน QR หน้าตู้', en: 'Scan mailbox QR' }) }}
-        </a>
+        <!-- นำทาง: เฉพาะบ้านที่เจ้าของปักหมุดไว้ · server ให้พิกัดเฉพาะในเวลาตรวจ (นอกเวลา = แจ้งเป็นข้อความ) -->
+        @if (d.box.has_pin) {
+          <button type="button" class="btn secondary" [disabled]="nav.busy() === d.box.id" (click)="nav.open(d.box.id)">
+            <app-icon name="pin" [size]="20" />
+            {{ i18n.t({ th: 'นำทางไปบ้านนี้', en: 'Directions to this house' }) }}
+          </button>
+        }
+
+        @if (ready()) {
+          <a class="btn big push-end" [routerLink]="url('O02')">
+            <app-icon name="scan" [size]="22" />
+            {{ i18n.t({ th: 'สแกน QR หน้าตู้', en: 'Scan mailbox QR' }) }}
+          </a>
+        } @else {
+          <!-- ตู้ยังตรวจไม่ได้: ไม่ชวนสแกน (สแกนแล้วก็ไม่ผ่าน) · ปุ่มหลัก = ไปหลังอื่น · ยังลองสแกนได้เผื่อตู้เพิ่งกลับมา -->
+          <p class="muted small not-ready" role="status">{{ i18n.t(notReadyHint()) }}</p>
+          <div class="stack push-end">
+            <a class="btn" [routerLink]="url('O01')">{{ i18n.t({ th: 'กลับหน้าสรุป ไปหลังอื่น', en: 'Back to summary — go to another house' }) }}</a>
+            <a class="btn secondary" [routerLink]="url('O02')">
+              <app-icon name="scan" [size]="20" />
+              {{ i18n.t({ th: 'ลองสแกนอีกครั้ง', en: 'Try scanning anyway' }) }}
+            </a>
+          </div>
+        }
       }
     </div>
   `,
@@ -98,12 +121,16 @@ const STATUS: Record<OfficerBoxDetail['box']['status'], { label: Tr; icon: IconN
     .status-card.warn .status-icon { background: var(--warn-bg); color: var(--warn); }
     .status-card.danger .status-icon { background: var(--danger-bg); color: var(--sos); }
     .push-end { margin-block-start: 8px; }
+    .not-ready { margin: 0; }
+    .btn.secondary { display: flex; align-items: center; justify-content: center; gap: 8px; }
   `,
 })
 export class OfficerBoxDetailPage implements OnInit {
   protected readonly i18n = inject(I18n);
   private readonly api = inject(InspectionApi);
   private readonly session = inject(Session);
+  private readonly display = inject(DisplaySettings);
+  protected readonly nav = inject(HouseNav);
   protected readonly url = screenUrl;
   readonly id = input<string>();
   protected readonly detail = signal<OfficerBoxDetail | null>(null);
@@ -133,7 +160,23 @@ export class OfficerBoxDetailPage implements OnInit {
     }
   }
 
+  /** ตรวจได้เฉพาะตู้ที่ออนไลน์ — สถานะอื่นสแกนแล้วเซิร์ฟเวอร์จะปฏิเสธ */
+  protected readonly ready = computed(() => this.detail()?.box.status === 'online');
+
+  /** คำอธิบายสั้น ๆ ว่าทำไมยังตรวจตู้นี้ไม่ได้ */
+  protected readonly notReadyHint = computed<Tr>(() => {
+    switch (this.detail()?.box.status) {
+      case 'sleeping':
+        return { th: 'ตรวจได้เมื่อถึงเวลาตรวจของโซน', en: 'You can inspect it during the zone’s patrol hours' };
+      case 'offline':
+        return { th: 'ตรวจไม่ได้จนกว่าตู้จะกลับมาออนไลน์ · บ้านนี้ยังไม่นับว่าตรวจแล้ว', en: 'It can’t be inspected until it is back online · this house is not counted as checked' };
+      default:
+        return { th: 'ตู้นี้ยังตรวจไม่ได้ · บ้านนี้ยังไม่นับว่าตรวจแล้ว', en: 'This mailbox can’t be inspected yet · this house is not counted as checked' };
+    }
+  });
+
+  /** เวลา: โหมดปกติถึงนาที (เหมือนฝั่งเจ้าของบ้าน) · วินาทีเฉพาะโหมดละเอียด */
   protected when(iso: string): string {
-    return fmtWhenSec(iso, this.i18n.lang());
+    return this.display.advancedMode() ? fmtWhenSec(iso, this.i18n.lang()) : fmtWhen(iso, this.i18n.lang());
   }
 }

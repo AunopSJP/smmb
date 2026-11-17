@@ -85,7 +85,26 @@ struct SignedHttp
   }
 };
 
+static LinkResponse requestOnce(const char *method, const String &suffix, const String &body, uint32_t timeoutMs);
+
+/**
+ * ส่งคำขอที่เซ็นแล้ว · โดน 401 `clock_skew` → ตั้งนาฬิกาจากเวลาเซิร์ฟเวอร์แล้วส่งซ้ำ 1 ครั้ง (โปรโตคอล §1)
+ * นาฬิกาตอนหลับลึกเพี้ยนได้ 1–3% — เดิมไม่ตั้งใหม่เมื่อโดน 401 (ตั้งเฉพาะคำขอที่เร็วกว่า 5 วิ) ตู้จึงติดวน clock_skew จนกว่าจะถอดไฟ
+ */
 LinkResponse linkRequest(const char *method, const String &suffix, const String &body, uint32_t timeoutMs)
+{
+  LinkResponse r = requestOnce(method, suffix, body, timeoutMs);
+  if (r.status == 401 && r.serverTime && r.body.indexOf("clock_skew") >= 0)
+  {
+    // X-Server-Time ของ 401 ประทับตอนเซิร์ฟเวอร์รับคำขอและตอบทันที → ใช้ได้แม้ handshake ช้า
+    Serial.printf("[clock] skew %ld s — set from server and retry once\n", (long)((int32_t)(r.serverTime - nowUtc())));
+    clockSetFrom(r.serverTime);
+    r = requestOnce(method, suffix, body, timeoutMs); // เซ็นใหม่ด้วยเวลาใหม่ + nonce ใหม่
+  }
+  return r;
+}
+
+static LinkResponse requestOnce(const char *method, const String &suffix, const String &body, uint32_t timeoutMs)
 {
   LinkResponse r;
   if (WiFi.status() != WL_CONNECTED)

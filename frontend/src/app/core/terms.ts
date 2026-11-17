@@ -1,4 +1,4 @@
-// สร้างจาก docs/terms-2026-11-13.md ด้วย docs/scripts/gen-terms.mjs — ห้ามแก้ไฟล์นี้ตรง ๆ
+// สร้างจาก docs/terms-2026-11-17.md ด้วย docs/scripts/gen-terms.mjs — ห้ามแก้ไฟล์นี้ตรง ๆ
 // ของจริงหน้า A13 อ่านจาก GET /api/v1/terms/current (ฉบับเดียวกัน)
 
 export interface TermsPart {
@@ -7,12 +7,12 @@ export interface TermsPart {
   sections: { title: string; items: string[] }[];
 }
 
-export const TERMS_VERSION = '2026-11-13';
+export const TERMS_VERSION = '2026-11-17';
 
 export const TERMS: { th: TermsPart; en: TermsPart } = {
   "th": {
     "title": "ข้อตกลงการใช้งาน Smart Mailbox (ฉบับร่างสำหรับเดโม)",
-    "intro": "⚠️ ฉบับ Mock สำหรับทดสอบ/เดโมเท่านั้น ยังไม่ใช่ข้อตกลงจริงและยังไม่ผ่านการตรวจโดยผู้เชี่ยวชาญกฎหมายหรือ PDPA · ฉบับวันที่ 13 พฤศจิกายน 2026 · ใช้กับทุกคนที่มีบัญชี (เจ้าของบ้าน เจ้าหน้าที่ หัวหน้าหน่วยงาน แอดมิน)",
+    "intro": "⚠️ ฉบับ Mock สำหรับทดสอบ/เดโมเท่านั้น ยังไม่ใช่ข้อตกลงจริงและยังไม่ผ่านการตรวจโดยผู้เชี่ยวชาญกฎหมายหรือ PDPA · ฉบับวันที่ 17 พฤศจิกายน 2026 · ใช้กับทุกคนที่มีบัญชี (เจ้าของบ้าน เจ้าหน้าที่ หัวหน้าหน่วยงาน แอดมิน)",
     "sections": [
       {
         "title": "1. SOS ไม่ได้แทนการโทร 191 / 1669",
@@ -44,7 +44,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
         "title": "4. สิ่งที่ระบบบันทึก",
         "items": [
           "ทุกการสแกนหรือพิมพ์รหัส แม้ไม่ผ่าน: ใคร · ตู้ไหน · QR ใบไหน · สแกนหรือพิมพ์ · ผล · เวลา",
-          "การแจ้งส่งของ (ไม่เก็บว่าไรเดอร์เป็นใคร) · SOS · การยอมรับข้อตกลง · การที่แอดมินเปิดดูข้อมูลส่วนบุคคล · การที่คุณส่งออกข้อมูลของตัวเอง",
+          "การแจ้งส่งของ (ไม่เก็บว่าไรเดอร์เป็นใคร) · SOS · การยอมรับข้อตกลง · การที่แอดมินเปิดดูข้อมูลส่วนบุคคล · การที่เจ้าหน้าที่เปิดดูตำแหน่งบ้านเพื่อนำทาง · การที่คุณส่งออกข้อมูลของตัวเอง",
           "บันทึกเหล่านี้แก้ไขหรือลบไม่ได้ และเก็บไว้ 1 ปี",
           "ข้อมูลบ้านที่เจ้าของบ้านกรอก: ที่อยู่ · หมุดตำแหน่งบ้าน (ถ้าปัก) · ผู้ติดต่อฉุกเฉิน (ถ้ากรอก)",
           "ข้อมูลเพิ่มเติมตอนสมัคร (ไม่บังคับ): คำนำหน้า อีเมล ประเภทบ้าน จำนวนผู้อยู่อาศัย ผู้ที่ต้องดูแลเป็นพิเศษ (เช่น ผู้สูงอายุ เด็กเล็ก ผู้ป่วยติดเตียง) และจุดสังเกตหน้าบ้าน — เก็บเพื่อให้เจ้าหน้าที่ช่วยได้ตรงจุดตอนเกิดเหตุ ระบบไม่เก็บเลขบัตรประชาชน",
@@ -57,6 +57,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
         "title": "5. ใครเห็นข้อมูลอะไร",
         "items": [
           "เจ้าหน้าที่และหัวหน้าเห็นบ้านเลขที่และชื่อตู้ ไม่เห็นชื่อหรือเบอร์ของเจ้าของบ้าน ยกเว้นระหว่างที่ SOS ของบ้านนั้นเปิดอยู่ ซึ่งจะเห็นชื่อ เบอร์ ที่อยู่ หมุดตำแหน่งบ้าน จำนวนผู้อยู่อาศัย ผู้ที่ต้องดูแลเป็นพิเศษ และจุดสังเกตหน้าบ้านด้วย",
+          "ถ้าเจ้าของบ้านปักหมุดตำแหน่งบ้านไว้ เจ้าหน้าที่ในโซนของบ้านนั้นกด \"นำทาง\" เพื่อเปิดเส้นทางไปบ้านในแอปแผนที่ได้ เฉพาะระหว่างเวลาตรวจของโซน · ได้เฉพาะตำแหน่งหมุด ไม่เห็นชื่อ เบอร์ หรือที่อยู่ · ระบบบันทึกทุกครั้งว่าใครเปิดดูตำแหน่งบ้านไหน · ไม่อยากให้นำทาง ให้ลบหมุดในหน้าตั้งค่า",
           "หัวหน้าหน่วยงานขอเพิ่มบ้านเข้าโซนได้ แต่บ้านจะเข้าโซนเมื่อเจ้าของบ้านกดยอมรับเท่านั้น",
           "เจ้าของบ้านเห็นชื่อ หน่วยงาน และรูปยืนยันตัวของเจ้าหน้าที่ที่มาตรวจบ้านตัวเอง (รูปเก็บ 30 วัน) และเห็นเบอร์ของคนที่รับ SOS ระหว่างที่ SOS เปิดอยู่",
           "เจ้าของบ้านเห็นหมุดตำแหน่งและข้อมูลติดต่อของหน่วยงานที่แอดมินอนุมัติแล้ว เพื่อเลือกว่าจะให้หน่วยงานไหนดูแลบ้าน",
@@ -85,6 +86,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
           "เปิดการแจ้งเตือนไว้ตลอด เพื่อไม่พลาด SOS",
           "ตรวจตู้ด้วยตัวเองเท่านั้น ห้ามให้คนอื่นใช้บัญชีหรือสแกนแทน · ตู้จะถ่ายรูปยืนยันตัวหลังตรวจผ่าน",
           "สแกน QR หน้าตู้ผ่านแอปเท่านั้น และตรวจเฉพาะบ้านในโซนของตัวเอง",
+          "ตำแหน่งบ้านที่ได้จากปุ่ม \"นำทาง\" ใช้เพื่อเดินทางไปตรวจเท่านั้น ห้ามบันทึกเก็บหรือส่งต่อ",
           "ใช้ข้อมูลที่เห็นเพื่อหน้าที่นี้เท่านั้น · หัวหน้าดูแลสมาชิกและโซนของหน่วยงานตัวเอง"
         ]
       },
@@ -105,7 +107,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
   },
   "en": {
     "title": "Smart Mailbox terms of use (demo draft)",
-    "intro": "⚠️ Mock version for testing and demos only — not the real terms and not reviewed by legal or PDPA experts · Version of 13 November 2026 · applies to everyone with an account (homeowners, officers, agency heads, admins)",
+    "intro": "⚠️ Mock version for testing and demos only — not the real terms and not reviewed by legal or PDPA experts · Version of 17 November 2026 · applies to everyone with an account (homeowners, officers, agency heads, admins)",
     "sections": [
       {
         "title": "1. SOS does not replace calling 191 / 1669",
@@ -137,7 +139,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
         "title": "4. What the system records",
         "items": [
           "Every scan or typed code, even failures: who · which box · which QR · scanned or typed · result · time",
-          "Delivery reports (riders are not identified) · SOS · terms acceptance · every time an admin views personal data · every time you export your own data",
+          "Delivery reports (riders are not identified) · SOS · terms acceptance · every time an admin views personal data · every time an officer opens a house location for directions · every time you export your own data",
           "These records cannot be edited or deleted and are kept for 1 year",
           "House details the homeowner enters: address · house pin (if set) · emergency contact (if given)",
           "Optional sign-up details: title, email, house type, number of residents, people who need extra care (e.g. elderly, small children, bedridden) and a landmark near the house — kept so officers can help properly in an emergency. National ID numbers are not collected",
@@ -150,6 +152,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
         "title": "5. Who sees what",
         "items": [
           "Officers and heads see house numbers and box names, not the homeowner's name or phone — except while that house's SOS is open, when they also see the address, house pin, number of residents, people who need extra care and the landmark",
+          "If the homeowner has set a house pin, officers of that house's zone can tap \"Directions\" to open a route to it in a maps app, only during the zone's patrol hours · they get the pin location only — no name, phone or address · every such view is logged with who looked at which house · to opt out, remove the pin in Settings",
           "An agency head can ask to add a house to a zone, but it joins only after the homeowner accepts",
           "Homeowners see the name, agency and confirmation photo of the officer who checked their own house (photos kept 30 days), and the phone of whoever accepted their SOS while it is open",
           "Homeowners can see the pin and contact details of approved agencies, to choose which one looks after their house",
@@ -178,6 +181,7 @@ export const TERMS: { th: TermsPart; en: TermsPart } = {
           "Keep notifications on so you never miss an SOS",
           "Inspect in person only — never let anyone else use your account or scan for you · the box takes a confirmation photo after each passed inspection",
           "Scan box QR codes only through the app, and only for houses in your own zones",
+          "A house location from \"Directions\" is for travelling to the inspection only — do not save or share it",
           "Use what you see only for this work · heads manage only their own agency's members and zones"
         ]
       },

@@ -90,6 +90,12 @@ describe('Inspections (e2e)', () => {
       .expect(201);
     const owner = { id: o.body.id as string, cookie: sid(o) };
     await as(owner.cookie).post('/api/v1/boxes/activate', { qr_text: b.qr[2].url }).expect(200);
+    // ✅ 2026-11-16 บ้านต้องข้อมูลครบ (ที่อยู่ + พื้นที่มาตรฐาน + หมุด) จึงเพิ่มเข้าโซนได้
+    await http()
+      .patch(`/api/v1/boxes/${b.box_id}`)
+      .set('Cookie', owner.cookie)
+      .send({ address_line: 'ซอย 3', subdistrict: 'ลาดยาว', district: 'จตุจักร', province: 'กรุงเทพมหานคร', lat: 13.7563, lng: 100.5018 })
+      .expect(200);
     const ag = await agency();
     const zone = (await as(ag.head).post('/api/v1/agency/zones', { name: `โซน ${seq++}`, windows }).expect(201)).body;
     await as(ag.head).put(`/api/v1/agency/zones/${zone.id}/houses`, { box_ids: [b.box_id] }).expect(200);
@@ -164,6 +170,25 @@ describe('Inspections (e2e)', () => {
 
     const summary = (await as(officer.cookie).get('/api/v1/officer/summary').expect(200)).body;
     expect(summary).toMatchObject({ in_window: true, houses_total: 1, houses_checked: 1, next_house: null });
+    // แต่ละบ้านบอกสถานะตู้ด้วย (เจ้าหน้าที่รู้ก่อนเดินไปว่าตู้ไหนตรวจไม่ได้)
+    expect(summary.houses[0]).toMatchObject({ box_id: b.box_id, status: expect.stringMatching(/^(online|offline|sleeping)$/) });
+
+    // ปุ่ม "นำทาง": ในโซน + ในเวลาตรวจ → ได้พิกัด และบันทึกการเปิดดูครั้งเดียวต่อวัน · ไม่มีหมุด → 404
+    expect(summary.houses[0].has_pin).toBe(true);
+    const loc = (await as(officer.cookie).get(`/api/v1/officer/boxes/${b.box_id}/location`).expect(200)).body;
+    expect(loc).toEqual({ lat: 13.7563, lng: 100.5018 });
+    await as(officer.cookie).get(`/api/v1/officer/boxes/${b.box_id}/location`).expect(200);
+    const seen = await pool.query(
+      `SELECT fields FROM app.data_access_log_tb WHERE actor_user_id = $1 AND subject_kind = 'box' AND subject_id = $2 AND 'location' = ANY(fields)`,
+      [officer.id, b.box_id],
+    );
+    expect(seen.rowCount).toBe(1);
+    // เจ้าของบ้าน (ไม่ใช่เจ้าหน้าที่) ขอไม่ได้
+    await as(owner.cookie).get(`/api/v1/officer/boxes/${b.box_id}/location`).expect(404);
+    // เจ้าของล้างหมุด → เจ้าหน้าที่ขอไม่ได้ และหน้าสรุปไม่ชวนนำทาง
+    await pool.query(`UPDATE app.box_tb SET lat = NULL, lng = NULL WHERE box_id = $1`, [b.box_id]);
+    await as(officer.cookie).get(`/api/v1/officer/boxes/${b.box_id}/location`).expect(404);
+    expect((await as(officer.cookie).get('/api/v1/officer/summary').expect(200)).body.houses[0].has_pin).toBe(false);
 
     const logs = await pool.query(`SELECT actor_kind, result FROM app.scan_log_tb WHERE box_id = $1 AND qr_kind <> 'activate' ORDER BY scan_log_id`, [b.box_id]);
     expect(logs.rows).toEqual([

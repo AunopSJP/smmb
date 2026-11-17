@@ -81,6 +81,27 @@
   background: var(--bg);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
+  .grow {
+    flex: 1;
+    min-inline-size: 0;
+  }
+}
+/* ปุ่ม "นำทาง" ในแถวหลังถัดไป — ปุ่มรอง ไม่แย่งความเด่นจากปุ่มสแกน */
+.nav-btn {
+  flex: none;
+  min-block-size: 44px;
+  padding: 6px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--brand-text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  cursor: pointer;
+  &:disabled {
+    opacity: 0.6;
+  }
 }
 ul {
   list-style: none;

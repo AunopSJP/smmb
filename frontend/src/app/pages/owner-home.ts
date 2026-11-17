@@ -112,8 +112,12 @@ const REFRESH_MS = 10_000;
           <section class="card offline stack" role="status">
             <strong>{{ i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' }) }}</strong>
             <!-- C5: โหมดง่ายเหลือหัวข้อ + 1 ประโยค + ปุ่มเดียว · รายละเอียด/ปุ่ม Wi-Fi/ช่าง ไปอยู่ H12-d -->
-            @if (easy()) {
+            <!-- โหมดปกติก็ใช้แบบสั้น (จอแรกต้องเห็นสถานะอื่นด้วย) · เช็กลิสต์/ปุ่ม Wi-Fi/ช่าง เต็ม ๆ เหลือเฉพาะโหมดละเอียด -->
+            @if (easy() || !display.advancedMode()) {
               <span class="small">{{ i18n.t({ th: 'เจ้าหน้าที่จะตรวจตู้ไม่ได้จนกว่าตู้จะกลับมาออนไลน์', en: 'Officers cannot check the mailbox until it is back online' }) }}</span>
+              @if (!easy() && lastInspection(b); as li) {
+                <span class="small">{{ i18n.t({ th: 'เจ้าหน้าที่ตรวจล่าสุด ', en: 'Last officer check ' }) }}{{ li }}</span>
+              }
               <a class="btn" [routerLink]="url('H12-d')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'ดูวิธีแก้', en: 'See how to fix it' }) }}</a>
             } @else {
               <span class="small">{{ i18n.t({ th: 'เจ้าหน้าที่จะตรวจตู้ไม่ได้จนกว่าตู้จะกลับมาออนไลน์', en: 'Officers cannot check the mailbox until it is back online' }) }}</span>

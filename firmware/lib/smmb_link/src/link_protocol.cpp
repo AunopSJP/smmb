@@ -420,6 +420,14 @@ static void sendInspectionPhoto(const String &jobId)
   free(jpeg);
 }
 
+static bool inspectPassFlag = false;
+bool linkTakeInspectPass()
+{
+  const bool v = inspectPassFlag;
+  inspectPassFlag = false;
+  return v;
+}
+
 static void runJob(JsonObjectConst job)
 {
   const String jobId = job["job_id"] | "";
@@ -518,7 +526,10 @@ static void runJob(JsonObjectConst job)
       linkBeep("pass");
       linkRtc.jobsDone++;
       if (type == "inspect")
+      {
         sendInspectionPhoto(jobId);
+        inspectPassFlag = true; // ตรวจผ่านแล้ว → ฝั่งแอปพาตู้ไปหลับ (ไม่ต้องถือสายรอจนหมดช่วง)
+      }
       break;
     }
     if (status == "retry")

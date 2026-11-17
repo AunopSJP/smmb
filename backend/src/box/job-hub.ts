@@ -27,6 +27,11 @@ export class JobHub {
     for (const fn of this.waiters.get(boxId) ?? []) fn();
   }
 
+  /** ปลุกทุกตู้ที่ถือ long-poll อยู่ (ค่ากลางเปลี่ยน → ให้ตู้เทียบ config_ver ทันที) */
+  wakeAll(): void {
+    for (const set of this.waiters.values()) for (const fn of set) fn();
+  }
+
   isWaiting(boxId: string): boolean {
     return (this.waiters.get(boxId)?.size ?? 0) > 0;
   }

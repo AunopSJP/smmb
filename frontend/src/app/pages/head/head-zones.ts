@@ -12,12 +12,22 @@ import { EmptyState, LoadError, LoadingRows } from '../../shared/state-view';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
 import { PlacePicker, type PlaceChange } from '../../shared/place-picker';
+import { TimeSelect } from '../../shared/time-select';
 import { liveRefresh } from '../../core/live-refresh';
 
 // หัวหน้า: L06 โซนทั้งหมด · L07 แก้โซน (ชื่อ · เวลาตรวจ · บ้าน · เจ้าหน้าที่) — ใช้ API จริง (api.md §8.3)
 // บ้านหลังเดียวอยู่ในโซนของหลายหน่วยงานได้ · ตู้รับเวลาตรวจใหม่ตอน boot / รายงานรายวัน
 
 const MAX_WINDOWS = 4;
+
+/**
+ * ตรวจช่วงเวลาตรวจใหม่ก่อนเพิ่ม: "HH:mm" ถูกต้อง · เริ่มก่อนจบ · ไม่ทับช่วงที่มีอยู่
+ * เทียบสตริงได้ตรง ๆ เพราะ 24 ชม. ความยาวเท่ากัน (ช่วงที่ชิดกัน เช่น 06–09 กับ 09–10 ถือว่าไม่ทับ)
+ */
+export function windowProblem(from: string, to: string, existing: [string, string][]): boolean {
+  if (!/^\d{2}:\d{2}$/.test(from) || !/^\d{2}:\d{2}$/.test(to) || from >= to) return true;
+  return existing.some(([a, b]) => from < b && a < to);
+}
 
 const ZONE_ERROR: Record<string, Tr> = {
   ZONE_AREA_INVALID: { th: 'ต้องใส่จังหวัดและเขต/อำเภอคู่กัน (หรือเว้นว่างทั้งหมด)', en: 'Province and district are required together (or leave all blank)' },
@@ -187,7 +197,7 @@ export class HeadZones implements OnInit {
 
 @Component({
   selector: 'app-head-zone-edit',
-  imports: [PageHeader, RouterLink, LoadError, EmptyState, HousesMap, PlacePicker],
+  imports: [PageHeader, RouterLink, LoadError, EmptyState, HousesMap, PlacePicker, TimeSelect],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './head-zone-edit.scss',
   template: `
@@ -219,7 +229,7 @@ export class HeadZones implements OnInit {
           <strong>{{ i18n.t({ th: 'เวลาตรวจ', en: 'Patrol hours' }) }}</strong>
           <span class="muted small">Asia/Bangkok</span>
         </div>
-        <div class="chips">
+        <div class="chips" aria-live="polite">
           @for (w of windows(); track $index) {
             <button type="button" class="pill" (click)="removeWindow($index)" [attr.aria-label]="i18n.t({ th: 'นำออก ', en: 'Remove ' }) + w.join('–')">{{ w[0] }}–{{ w[1] }} <span aria-hidden="true">×</span></button>
           } @empty {
@@ -228,11 +238,16 @@ export class HeadZones implements OnInit {
         </div>
         @if (windows().length < maxWindows) {
           <div class="add-window">
-            <!-- A8: บังคับรูปแบบ 24 ชม. แบบพิมพ์ HH:mm และกว้างพอที่ 390px -->
-            <input type="text" inputmode="numeric" autocomplete="off" maxlength="5" pattern="[0-2][0-9]:[0-5][0-9]" placeholder="HH:mm" [value]="from()" (input)="from.set($any($event.target).value)" [attr.aria-label]="i18n.t({ th: 'เริ่ม (24 ชม.)', en: 'From (24-hour)' })" />
-            <span>–</span>
-            <input type="text" inputmode="numeric" autocomplete="off" maxlength="5" pattern="[0-2][0-9]:[0-5][0-9]" placeholder="HH:mm" [value]="to()" (input)="to.set($any($event.target).value)" [attr.aria-label]="i18n.t({ th: 'ถึง (24 ชม.)', en: 'To (24-hour)' })" />
-            <button type="button" class="btn secondary small-btn" (click)="addWindow()">{{ i18n.t({ th: 'เพิ่ม', en: 'Add' }) }}</button>
+            <!-- เลือกเวลาด้วยตัวเลือก ชั่วโมง:นาที (24 ชม.) แทนการพิมพ์ HH:mm เอง · มีป้าย เริ่ม/ถึง บนจอ -->
+            <div class="time-row">
+              <span class="time-label">{{ i18n.t({ th: 'เริ่ม', en: 'From' }) }}</span>
+              <app-time-select [value]="from()" [label]="i18n.t({ th: 'เริ่ม', en: 'From' })" (changed)="from.set($event)" />
+            </div>
+            <div class="time-row">
+              <span class="time-label">{{ i18n.t({ th: 'ถึง', en: 'To' }) }}</span>
+              <app-time-select [value]="to()" [label]="i18n.t({ th: 'ถึง', en: 'To' })" (changed)="to.set($event)" />
+            </div>
+            <button type="button" class="btn secondary" (click)="addWindow()">{{ i18n.t({ th: '+ เพิ่มช่วงเวลานี้', en: '+ Add this window' }) }}</button>
           </div>
         }
         <p class="muted small">{{ i18n.t({ th: 'ข้ามเที่ยงคืนให้แยก 2 ช่วง', en: 'Split overnight into 2 windows' }) }}@if (zone()?.patrol_limit_hours; as lim) { · {{ i18n.t({ th: 'ตู้ตื่นเฉพาะช่วงตรวจ (ประหยัดไฟ) — รวมไม่เกิน ', en: 'Boxes are awake only in these hours (saves power) — at most ' }) }}{{ lim }} {{ i18n.t({ th: 'ชม./วัน ต่อตู้', en: 'h/day per box' }) }} }</p>
@@ -610,7 +625,8 @@ export class HeadZoneEdit {
 
   protected addWindow(): void {
     const [f, t] = [this.from(), this.to()];
-    if (!/^\d{2}:\d{2}$/.test(f) || !/^\d{2}:\d{2}$/.test(t) || f >= t) {
+    // กันซ้อน/ซ้ำกับช่วงที่มีอยู่ — ไม่ต้องรอเซิร์ฟเวอร์ปฏิเสธ (ข้อความเดียวกันเพราะแก้ครั้งเดียวกัน)
+    if (windowProblem(f, t, this.windows())) {
       this.error.set(ZONE_ERROR['WINDOWS_INVALID']);
       return;
     }

@@ -63,7 +63,9 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
             <button type="button" class="x" (click)="snooze()" [attr.aria-label]="i18n.t({ th: 'ปิดไว้ก่อน จะเตือนอีกครั้งใน ', en: 'Dismiss for now — reminds again in ' }) + hours + i18n.t({ th: ' ชั่วโมง', en: ' hours' })">✕</button>
           }
         </div>
-        @if (required()) {
+        <!-- เบราว์เซอร์ไม่รองรับ + ไม่บังคับเปิด: ไม่มีปุ่มให้กด จึงเหลือคำแนะนำบรรทัดเดียว ไม่กินจอแรก -->
+        @if (blocker() === 'unsupported' && !required()) {
+        } @else if (required()) {
           <small>{{ i18n.t({ th: 'เจ้าหน้าที่ต้องเปิดไว้ จึงจะใช้งานและรับ SOS ได้', en: 'Officers must keep this on — otherwise the app is locked and you will miss SOS alerts' }) }}</small>
         } @else if (deviceLabel() === 'admin') {
           <small class="easy-hide">{{ i18n.t({ th: 'จะไม่รู้เมื่อตู้มีปัญหา มีคำขอช่าง หรือมีเคส QR ที่ต้องดูแล จนกว่าจะเปิด', en: 'You will not know about mailbox problems, technician requests or QR cases until you turn it on' }) }}</small>
@@ -83,7 +85,7 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
             <small>{{ deniedHelp() }}</small>
           }
           @case ('unsupported') {
-            <small>{{ i18n.t({ th: 'เบราว์เซอร์นี้ไม่รองรับแจ้งเตือน (หรือเปิดผ่านหน้าทดสอบ) — ใช้ Chrome บน Android หรือ Safari บน iPhone ที่ติดตั้งแล้ว', en: 'This browser does not support notifications — use Chrome on Android, or Safari on an installed iPhone app' }) }}</small>
+            <small>{{ i18n.t({ th: 'เบราว์เซอร์นี้รับแจ้งเตือนไม่ได้ — เปิดด้วย Chrome (Android) หรือ Safari (iPhone ที่ติดตั้งแล้ว)', en: 'This browser can’t get notifications — use Chrome on Android, or Safari on an installed iPhone app' }) }}</small>
           }
           @default {
             <button type="button" class="btn" [disabled]="busy()" (click)="turnOn()">{{ i18n.t({ th: 'เปิดแจ้งเตือน', en: 'Turn on notifications' }) }}</button>

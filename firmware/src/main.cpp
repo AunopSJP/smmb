@@ -45,13 +45,13 @@ static bool inWindow(uint32_t utc)
 
 /**
  * ตู้นี้ "หลับตามเวลาตรวจ" ไหม — เปิดจาก serial (`sleep on`) หรือจากแอดมิน (config sleep_outside_window)
- * ปิด = ถือ long-poll ตลอด (ค่าเริ่มต้น) · เปิด = นอกเวลาตรวจหลับลึก ตื่นก่อนต้นช่วงตรวจ 60 วิ (shouldListen / secondsToNextEvent)
+ * ปิด = ถือ long-poll ตลอด (ค่าเริ่มต้น) · เปิด = นอกเวลาตรวจหลับลึก ตื่นก่อนต้นช่วงตรวจ WAKE_BEFORE_WINDOW_S (shouldListen / secondsToNextEvent)
  */
 static bool scheduleSleepEnabled() { return (settings.sleep || boxConfig.sleepOutsideWindow) && !settings.debugCam; }
 
 /**
  * อยู่ในช่วงที่ต้องตื่นไหม = ตั้งแต่ WAKE_BEFORE_WINDOW_S ก่อนต้นช่วงตรวจ จนจบช่วง
- * (ตู้ตื่นจากหลับลึกก่อนต้นช่วง 60 วิ — ถ้าเช็กแค่ inWindow ตู้จะเห็นว่ายังไม่ถึงเวลาแล้วหลับต่อข้ามไปวันรุ่งขึ้น)
+ * (ตู้ตื่นจากหลับลึกก่อนต้นช่วง — ถ้าเช็กแค่ inWindow ตู้จะเห็นว่ายังไม่ถึงเวลาแล้วหลับต่อข้ามไปวันรุ่งขึ้น)
  */
 static bool inListenTime(uint32_t utc)
 {
@@ -67,6 +67,10 @@ static bool inListenTime(uint32_t utc)
   return false;
 }
 
+// ตรวจผ่านแล้วพักถึงเมื่อไร (UTC · 0 = ไม่พัก) — ✅ ผู้ใช้สั่ง 2026-11-17: ตรวจผ่านแล้วตู้กลับไปหลับลึกทันที ไม่ถือสายรอจนหมดช่วง
+// ตรวจไม่ผ่านไม่ตั้งค่านี้ → ตู้ตื่นรอให้เจ้าหน้าที่สแกนซ้ำได้ (หลับลึกแล้วปลุกไม่ได้)
+RTC_DATA_ATTR static uint32_t quietUntil = 0;
+
 static bool shouldListen()
 {
   // ไม่ได้ตั้งให้หลับตามตาราง (หรือกำลังเปิดหน้าดูกล้อง) → ถือสายตลอด เพื่อให้สแกนแล้วตู้ตอบทันที
@@ -75,10 +79,49 @@ static bool shouldListen()
   uint32_t now = nowUtc();
   if (!now)
     return false;
+  if (now < quietUntil)
+    return false; // เพิ่งตรวจผ่านในช่วงนี้ → พัก
   return now < linkRtc.awakeUntil || inListenTime(now);
 }
 
-/** วินาทีถึงเหตุการณ์ถัดไป (ต้นช่วงเวลาตรวจ − 60 วิ หรือ เวลารายงาน) */
+/**
+ * อีกกี่วินาทีจะพ้นช่วงที่ต้องถือสาย (จบช่วงตรวจ หรือ ตัวนับตื่นค้างหมด — เอาอันที่จบทีหลัง) · 0 = พ้นแล้ว
+ * ใช้ตัด long-poll รอบสุดท้ายให้จบพอดีเวลา: เดิมถามค้าง 25 วิ ข้ามเวลาจบช่วง ตู้จึงตื่นเกินเวลาตรวจไปราวครึ่งนาทีทุกวัน
+ */
+static uint32_t secondsLeftToListen(uint32_t now)
+{
+  uint32_t left = now < linkRtc.awakeUntil ? linkRtc.awakeUntil - now : 0;
+  const uint32_t sec = (now + TZ_OFFSET_S) % 86400;
+  for (uint8_t i = 0; i < boxConfig.windowCount; i++)
+  {
+    const uint32_t st = (uint32_t)boxConfig.winStart[i] * 60, en = (uint32_t)boxConfig.winEnd[i] * 60;
+    if (sec < en && sec + WAKE_BEFORE_WINDOW_S >= st)
+      left = max<uint32_t>(left, en - sec);
+    else if (st < WAKE_BEFORE_WINDOW_S && sec + WAKE_BEFORE_WINDOW_S >= 86400 + st)
+      left = max<uint32_t>(left, 86400 - sec + en); // ช่วงที่เริ่มใกล้เที่ยงคืน: ตอนนี้ยังอยู่ท้ายวันก่อนหน้า
+  }
+  return left;
+}
+
+/**
+ * ตรวจผ่านแล้ว: พักจนสิ้นสุดช่วงตรวจนี้ (แต่ไม่เกินเวลาตื่นของช่วงถัดไป กรณีสองช่วงติดกัน) · ยกเลิกตัวนับตื่นค้างหลังเปิดเครื่องด้วย
+ */
+static void restAfterPass(uint32_t now)
+{
+  linkRtc.awakeUntil = 0;
+  uint32_t left = secondsLeftToListen(now);
+  const uint32_t sec = (now + TZ_OFFSET_S) % 86400;
+  for (uint8_t i = 0; i < boxConfig.windowCount; i++)
+  {
+    const int32_t wakeAt = (int32_t)boxConfig.winStart[i] * 60 - (int32_t)WAKE_BEFORE_WINDOW_S;
+    if (wakeAt > (int32_t)sec && (uint32_t)(wakeAt - (int32_t)sec) < left)
+      left = (uint32_t)(wakeAt - (int32_t)sec);
+  }
+  quietUntil = now + left;
+  Serial.printf("[sleep] inspection passed — resting %u s (until this window ends)\n", (unsigned)left);
+}
+
+/** วินาทีถึงเหตุการณ์ถัดไป (ต้นช่วงเวลาตรวจ − WAKE_BEFORE_WINDOW_S หรือ เวลารายงาน) */
 static uint32_t secondsToNextEvent(uint32_t now)
 {
   uint16_t m = localMinute(now);
@@ -273,6 +316,7 @@ static void tracePollDone(int res, unsigned long ms)
 
 static bool lanOtaForced = false;   // `ota on` ทาง serial
 static bool syncedThisWake = false; // ซิงก์นาฬิกาแล้วในรอบตื่นนี้ (รีเซ็ตทุกครั้งที่ตื่นจากหลับลึก)
+static bool reportFailedThisWake = false; // ส่งรายงานรายวันไม่ผ่านในรอบตื่นนี้ → ไม่วนส่งซ้ำ ลองใหม่รอบตื่นถัดไป
 static bool txLow = false;
 static unsigned long txBlockUntil = 0; // millis() · ห้ามลดกำลังส่งจนถึงเวลานี้ (เพิ่งมีปัญหา)
 
@@ -432,6 +476,7 @@ static void hookStandby()
 {
   settings.sleep = false;
   settingsSave();
+  quietUntil = 0; // สั่งสแตนบายจากแอดมิน = ยกเลิกการพักหลังตรวจผ่าน
   // ถ้าแอดมินตั้ง sleep_outside_window ไว้ → ตื่นค้าง 2 ชม. ให้ทดสอบ แล้วกลับไปหลับตามตาราง
   const uint32_t now = nowUtc();
   if (now)
@@ -477,15 +522,24 @@ static void pollOnce()
 #if SMMB_TRACE
   const unsigned long pollStartMs = millis();
 #endif
-  const LinkPoll pollRes = linkPollOnce(settings.debugCam ? 3 : 25);
+  // โหมดหลับตามเวลาตรวจ: รอบสุดท้ายถามสั้นลงให้จบพอดีเวลาสิ้นสุดช่วง แล้วไปหลับทันที (ไม่ค้างถามข้ามเวลาจบ)
+  uint8_t waitS = settings.debugCam ? 3 : 25;
+  const uint32_t nowS = nowUtc();
+  if (scheduleSleepEnabled() && nowS)
+    waitS = (uint8_t)constrain((long)secondsLeftToListen(nowS), 1L, (long)waitS);
+  const LinkPoll pollRes = linkPollOnce(waitS);
 #if SMMB_TRACE
   tracePollDone((int)pollRes, millis() - pollStartMs);
 #endif
   switch (pollRes)
   {
   case LinkPoll::Idle:
+    psNotePoll(true);
+    return;
   case LinkPoll::Handled:
     psNotePoll(true);
+    if (linkTakeInspectPass() && scheduleSleepEnabled() && nowUtc())
+      restAfterPass(nowUtc()); // loop() รอบถัดไปจะเห็น shouldListen() = false แล้วหลับเอง
     return;
   case LinkPoll::AuthFailed:
     waitWithCli(RETRY_IN_WINDOW_MS);
@@ -500,6 +554,26 @@ static void pollOnce()
 }
 
 // ── หลับลึก ────────────────────────────────────────────────────────────
+static void sleepUntilNextEvent();
+
+/**
+ * ติดปัญหาเชื่อมต่อ (Wi-Fi หลุด / boot ไม่ผ่าน) แล้ว "ควรเลิกรอแล้วไปหลับ" ไหม — true = หลับไปแล้ว (ไม่กลับมา)
+ * เดิมตู้วนลองใหม่ทุก 30 วิ ไปตลอดแม้พ้นเวลาตรวจ = กินไฟ ~0.15 A ไม่จบจนแบตหมด
+ * - มีนาฬิกา: พ้นช่วงที่ต้องถือสายแล้ว → หลับตามตาราง (ตื่นรอบถัดไป ≤ 30 นาที แล้วลองต่อใหม่เอง)
+ * - ยังไม่มีนาฬิกา (เพิ่งเปิดเครื่อง): ให้เวลา GIVE_UP_AWAKE_MS ก่อน เผื่อคนกำลังตั้งค่าอยู่หน้าตู้
+ */
+static bool sleepIfNoReasonToStayAwake()
+{
+  if (!scheduleSleepEnabled())
+    return false;
+  const uint32_t t = nowUtc();
+  if (t ? shouldListen() : millis() < GIVE_UP_AWAKE_MS)
+    return false;
+  Serial.println("[sleep] link problem and nothing to wait for — sleep and retry next wake");
+  sleepUntilNextEvent();
+  return true;
+}
+
 static void sleepUntilNextEvent()
 {
   uint32_t now = nowUtc();
@@ -928,7 +1002,7 @@ void setup()
       linkBeepErrorQuiet();
     if (fromSleep)
     {
-      // ตื่นมาแล้วต่อไม่ได้ → หลับแล้วลองรอบถัดไป · แต่ถ้าอยู่ในช่วงที่ต้องตื่นแล้ว (ก่อนต้นช่วง 3 นาที–จบช่วง) ห้ามหลับ:
+      // ตื่นมาแล้วต่อไม่ได้ → หลับแล้วลองรอบถัดไป · แต่ถ้าอยู่ในช่วงที่ต้องตื่นแล้ว (ก่อนต้นช่วง 2 นาที–จบช่วง) ห้ามหลับ:
       // เดิมหลับต่อ ~30 นาทีจนข้ามช่วงตรวจทั้งช่วง → ปล่อยให้ loop() ลองต่อใหม่ทุก 30 วิ
       const uint32_t t = nowUtc();
       if (!(t && inListenTime(t)))
@@ -978,37 +1052,39 @@ void loop()
 #if SMMB_TRACE
     traceAdd('E', 1, (int)WiFi.status()); // Wi-Fi หลุดและต่อใหม่ไม่ได้ (ตื่นค้างรอลองใหม่ ไม่ได้หลับ)
 #endif
+    if (sleepIfNoReasonToStayAwake()) // พ้นเวลาตรวจแล้ว ไม่ต้องตื่นรอ Wi-Fi — หลับแล้วลองใหม่รอบถัดไป
+      return;
     linkBeepErrorQuiet(); // Wi-Fi บ้านล่มทั้งคืน → ไม่ร้องทุกครึ่งนาที
     waitWithCli(RETRY_IN_WINDOW_MS);
     return;
   }
   if (!linkBooted() && !clockSet())
   {
-    if (!sendBoot())
+    if (!sendBoot() && !sleepIfNoReasonToStayAwake())
       waitWithCli(RETRY_IN_WINDOW_MS);
     return;
   }
   applyWifiPs(); // ตรวจสัญญาณซ้ำทุกรอบ (เปิด/ปิด modem sleep อัตโนมัติ · ไม่เปลี่ยน = ไม่ทำอะไร)
   uint32_t now = nowUtc();
   // รายงานรายวัน: ถึงเวลาแล้ววันนี้ยังไม่ได้รายงาน
-  if (now && localMinute(now) >= boxConfig.reportAt && lastReportDay != localDay(now))
+  // ส่งไม่ผ่าน → ไม่วนส่งซ้ำในรอบตื่นนี้ (เดิมวนไม่หยุดจนไม่ได้หลับ) ปล่อยให้ไปต่อ/หลับ แล้วลองใหม่รอบตื่นถัดไป
+  if (now && !reportFailedThisWake && localMinute(now) >= boxConfig.reportAt && lastReportDay != localDay(now))
   {
-    sendReport();
+    if (!sendReport())
+      reportFailedThisWake = true;
     return;
   }
 #if SMMB_TRACE
   traceListenState(now); // จดเมื่อสถานะ "ต้องถือสายไหม + เพราะอะไร" เปลี่ยน
 #endif
-  if (shouldListen())
-  {
-    pollOnce();
-    return;
-  }
-  // จะหลับต่อ: ซิงก์นาฬิกา + รับ config/คำสั่งแอดมิน 1 รอบ (คำขอสั้น wait=1 → ตั้งเวลาจาก X-Server-Time) ก่อนคำนวณเวลาหลับรอบถัดไป
-  if (scheduleSleepEnabled() && !syncedThisWake)
+  const bool listen = shouldListen();
+  // ซิงก์นาฬิกา + รับ config/คำสั่งแอดมิน 1 รอบ (คำขอสั้น wait=1 → ตั้งเวลาจาก X-Server-Time) รอบตื่นละครั้ง:
+  // - ตื่นจากหลับลึก → ซิงก์ก่อนถือ long-poll เสมอ (นาฬิกาตอนหลับเพี้ยนได้ 1–3% · long-poll ไม่ตั้งนาฬิกา ถ้าไม่ซิงก์ตรงนี้จะเพี้ยนค้างทั้งช่วงตรวจ)
+  // - จะหลับต่อ → ซิงก์ก่อนคำนวณเวลาหลับรอบถัดไป
+  if (!syncedThisWake && (esp_reset_reason() == ESP_RST_DEEPSLEEP || (!listen && scheduleSleepEnabled())))
   {
     syncedThisWake = true;
-    Serial.println("[sleep] sync clock before sleeping");
+    Serial.println("[clock] sync with server (once per wake)");
 #if SMMB_TRACE
     const unsigned long syncStartMs = millis();
     linkLastClockDeltaValid = false; // ให้รู้ว่ารอบนี้ได้ค่าเทียบนาฬิกาใหม่จริงไหม
@@ -1019,6 +1095,11 @@ void loop()
 #else
     linkPollOnce(1);
 #endif
+    return;
+  }
+  if (listen)
+  {
+    pollOnce();
     return;
   }
   sleepUntilNextEvent();

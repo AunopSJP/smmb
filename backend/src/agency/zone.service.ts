@@ -214,6 +214,7 @@ export class ZoneService {
    */
   async setHouses(agencyId: string, zoneId: string, boxIds: string[], requestedBy: string): Promise<ZoneHouseDto[]> {
     const ids = [...new Set(boxIds)];
+    const before = await this.pool.query<{ box_id: string }>(`SELECT box_id FROM app.zone_box_tb WHERE zone_id = $1`, [zoneId]);
     const asked = await withTx(this.pool, async (db) => {
       await this.lock(db, agencyId, zoneId);
       if (ids.length) {
@@ -259,6 +260,7 @@ export class ZoneService {
       await db.query(`UPDATE app.zone_tb SET updated_date = now() WHERE zone_id = $1`, [zoneId]);
       return created;
     });
+    this.boxConfigs.wakeBoxes(before.rows.map((r) => r.box_id)); // ตู้ในโซน (รวมที่ถูกเอาออก) รับค่าใหม่ทันที
     if (asked.length) {
       const { rows } = await this.pool.query<{ agency_name: string; zone_name: string }>(
         `SELECT a.name AS agency_name, z.name AS zone_name FROM app.zone_tb z JOIN app.agency_tb a ON a.agency_id = z.agency_id WHERE z.zone_id = $1`,
@@ -395,6 +397,7 @@ export class ZoneService {
   async update(agencyId: string, userId: string, zoneId: string, patch: { name?: string; windows?: unknown; area?: ZoneAreaInput }): Promise<ZoneDto> {
     const list = patch.windows === undefined ? undefined : normalizeWindows(patch.windows);
     const a = patch.area === undefined ? undefined : await this.canonArea(normalizeArea(patch.area));
+    let affected: string[] = [];
     await withTx(this.pool, async (db) => {
       await this.lock(db, agencyId, zoneId);
       if (patch.name !== undefined) {
@@ -408,12 +411,14 @@ export class ZoneService {
         // เวลาตรวจเปลี่ยนจริง → ตู้ในโซนนี้ต้องไม่เกินเพดานเวลาตรวจต่อวัน (ไม่เปลี่ยน/ย่อลง = ผ่านเสมอ)
         const { rows: inZone } = await db.query<{ box_id: string }>(`SELECT box_id FROM app.zone_box_tb WHERE zone_id = $1`, [zoneId]);
         await this.assertPatrolLimit(db, inZone.map((b) => b.box_id), zoneId, current, list);
+        affected = inZone.map((b) => b.box_id);
         await db.query(`DELETE FROM app.zone_window_tb WHERE zone_id = $1`, [zoneId]);
         await this.writeWindows(db, zoneId, list);
         // แตะ updated_date ของโซน (ตู้ในโซนรับเวลาตรวจใหม่ตอนรายงานรายวัน — เฟส 2)
         await db.query(`UPDATE app.zone_tb SET updated_date = now() WHERE zone_id = $1`, [zoneId]);
       }
     });
+    this.boxConfigs.wakeBoxes(affected); // เวลาตรวจใหม่ถึงตู้ที่ออนไลน์ทันที
     const [zone] = await this.query(this.pool, agencyId, userId, { zoneId });
     return zone;
   }
@@ -446,13 +451,16 @@ export class ZoneService {
 
   /** ลบแบบเก็บประวัติ (log การตรวจยังอ้างถึงได้) · บ้านที่ไม่เหลือโซนไหนกลับเป็น "ยังไม่มีเจ้าหน้าที่ดูแล" */
   async remove(agencyId: string, zoneId: string): Promise<void> {
+    let affected: string[] = [];
     await withTx(this.pool, async (db) => {
       await this.lock(db, agencyId, zoneId);
+      affected = (await db.query<{ box_id: string }>(`SELECT box_id FROM app.zone_box_tb WHERE zone_id = $1`, [zoneId])).rows.map((r) => r.box_id);
       await db.query(`UPDATE app.zone_tb SET deleted_date = now() WHERE zone_id = $1`, [zoneId]);
       await db.query(`DELETE FROM app.zone_officer_tb WHERE zone_id = $1`, [zoneId]);
       await db.query(`DELETE FROM app.zone_box_tb WHERE zone_id = $1`, [zoneId]);
       await db.query(`UPDATE app.zone_box_request_tb SET status = 'cancelled', decided_date = now() WHERE zone_id = $1 AND status = 'pending'`, [zoneId]);
     });
+    this.boxConfigs.wakeBoxes(affected);
   }
 
   // ── ภายใน ─────────────────────────────────────────────────────────────

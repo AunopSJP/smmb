@@ -3,6 +3,7 @@ import pg from 'pg';
 import { AppError } from '../common/http-exception.filter.js';
 import { PG_POOL } from '../db/db.module.js';
 import { withTx } from '../db/tx.js';
+import { BoxConfigService } from '../box/box-config.service.js';
 import { NotificationService } from '../push/notification.service.js';
 
 /** api.md §4.6 `ZoneRequest` — คำขอของหน่วยงานที่จะดูแลบ้านนี้ (เจ้าของบ้านเห็น) */
@@ -24,6 +25,7 @@ export class ZoneRequestService {
   constructor(
     @Inject(PG_POOL) private readonly pool: pg.Pool,
     private readonly notifications: NotificationService,
+    private readonly boxConfigs: BoxConfigService,
   ) {}
 
   async listForOwner(userId: string): Promise<ZoneRequestDto[]> {
@@ -84,6 +86,7 @@ export class ZoneRequestService {
       );
       return { r, heads: heads.rows.map((h) => h.user_id) };
     });
+    if (accept) this.boxConfigs.wakeBoxes([done.r.box_id]); // บ้านเข้าโซนแล้ว → ตู้รับเวลาตรวจทันที
     await this.notifications
       .notify(done.heads, {
         type: accept ? 'zone_join_accepted' : 'zone_join_rejected',

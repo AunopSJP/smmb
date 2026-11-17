@@ -112,6 +112,8 @@ enum class LinkPoll
 };
 /** long-poll GET /v1/box/jobs 1 รอบ (ถือสายสูงสุด maxWaitS วิ) · ได้งาน → ทำงานจนจบในฟังก์ชันนี้ */
 LinkPoll linkPollOnce(uint8_t maxWaitS = 25);
+/** true ครั้งเดียวหลังงานตรวจจริง (type=inspect) เพิ่งตรวจ "ผ่าน" (รวมถ่าย Snapface เสร็จแล้ว) — ฝั่งแอปใช้ตัดสินใจหลับทันที · อ่านแล้วล้าง */
+bool linkTakeInspectPass();
 
 /** POST /v1/box/events แบบสั้น เช่น "camera_error" · jobId ไม่บังคับ */
 void linkEvent(const char *type, const char *jobId = nullptr);

@@ -147,7 +147,7 @@ import { LOW_BATTERY_PCT, boxBadge, seenText, SLOT_LABEL } from './admin-box-sha
               <span>{{ i18n.t({ th: 'หลับลึกนอกเวลาตรวจ', en: 'Deep sleep outside patrol hours' }) }} · {{ b.config.config['sleep_outside_window'] ? i18n.t({ th: 'เปิด', en: 'on' }) : i18n.t({ th: 'ปิด', en: 'off' }) }}</span>
               <select [value]="ovSleep()" (change)="ovSleep.set($any($event.target).value)">
                 <option value="">{{ i18n.t({ th: 'ใช้ค่ากลาง (เปิด · ตู้หลับนอกเวลาตรวจ)', en: 'Shared value (on · box sleeps outside patrol hours)' }) }}</option>
-                <option value="on">{{ i18n.t({ th: 'เปิด — ปิด Wi-Fi นอกเวลาตรวจ ตื่นก่อนเริ่มตรวจ 3 นาที (กินไฟน้อยลงมาก)', en: 'On — Wi-Fi off outside patrol hours, wakes 3 min before (much lower power)' }) }}</option>
+                <option value="on">{{ i18n.t({ th: 'เปิด — ปิด Wi-Fi นอกเวลาตรวจ ตื่นก่อนเริ่มตรวจ 2 นาที (กินไฟน้อยลงมาก)', en: 'On — Wi-Fi off outside patrol hours, wakes 2 min before (much lower power)' }) }}</option>
                 <option value="off">{{ i18n.t({ th: 'ปิด — ตื่นตลอดเวลา (เดโม/ทดสอบ · กินไฟ ~0.3 A)', en: 'Off — always awake (demo/testing · ~0.3 A)' }) }}</option>
               </select>
               <small>{{ i18n.t({ th: 'นอกเวลาตรวจตู้จะไม่รับคำสั่งจากหน้านี้ (เสียง/สแตนบาย/ตั้งค่า) จนกว่าจะตื่นรอบถัดไป · เปิดเครื่องใหม่ตื่น 5 นาทีให้ช่างทดสอบ · ตู้ตื่นเป็นช่วง ๆ เพื่อซิงก์นาฬิกา · ตู้รับค่านี้ตอนตื่นรอบถัดไป', en: 'Outside patrol hours the box ignores commands from this page (beep/standby/config) until its next wake-up · a fresh power-on stays awake 5 min for the installer · it wakes now and then to sync its clock · the box applies this on its next wake-up' }) }}</small>

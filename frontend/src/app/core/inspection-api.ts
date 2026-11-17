@@ -26,7 +26,8 @@ export interface OfficerSummary {
   houses_total: number;
   houses_checked: number;
   next_house: { box_id: string; house_no: string; box_name: string } | null;
-  houses: { box_id: string; house_no: string; box_name: string; checked_at: string | null }[];
+  /** status = สถานะตู้คิดสดจาก server (api.md §6.1) */
+  houses: { box_id: string; house_no: string; box_name: string; checked_at: string | null; status: OfficerBoxDetail['box']['status']; has_pin?: boolean }[];
   open_sos: import('./owner-api').SosCard[];
 }
 
@@ -44,6 +45,8 @@ export interface OfficerBoxDetail {
     battery: { pct: number; charging: boolean | null; reported_at: string | null } | null;
     last_seen_at: string | null;
     last_poll_at: string | null;
+    /** เจ้าของบ้านปักหมุดไว้ → แสดงปุ่ม "นำทาง" */
+    has_pin?: boolean;
   };
   zones: { id: string; name: string }[];
   recent: { id: string; checked_at: string; officer_name: string; agency_name: string }[];
@@ -62,6 +65,11 @@ export class InspectionApi {
 
   boxDetail(boxId: string): Promise<OfficerBoxDetail> {
     return firstValueFrom(this.http.get<OfficerBoxDetail>(`/api/v1/officer/boxes/${encodeURIComponent(boxId)}`));
+  }
+
+  /** พิกัดบ้านสำหรับปุ่ม "นำทาง" — server ให้เฉพาะในเวลาตรวจ (api.md §6.1 `GET /officer/boxes/:box_id/location`) */
+  location(boxId: string): Promise<{ lat: number; lng: number }> {
+    return firstValueFrom(this.http.get<{ lat: number; lng: number }>(`/api/v1/officer/boxes/${encodeURIComponent(boxId)}/location`));
   }
 
   /** ประวัติการสแกนของตัวเอง (api.md §6.1 `GET /officer/logs`) */

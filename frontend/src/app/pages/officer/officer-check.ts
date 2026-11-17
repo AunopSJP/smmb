@@ -260,7 +260,8 @@ const CAMERA_NOTE: Record<string, Tr> = {
         @if (display.easyMode()) {
           <app-code-keypad (key)="press($event)" (back)="backspace()" />
         }
-        <button type="submit" class="btn push-end" [disabled]="busy()">
+        <!-- ปุ่มอยู่ติดช่องกรอก (ไม่ดันไปท้ายจอ) — พิมพ์เสร็จนิ้วถึงปุ่มทันที และแป้นพิมพ์มือถือไม่บัง -->
+        <button type="submit" class="btn" [disabled]="busy()">
           {{ busy() ? i18n.t({ th: 'กำลังตรวจสอบ…', en: 'Checking…' }) : i18n.t({ th: 'ตรวจสอบรหัส', en: 'Check the code' }) }}
         </button>
       </form>

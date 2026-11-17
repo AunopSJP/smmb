@@ -2,7 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { RouterLink } from '@angular/router';
 import { apiError } from '../../core/api';
 import { DisplaySettings } from '../../core/display-settings';
-import { I18n } from '../../core/i18n';
+import { HouseNav } from '../../core/house-nav';
+import { I18n, type Tr } from '../../core/i18n';
 import { hhmm, InspectionApi, type MyLog, type OfficerSummary } from '../../core/inspection-api';
 import { Session } from '../../core/session';
 import { fmtWhen } from '../../core/time';
@@ -38,7 +39,7 @@ const toMinutes = (hhmm: string): number | null => {
   imports: [RouterLink, PageHeader, Icon, LoadingRows, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="caption()" [title]="i18n.t({ th: 'หน้าหลัก', en: 'Home' })" [bell]="url('O14')" />
+    <app-page-header [caption]="caption()" [title]="i18n.t({ th: 'หน้าสรุป', en: 'Summary' })" [bell]="url('O14')" />
 
     <p class="adv-only adv-strip mono">
       <span>{{ i18n.t({ th: 'โซน ', en: 'Zone ' }) }}{{ zoneLabel() }}</span>
@@ -169,10 +170,16 @@ const toMinutes = (hhmm: string): number | null => {
               </span>
             </div>
             @if (s.next_house; as next) {
-              <p class="next">
+              <div class="next">
                 <app-icon name="pin" [size]="20" />
-                {{ i18n.t({ th: 'หลังถัดไป บ้านเลขที่', en: 'Next: house' }) }} <strong>{{ next.house_no }}</strong>
-              </p>
+                <span class="grow">{{ i18n.t({ th: 'หลังถัดไป บ้านเลขที่', en: 'Next: house' }) }} <strong>{{ next.house_no }}</strong></span>
+                <!-- นำทาง: มีเฉพาะบ้านที่เจ้าของปักหมุดไว้ · พิกัดขอจาก server ตอนกด (เฉพาะในเวลาตรวจ) -->
+                @if (hasPin(next.box_id)) {
+                  <button type="button" class="nav-btn" [disabled]="nav.busy() === next.box_id" (click)="nav.open(next.box_id)">
+                    {{ i18n.t({ th: 'นำทาง', en: 'Directions' }) }}
+                  </button>
+                }
+              </div>
             }
           </section>
           <a class="btn big" [routerLink]="url('O02')">
@@ -213,6 +220,9 @@ const toMinutes = (hhmm: string): number | null => {
                 </span>
                 @if (h.checked_at) {
                   <span class="chip ok">{{ i18n.t({ th: 'ตรวจแล้ว', en: 'Checked' }) }}</span>
+                } @else if (notReady(h.status); as why) {
+                  <!-- ตู้ตรวจไม่ได้ตอนนี้ — บอกก่อนเดินไป (สถานะจาก server) -->
+                  <span class="chip danger">{{ i18n.t(why) }}</span>
                 } @else {
                   <span class="chip warn">{{ i18n.t({ th: 'ยังไม่ตรวจ', en: 'Not yet' }) }}</span>
                 }
@@ -247,6 +257,7 @@ export class OfficerHome {
   protected readonly session = inject(Session);
   protected readonly display = inject(DisplaySettings);
   private readonly api = inject(InspectionApi);
+  protected readonly nav = inject(HouseNav);
   protected readonly url = screenUrl;
   protected readonly time = hhmm;
   protected readonly s = signal<OfficerSummary | null>(null);
@@ -275,6 +286,8 @@ export class OfficerHome {
     return [...list].sort((a, b) => {
       if (!a.checked_at && b.checked_at) return -1;
       if (a.checked_at && !b.checked_at) return 1;
+      // ยังไม่ตรวจทั้งคู่: ตู้ที่ตรวจได้ขึ้นก่อน ตู้ออฟไลน์/ปิดบริการไปท้ายกลุ่ม
+      if (!a.checked_at && !b.checked_at) return Number(!!this.notReady(a.status)) - Number(!!this.notReady(b.status));
       return (b.checked_at ?? '').localeCompare(a.checked_at ?? '');
     });
   });
@@ -323,6 +336,18 @@ export class OfficerHome {
     } catch {
       // ไม่มีบันทึกก็ปล่อยว่าง
     }
+  }
+
+  /** บ้านนี้เจ้าของปักหมุดไว้ไหม (มี = แสดงปุ่ม "นำทาง") */
+  protected hasPin(boxId: string): boolean {
+    return this.s()?.houses.find((h) => h.box_id === boxId)?.has_pin === true;
+  }
+
+  /** ป้ายของตู้ที่ตรวจไม่ได้ตอนนี้ (null = ตรวจได้ · backend รุ่นเก่าที่ยังไม่ส่ง status ก็ถือว่าตรวจได้) */
+  protected notReady(status: OfficerSummary['houses'][number]['status'] | undefined): Tr | null {
+    if (status === 'offline') return { th: 'ตู้ไม่ออนไลน์', en: 'Offline' };
+    if (status === 'service_closed' || status === 'unbound') return { th: 'ปิดบริการ', en: 'Closed' };
+    return null;
   }
 
   /** แยกเลขที่บ้านออกจากชื่อหมู่บ้าน/รายละเอียด (ข้อมูลจริงอาจมาเป็น "110/55 หมู่บ้าน…") */

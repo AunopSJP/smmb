@@ -88,6 +88,13 @@ export class OfficerController {
     return this.inspections.boxDetail(auth.userId, boxId);
   }
 
+  /** พิกัดบ้านสำหรับปุ่ม "นำทาง" — เฉพาะตู้ในโซนของฉัน และเฉพาะในเวลาตรวจ · บันทึกการเปิดดู */
+  @RateLimit({ limit: 30, windowSec: 60 })
+  @Get('boxes/:box_id/location')
+  boxLocation(@Auth() auth: AuthContext, @Param('box_id') boxId: string) {
+    return this.inspections.boxLocation(auth.userId, boxId);
+  }
+
   /** ประวัติการสแกนของตัวเอง (หน้า "ประวัติ" ของเจ้าหน้าที่) */
   @Get('logs')
   logs(@Auth() auth: AuthContext, @Query() q: MyLogsQuery) {

@@ -1,5 +1,4 @@
-// สร้าง PDF + ภาพตัวอย่างของทุกสไลด์
-// ใช้ Chrome ที่ติดตั้งในเครื่องผ่าน Playwright (ไม่ต้องโหลด browser เพิ่ม)
+﻿// สร้าง PDF + ภาพตรวจสำหรับเด็คฉบับลูกค้า (minimal)
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -12,7 +11,7 @@ const shots = join(dir, 'qa');
 await mkdir(shots, { recursive: true });
 
 const browser = await chromium.launch({ channel: 'chrome' });
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
 
 const problems = [];
 page.on('pageerror', (err) => problems.push(`pageerror: ${err.message}`));
@@ -32,7 +31,6 @@ for (let i = 0; i < count; i++) {
   await page.screenshot({ path: join(shots, `slide-${String(i + 1).padStart(2, '0')}.png`) });
 }
 
-// ตรวจ layout โหมดพิมพ์ (ตัวเดียวกับที่ Chrome ใช้ทำ PDF)
 await page.emulateMedia({ media: 'print' });
 await page.waitForTimeout(200);
 for (let i = 0; i < count; i++) {
@@ -40,8 +38,8 @@ for (let i = 0; i < count; i++) {
 }
 
 const pdf = await page.pdf({
-  width: '1280px',
-  height: '720px',
+  width: '1920px',
+  height: '1080px',
   printBackground: true,
   margin: { top: 0, right: 0, bottom: 0, left: 0 },
   preferCSSPageSize: true,
@@ -53,3 +51,4 @@ const box = (pdf.toString('latin1').match(/\/MediaBox\s*\[([^\]]+)\]/) || [])[1]
 console.log(`slides=${count} pdfPages=${pages} mediaBox=${box} bytes=${pdf.length}`);
 if (problems.length) console.log('PROBLEMS:\n' + problems.join('\n'));
 await browser.close();
+

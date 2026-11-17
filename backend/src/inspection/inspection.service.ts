@@ -7,7 +7,7 @@ import { PG_POOL } from '../db/db.module.js';
 import { withTx, type Db } from '../db/tx.js';
 import { NotificationService } from '../push/notification.service.js';
 import { CodeAttempts } from '../rate-limit/code-attempts.js';
-import { BOX_TZ, boxStatus, localMinutes, mergeWindows, minutesIntoWindow } from '../box/box-config.js';
+import { BOX_TZ, boxStatus, type BoxStatus, localMinutes, mergeWindows, minutesIntoWindow } from '../box/box-config.js';
 import { BoxConfigService } from '../box/box-config.service.js';
 import { badgeToken, readBadge } from '../box/box-crypto.js';
 import { BoxJobService, type AttemptBody, type Verdict } from '../box/box-job.service.js';
@@ -47,7 +47,9 @@ export interface OfficerSummaryDto {
   houses_total: number;
   houses_checked: number;
   next_house: { box_id: string; house_no: string; box_name: string } | null;
-  houses: { box_id: string; house_no: string; box_name: string; checked_at: string | null }[];
+  /** status = สถานะตู้คิดสด (เหมือน §6.8) — ให้เจ้าหน้าที่รู้ก่อนเดินไปว่าตู้ไหนตรวจไม่ได้ */
+  /** has_pin = เจ้าของบ้านปักหมุดไว้ → มีปุ่ม "นำทาง" (พิกัดจริงขอแยกที่ /officer/boxes/:id/location) */
+  houses: { box_id: string; house_no: string; box_name: string; checked_at: string | null; status: BoxStatus; has_pin: boolean }[];
   /** SOS ที่ยังไม่มีคนรับ + ที่ฉันรับอยู่ (O01-b / O01-c) */
   open_sos: SosCardDto[];
 }
@@ -64,6 +66,8 @@ export interface OfficerBoxDetailDto {
     battery: { pct: number; charging: boolean | null; reported_at: string | null } | null;
     last_seen_at: string | null;
     last_poll_at: string | null;
+    /** เจ้าของบ้านปักหมุดไว้ → มีปุ่ม "นำทาง" (ไม่ส่งพิกัดในคำตอบนี้) */
+    has_pin: boolean;
   };
   zones: { id: string; name: string }[];
   recent: { id: string; checked_at: string; officer_name: string; agency_name: string }[];
@@ -368,8 +372,13 @@ export class InspectionService implements OnModuleInit {
     const current = zones
       .flatMap((z) => z.windows.map(([s, e]) => ({ z, s, e })))
       .find(({ s, e }) => minutesIntoWindow([[s, e]], now) !== null);
-    const { rows } = await this.pool.query<{ box_id: string; house_no: string | null; name: string | null; checked: Date | null }>(
-      `SELECT b.box_id, b.house_no, b.name,
+    const { rows } = await this.pool.query<{
+      box_id: string; house_no: string | null; name: string | null; checked: Date | null;
+      service_active: boolean; owner_user_id: string | null; last_poll_date: Date | null; last_seen_date: Date | null; config_override: Record<string, unknown>;
+      has_pin: boolean;
+    }>(
+      `SELECT b.box_id, b.house_no, b.name, b.service_active, b.owner_user_id, b.last_poll_date, b.last_seen_date, b.config_override,
+              (b.lat IS NOT NULL) AS has_pin,
               (SELECT max(i.checked_date) FROM app.inspection_tb i
                 WHERE i.box_id = b.box_id AND i.status = 'passed'
                   AND i.agency_id = (SELECT agency_id FROM app.agency_member_tb WHERE user_id = $1)
@@ -380,8 +389,19 @@ export class InspectionService implements OnModuleInit {
        ORDER BY b.house_no NULLS LAST, b.box_id`,
       [userId, zones.map((z) => z.zone_id)],
     );
-    const houses = rows.map((r) => ({ box_id: r.box_id, house_no: r.house_no ?? '', box_name: r.name ?? '', checked_at: r.checked?.toISOString() ?? null }));
-    const next = houses.find((h) => !h.checked_at) ?? null;
+    // สถานะตู้คิดสดทีเดียวทั้งรายการ (ไม่วนถามทีละตู้ — หน้านี้ถูกเรียกทุก 5 วิ)
+    const status = await this.boxConfigs.statusOf(rows);
+    const houses = rows.map((r) => ({
+      box_id: r.box_id,
+      house_no: r.house_no ?? '',
+      box_name: r.name ?? '',
+      checked_at: r.checked?.toISOString() ?? null,
+      status: status.get(r.box_id) ?? ('offline' as BoxStatus),
+      has_pin: r.has_pin,
+    }));
+    // หลังถัดไป: ข้ามตู้ที่ตรวจไม่ได้ตอนนี้ (ออฟไลน์/ปิดบริการ) · ถ้าที่เหลือตรวจไม่ได้ทุกหลัง ก็ยังชี้หลังแรก (ยังไม่ครบ ไม่ใช่ null)
+    const unchecked = houses.filter((h) => !h.checked_at);
+    const next = unchecked.find((h) => h.status === 'online' || h.status === 'sleeping') ?? unchecked[0] ?? null;
     return {
       in_window: !!current,
       window: current
@@ -402,10 +422,10 @@ export class InspectionService implements OnModuleInit {
     const { rows } = await this.pool.query<{
       box_id: string; house_no: string | null; name: string | null; area: string | null; owner_user_id: string | null;
       service_active: boolean; battery_pct: number | null; charging: boolean | null; battery_date: Date | null;
-      last_seen_date: Date | null; last_poll_date: Date | null;
+      last_seen_date: Date | null; last_poll_date: Date | null; has_pin: boolean;
     }>(
       `SELECT b.box_id, b.house_no, b.name, b.area, b.owner_user_id, b.service_active, b.battery_pct, b.charging, b.battery_date,
-              b.last_seen_date, b.last_poll_date
+              b.last_seen_date, b.last_poll_date, (b.lat IS NOT NULL) AS has_pin
        FROM app.box_tb b WHERE b.box_id = $1`,
       [boxId],
     );
@@ -437,10 +457,42 @@ export class InspectionService implements OnModuleInit {
         battery: b.battery_pct === null ? null : { pct: b.battery_pct, charging: b.charging, reported_at: b.battery_date?.toISOString() ?? null },
         last_seen_at: b.last_seen_date?.toISOString() ?? null,
         last_poll_at: b.last_poll_date?.toISOString() ?? null,
+        has_pin: b.has_pin,
       },
       zones: zones.map((z) => ({ id: z.zone_id, name: z.zone_name })),
       recent: recent.map((r) => ({ id: r.inspection_id, checked_at: r.checked_date.toISOString(), officer_name: r.display_name, agency_name: r.agency_name })),
     };
+  }
+
+  /**
+   * พิกัดบ้านสำหรับปุ่ม "นำทาง" (✅ ผู้ใช้อนุญาต 2026-11-17 — เดิมเห็นหมุดได้เฉพาะตอน SOS เปิดอยู่)
+   * ให้เฉพาะ: ตู้ในโซนของฉัน (ไม่ใช่ → 404) · ตอนนี้อยู่ในเวลาตรวจของโซนนั้น (ไม่ใช่ → 409 OUTSIDE_PATROL_WINDOW)
+   * ไม่ใช่ตู้ของตัวเอง · เจ้าของบ้านปักหมุดไว้ (ไม่ได้ปัก → 404) · บันทึกการเปิดดู 1 ครั้งต่อคน/ตู้/วัน
+   */
+  async boxLocation(userId: string, boxId: string): Promise<{ lat: number; lng: number }> {
+    const zones = await this.myZones(userId, boxId);
+    if (!zones.length) throw new NotFoundException();
+    if (!zones.some((z) => minutesIntoWindow(z.windows, new Date()) !== null)) {
+      throw new AppError(HttpStatus.CONFLICT, 'OUTSIDE_PATROL_WINDOW', 'house location is available during patrol hours only', {
+        next_window: this.nextWindow(zones),
+      });
+    }
+    const { rows } = await this.pool.query<{ lat: string | null; lng: string | null }>(
+      `SELECT b.lat, b.lng FROM app.box_tb b
+       WHERE b.box_id = $1 AND b.owner_user_id IS NOT NULL AND b.owner_user_id <> $2`,
+      [boxId, userId],
+    );
+    const b = rows[0];
+    if (!b || b.lat === null || b.lng === null) throw new NotFoundException();
+    const day = new Intl.DateTimeFormat('en-CA', { timeZone: BOX_TZ }).format(new Date());
+    await this.pool.query(
+      `INSERT INTO app.data_access_log_tb (actor_user_id, subject_kind, subject_id, fields)
+       SELECT $1, 'box', $2, ARRAY['location', 'patrol:' || $3]
+       WHERE NOT EXISTS (SELECT 1 FROM app.data_access_log_tb
+                         WHERE actor_user_id = $1 AND subject_kind = 'box' AND subject_id = $2 AND ('patrol:' || $3) = ANY(fields))`,
+      [userId, boxId, day],
+    );
+    return { lat: Number(b.lat), lng: Number(b.lng) };
   }
 
   // ── ตัดสินผลจากตู้ (ลงทะเบียนกับ BoxJobService) ─────────────────────────
