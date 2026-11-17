@@ -1274,12 +1274,16 @@ input[type='radio']:disabled + * {
 // ── ฟอร์มยาว: แบ่งเป็นกลุ่ม (การ์ด + หัวข้อ) · ช่องคู่จัดเรียงเองตามความกว้าง ───────────
 .form-section {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   padding: 16px;
   background: var(--surface);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   min-inline-size: 0;
+}
+// ระยะระหว่างกลุ่ม (section) ต้องห่างกว่าระยะในกลุ่ม: 16px ของ .stack + 8px = 24px
+section.form-section + section.form-section {
+  margin-block-start: 8px;
 }
 // อยู่ในการ์ดอยู่แล้ว (เช่น หน้าตั้งค่า) → ไม่ซ้อนการ์ดซ้อนการ์ด
 .card .form-section {

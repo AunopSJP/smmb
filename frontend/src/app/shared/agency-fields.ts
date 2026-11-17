@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, model } from '@angular/core';
 import { I18n } from '../core/i18n';
+import { bindPhone } from '../core/phone-input';
 import { MapPin, type LatLng } from './map-pin';
 import { PlacePicker, type PlaceChange } from './place-picker';
 
@@ -74,7 +75,7 @@ export function agencyDetailPayload(f: AgencyDetailForm, clearEmpty = false): Re
     <div class="form-grid">
       <label class="field" [class.invalid]="tried() && value().phone.trim().length < 3">
         <span>{{ i18n.t({ th: 'เบอร์โทรหน่วยงาน', en: 'Agency phone' }) }}</span>
-        <input type="tel" inputmode="tel" maxlength="30" [value]="value().phone" (input)="set('phone', $any($event.target).value)" />
+        <input type="tel" inputmode="numeric" placeholder="0__-___-____" [value]="value().phone" (input)="set('phone', bindPhone($any($event.target)))" />
       </label>
       <label class="field" [class.invalid]="tried() && emailBad()">
         <span>{{ i18n.t({ th: 'อีเมลหน่วยงาน (ไม่บังคับ)', en: 'Agency email (optional)' }) }}</span>
@@ -104,6 +105,7 @@ export function agencyDetailPayload(f: AgencyDetailForm, clearEmpty = false): Re
 })
 export class AgencyFields {
   protected readonly i18n = inject(I18n);
+  protected readonly bindPhone = bindPhone;
   readonly value = model.required<AgencyDetailForm>();
   readonly tried = input(false);
   protected readonly postalOk = computed(() => !this.value().postal_code.trim() || /^[0-9]{5}$/.test(this.value().postal_code.trim()));

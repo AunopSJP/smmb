@@ -137,7 +137,7 @@ import { EmptyState, LoadingRows } from '../shared/state-view';
                     </ul>
                   </div>
                 }
-                <button type="button" class="btn danger" [disabled]="!canContinue()" (click)="step.set('confirm')">{{ i18n.t({ th: 'ไปขั้นยืนยัน', en: 'Continue to confirm' }) }}</button>
+                <button type="button" class="btn" [disabled]="!canContinue()" (click)="step.set('confirm')">{{ i18n.t({ th: 'ไปขั้นยืนยัน', en: 'Continue to confirm' }) }}</button>
               } @else {
                 <app-loading-rows [rows]="2" [label]="i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' })" />
               }

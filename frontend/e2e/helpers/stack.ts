@@ -1,7 +1,16 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
-import { request, type APIRequestContext, type BrowserContext, type Page } from '@playwright/test';
+import { expect, request, type APIRequestContext, type BrowserContext, type Page } from '@playwright/test';
+
+/** เลือกพื้นที่ (จังหวัด/เขต/แขวง) ด้วยการพิมพ์ชื่อ — รอให้รายการของช่องนั้นโหลดเสร็จก่อนค่อยพิมพ์ */
+export async function pickPlace(page: Page, label: string, name: string): Promise<void> {
+  const input = page.getByLabel(label);
+  const list = await input.getAttribute('list');
+  await expect(page.locator(`datalist[id="${list}"] option[value="${name}"]`)).toHaveCount(1);
+  await input.fill(name);
+  await input.press('Tab');
+}
 
 export const WEB = 'http://localhost:4211';
 export const API = 'http://localhost:3211';

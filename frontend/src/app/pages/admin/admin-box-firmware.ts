@@ -275,6 +275,7 @@ export class AdminBoxFirmware implements OnInit {
           en: 'A bad file affects every box — test on one box first.',
         },
         confirm: { th: 'เปิดอัปเดตอัตโนมัติ', en: 'Turn on auto-update' },
+        danger: true,
       }))
     )
       return;

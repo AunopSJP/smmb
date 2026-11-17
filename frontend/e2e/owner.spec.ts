@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { BoxSim, adminApi, newPhone, registerBox } from './helpers/stack';
+import { BoxSim, adminApi, newPhone, pickPlace, registerBox } from './helpers/stack';
 
 /** เส้น a: เจ้าของบ้าน สมัคร → ผูกตู้ด้วยรหัสเปิดใช้ → ตั้งชื่อ → เห็นสถานะตู้บนหน้าหลัก */
 test('เจ้าของบ้านสมัคร ผูกตู้ ตั้งชื่อ แล้วเห็นสถานะตู้', async ({ page }) => {
@@ -19,9 +19,9 @@ test('เจ้าของบ้านสมัคร ผูกตู้ ตั
   await page.getByLabel('บ้านเลขที่', { exact: true }).fill('12/3');
   await page.getByLabel('ที่อยู่ (ซอย').fill('ซอยทดสอบ 1');
   // พื้นที่เลือกจาก dropdown (จังหวัด → เขต/อำเภอ → แขวง/ตำบล) ไม่ใช่พิมพ์เอง
-  await page.getByLabel('จังหวัด').selectOption({ label: 'กรุงเทพมหานคร' });
-  await page.getByLabel('เขต / อำเภอ').selectOption({ label: 'บางนา' });
-  await page.getByLabel('แขวง / ตำบล').selectOption({ label: 'บางนาเหนือ' });
+  await pickPlace(page, 'จังหวัด', 'กรุงเทพมหานคร');
+  await pickPlace(page, 'เขต / อำเภอ', 'บางนา');
+  await pickPlace(page, 'แขวง / ตำบล', 'บางนาเหนือ');
   await page.getByLabel('รหัสไปรษณีย์').fill('10260');
   await next().click();
 

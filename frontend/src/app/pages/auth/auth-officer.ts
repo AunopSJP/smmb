@@ -86,7 +86,7 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
       @if (step() === 2) {
       <label class="field" [class.invalid]="tried() && !phoneOk()">
         <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
-        <input type="tel" inputmode="numeric" autocomplete="tel" [value]="f().phone" (input)="set('phone', bindPhone($any($event.target)))" />
+        <input type="tel" inputmode="numeric" autocomplete="tel" placeholder="0__-___-____" [value]="f().phone" (input)="set('phone', bindPhone($any($event.target)))" />
       </label>
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />
       <p class="small easy-only">{{ i18n.t({ th: 'หลังสมัครต้องเปิดแจ้งเตือนก่อนใช้งาน เพื่อรับ SOS', en: 'After signing up, notifications must be on before you can work, so you get SOS alerts' }) }}</p>

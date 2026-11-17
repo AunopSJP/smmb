@@ -163,6 +163,7 @@ export class AdminTechnicianRequests implements OnInit {
       title: { th: 'ปิดงานช่าง?', en: 'Complete this request?' },
       body: { th: 'เจ้าของบ้านจะได้รับแจ้งว่าช่างทำเสร็จแล้วและต้องยืนยันว่าใช้งานได้ปกติ · ปิดแล้วเปิดกลับไม่ได้', en: 'The owner will be told the work is done and asked to confirm it works. It cannot be reopened.' },
       confirm: { th: 'ปิดงาน', en: 'Complete' },
+      danger: true,
     });
     if (!ok) return;
     await this.update(request, { status: 'done', ...(this.noteValue(request.id).trim() ? { note: this.noteValue(request.id).trim() } : {}) });

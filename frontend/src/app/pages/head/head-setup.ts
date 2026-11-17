@@ -51,7 +51,7 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
       </label>
       <label class="field" [class.invalid]="tried() && !phoneOk()">
         <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
-        <input type="tel" inputmode="numeric" autocomplete="tel" [value]="f().phone" (input)="set('phone', bindPhone($any($event.target)))" />
+        <input type="tel" inputmode="numeric" autocomplete="tel" placeholder="0__-___-____" [value]="f().phone" (input)="set('phone', bindPhone($any($event.target)))" />
         <small class="easy-hide">{{ i18n.t({ th: 'ใช้เข้าสู่ระบบ · ผู้ดูแลระบบใช้ติดต่อตอนตรวจคำขอ', en: 'Used to sign in · the admin may call while reviewing' }) }}</small>
       </label>
       <app-password-field [isNew]="true" [value]="f().password" (valueChange)="set('password', $event)" [invalid]="tried() && f().password.length < min" />

@@ -333,7 +333,7 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
         }
         <label class="field">
           <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
-          <input type="tel" inputmode="numeric" autocomplete="tel" [value]="phone()" (input)="phone.set(bindPhone($any($event.target)))" />
+          <input type="tel" inputmode="numeric" autocomplete="tel" placeholder="0__-___-____" [value]="phone()" (input)="phone.set(bindPhone($any($event.target)))" />
         </label>
         <app-password-field [(value)]="password" [invalid]="!!error()" />
         <!-- B2: ปุ่มข้อความกดได้จริง เปิดคำอธิบายทุกโหมด (เดิมเป็นตัวแดงที่กดไม่ได้และถูกซ่อนในโหมดง่าย) -->

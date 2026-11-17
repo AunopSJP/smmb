@@ -951,6 +951,7 @@ export class AdminQrCase {
       title: { th: 'ปิดเคสนี้?', en: 'Close this case?' },
       body: { th: 'ปิดแล้วเปิดกลับมาไม่ได้ — ใช้เมื่อ QR ใหม่ติดครบเรียบร้อยแล้ว', en: 'A closed case cannot be reopened — close it only once the new QRs are in place.' },
       confirm: { th: 'ปิดเคส', en: 'Close case' },
+      danger: true,
     });
     if (!ok) return;
     await this.run(async () => {

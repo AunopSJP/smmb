@@ -11,8 +11,18 @@ export interface PlaceChange {
   postal: string;
 }
 
+/** id ของ datalist ไม่ซ้ำเมื่อมีตัวเลือกพื้นที่มากกว่าหนึ่งชุดในหน้าเดียว */
+let nextPlaceList = 0;
+
+/** หาพื้นที่จากชื่อที่พิมพ์/เลือก (เทียบแบบไม่สนคำนำหน้าและช่องว่าง) */
+function findByName<T extends { name: string }>(list: T[], text: string): T | undefined {
+  const key = normPlace(text);
+  return key ? list.find((x) => normPlace(x.name) === key) : undefined;
+}
+
 /**
- * Dropdown เลือกพื้นที่ต่อเนื่อง จังหวัด → เขต/อำเภอ → แขวง/ตำบล (ไม่ต้องพิมพ์เอง)
+ * ช่องเลือกพื้นที่ต่อเนื่อง จังหวัด → เขต/อำเภอ → แขวง/ตำบล
+ * พิมพ์เพื่อค้นหาได้ (เช่น "ตา" → ตาก/ตรัง) หรือเลื่อนดูรายการจาก datalist ได้ด้วย
  * ใช้ร่วมกันทุกหน้า: สมัครเจ้าของบ้าน · ตั้งค่าบ้าน · สร้าง/แก้โซน · โปรไฟล์หน่วยงาน
  * ค่าที่เก็บเป็น "ชื่อมาตรฐาน" (ตรงกับที่เซิร์ฟเวอร์ตรวจ) · ที่อยู่เดิมที่พิมพ์เองและไม่ตรงตาราง → ขึ้นเตือนให้เลือกใหม่
  */
@@ -22,31 +32,54 @@ export interface PlaceChange {
   template: `
     <label class="field" [class.invalid]="tried() && !province()">
       <span>{{ i18n.t({ th: 'จังหวัด', en: 'Province' }) }}</span>
-      <select [value]="provinceId() ?? ''" (change)="pickProvince($any($event.target).value)" autocomplete="address-level1">
-        <option value="">{{ i18n.t({ th: 'เลือกจังหวัด', en: 'Select province' }) }}</option>
+      <input
+        type="text"
+        autocomplete="off"
+        [attr.list]="listId + '-province'"
+        [placeholder]="i18n.t({ th: 'พิมพ์เพื่อค้นหา หรือเลือกจากรายการ', en: 'Type to search or pick from the list' })"
+        [value]="province()"
+        (change)="pickProvince($any($event.target).value)"
+      />
+      <datalist [id]="listId + '-province'">
         @for (p of provinces(); track p.id) {
-          <option [value]="p.id" [selected]="p.id === provinceId()">{{ p.name }}</option>
+          <option [value]="p.name"></option>
         }
-      </select>
+      </datalist>
     </label>
     <div class="form-grid">
       <label class="field" [class.invalid]="tried() && !district()">
         <span>{{ i18n.t({ th: 'เขต / อำเภอ', en: 'District' }) }}</span>
-        <select [disabled]="provinceId() === null" [value]="districtId() ?? ''" (change)="pickDistrict($any($event.target).value)">
-          <option value="">{{ i18n.t({ th: 'เลือกเขต / อำเภอ', en: 'Select district' }) }}</option>
+        <input
+          type="text"
+          autocomplete="off"
+          [disabled]="provinceId() === null"
+          [attr.list]="listId + '-district'"
+          [placeholder]="i18n.t({ th: 'พิมพ์เพื่อค้นหา หรือเลือกจากรายการ', en: 'Type to search or pick from the list' })"
+          [value]="district()"
+          (change)="pickDistrict($any($event.target).value)"
+        />
+        <datalist [id]="listId + '-district'">
           @for (d of districts(); track d.id) {
-            <option [value]="d.id" [selected]="d.id === districtId()">{{ d.name }}</option>
+            <option [value]="d.name"></option>
           }
-        </select>
+        </datalist>
       </label>
       <label class="field" [class.invalid]="tried() && subdistrictRequired() && !subdistrict()">
         <span>{{ subdistrictRequired() ? i18n.t({ th: 'แขวง / ตำบล', en: 'Subdistrict' }) : i18n.t({ th: 'แขวง / ตำบล (ไม่บังคับ)', en: 'Subdistrict (optional)' }) }}</span>
-        <select [disabled]="districtId() === null" [value]="subdistrictId() ?? ''" (change)="pickSubdistrict($any($event.target).value)">
-          <option value="">{{ i18n.t({ th: 'เลือกแขวง / ตำบล', en: 'Select subdistrict' }) }}</option>
+        <input
+          type="text"
+          autocomplete="off"
+          [disabled]="districtId() === null"
+          [attr.list]="listId + '-subdistrict'"
+          [placeholder]="i18n.t({ th: 'พิมพ์เพื่อค้นหา หรือเลือกจากรายการ', en: 'Type to search or pick from the list' })"
+          [value]="subdistrict()"
+          (change)="pickSubdistrict($any($event.target).value)"
+        />
+        <datalist [id]="listId + '-subdistrict'">
           @for (s of subdistricts(); track s.id) {
-            <option [value]="s.id" [selected]="s.id === subdistrictId()">{{ s.name }}</option>
+            <option [value]="s.name"></option>
           }
-        </select>
+        </datalist>
       </label>
     </div>
     @if (legacy()) {
@@ -82,6 +115,7 @@ export class PlacePicker {
   readonly tried = input(false);
   readonly changed = output<PlaceChange>();
 
+  protected readonly listId = `place-list-${++nextPlaceList}`;
   protected readonly provinces = signal<PlaceProvince[]>([]);
   protected readonly districts = signal<PlaceDistrict[]>([]);
   protected readonly subdistricts = signal<PlaceSubdistrict[]>([]);
@@ -120,18 +154,19 @@ export class PlacePicker {
     });
   }
 
-  protected pickProvince(v: string): void {
-    const p = this.provinces().find((x) => String(x.id) === v);
+  /** เลือกจังหวัดจากข้อความที่พิมพ์/เลือก — ไม่ตรงรายการ = ล้างค่า (ให้ขึ้นเตือนว่ายังไม่เลือก) */
+  protected pickProvince(text: string): void {
+    const p = findByName(this.provinces(), text);
     this.changed.emit({ province: p?.name ?? '', district: '', subdistrict: '', postal: '' });
   }
 
-  protected pickDistrict(v: string): void {
-    const d = this.districts().find((x) => String(x.id) === v);
+  protected pickDistrict(text: string): void {
+    const d = findByName(this.districts(), text);
     this.changed.emit({ province: this.nameOfProvince(), district: d?.name ?? '', subdistrict: '', postal: '' });
   }
 
-  protected pickSubdistrict(v: string): void {
-    const s = this.subdistricts().find((x) => String(x.id) === v);
+  protected pickSubdistrict(text: string): void {
+    const s = findByName(this.subdistricts(), text);
     this.changed.emit({ province: this.nameOfProvince(), district: this.nameOfDistrict(), subdistrict: s?.name ?? '', postal: s?.zip ?? '' });
   }
 

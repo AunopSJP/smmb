@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, input, model } from '@angular/core';
 import { I18n } from '../core/i18n';
 import { normalizePhone } from '../core/mock/auth-demo';
+import { bindPhone } from '../core/phone-input';
 import { MapPin, type LatLng } from './map-pin';
 import { PlacePicker, type PlaceChange } from './place-picker';
 import { emptyExtras, extrasPayload, extrasValid, ProfileExtras, type ExtrasForm } from './profile-extras';
@@ -101,7 +102,7 @@ export function houseProfilePayload(p: HouseProfileForm): Record<string, unknown
         </label>
         <label class="field">
           <span>{{ i18n.t({ th: 'เบอร์โทร', en: 'Phone' }) }}</span>
-          <input type="tel" inputmode="tel" autocomplete="off" [value]="value().emergency_phone" (input)="set('emergency_phone', $any($event.target).value)" />
+          <input type="tel" inputmode="numeric" autocomplete="off" placeholder="0__-___-____" [value]="value().emergency_phone" (input)="set('emergency_phone', bindPhone($any($event.target)))" />
         </label>
       </div>
       <p class="form-hint">{{ i18n.t({ th: 'กรอกทั้งชื่อและเบอร์ หรือเว้นว่างทั้งคู่', en: 'Fill in both name and phone, or leave both empty' }) }}</p>
@@ -126,6 +127,7 @@ export function houseProfilePayload(p: HouseProfileForm): Record<string, unknown
 })
 export class HouseFields {
   protected readonly i18n = inject(I18n);
+  protected readonly bindPhone = bindPhone;
   readonly value = model.required<HouseProfileForm>();
   /** กดส่งแล้ว — แสดงช่องที่ยังไม่ครบ */
   readonly tried = input(false);

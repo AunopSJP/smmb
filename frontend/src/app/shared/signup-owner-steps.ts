@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, model, signal } from '@angular/core';
 import { I18n } from '../core/i18n';
+import { bindPhone } from '../core/phone-input';
 import { emergencyOk, type HouseProfileForm } from './house-fields';
 import { MapPin } from './map-pin';
 import { PlacePicker, type PlaceChange } from './place-picker';
@@ -159,7 +160,7 @@ export class SignupAddressStep {
             </label>
             <label class="field">
               <span>{{ i18n.t({ th: 'เบอร์โทร', en: 'Phone' }) }}</span>
-              <input type="tel" inputmode="tel" autocomplete="off" [value]="house().emergency_phone" (input)="set('emergency_phone', $any($event.target).value)" />
+              <input type="tel" inputmode="numeric" autocomplete="off" placeholder="0__-___-____" [value]="house().emergency_phone" (input)="set('emergency_phone', bindPhone($any($event.target)))" />
             </label>
           </div>
           <div class="form-grid">
@@ -183,6 +184,7 @@ export class SignupAddressStep {
 })
 export class SignupDetailsStep {
   protected readonly i18n = inject(I18n);
+  protected readonly bindPhone = bindPhone;
   protected readonly houseTypes = HOUSE_TYPE_OPTIONS;
   protected readonly careOptions = CARE_OPTIONS;
   readonly house = model.required<HouseProfileForm>();
