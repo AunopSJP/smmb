@@ -30,7 +30,7 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (on() && compact()) {
+    @if (on() && (compact() || hideWhenOn())) {
       <!-- เปิดแล้ว: ไม่ต้องมีแถบให้กดเปิดอีก -->
     } @else if (on()) {
       <div class="card status ok">
@@ -192,6 +192,8 @@ export class PushStatus implements OnInit {
   readonly deviceLabel = input<string>();
   /** เปิดอยู่แล้ว → ไม่แสดงอะไร (ใช้หน้าตั้งค่า ที่มีเมนู "การแจ้งเตือน" แยกอยู่แล้ว) */
   readonly compact = input(false);
+  /** เปิดอยู่แล้ว → ซ่อนทั้งการ์ด (หน้าหลักที่ไม่ต้องการให้มีการ์ดเปิดแจ้งเตือนค้างไว้) */
+  readonly hideWhenOn = input(false);
   /** การ์ดเตือน "ยังไม่ได้รับแจ้งเตือน" กดปิดไว้ก่อนได้ (กลับมาเตือนใหม่หลัง PUSH_NUDGE_SNOOZE_HOURS ชม.) — เจ้าหน้าที่/หัวหน้า (required) ปิดไม่ได้ */
   readonly dismissible = input(false);
   protected readonly hours = PUSH_NUDGE_SNOOZE_HOURS;

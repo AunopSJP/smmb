@@ -10,11 +10,11 @@ import { fmtWhen } from '../../core/time';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
+import { PushStatus } from '../../shared/push-status';
 import { EmptyState, LoadingRows } from '../../shared/state-view';
 import { liveRefresh } from '../../core/live-refresh';
 
-/** รีเฟรชหน้าสรุปทุกกี่วินาที (เพื่อนในโซนตรวจบ้านไป / ถึงเวลาตรวจ) */
-/** SOS ต้องขึ้นเร็ว — ดึงใหม่ทุก 5 วิ (และทันทีเมื่อมีแจ้งเตือนเข้า/กลับมาที่แอป) */
+/** SOS ต้องขึ้นเร็ว — ดึงหน้าสรุปใหม่ทุก 5 วิ (และทันทีเมื่อมีแจ้งเตือนเข้า/กลับมาที่แอป) */
 const REFRESH_MS = 5_000;
 /** โหมดละเอียด: บันทึกสแกนล่าสุดของฉัน (GET /officer/logs) */
 const LOG_REFRESH_MS = 20_000;
@@ -36,7 +36,7 @@ const toMinutes = (hhmm: string): number | null => {
 /** O01 หน้าสรุปเจ้าหน้าที่ (api.md §6.1) · O01-d นอกเวลาตรวจ · O01-e ตรวจครบแล้ว — ข้อมูลจริง */
 @Component({
   selector: 'app-officer-home',
-  imports: [RouterLink, PageHeader, Icon, LoadingRows, EmptyState],
+  imports: [RouterLink, PageHeader, Icon, LoadingRows, EmptyState, PushStatus],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="caption()" [title]="i18n.t({ th: 'หน้าสรุป', en: 'Summary' })" [bell]="url('O14')" />
@@ -47,6 +47,7 @@ const toMinutes = (hhmm: string): number | null => {
     </p>
 
     <div class="stack">
+      <app-push-status [compact]="true" [required]="true" deviceLabel="officer" />
       @if (error()) {
         <p class="card err" role="alert">
           {{ i18n.t({ th: 'โหลดข้อมูลไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t load — try again' }) }}

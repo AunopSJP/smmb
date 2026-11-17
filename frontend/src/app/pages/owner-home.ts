@@ -96,7 +96,7 @@ const REFRESH_MS = 10_000;
 
       <div class="stack page">
         <!-- C4: แบนเนอร์เต็มแสดงเฉพาะหน้าหลัก (และหน้าตั้งค่าการแจ้งเตือน) · จำการปิดต่อเครื่อง -->
-        <app-push-status [dismissible]="true" />
+        <app-push-status [dismissible]="true" [hideWhenOn]="true" />
         @if (boxes().length > 1) {
           <app-box-picker [boxes]="boxes()" [value]="b.id" (pick)="select($event)" />
         }

@@ -10,6 +10,7 @@ import { fmtWhenSec } from '../core/time';
 import { screenUrl } from '../screens/registry';
 import { Icon } from '../shared/icon';
 import { PageHeader } from '../shared/page-header';
+import { PushStatus } from '../shared/push-status';
 import { EmptyState, LoadError } from '../shared/state-view';
 
 /** api.md §8.1 GET /agency/today */
@@ -43,12 +44,13 @@ interface RecentLog {
 /** L04 หน้าหลักหัวหน้า — ภาพรวมทีมวันนี้ (ตัวกรองโซนของฉัน/ทุกโซน) · ใช้ API จริง · 3 โหมดตามแคนวาส */
 @Component({
   selector: 'app-head-home',
-  imports: [RouterLink, PageHeader, Icon, LoadError, EmptyState],
+  imports: [RouterLink, PageHeader, Icon, LoadError, EmptyState, PushStatus],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="api.agency()?.name ?? i18n.t({ th: 'หัวหน้าหน่วยงาน', en: 'Agency head' })" [title]="i18n.t({ th: 'หน้าหลัก', en: 'Home' })" [bell]="url('L09')" />
 
     <div class="stack">
+      <app-push-status [compact]="true" [required]="true" deviceLabel="head" />
       @if (failed()) {
         <app-load-error (retry)="retry()" />
       }
