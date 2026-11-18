@@ -15,7 +15,7 @@ import { Icon, type IconName } from './icon';
   template: `
     <section class="result" [attr.role]="role()">
       <span class="bubble" [class]="tone()" aria-hidden="true">
-        <app-icon [name]="icon()" [size]="40" />
+        <app-icon [name]="icon()" [size]="28" />
       </span>
       <h1>{{ title() }}</h1>
       @if (body()) {
@@ -63,8 +63,9 @@ import { Icon, type IconName } from './icon';
     .bubble {
       display: grid;
       place-items: center;
-      inline-size: 92px;
-      block-size: 92px;
+      /* 64px: เดิม 92px ทำให้ไอคอนในวงกลมใหญ่กลายเป็นตัวเอกของหน้า ทั้งที่ตัวเอกคือหัวข้อ+ปุ่ม */
+      inline-size: 64px;
+      block-size: 64px;
       border-radius: 50%;
       background: var(--icon-bg);
       color: var(--brand-text);

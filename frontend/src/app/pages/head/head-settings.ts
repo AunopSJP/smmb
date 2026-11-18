@@ -72,7 +72,7 @@ const ACCOUNT: Row[] = [
       <!-- โหมดละเอียด: ข้อมูลบัญชี/หน่วยงานจริงจาก Me + /agency (ตาม SetHead_A) -->
       <section class="card adv-only">
         <dl class="kv">
-          <dt>{{ i18n.t({ th: 'รหัสกลุ่ม', en: 'Group code' }) }}</dt><dd>{{ rawCode() || '—' }}</dd>
+          <dt>{{ i18n.t({ th: 'รหัสกลุ่ม', en: 'Group code' }) }}</dt><dd>{{ code() || '—' }}</dd>
           <dt>{{ i18n.t({ th: 'หัวหน้าทั้งหมด', en: 'Heads' }) }}</dt><dd>{{ api.agency()?.heads?.length ?? 0 }}</dd>
           <dt>{{ i18n.t({ th: 'บทบาทของฉัน', en: 'My roles' }) }}</dt><dd>{{ roles() }}</dd>
           <dt>{{ i18n.t({ th: 'โหมดแสดงผล', en: 'Display mode' }) }}</dt><dd>{{ modeLabel() }}</dd>

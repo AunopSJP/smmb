@@ -113,11 +113,12 @@ const toMinutes = (hhmm: string): number | null => {
           <p class="sos-note"><app-icon name="bell" [size]="18" />{{ i18n.t({ th: 'SOS ยังรับได้ตลอด 24 ชม.', en: 'SOS still comes in 24/7' }) }}</p>
         } @else if (s.houses_total > 0 && s.houses_checked === s.houses_total) {
           <!-- O01-e -->
-          <section class="done-card center">
-            <span class="big-icon white"><app-icon name="check" [size]="32" /></span>
-            <h2>{{ i18n.t({ th: 'ตรวจครบทุกหลังแล้ว', en: 'Every house checked' }) }}</h2>
-            <p class="small">{{ s.houses_total }} / {{ s.houses_total }} {{ i18n.t({ th: 'หลัง · รอบ', en: 'houses · round' }) }} {{ windowText() }}</p>
-            <span class="full-bar"></span>
+          <section class="done-card">
+            <span class="done-ic"><app-icon name="check" [size]="26" /></span>
+            <div>
+              <h2>{{ i18n.t({ th: 'ตรวจครบทุกหลังแล้ว', en: 'Every house checked' }) }}</h2>
+              <p class="small">{{ s.houses_total }} / {{ s.houses_total }} {{ i18n.t({ th: 'หลัง · รอบ', en: 'houses · round' }) }} {{ windowText() }}</p>
+            </div>
           </section>
           <div class="adv-only card">
             <dl class="kv">
@@ -133,6 +134,18 @@ const toMinutes = (hhmm: string): number | null => {
         } @else {
           <!-- O01 -->
           <section class="card stack">
+            @if (s.next_house; as next) {
+              <div class="next">
+                <app-icon name="pin" [size]="20" />
+                <span class="grow"><span class="muted small block">{{ i18n.t({ th: 'หลังถัดไป บ้านเลขที่', en: 'Next house' }) }}</span><strong class="next-no">{{ next.house_no }}</strong></span>
+                <!-- นำทาง: มีเฉพาะบ้านที่เจ้าของปักหมุดไว้ · พิกัดขอจาก server ตอนกด (เฉพาะในเวลาตรวจ) -->
+                @if (hasPin(next.box_id)) {
+                  <button type="button" class="nav-btn" [disabled]="nav.busy() === next.box_id" (click)="nav.open(next.box_id)">
+                    {{ i18n.t({ th: 'นำทาง', en: 'Directions' }) }}
+                  </button>
+                }
+              </div>
+            }
             <div class="adv-only metrics">
               <div class="m">
                 <span class="l">{{ i18n.t({ th: 'ตรวจแล้ว', en: 'Checked' }) }}</span>
@@ -170,18 +183,6 @@ const toMinutes = (hhmm: string): number | null => {
                 <span>00</span><span>06</span><span>12</span><span>18</span><span>24 · {{ windowText() }}</span>
               </span>
             </div>
-            @if (s.next_house; as next) {
-              <div class="next">
-                <app-icon name="pin" [size]="20" />
-                <span class="grow">{{ i18n.t({ th: 'หลังถัดไป บ้านเลขที่', en: 'Next: house' }) }} <strong>{{ next.house_no }}</strong></span>
-                <!-- นำทาง: มีเฉพาะบ้านที่เจ้าของปักหมุดไว้ · พิกัดขอจาก server ตอนกด (เฉพาะในเวลาตรวจ) -->
-                @if (hasPin(next.box_id)) {
-                  <button type="button" class="nav-btn" [disabled]="nav.busy() === next.box_id" (click)="nav.open(next.box_id)">
-                    {{ i18n.t({ th: 'นำทาง', en: 'Directions' }) }}
-                  </button>
-                }
-              </div>
-            }
           </section>
           <a class="btn big" [routerLink]="url('O02')">
             <app-icon name="scan" [size]="26" />
@@ -205,9 +206,7 @@ const toMinutes = (hhmm: string): number | null => {
                   <strong class="block name">{{ h.box_name }}</strong>
                   <span class="muted small block">
                     @if (houseRest(h.house_no); as area) {
-                      {{ area }}@if (h.checked_at) { · {{ time(h.checked_at) }} }
-                    } @else if (h.checked_at) {
-                      {{ i18n.t({ th: 'ตรวจแล้ว ', en: 'Checked ' }) }}{{ time(h.checked_at) }}
+                      {{ area }}
                     } @else {
                       {{ i18n.t({ th: 'ในโซนของคุณ', en: 'In your zone' }) }}
                     }
@@ -220,7 +219,7 @@ const toMinutes = (hhmm: string): number | null => {
                   </span>
                 </span>
                 @if (h.checked_at) {
-                  <span class="chip ok">{{ i18n.t({ th: 'ตรวจแล้ว', en: 'Checked' }) }}</span>
+                  <span class="stamp"><span>{{ i18n.t({ th: 'ตรวจแล้ว', en: 'Checked' }) }}</span><span class="stamp-t">{{ time(h.checked_at) }}</span></span>
                 } @else if (notReady(h.status); as why) {
                   <!-- ตู้ตรวจไม่ได้ตอนนี้ — บอกก่อนเดินไป (สถานะจาก server) -->
                   <span class="chip danger">{{ i18n.t(why) }}</span>

@@ -114,9 +114,9 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
     .grow {
       flex: 1;
     }
-    /* B1: ปุ่มหลักห่างช่องสุดท้าย 24px ไม่ดันไปชิดล่างจอ */
+    /* ปุ่มหลักอยู่ล่างจอ ใกล้นิ้ว (ผู้ใช้เลือก 2026-11-18 · ตรงกับฟอร์มสมัครหน่วยงาน) — เนื้อหายาวเกินจอ = ต่อท้ายช่องสุดท้ายตามปกติ */
     .form-actions {
-      margin-block-start: 24px;
+      margin-block-start: auto;
     }
     a {
       color: inherit;

@@ -1,6 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { Icon } from '../../shared/icon';
 import { DisplaySettings } from '../../core/display-settings';
 import { I18n } from '../../core/i18n';
 import { EmptyState, LoadError } from '../../shared/state-view';
@@ -30,23 +32,40 @@ const km = (a: LatLng, b: LatLng): number => {
  */
 @Component({
   selector: 'app-owner-agencies',
-  imports: [PageHeader, AgencyMap, LoadError, EmptyState],
+  imports: [RouterLink, PageHeader, AgencyMap, LoadError, EmptyState, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [title]="i18n.t({ th: 'หน่วยงานใกล้บ้าน', en: 'Agencies near you' })" [back]="url('H13')" />
     <div class="stack grow">
       <p class="muted small">{{ i18n.t({ th: 'ดูตำแหน่งและระยะทางจากบ้านคุณ · ติดต่อหน่วยงานที่ต้องการ แล้วให้หัวหน้าเพิ่มบ้านเข้าโซน (คุณต้องกดยอมรับก่อน)', en: 'See where each agency is and how far it is from your home. Contact the one you want, then its head adds your house to a zone (you must accept first).' }) }}</p>
-      @if (!home()) {
+      @if (!home() && agencies().length) {
         <p class="info-box small easy-hide" role="status">{{ i18n.t({ th: 'ปักหมุดบ้านของคุณที่หน้าตั้งค่าตู้ จะเห็นระยะห่างจากแต่ละหน่วยงาน', en: 'Pin your house in the mailbox settings to see the distance to each agency' }) }}</p>
       }
-      <app-agency-map [agencies]="items()" [home]="home()" [(selected)]="selected" [height]="display.easyMode() ? 240 : 320" />
+      <!-- แผนที่พับไว้ก่อน (ผู้ใช้เลือก 2026-11-18): รายการเรียงตามระยะคือข้อมูลหลัก · ไม่มีหน่วยงาน = ไม่แสดงแผนที่ว่าง ๆ -->
+      @if (loaded() && !failed() && agencies().length) {
+        <button type="button" class="map-toggle" (click)="mapOpen.set(!mapOpen())" [attr.aria-expanded]="mapOpen()">
+          <span>{{ mapOpen() ? i18n.t({ th: 'ซ่อนแผนที่', en: 'Hide map' }) : i18n.t({ th: 'ดูแผนที่', en: 'Show map' }) }}</span>
+          <app-icon [name]="mapOpen() ? 'chevronUp' : 'chevronDown'" [size]="18" />
+        </button>
+        @if (mapOpen()) {
+          <app-agency-map [agencies]="items()" [home]="home()" [(selected)]="selected" [height]="display.easyMode() ? 200 : 240" />
+        }
+      }
       @if (advanced()) {
         <p class="muted small adv-only">{{ i18n.t({ th: 'หน่วยงาน ', en: 'Agencies: ' }) }}{{ agencies().length }}{{ i18n.t({ th: ' แห่ง · เรียงตามระยะจากบ้าน', en: ' · sorted by distance from home' }) }}</p>
       }
       @if (failed()) {
         <app-load-error (retry)="load()" />
       } @else if (loaded() && !agencies().length) {
-        <app-empty-state [title]="i18n.t({ th: 'ยังไม่มีหน่วยงานที่ปักหมุดไว้', en: 'No agency has put a pin on the map yet' })" />
+        <app-empty-state
+          icon="pin"
+          [title]="i18n.t({ th: 'ยังไม่มีหน่วยงานที่ปักหมุดไว้', en: 'No agency has put a pin on the map yet' })"
+          [hint]="i18n.t({ th: 'เมื่อมีหน่วยงานปักหมุด จะเห็นตำแหน่งและระยะจากบ้านคุณที่นี่', en: 'Once an agency adds its pin, you will see where it is and how far from your home' })"
+        >
+          @if (!home()) {
+            <a class="btn secondary" [routerLink]="url('H13')">{{ i18n.t({ th: 'ปักหมุดบ้านของคุณ', en: 'Pin your house' }) }}</a>
+          }
+        </app-empty-state>
       }
       <div class="ag-list">
         @for (a of sorted(); track a.item.id; let i = $index) {
@@ -81,6 +100,26 @@ const km = (a: LatLng, b: LatLng): number => {
     </div>
   `,
   styles: `
+    .map-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      inline-size: 100%;
+      min-block-size: 48px;
+      padding: 0 16px;
+      border: 0;
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      color: var(--brand-text);
+      font: inherit;
+      font-weight: var(--fw-strong);
+      cursor: pointer;
+      transition: transform var(--dur-fast) var(--ease-out);
+    }
+    .map-toggle:active {
+      transform: scale(0.98);
+    }
     .ag-list {
       display: flex;
       flex-direction: column;
@@ -168,6 +207,7 @@ export class OwnerAgencies {
   protected readonly agencies = signal<AgencyMapItem[]>([]);
   protected readonly home = signal<LatLng | null>(null);
   protected readonly selected = signal<string | null>(null);
+  protected readonly mapOpen = signal(false);
   protected readonly loaded = signal(false);
   protected readonly failed = signal(false);
   protected readonly dir = (a: AgencyMapItem) => directionsUrl({ lat: a.lat, lng: a.lng });

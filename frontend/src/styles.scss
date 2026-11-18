@@ -135,11 +135,12 @@
 
 /* ลิงก์ข้อความในโหมดมืดใช้แดงอ่อนเพื่อ contrast (ปุ่ม/แถว/แท็บมีสีของตัวเอง) */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) a:not(.btn):not(.row):not(.menu-row):not(.tab):not(.tile) {
+  /* เมนูข้างแอดมิน (.side) มีสีของตัวเอง (ปกติ = ตัวอักษรหลัก · ที่เลือก = แดง) — ไม่ให้กฎลิงก์ทั่วไปทับ ไม่งั้นเมนูทุกตัวกลายเป็นแดง */
+  :root:not([data-theme='light']) a:not(.btn):not(.row):not(.menu-row):not(.tab):not(.tile):not(.side a) {
     color: var(--brand-text);
   }
 }
-:root[data-theme='dark'] a:not(.btn):not(.row):not(.menu-row):not(.tab):not(.tile) {
+:root[data-theme='dark'] a:not(.btn):not(.row):not(.menu-row):not(.tab):not(.tile):not(.side a) {
   color: var(--brand-text);
 }
 
@@ -1333,11 +1334,12 @@ section.form-section + section.form-section {
   background: transparent;
   box-shadow: none;
 }
+/* หัวข้อกลุ่มในฟอร์ม: สีตัวอักษรปกติ ขนาดเล็ก (ผู้ใช้เลือก 2026-11-18) — เดิมเป็นแดงใหญ่ซ้ำทุกการ์ด ทำให้แดงไม่เหลือความหมาย "ต้องกด" */
 .form-title {
   margin: 0;
-  font-size: var(--fs-md);
+  font-size: var(--fs-base);
   font-weight: var(--fw-strong);
-  color: var(--brand-dark);
+  color: var(--text);
 }
 .form-hint {
   margin: -8px 0 0;

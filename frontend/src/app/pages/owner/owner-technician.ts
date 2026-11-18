@@ -224,6 +224,18 @@ import { bkkClock, fmtWhen } from '../../core/time';
       gap: 12px;
       align-items: flex-start;
     }
+    .done-note > div {
+      flex: 1;
+      min-inline-size: 0;
+    }
+    /* แต่ละข้อความขึ้นบรรทัดใหม่ — เดิมไม่มีกฎนี้ในไฟล์นี้ ข้อความเลยต่อกันเป็นพืด */
+    .block {
+      display: block;
+      margin-block-start: 4px;
+    }
+    .chip.block {
+      inline-size: fit-content;
+    }
     .confirm-row {
       margin-block-start: 10px;
       inline-size: 100%;

@@ -94,7 +94,7 @@ export class RiderApi {
           [attr.inputmode]="display.easyMode() ? 'none' : null"
           [placeholder]="i18n.t({ th: 'เช่น H4KD-9TRW', en: 'e.g. H4KD-9TRW' })"
           [value]="code()"
-          (input)="code.set(fmt($any($event.target).value)); $any($event.target).value = code()"
+          (input)="code.set(fmt($any($event.target).value)); $any($event.target).value = code(); tooShort.set(false)"
         />
       </label>
       @if (locked()) {
@@ -112,8 +112,11 @@ export class RiderApi {
       @if (display.easyMode()) {
         <app-code-keypad (key)="press($event)" (back)="backspace()" />
       }
-      <!-- B1: ปุ่มหลักห่างช่องสุดท้าย 24px ไม่ดันไปชิดล่างจอ -->
-      <button type="submit" class="btn rider-submit" [disabled]="!ready() || busy()">{{ i18n.t({ th: 'ไปหน้าส่งของ', en: 'Continue' }) }}</button>
+      @if (tooShort()) {
+        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'รหัสต้องมี 8 ตัว — ดูใต้ QR ที่หน้าตู้', en: 'The code has 8 characters — see under the QR on the box' }) }}</p>
+      }
+      <!-- ปุ่มหลักอยู่ล่างจอ ใกล้นิ้ว (ผู้ใช้เลือก 2026-11-18) · รหัสไม่ครบ = บอกเหตุผล แทนปุ่มเทากดไม่ได้ -->
+      <button type="submit" class="btn rider-submit" [disabled]="busy()">{{ i18n.t({ th: 'ไปหน้าส่งของ', en: 'Continue' }) }}</button>
     </form>
   `,
   styles: `
@@ -130,7 +133,7 @@ export class RiderApi {
       text-transform: uppercase;
     }
     .rider-submit {
-      margin-block-start: 24px;
+      margin-block-start: auto;
     }
     .field input::placeholder {
       text-transform: none;
@@ -151,6 +154,7 @@ export class RiderCode {
   protected readonly alphabet = CODE_ALPHABET;
   protected readonly display = inject(DisplaySettings);
   protected press(c: string): void {
+    this.tooShort.set(false);
     this.code.set(formatCode(this.code() + c));
   }
   protected backspace(): void {
@@ -161,10 +165,16 @@ export class RiderCode {
   protected readonly locked = signal(false);
   protected readonly offline = signal(false);
   protected readonly failed = signal(false);
+  /** กดไปต่อทั้งที่รหัสยังไม่ครบ 8 ตัว */
+  protected readonly tooShort = signal(false);
 
   /** GET /public/codes/:code → { house_no, box_status, delivery_ticket } · ผิด 3 ครั้งติดกัน → 429 รอ */
   protected async go(): Promise<void> {
-    if (!this.ready() || this.busy()) return;
+    if (this.busy()) return;
+    if (!this.ready()) {
+      this.tooShort.set(true);
+      return;
+    }
     this.busy.set(true);
     const code = await this.api.open(`/api/v1/public/codes/${encodeURIComponent(normalizeCode(this.code()))}`);
     this.busy.set(false);

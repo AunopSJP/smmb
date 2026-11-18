@@ -349,7 +349,7 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
         }
 
         <div class="stack auth-actions">
-          <button type="submit" class="btn" [disabled]="!ready() || busy()">{{ error() ? i18n.t({ th: 'ลองอีกครั้ง', en: 'Try again' }) : i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</button>
+          <button type="submit" class="btn" [disabled]="busy()">{{ error() ? i18n.t({ th: 'ลองอีกครั้ง', en: 'Try again' }) : i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</button>
           <p class="center small">
             {{ i18n.t({ th: 'ยังไม่มีบัญชี? ', en: 'No account? ' }) }}<a class="link" [routerLink]="url('A05')">{{ i18n.t({ th: 'สมัครสมาชิก', en: 'Sign up' }) }}</a>
           </p>
@@ -400,9 +400,9 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
       margin: 0;
       line-height: 1.5;
     }
-    /* B1: ปุ่มหลักห่างช่องสุดท้าย 24px ไม่ดันไปชิดล่างจอ */
+    /* ปุ่มหลักอยู่ล่างจอ ใกล้นิ้ว (ผู้ใช้เลือก 2026-11-18) */
     .auth-actions {
-      margin-block-start: 24px;
+      margin-block-start: auto;
     }
     .pick {
       inline-size: 100%;
@@ -451,7 +451,13 @@ export class AuthSignin implements OnInit {
 
   /** POST /auth/signin → ตัดสินจาก code ของ error เท่านั้น (กฎข้อ 10) */
   protected async submit(): Promise<void> {
-    if (!this.ready() || this.busy()) return;
+    if (this.busy()) return;
+    // ช่องยังไม่ครบ: บอกว่าขาดอะไร แทนปุ่มเทาที่กดไม่ได้ (ไม่ยิง API ไม่นับเข้าโควตาลองรหัส)
+    if (!this.ready()) {
+      this.error.set({ title: { th: 'กรอกเบอร์โทรศัพท์และรหัสผ่านก่อน', en: 'Enter your phone number and password first' }, sub: { th: 'เบอร์โทร 10 หลัก และรหัสผ่านที่ตั้งไว้', en: 'A 10-digit phone number and your password' } });
+      this.errorInfo.set(null);
+      return;
+    }
     this.busy.set(true);
     const r = await this.session.signin(normalizePhone(this.phone()) ?? this.phone(), this.password());
     this.busy.set(false);

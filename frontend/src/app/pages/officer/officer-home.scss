@@ -148,10 +148,9 @@ ul {
 }
 .done-card {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 20px 16px;
+  gap: 14px;
+  padding: 16px;
   border-radius: var(--radius);
   background: var(--success-bg);
   color: var(--success-fg);
@@ -159,11 +158,38 @@ ul {
     font-size: var(--fs-lg);
   }
 }
-.full-bar {
-  align-self: stretch;
-  block-size: 8px;
+.done-ic {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 44px;
+  block-size: 44px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--success-fg) 20%, transparent);
+}
+/* บ้านถัดไป = ตัวเด่นของการ์ด · เลขบ้านใหญ่ */
+.next-no {
+  font-size: var(--fs-xl);
+  line-height: 1.2;
+}
+/* ตราประทับผลตรวจ (ผู้ใช้เลือก 2026-11-18) — ใช้กับ "ตรวจแล้ว" เท่านั้น · สื่อด้วยข้อความ+เวลา ไม่พึ่งสีอย่างเดียว */
+.stamp {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  flex: none;
+  padding: 3px 9px;
+  border: 1.5px solid var(--ok);
   border-radius: var(--radius-xs);
-  background: var(--success-fg);
+  color: var(--ok);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-strong);
+  line-height: 1.25;
+  transform: rotate(-3deg);
+}
+.stamp-t {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 /* ── โหมดละเอียด (แคนวาส OffAdv) ─────────────────────────────── */
@@ -295,6 +321,9 @@ ul {
     background: none;
     padding: 0;
     font-size: var(--fs-sm);
+  }
+  .next-no {
+    font-size: var(--fs-base);
   }
   .adv-strip {
     background: none;

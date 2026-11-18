@@ -48,18 +48,12 @@ interface Segment {
         </p>
       }
       @if (loaded()) {
-        <nav class="quick-actions desk-only" [attr.aria-label]="i18n.t({ th: 'งานด่วน', en: 'Quick actions' })">
-          <a class="quick" [routerLink]="url('D03')" [attr.title]="i18n.t({ th: 'ตู้ทั้งหมด · ลงทะเบียน · ปลุก · ตั้งค่า', en: 'All mailboxes · register · wake · configure' })"><span class="qb"><app-icon name="box" [size]="20" /></span><span><strong>{{ i18n.t({ th: 'ตู้ทั้งหมด', en: 'All mailboxes' }) }}</strong><small>{{ i18n.t({ th: 'ลงทะเบียน · ปลุก · ตั้งค่า', en: 'Register · wake · configure' }) }}</small></span></a>
-          <a class="quick" [routerLink]="url('D05')" [attr.title]="i18n.t({ th: 'จัดการ QR · เคสเสีย/ปลอม/ออกใหม่', en: 'QR cases · damaged/fake/reissue' })"><span class="qb"><app-icon name="scan" [size]="20" /></span><span><strong>{{ i18n.t({ th: 'จัดการ QR', en: 'QR cases' }) }}</strong><small>{{ i18n.t({ th: 'เคสเสีย/ปลอม/ออกใหม่', en: 'Damaged · fake · reissue' }) }}</small></span></a>
-          <a class="quick" [routerLink]="url('D09')" [attr.title]="i18n.t({ th: 'ผู้ใช้ · ค้นหา · รีเซ็ต · ปิดบัญชี', en: 'Users · search · reset · disable' })"><span class="qb"><app-icon name="user" [size]="20" /></span><span><strong>{{ i18n.t({ th: 'ผู้ใช้', en: 'Users' }) }}</strong><small>{{ i18n.t({ th: 'ค้นหา · รีเซ็ต · ปิดบัญชี', en: 'Search · reset · disable' }) }}</small></span></a>
-          <a class="quick" [routerLink]="url('D17')" [attr.title]="i18n.t({ th: 'เฟิร์มแวร์ · อัปเดตตู้ทั้งระบบ', en: 'Firmware · update the fleet' })"><span class="qb"><app-icon name="layers" [size]="20" /></span><span><strong>{{ i18n.t({ th: 'เฟิร์มแวร์', en: 'Firmware' }) }}</strong><small>{{ i18n.t({ th: 'อัปเดตตู้ทั้งระบบ', en: 'Update the fleet' }) }}</small></span></a>
-        </nav>
         @if (todo().length) {
-          <a class="card action-summary" [routerLink]="todo()[0].path" [queryParams]="todo()[0].query ?? null" [attr.title]="i18n.t({ th: 'ต้องจัดการ ', en: 'Needs action: ' }) + todo().length + ' ' + i18n.t({ th: 'รายการ', en: 'items' }) + ' · ' + i18n.t(todo()[0].title)">
+          <a class="card action-summary easy-hide" [routerLink]="todo()[0].path" [queryParams]="todo()[0].query ?? null" [attr.title]="i18n.t({ th: 'ต้องจัดการ ', en: 'Needs action: ' }) + todo().length + ' ' + i18n.t({ th: 'รายการ', en: 'items' }) + ' · ' + i18n.t(todo()[0].title)">
             <span class="as-ic"><app-icon name="alert" [size]="20" /></span>
             <span class="grow">
               <strong>{{ i18n.t({ th: 'ต้องจัดการ ', en: 'Needs action: ' }) }}{{ todo().length }} {{ i18n.t({ th: 'รายการ', en: 'items' }) }}</strong>
-              <span class="muted small block">{{ i18n.t(todo()[0].title) }}</span>
+              <span class="muted small block">{{ i18n.t(todo()[0].title) }}@if (todo().length === 1) { · {{ i18n.t(todo()[0].sub) }} }</span>
             </span>
             <span class="btn secondary small-btn">{{ i18n.t({ th: 'เปิด', en: 'Open' }) }}</span>
           </a>
@@ -71,7 +65,7 @@ interface Segment {
       </div>
 
       <!-- โหมดง่าย: สรุปสั้น + 3 ทางเข้าหลัก (ตาม AdmEasy) -->
-      <section class="easy-hero easy-only" role="status">
+      <section class="easy-hero easy-only" [class.warn]="atRisk() > 0" role="status">
         <strong>{{ i18n.t(easyTitle()) }}</strong>
         <span>{{ i18n.t({ th: 'ออนไลน์ ', en: 'Online ' }) }}{{ online() }} {{ i18n.t({ th: 'จาก ', en: 'of ' }) }}{{ totalBoxes() }} {{ i18n.t({ th: 'ตู้', en: 'boxes' }) }}</span>
       </section>
@@ -128,10 +122,10 @@ interface Segment {
       <!-- 1) ตัวเลขสรุป -->
       <section class="kpis easy-hide" [attr.aria-label]="i18n.t({ th: 'ตัวเลขสรุป', en: 'Key numbers' })">
         @for (k of kpis(); track k.key) {
-          <a class="kpi" [class.desk-only]="k.key === 'low' || k.key === 'sos' || k.key === 'requests'" [routerLink]="k.path" [queryParams]="k.query">
+          <a class="kpi" [class.desk-only]="k.key === 'low' || k.key === 'sos' || k.key === 'requests'" [routerLink]="k.path" [queryParams]="k.query" [attr.title]="i18n.t(k.hint)">
             <span class="kpi-label">{{ i18n.t(k.label) }}</span>
             <span class="kpi-value" [class.danger]="k.tone === 'danger' && k.n > 0" [class.warn]="k.tone === 'warn' && k.n > 0" [class.zero]="k.tone !== '' && k.n === 0">{{ k.text }}</span>
-            <span class="kpi-hint">{{ i18n.t(k.hint) }}</span>
+            <span class="kpi-hint adv-only">{{ i18n.t(k.hint) }}</span>
           </a>
         }
       </section>
@@ -285,6 +279,8 @@ interface Segment {
       </section>
 
       <!-- 3) งานที่ต้องทำ -->
+      <!-- มีรายการเดียว = การ์ดด้านบนบอกครบแล้ว ไม่ต้องซ้ำเป็นตาราง -->
+      @if (todo().length !== 1) {
       <section class="panel flush easy-hide">
         <header class="hpad">
           <h2>{{ i18n.t({ th: 'ต้องจัดการ', en: 'Needs action' }) }}</h2>
@@ -315,6 +311,7 @@ interface Segment {
           <p class="empty hpad-empty">{{ i18n.t({ th: 'ไม่มีงานค้าง', en: 'Nothing waiting' }) }}</p>
         }
       </section>
+      }
 
       <div class="two-col desk-only easy-hide">
         <section class="panel flush">

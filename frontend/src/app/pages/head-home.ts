@@ -243,19 +243,32 @@ interface RecentLog {
         min-inline-size: 0;
       }
     }
-    .stats3 {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-    }
+    /* สถิติของเวร = แถบเดียว เส้นคั่นบาง ๆ (ผู้ใช้เลือก 2026-11-18) · ช่องกว้างเท่ากัน ตัวเลขอยู่เหนือป้ายเสมอ (เดิมช่อง SOS ตัวเลขกับป้ายติดกัน) */
+    .stats3,
     .stats4 {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
+      gap: 1px;
+      background: var(--line-strong, var(--line));
+      border: 1px solid var(--line-strong, var(--line));
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .stats3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .stats4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
     }
     .stats3 .stat,
     .stats4 .stat {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      min-inline-size: 0;
       padding: 12px;
+      border-radius: 0;
+      box-shadow: none;
       text-align: start;
     }
     .stats4 .stat {

@@ -37,20 +37,22 @@ const REFRESH_MS = 10_000;
       <div class="stack page onboard">
         <section class="hero" aria-hidden="true">
           <svg viewBox="0 0 240 170" class="art">
-            <ellipse cx="120" cy="158" rx="78" ry="8" class="shadow" />
-            <rect x="96" y="96" width="14" height="60" rx="3" class="post" />
-            <path d="M60 60a40 40 0 0 1 40-40h70a28 28 0 0 1 28 28v56H60z" class="body" />
-            <path d="M60 60a40 40 0 0 1 80 0v44H60z" class="door" />
-            <rect x="78" y="58" width="44" height="6" rx="3" class="slot" />
-            <g class="qr" transform="translate(150 50)">
-              <rect width="34" height="34" rx="5" class="qr-bg" />
-              <path d="M6 6h9v9H6zM19 6h9v9h-9zM6 19h9v9H6zM20 20h3v3h-3zM25 20h3v3h-3zM20 25h3v3h-3zM25 25h3v3h-3z" class="qr-ink" />
+            <!-- ตู้ตามของจริง: กรอบดำ แผงแดง ช่องหยอด + โซลาร์ กล้อง Wi-Fi QR (ตรงกับไอคอนแอป) -->
+            <rect x="72" y="8" width="96" height="16" rx="7" class="solar" />
+            <rect x="46" y="18" width="148" height="140" rx="20" class="frame" />
+            <rect x="56" y="54" width="128" height="94" rx="10" class="panel" />
+            <circle cx="76" cy="36" r="8.5" class="lens" />
+            <circle cx="76" cy="36" r="4.5" class="lens-in" />
+            <g class="wifi">
+              <path d="M158.3 30.3a8 8 0 0 1 11.4 0" />
+              <path d="M152.7 24.7a16 16 0 0 1 22.6 0" />
+              <circle cx="164" cy="38" r="3" />
             </g>
-            <path d="M198 40v34" class="flag-pole" />
-            <path d="M198 40h22l-6 8 6 8h-22z" class="flag" />
-            <circle cx="40" cy="36" r="4" class="spark" />
-            <circle cx="214" cy="112" r="3" class="spark" />
-            <circle cx="30" cy="118" r="2.5" class="spark" />
+            <g class="qr" transform="translate(94 64)">
+              <rect width="52" height="52" rx="8" class="qr-bg" />
+              <path transform="translate(9 9) scale(1.0)" d="M0 0h13v13H0zM21 0h13v13H21zM0 21h13v13H0zM22 22h5v5h-5zM29 22h5v5h-5zM22 29h5v5h-5zM29 29h5v5h-5z" class="qr-ink" />
+            </g>
+            <rect x="82" y="130" width="76" height="10" rx="4" class="slot" />
           </svg>
         </section>
 

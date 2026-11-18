@@ -382,22 +382,21 @@
   display: grid;
   place-items: center;
   padding: 18px 0 6px;
-  border-radius: var(--radius);
-  background: radial-gradient(120% 90% at 50% 0%, var(--brand-light) 0%, transparent 70%);
 }
+/* ภาพตู้ตามของจริง (กรอบดำ แผงแดง ช่องหยอด) — สีทั้งหมดมาจากโทเคน ไม่มีไล่สี/จุดประกาย */
 .art {
-  inline-size: min(260px, 72%);
+  inline-size: min(240px, 68%);
   block-size: auto;
-  .shadow { fill: color-mix(in srgb, var(--text) 10%, transparent); }
-  .post { fill: color-mix(in srgb, var(--text) 55%, var(--surface)); }
-  .body { fill: var(--brand); }
-  .door { fill: var(--brand-dark); }
-  .slot { fill: color-mix(in srgb, var(--print-ink) 35%, var(--brand-dark)); }
-  .qr-bg { fill: var(--qr-bg); stroke: var(--brand-dark); stroke-width: 1.5; }
+  .solar { fill: color-mix(in srgb, var(--text) 18%, var(--surface)); }
+  .frame { fill: var(--call-bg); stroke: var(--line); stroke-width: 1; }
+  .panel { fill: var(--action-bg); }
+  .lens { fill: var(--on-dark); opacity: 0.85; }
+  .lens-in { fill: var(--brand-dark); }
+  .wifi { fill: var(--on-dark); opacity: 0.85; }
+  .wifi path { fill: none; stroke: var(--on-dark); stroke-width: 3.5; stroke-linecap: round; }
+  .slot { fill: var(--call-bg); }
+  .qr-bg { fill: var(--qr-bg); }
   .qr-ink { fill: var(--qr-ink); }
-  .flag-pole { stroke: color-mix(in srgb, var(--text) 55%, var(--surface)); stroke-width: 3; stroke-linecap: round; }
-  .flag { fill: var(--warn); }
-  .spark { fill: var(--brand); opacity: 0.35; }
 }
 .intro {
   text-align: center;

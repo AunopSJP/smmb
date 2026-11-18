@@ -37,6 +37,10 @@ const DEFAULT_CENTER: LatLng = { lat: 13.7563, lng: 100.5018 };
       background: var(--bg);
       z-index: 0;
     }
+    /* ลดสีพื้นแผนที่ให้หมุดเด่นกว่าถนน (ผู้ใช้เลือก 2026-11-18) — ไม่กระทบหมุด/จุดบ้านที่อยู่คนละเลเยอร์ */
+    :host ::ng-deep .leaflet-tile-pane {
+      filter: grayscale(0.6) contrast(0.92);
+    }
     :host ::ng-deep .ag-pin {
       inline-size: 26px;
       block-size: 26px;
