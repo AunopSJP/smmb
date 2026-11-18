@@ -135,6 +135,12 @@ export class RiderApi {
     .rider-submit {
       margin-block-start: auto;
     }
+    /* แท็บเล็ต/จอคอม: ปุ่มต่อใต้ช่องสุดท้าย ไม่ปักล่างจอสูง ๆ */
+    @media (min-width: 700px) {
+      .rider-submit {
+        margin-block-start: 24px;
+      }
+    }
     .field input::placeholder {
       text-transform: none;
       letter-spacing: 0;

@@ -404,6 +404,12 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
     .auth-actions {
       margin-block-start: auto;
     }
+    /* แท็บเล็ต/จอคอม: ปุ่มต่อใต้ช่องสุดท้าย ไม่ปักล่างจอสูง ๆ */
+    @media (min-width: 700px) {
+      .auth-actions {
+        margin-block-start: 24px;
+      }
+    }
     .pick {
       inline-size: 100%;
       border: 0;

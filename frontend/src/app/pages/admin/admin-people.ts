@@ -481,8 +481,9 @@ const ROLE_LABEL: Record<string, Tr> = {
       grid-template-columns: 1fr 1fr;
       gap: 10px;
     }
+    /* แถวที่เลือก: พื้นอ่อน + วงขอบ 2px ครบทุกด้าน (เดิมแถบสีหนาด้านซ้าย) */
     .row.on {
-      box-shadow: inset 3px 0 0 var(--brand);
+      box-shadow: inset 0 0 0 2px var(--brand);
       background: var(--brand-lighter);
     }
     /* มือถือ: รายละเอียดอยู่เหนือรายการ · จอคอม: รายการซ้าย รายละเอียดขวา (ติดบนเมื่อเลื่อน) */

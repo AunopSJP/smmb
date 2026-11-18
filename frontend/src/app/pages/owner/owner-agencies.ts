@@ -100,6 +100,10 @@ const km = (a: LatLng, b: LatLng): number => {
     </div>
   `,
   styles: `
+    /* บรรทัดประเภท/ย่านขึ้นบรรทัดใหม่ใต้ชื่อหน่วยงาน — เดิมไม่มีกฎนี้ ชื่อกับประเภทต่อกันเป็นพืด */
+    .block {
+      display: block;
+    }
     .map-toggle {
       display: flex;
       align-items: center;

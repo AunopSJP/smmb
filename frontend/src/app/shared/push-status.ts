@@ -149,11 +149,11 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
         border-color: var(--ok);
       }
       &.warn {
-        /* เตือนแบบสงบ: การ์ดปกติ + แถบสีเตือนด้านข้าง + ไอคอนสีเตือน (ไม่ทาพื้นเหลืองทั้งแถบ) */
+        /* เตือนแบบสงบ: การ์ดปกติ + วงขอบบางสีเตือนอ่อนครบทุกด้าน + ไอคอนสีเตือน (ไม่ทาพื้นเหลืองทั้งแถบ · ไม่มีแถบด้านเดียว) */
         background: var(--surface);
         border: 0;
         box-shadow:
-          inset 3px 0 0 var(--warn),
+          inset 0 0 0 1px color-mix(in srgb, var(--warn) 55%, var(--line)),
           var(--shadow);
         .lead app-icon {
           color: var(--warn);

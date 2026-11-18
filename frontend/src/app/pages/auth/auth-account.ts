@@ -171,17 +171,22 @@ export class AccountActions {
       <app-password-field
         [label]="forced() ? { th: 'รหัสชั่วคราว', en: 'Temporary password' } : { th: 'รหัสผ่านปัจจุบัน', en: 'Current password' }"
         [(value)]="current"
+        [invalid]="tried() && !current()"
       />
       <app-password-field [label]="{ th: 'รหัสผ่านใหม่', en: 'New password' }" [isNew]="true" [(value)]="next" [invalid]="tried() && !nextOk()" />
       <app-password-field [label]="{ th: 'ยืนยันรหัสผ่านใหม่', en: 'Repeat new password' }" [isNew]="true" [hint]="false" [(value)]="confirm" [invalid]="tried() && !match()" />
-      @if (tried() && !match()) {
+      @if (tried() && !current()) {
+        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'กรอกรหัสผ่านปัจจุบัน (หรือรหัสชั่วคราว) ก่อน', en: 'Enter your current (or temporary) password first' }) }}</p>
+      } @else if (tried() && !nextOk()) {
+        <p class="danger-text small" role="alert">{{ i18n.t({ th: 'รหัสใหม่ต้องยาวอย่างน้อย 8 ตัว', en: 'The new password must be at least 8 characters' }) }}</p>
+      } @else if (tried() && !match()) {
         <p class="danger-text small" role="alert">{{ i18n.t({ th: 'รหัสใหม่สองช่องไม่ตรงกัน', en: 'The new passwords do not match' }) }}</p>
       } @else if (tried() && same()) {
         <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ใช้รหัสเดิมไม่ได้ ตั้งรหัสใหม่', en: 'Choose a different password' }) }}</p>
       }
       <p class="muted small easy-hide">{{ i18n.t({ th: 'เปลี่ยนแล้ว ทุกเครื่องจะออกจากระบบ ต้องเข้าสู่ระบบใหม่ด้วยรหัสใหม่', en: 'After changing, every device is signed out — sign in again with the new password' }) }}</p>
       <div class="stack push-end">
-        <button type="submit" class="btn" [disabled]="busy() || !current() || !next() || !confirm()">{{ i18n.t({ th: 'บันทึกรหัสใหม่', en: 'Save new password' }) }}</button>
+        <button type="submit" class="btn" [disabled]="busy()">{{ i18n.t({ th: 'บันทึกรหัสใหม่', en: 'Save new password' }) }}</button>
         @if (forced()) {
           <button type="button" class="btn secondary" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
         }
@@ -227,7 +232,7 @@ export class AuthChangePassword {
     this.tried.set(true);
     this.error.set(null);
     this.errorCode.set(null);
-    if (!this.nextOk() || !this.match() || this.same() || this.busy()) return;
+    if (!this.current() || !this.nextOk() || !this.match() || this.same() || this.busy()) return;
     this.busy.set(true);
     try {
       await firstValueFrom(this.http.post('/api/v1/auth/change-password', { current_password: this.current(), new_password: this.next() }));

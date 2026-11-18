@@ -124,6 +124,12 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
     .form-actions {
       margin-block-start: auto;
     }
+    /* แท็บเล็ต/จอคอม: จอสูงมาก ปุ่มปักล่างจะห่างช่องกรอกเกินไป → ต่อใต้ช่องสุดท้าย */
+    @media (min-width: 700px) {
+      .form-actions {
+        margin-block-start: 24px;
+      }
+    }
     a {
       color: inherit;
       font-weight: var(--fw-strong);

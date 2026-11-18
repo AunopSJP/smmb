@@ -286,15 +286,24 @@ static bool scanFrame(const GrayImg& g, struct quirc* decoder, bool fullFrame, S
   const int offsetY = (frameHeight - scanHeight) / 2;
   if (quirc_resize(decoder, scanWidth, scanHeight) < 0) return false;
 
-  int width = 0;
-  int height = 0;
-  uint8_t* image = quirc_begin(decoder, &width, &height);
-  for (int y = 0; y < height; y++) {
-    memcpy(image + static_cast<size_t>(y) * width,
-           g.px + static_cast<size_t>(offsetY + y) * frameWidth + offsetX,
-           width);
-  }
-  quirc_end(decoder);
+  // คัดลอกกรอบจากภาพเทาเข้า quirc แล้ว quirc_end · mirror = กลับซ้าย-ขวาตั้งแต่ตอนคัดลอก
+  // (quirc_end แปลงภาพเป็นขาวดำใน buffer เดิม — กลับภาพหลังจากนั้นไม่ได้ ต้องคัดลอกจากภาพเทาใหม่)
+  auto load = [&](bool mirror) {
+    int width = 0;
+    int height = 0;
+    uint8_t* image = quirc_begin(decoder, &width, &height);
+    for (int y = 0; y < height; y++) {
+      const uint8_t* src = g.px + static_cast<size_t>(offsetY + y) * frameWidth + offsetX;
+      uint8_t* row = image + static_cast<size_t>(y) * width;
+      if (mirror) {
+        for (int x = 0; x < width; x++) row[x] = src[width - 1 - x];
+      } else {
+        memcpy(row, src, width);
+      }
+    }
+    quirc_end(decoder);
+  };
+  load(false);
   foundShape = quirc_count(decoder) > 0;
   if (!foundShape) return false;
 
@@ -305,12 +314,7 @@ static bool scanFrame(const GrayImg& g, struct quirc* decoder, bool fullFrame, S
   // ไม่กรอง = รัน quirc ซ้ำทั้งภาพทุกเฟรมที่เห็น QR แต่ยังถอดไม่ออก → เฟรมเรตหายครึ่งตอนที่ QR อยู่หน้ากล้องพอดี
   const bool mirrored = settings.camFlip == 1 || settings.camFlip == 2;
   if (!decoded && mirrored) {
-    image = quirc_begin(decoder, &width, &height);
-    for (int y = 0; y < height; y++) {
-      uint8_t* row = image + static_cast<size_t>(y) * width;
-      for (int x = 0; x < width / 2; x++) std::swap(row[x], row[width - 1 - x]);
-    }
-    quirc_end(decoder);
+    load(true);
     decodeAll(text);
   }
   qr = previous;
@@ -359,6 +363,7 @@ QrRead cameraScanQr(uint32_t timeoutMs) {
   uint32_t lastPreviewAt = start;  // ภาพแรกส่งหลังสแกนไปแล้ว 1 ช่วง
   quirc_decode_error_t lastErr = QUIRC_SUCCESS;
   while (millis() - start < timeoutMs) {
+    esp_task_wdt_reset();  // job ที่ตั้งเวลา/จำนวนครั้งสูง ๆ (สูงสุด 60 วิ × 5) รวมแล้วเกิน watchdog 180 วิ
     camera_fb_t* fb = esp_camera_fb_get();
     if (!fb) {
       delay(20);
@@ -420,7 +425,8 @@ bool cameraSnapshotJpeg(uint8_t** out, size_t* len) {
   camera_fb_t* fb = esp_camera_fb_get();
   bool ok = false;
   if (fb && fb->format == PIXFORMAT_JPEG) {
-    *out = (uint8_t*)malloc(fb->len);
+    *out = (uint8_t*)ps_malloc(fb->len);
+    if (!*out) *out = (uint8_t*)malloc(fb->len);
     if (*out) {
       memcpy(*out, fb->buf, fb->len);
       *len = fb->len;

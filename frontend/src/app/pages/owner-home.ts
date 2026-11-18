@@ -112,7 +112,7 @@ const REFRESH_MS = 10_000;
         </ng-template>
         <ng-template #tOffline let-b>
           <section class="card offline stack" role="status">
-            <strong>{{ i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' }) }}</strong>
+            <strong class="off-head"><app-icon name="alert" [size]="18" />{{ i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' }) }}</strong>
             <!-- C5: โหมดง่ายเหลือหัวข้อ + 1 ประโยค + ปุ่มเดียว · รายละเอียด/ปุ่ม Wi-Fi/ช่าง ไปอยู่ H12-d -->
             <!-- โหมดปกติก็ใช้แบบสั้น (จอแรกต้องเห็นสถานะอื่นด้วย) · เช็กลิสต์/ปุ่ม Wi-Fi/ช่าง เต็ม ๆ เหลือเฉพาะโหมดละเอียด -->
             @if (easy() || !display.advancedMode()) {
@@ -487,11 +487,19 @@ const REFRESH_MS = 10_000;
       padding: 6px 12px;
     }
     .offline {
-      /* ตู้ออนไลน์ไม่ได้ = ต้องดู ไม่ใช่เหตุฉุกเฉิน → แถบสีเตือนด้านข้าง (แดงเก็บไว้ให้ SOS) */
+      /* ตู้ออนไลน์ไม่ได้ = ต้องดู ไม่ใช่เหตุฉุกเฉิน → วงขอบบางสีเตือนอ่อนครบทุกด้าน + ไอคอนสีเตือนที่หัวข้อ (แดงเก็บไว้ให้ SOS) */
       border: 0;
       box-shadow:
-        inset 3px 0 0 var(--warn),
+        inset 0 0 0 1px color-mix(in srgb, var(--warn) 55%, var(--line)),
         var(--shadow);
+      .off-head {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .off-head app-icon {
+        color: var(--warn);
+      }
       .checks {
         margin: 0;
         padding-inline-start: 20px;

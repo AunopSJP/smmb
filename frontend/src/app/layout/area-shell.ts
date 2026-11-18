@@ -413,9 +413,6 @@ const MOCK_SCREENS = new Set<string>();
       background: var(--brand-light);
       font-weight: var(--fw-strong);
     }
-    .side .sub a.active::before {
-      display: none;
-    }
     .sep {
       border: 0;
       border-block-start: 1px solid var(--line);
@@ -448,9 +445,6 @@ const MOCK_SCREENS = new Set<string>();
       min-inline-size: 18px;
       padding: 0 4px;
       font-size: var(--fs-xs);
-    }
-    .side.mini a.active::before {
-      inset-inline-start: -10px;
     }
     .side.mini .me {
       justify-content: center;
@@ -549,16 +543,7 @@ const MOCK_SCREENS = new Set<string>();
     .side a.active app-icon {
       color: var(--brand-text);
     }
-    .side a.active::before {
-      content: '';
-      position: absolute;
-      inset-inline-start: -14px;
-      inset-block-start: 8px;
-      inset-block-end: 8px;
-      inline-size: 4px;
-      border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
-      background: var(--brand);
-    }
+    /* เมนูที่เลือก = พื้นอ่อน + สีแบรนด์ + ตัวหนา + ไอคอนสีแบรนด์ — ไม่มีแถบสีหนาด้านซ้าย (ผู้ใช้สั่งเลิก 2026-11-18) */
     .me {
       margin-block-start: auto;
       display: flex;

@@ -397,27 +397,44 @@ static void sendInspectionPhoto(const String &jobId)
   uint8_t *jpeg = nullptr;
   size_t len = 0;
   if (!linkHooks.snapshotJpeg(&jpeg, &len) || !jpeg)
-    return;
-  if (len > 0 && len <= 85000)
   {
-    const size_t outCap = ((len + 2) / 3) * 4 + 4;
-    char *b64 = (char *)malloc(outCap);
-    size_t outLen = 0;
-    if (b64 && mbedtls_base64_encode((unsigned char *)b64, outCap, &outLen, jpeg, len) == 0)
-    {
-      String body;
-      body.reserve(outLen + 24);
-      body = "{\"jpeg_b64\":\"";
-      body.concat(b64, outLen);
-      body += "\"}";
-      free(jpeg);
-      jpeg = nullptr; // คืนหน่วยความจำก่อนส่ง (ESP32-CAM heap น้อย)
-      const LinkResponse r = linkRequest("POST", "/v1/box/jobs/" + jobId + "/photo", body, 8000);
-      Serial.printf("[job] photo %u B → %d\n", (unsigned)len, r.status);
-    }
-    free(b64);
+    Serial.println("[job] photo: snapshot failed");
+    return;
   }
-  free(jpeg);
+  if (len == 0 || len > 85000)
+  {
+    Serial.printf("[job] photo: size %u B out of range - dropped\n", (unsigned)len);
+    free(jpeg);
+    return;
+  }
+  // เข้ารหัส base64 ลง String ทีละช่วงเล็ก ๆ — ไม่ต้องมีบัฟเฟอร์ base64 ก้อนใหญ่ซ้อนกับ body (heap ภายในของ ESP32-CAM น้อย)
+  String body;
+  if (!body.reserve(((len + 2) / 3) * 4 + 24))
+  {
+    Serial.printf("[job] photo: no heap for %u B body (free %u, largest %u) - dropped\n", (unsigned)len, (unsigned)ESP.getFreeHeap(),
+                  (unsigned)ESP.getMaxAllocHeap());
+    free(jpeg);
+    return;
+  }
+  body = "{\"jpeg_b64\":\"";
+  char chunk[1025];
+  bool ok = true;
+  for (size_t off = 0; off < len && ok; off += 768)
+  {
+    size_t n = len - off < 768 ? len - off : 768, outLen = 0;
+    ok = mbedtls_base64_encode((unsigned char *)chunk, sizeof chunk, &outLen, jpeg + off, n) == 0;
+    if (ok)
+      body.concat(chunk, outLen);
+  }
+  free(jpeg); // คืนหน่วยความจำก่อนส่ง
+  if (!ok)
+  {
+    Serial.println("[job] photo: base64 failed");
+    return;
+  }
+  body += "\"}";
+  const LinkResponse r = linkRequest("POST", "/v1/box/jobs/" + jobId + "/photo", body, 8000);
+  Serial.printf("[job] photo %u B -> %d\n", (unsigned)len, r.status);
 }
 
 static bool inspectPassFlag = false;

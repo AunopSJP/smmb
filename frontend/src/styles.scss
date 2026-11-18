@@ -716,9 +716,10 @@ button.row:active {
   flex: none;
   color: var(--text-muted);
 }
+/* แถวที่ "ควรทำก่อน": พื้นแถวอมสีแบรนด์อ่อน + ไอคอนสีแบรนด์ — ไม่มีขอบ/แถบ (เดิมเป็นแถบสีหนาด้านซ้าย ผู้ใช้สั่งเลิก 2026-11-18 ·
+   วงขอบถูกลองแล้วแต่ขอบการ์ดแม่ตัดด้านข้าง เหลือเป็นเส้นแดงบน-ล่างคล้ายเส้นคั่น) */
 .menu-row.priority {
-  background: var(--brand-lighter);
-  box-shadow: inset 3px 0 0 var(--brand);
+  background: color-mix(in srgb, var(--brand) 9%, var(--surface));
 }
 .menu-row.priority .mi {
   color: var(--brand-text);
