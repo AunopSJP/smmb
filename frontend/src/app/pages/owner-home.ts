@@ -118,7 +118,7 @@ const REFRESH_MS = 10_000;
               @if (!easy() && lastInspection(b); as li) {
                 <span class="small">{{ i18n.t({ th: 'เจ้าหน้าที่ตรวจล่าสุด ', en: 'Last officer check ' }) }}{{ li }}</span>
               }
-              <a class="btn" [routerLink]="url('H12-d')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'ดูวิธีแก้', en: 'See how to fix it' }) }}</a>
+              <a class="btn secondary" [routerLink]="url('H12-d')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'ดูวิธีแก้', en: 'See how to fix it' }) }}</a>
             } @else {
               <span class="small">{{ i18n.t({ th: 'เจ้าหน้าที่จะตรวจตู้ไม่ได้จนกว่าตู้จะกลับมาออนไลน์', en: 'Officers cannot check the mailbox until it is back online' }) }}</span>
               @if (lastInspection(b); as li) {
@@ -485,8 +485,11 @@ const REFRESH_MS = 10_000;
       padding: 6px 12px;
     }
     .offline {
-      border: 2px solid var(--brand);
-      box-shadow: none;
+      /* ตู้ออนไลน์ไม่ได้ = ต้องดู ไม่ใช่เหตุฉุกเฉิน → แถบสีเตือนด้านข้าง (แดงเก็บไว้ให้ SOS) */
+      border: 0;
+      box-shadow:
+        inset 3px 0 0 var(--warn),
+        var(--shadow);
       .checks {
         margin: 0;
         padding-inline-start: 20px;

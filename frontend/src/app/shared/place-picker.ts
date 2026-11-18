@@ -36,7 +36,7 @@ function findByName<T extends { name: string }>(list: T[], text: string): T | un
         type="text"
         autocomplete="off"
         [attr.list]="listId + '-province'"
-        [placeholder]="i18n.t({ th: 'พิมพ์เพื่อค้นหา หรือเลือกจากรายการ', en: 'Type to search or pick from the list' })"
+        [placeholder]="i18n.t({ th: 'พิมพ์ค้นหาหรือเลือก', en: 'Type or pick' })"
         [value]="province()"
         (change)="pickProvince($any($event.target).value)"
       />
@@ -54,7 +54,7 @@ function findByName<T extends { name: string }>(list: T[], text: string): T | un
           autocomplete="off"
           [disabled]="provinceId() === null"
           [attr.list]="listId + '-district'"
-          [placeholder]="i18n.t({ th: 'พิมพ์เพื่อค้นหา หรือเลือกจากรายการ', en: 'Type to search or pick from the list' })"
+          [placeholder]="i18n.t({ th: 'พิมพ์ค้นหาหรือเลือก', en: 'Type or pick' })"
           [value]="district()"
           (change)="pickDistrict($any($event.target).value)"
         />
@@ -71,7 +71,7 @@ function findByName<T extends { name: string }>(list: T[], text: string): T | un
           autocomplete="off"
           [disabled]="districtId() === null"
           [attr.list]="listId + '-subdistrict'"
-          [placeholder]="i18n.t({ th: 'พิมพ์เพื่อค้นหา หรือเลือกจากรายการ', en: 'Type to search or pick from the list' })"
+          [placeholder]="i18n.t({ th: 'พิมพ์ค้นหาหรือเลือก', en: 'Type or pick' })"
           [value]="subdistrict()"
           (change)="pickSubdistrict($any($event.target).value)"
         />

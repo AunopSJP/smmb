@@ -144,18 +144,19 @@
 /* ── เพิ่มบ้านเข้าโซน (multi-select) ── */
 .search-row {
   display: flex;
-  align-items: center;
+  /* ช่องค้นกับปุ่ม "ค้น" สูงเท่ากันทุกโหมด (โหมดง่ายปุ่มสูง 60px ช่องต้องตามให้เท่า) */
+  align-items: stretch;
   gap: 8px;
 
   input {
     flex: 1;
     min-inline-size: 0;
     font: inherit;
-    min-block-size: 44px;
-    padding: 6px 10px;
+    min-block-size: 48px;
+    padding: 6px 14px;
     border-radius: var(--radius-sm);
-    border: 1.5px solid var(--line);
-    background: var(--surface);
+    border: 1.5px solid color-mix(in srgb, var(--text-muted) 38%, transparent);
+    background: var(--bg);
     color: var(--text);
   }
 }

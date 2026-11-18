@@ -226,6 +226,11 @@
     min-block-size: 72px;
     font-size: var(--fs-md);
   }
+  /* โหมดง่าย: ช่องกรอกสูงเท่าปุ่ม แตะง่าย (โหมดปกติ 48px) */
+  .field input:not([type='checkbox']):not([type='radio']),
+  .field select {
+    min-block-size: 60px;
+  }
   .list .row {
     padding-block: 14px;
   }

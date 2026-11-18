@@ -204,7 +204,7 @@ export class HeadZones implements OnInit {
     <app-page-header [caption]="isNew() ? i18n.t({ th: 'สร้างโซน', en: 'New zone' }) : i18n.t({ th: 'แก้ไขโซน', en: 'Edit zone' })" [title]="name() || i18n.t({ th: 'โซนใหม่', en: 'New zone' })" [back]="url('L06')" />
     <div class="stack grow">
       @if (zone(); as z) {
-        <p class="adv-only">{{ i18n.t({ th: 'แก้ล่าสุด ', en: 'Updated ' }) }}{{ updated(z.updated_at) }}</p>
+        <p class="adv-only muted small" style="margin-inline: 4px">{{ i18n.t({ th: 'แก้ล่าสุด ', en: 'Updated ' }) }}{{ updated(z.updated_at) }}</p>
         <div class="tabs" role="tablist" [attr.aria-label]="i18n.t({ th: 'แท็บของโซน', en: 'Zone tabs' })">
           <button type="button" role="tab" [attr.aria-selected]="tab() === 'settings'" [class.active]="tab() === 'settings'" (click)="tab.set('settings')">{{ i18n.t({ th: 'ตั้งค่า', en: 'Settings' }) }}</button>
           <button type="button" role="tab" [attr.aria-selected]="tab() === 'houses'" [class.active]="tab() === 'houses'" (click)="tab.set('houses')">{{ i18n.t({ th: 'บ้าน', en: 'Houses' }) }} ({{ z.houses.length }})</button>
@@ -315,7 +315,7 @@ export class HeadZones implements OnInit {
             </p>
           } @else {
           <form class="search-row" (submit)="$event.preventDefault(); search()">
-            <input type="search" [attr.aria-label]="i18n.t({ th: 'ค้นบ้าน', en: 'Search houses' })" [placeholder]="i18n.t({ th: 'บ้านเลขที่ / หมู่บ้าน / รหัสตู้', en: 'House no. / village / box id' })" [value]="q()" (input)="q.set($any($event.target).value)" />
+            <input type="search" [attr.aria-label]="i18n.t({ th: 'ค้นบ้าน', en: 'Search houses' })" [placeholder]="i18n.t({ th: 'เลขที่ หรือหมู่บ้าน', en: 'House no. or village' })" [value]="q()" (input)="q.set($any($event.target).value)" />
             <button type="submit" class="btn secondary small-btn" [disabled]="searching()">{{ i18n.t({ th: 'ค้น', en: 'Search' }) }}</button>
           </form>
           <div class="filters easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'ตัวกรอง', en: 'Filters' })">
@@ -323,7 +323,7 @@ export class HeadZones implements OnInit {
             <label class="chip-toggle"><input type="checkbox" [checked]="onlyOnline()" (change)="onlyOnline.set($any($event.target).checked); refilter()" />{{ i18n.t({ th: 'ตู้ออนไลน์', en: 'Box online' }) }}</label>
           </div>
           <button type="button" class="btn small-btn browse" [disabled]="searching()" (click)="suggest()">
-            {{ i18n.t({ th: 'บ้านที่แนะนำ (ข้อมูลครบ ในพื้นที่โซน)', en: 'Suggested houses (complete, inside this area)' }) }}
+            {{ i18n.t({ th: 'บ้านที่แนะนำในพื้นที่', en: 'Suggested houses in this area' }) }}
           </button>
           <button type="button" class="btn secondary small-btn browse easy-hide" [disabled]="searching()" (click)="browse()">
             {{ i18n.t({ th: 'ดูบ้านที่ยังไม่มีใครดูแล', en: 'Show houses nobody covers yet' }) }}

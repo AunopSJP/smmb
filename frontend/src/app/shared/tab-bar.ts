@@ -14,6 +14,7 @@ import { Icon } from './icon';
     <nav [attr.aria-label]="i18n.t({ th: 'เมนูหลัก', en: 'Main menu' })">
       @for (tab of tabs(); track tab.code) {
         <a
+          class="tab"
           [routerLink]="url(tab.code)"
           routerLinkActive="active"
           [routerLinkActiveOptions]="activeOptions(tab.code)"
