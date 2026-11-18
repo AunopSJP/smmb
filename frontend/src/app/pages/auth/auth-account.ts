@@ -12,6 +12,7 @@ import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
+import { StepProgress } from '../../shared/step-progress';
 import { PasswordField, TermsCheck } from './auth-parts';
 import { addressStepValid, detailsStepValid, emptyHouseProfile, houseProfilePayload, houseProfileValid } from '../../shared/house-fields';
 import { SignupAddressStep, SignupDetailsStep, SignupHouseReview } from '../../shared/signup-owner-steps';
@@ -263,11 +264,11 @@ export class AuthChangePassword {
 
 @Component({
   selector: 'app-auth-add-owner',
-  imports: [PageHeader, TermsCheck, SignupAddressStep, SignupDetailsStep, SignupHouseReview],
+  imports: [PageHeader, StepProgress, TermsCheck, SignupAddressStep, SignupDetailsStep, SignupHouseReview],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'ขั้น ' + step() + ' จาก 3 · ', en: 'Step ' + step() + ' of 3 · ' }) + i18n.t(stepNames[step() - 1])" [title]="i18n.t({ th: 'เพิ่มบทบาทเจ้าของบ้าน', en: 'Add homeowner role' })" [back]="step() === 1 ? backUrl() : undefined" />
-    <span class="progress" role="progressbar" aria-valuemin="1" aria-valuemax="3" [attr.aria-label]="i18n.t({ th: 'ขั้นตอนการเพิ่มบทบาท', en: 'Add-role progress' })" [attr.aria-valuetext]="i18n.t({ th: 'ขั้นที่ ', en: 'Step ' }) + step() + i18n.t({ th: ' จาก 3', en: ' of 3' })" [attr.aria-valuenow]="step()"><span [style.width.%]="(step() / 3) * 100"></span></span>
+    <app-step-progress [count]="3" [current]="step()" [label]="{ th: 'ขั้นตอนการเพิ่มบทบาท', en: 'Add-role progress' }" />
     <form class="stack grow" (submit)="$event.preventDefault(); step() < 3 ? next() : submit()">
       @if (stepError(); as e) {
         <p class="card err" role="alert" id="addrole-error">{{ i18n.t(e) }}</p>
@@ -309,20 +310,6 @@ export class AuthChangePassword {
   styles: `
     .grow {
       flex: 1;
-    }
-    .progress {
-      display: block;
-      block-size: 6px;
-      border-radius: var(--radius-xs);
-      background: var(--line);
-      overflow: hidden;
-      margin-block: 4px;
-      span {
-        display: block;
-        block-size: 100%;
-        background: var(--brand);
-        transition: width 0.2s;
-      }
     }
   `,
 })

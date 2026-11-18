@@ -102,12 +102,19 @@ const RESULT_TEXT: Record<string, Tr> = {
           </label>
           <label class="field">
             <span>{{ i18n.t({ th: 'เจ้าหน้าที่', en: 'Officer' }) }}</span>
-            <select [value]="fOfficer()" (change)="fOfficer.set($any($event.target).value)">
-              <option value="">{{ i18n.t({ th: 'ทุกคน', en: 'Everyone' }) }}</option>
+            <input
+              type="text"
+              autocomplete="off"
+              list="log-officer-list"
+              [placeholder]="i18n.t({ th: 'พิมพ์ชื่อ หรือเลือกจากรายการ', en: 'Type a name or pick from the list' })"
+              [value]="fOfficerName()"
+              (change)="pickOfficer($any($event.target).value)"
+            />
+            <datalist id="log-officer-list">
               @for (m of officerOptions(); track m.id) {
-                <option [value]="m.id">{{ m.display_name }}</option>
+                <option [value]="m.display_name"></option>
               }
-            </select>
+            </datalist>
           </label>
           <label class="field">
             <span>{{ i18n.t({ th: 'บ้านเลขที่ / รหัสตู้', en: 'House no. / box id' }) }}</span>
@@ -278,6 +285,8 @@ export class HeadLog implements OnInit {
   // ตัวกรอง (ส่งให้เซิร์ฟเวอร์กรอง — ไม่ใช่กรองเฉพาะ 30 แถวที่โหลดมา)
   protected readonly fZone = signal('');
   protected readonly fOfficer = signal('');
+  /** ชื่อที่พิมพ์/เลือกในช่องค้นหาเจ้าหน้าที่ (ค่าว่าง = ทุกคน) */
+  protected readonly fOfficerName = signal('');
   protected readonly fQ = signal('');
   protected readonly fFrom = signal('');
   protected readonly fTo = signal('');
@@ -332,6 +341,10 @@ export class HeadLog implements OnInit {
   }
 
   protected async apply(): Promise<void> {
+    if (this.fOfficerName().trim() && !this.fOfficer()) {
+      this.toast.show({ th: 'เลือกเจ้าหน้าที่จากรายการที่ขึ้นให้', en: 'Pick an officer from the list' });
+      return;
+    }
     if (this.fFrom() && this.fTo() && this.fFrom() > this.fTo()) {
       this.toast.show({ th: 'วันที่เริ่มต้องไม่เกินวันที่สิ้นสุด', en: '“From” must not be after “To”' });
       return;
@@ -346,6 +359,17 @@ export class HeadLog implements OnInit {
   protected setProblems(on: boolean): void {
     this.onlyProblems.set(on);
     void this.apply();
+  }
+
+  /** เลือกเจ้าหน้าที่จากชื่อในรายการ — พิมพ์บางส่วนที่ตรงคนเดียวก็ใช้ได้ · ไม่ตรงใคร = ยังไม่กรอง */
+  protected pickOfficer(text: string): void {
+    const name = text.trim();
+    const list = this.officerOptions();
+    const exact = list.find((x) => x.display_name.trim() === name);
+    const near = name ? list.filter((x) => x.display_name.includes(name)) : [];
+    const m = exact ?? (near.length === 1 ? near[0] : undefined);
+    this.fOfficerName.set(name);
+    this.fOfficer.set(m?.id ?? '');
   }
 
   /** D4: เลือกช่วงวันด้วยแคปซูลเดียว (คำนวณจากวันนี้เวลาไทย) */
@@ -366,6 +390,7 @@ export class HeadLog implements OnInit {
   protected clearFilters(): void {
     this.fZone.set('');
     this.fOfficer.set('');
+    this.fOfficerName.set('');
     this.fQ.set('');
     this.fFrom.set('');
     this.fTo.set('');

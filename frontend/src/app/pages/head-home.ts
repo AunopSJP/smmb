@@ -61,7 +61,7 @@ interface RecentLog {
       <!-- โหมดง่าย: ตัวเลขใหญ่ 3 ตัว + คำขอรออนุมัติ (ตาม HeadEasy) -->
       <div class="easy-only stack">
         <section class="hero">
-          <p class="hero-n">{{ checked() }} <small>{{ i18n.t({ th: 'จาก ' + total() + ' ตู้', en: 'of ' + total() }) }}</small></p>
+          <p class="hero-n">{{ checked() }} <small>{{ i18n.t({ th: 'จาก ' + total() + ' ตู้', en: 'of ' + total() }) }} · {{ pctTotal() }}%</small></p>
           <p class="hero-label">{{ i18n.t({ th: 'ตรวจแล้ววันนี้', en: 'Checked today' }) }}</p>
           <span class="hero-bar" role="progressbar" aria-valuemin="0" [attr.aria-label]="i18n.t({ th: 'ตรวจแล้ววันนี้', en: 'Checked today' })" [attr.aria-valuenow]="checked()" [attr.aria-valuemax]="total()"><span [style.width.%]="pctTotal()"></span></span>
         </section>
@@ -181,7 +181,7 @@ interface RecentLog {
             <span class="grow">
               <span class="zt">
                 <strong>{{ z.name }}</strong>
-                <span class="muted small">{{ z.houses_checked }} / {{ z.houses_total }}</span>
+                <span class="muted small">{{ z.houses_checked }} / {{ z.houses_total }} · {{ pct(z) }}%</span>
               </span>
               <span class="bar" role="progressbar" aria-valuemin="0" [attr.aria-label]="i18n.t({ th: 'บ้านที่ตรวจแล้วในโซน', en: 'Houses checked in zone' })" [attr.aria-valuenow]="z.houses_checked" [attr.aria-valuemax]="z.houses_total"><span [style.width.%]="pct(z)"></span></span>
               <span class="muted small block">

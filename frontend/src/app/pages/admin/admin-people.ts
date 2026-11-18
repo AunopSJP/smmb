@@ -383,7 +383,7 @@ const ROLE_LABEL: Record<string, Tr> = {
           <div class="two easy-hide">
             <button type="button" class="btn secondary" [disabled]="busy()" (click)="reset(u)">{{ i18n.t({ th: 'รีเซ็ตรหัส', en: 'Reset password' }) }}</button>
             @if (u.status === 'active') {
-              <button type="button" class="btn secondary" [disabled]="busy()" (click)="setStatus(u, 'disabled')">{{ i18n.t({ th: 'ปิดบัญชี', en: 'Disable' }) }}</button>
+              <button type="button" class="btn secondary outline-danger" [disabled]="busy()" (click)="setStatus(u, 'disabled')">{{ i18n.t({ th: 'ปิดบัญชี', en: 'Disable' }) }}</button>
             } @else {
               <button type="button" class="btn" [disabled]="busy()" (click)="setStatus(u, 'active')">{{ i18n.t({ th: 'เปิดบัญชี', en: 'Enable' }) }}</button>
             }

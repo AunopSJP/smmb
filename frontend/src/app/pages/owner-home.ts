@@ -352,7 +352,7 @@ const REFRESH_MS = 10_000;
         }
       </div>
 
-      <div class="sos-bar">
+      <div class="sos-bar" [class.holding]="holding()">
         <button
           type="button"
           class="btn big sos"

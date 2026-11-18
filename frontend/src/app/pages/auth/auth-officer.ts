@@ -13,6 +13,7 @@ import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
+import { StepProgress } from '../../shared/step-progress';
 import { ContactCard } from '../../shared/contact-card';
 import { emptyExtras, extrasPayload, extrasValid, ProfileExtras } from '../../shared/profile-extras';
 import { PasswordField, TermsCheck } from './auth-parts';
@@ -25,11 +26,11 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
 
 @Component({
   selector: 'app-auth-signup-officer',
-  imports: [PageHeader, PasswordField, TermsCheck, RouterLink, ProfileExtras],
+  imports: [PageHeader, StepProgress, PasswordField, TermsCheck, RouterLink, ProfileExtras],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'ขั้น ' + step() + ' จาก 2', en: 'Step ' + step() + ' of 2' })" [title]="i18n.t({ th: 'สมัครเจ้าหน้าที่', en: 'Officer sign-up' })" [back]="step() === 1 ? url('A05') : undefined" />
-    <span class="progress" role="progressbar" aria-valuemin="1" aria-valuemax="2" [attr.aria-label]="i18n.t({ th: 'ขั้นตอนการสมัคร', en: 'Signup progress' })" [attr.aria-valuetext]="i18n.t({ th: 'ขั้นที่ ', en: 'Step ' }) + step() + i18n.t({ th: ' จาก 2', en: ' of 2' })" [attr.aria-valuenow]="step()"><span [style.width.%]="(step() / 2) * 100"></span></span>
+    <app-step-progress [count]="2" [current]="step()" [label]="{ th: 'ขั้นตอนการสมัคร', en: 'Signup progress' }" />
     <form class="stack grow" (submit)="$event.preventDefault(); step() < 2 ? next() : submit()">
       @if (step() === 1) {
       <!-- B4: ช่องบังคับทั้ง 3 อยู่ใน .form-section เดียวกัน (เดิม 3 ช่องแรกอยู่นอกการ์ด) -->
@@ -66,7 +67,7 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
           </label>
           <label class="field">
             <span>{{ i18n.t({ th: 'เบอร์โทร', en: 'Phone' }) }}</span>
-            <input type="tel" inputmode="tel" autocomplete="off" [value]="emPhone()" (input)="emPhone.set($any($event.target).value)" />
+            <input type="tel" inputmode="numeric" autocomplete="off" placeholder="0__-___-____" [value]="emPhone()" (input)="emPhone.set(bindPhone($any($event.target)))" />
           </label>
         </div>
         <p class="form-hint">{{ i18n.t({ th: 'กรอกทั้งชื่อและเบอร์ หรือเว้นว่างทั้งคู่ · หัวหน้าหน่วยงานเห็นเพื่อใช้ตอนเกิดเหตุกับคุณ', en: 'Fill in both, or leave both empty · your agency head can see it for emergencies involving you' }) }}</p>
@@ -126,20 +127,6 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
     a {
       color: inherit;
       font-weight: 700;
-    }
-    .progress {
-      display: block;
-      block-size: 6px;
-      border-radius: var(--radius-xs);
-      background: var(--line);
-      overflow: hidden;
-      margin-block: 4px;
-      span {
-        display: block;
-        block-size: 100%;
-        background: var(--brand);
-        transition: width 0.2s;
-      }
     }
   `,
 })

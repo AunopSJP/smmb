@@ -11,6 +11,7 @@ import { QrScanner } from '../../shared/qr-scanner';
 import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
+import { StepProgress } from '../../shared/step-progress';
 import { Steps, type Step } from '../../shared/steps';
 import { ContactCard } from '../../shared/contact-card';
 import { PasswordField, TermsCheck } from './auth-parts';
@@ -40,11 +41,11 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
 
 @Component({
   selector: 'app-auth-signup-owner',
-  imports: [RouterLink, PageHeader, PasswordField, TermsCheck, SignupAddressStep, SignupDetailsStep, SignupHouseReview],
+  imports: [RouterLink, PageHeader, StepProgress, PasswordField, TermsCheck, SignupAddressStep, SignupDetailsStep, SignupHouseReview],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'ขั้น ' + step() + ' จาก 4 · ', en: 'Step ' + step() + ' of 4 · ' }) + i18n.t(stepNames[step() - 1])" [title]="i18n.t({ th: 'สมัครเจ้าของบ้าน', en: 'Homeowner sign-up' })" [back]="step() === 1 ? url('A05') : undefined" />
-    <span class="progress" role="progressbar" aria-valuemin="1" aria-valuemax="4" [attr.aria-label]="i18n.t({ th: 'ขั้นตอนการสมัคร', en: 'Signup progress' })" [attr.aria-valuetext]="i18n.t({ th: 'ขั้นที่ ', en: 'Step ' }) + step() + i18n.t({ th: ' จาก 4', en: ' of 4' })" [attr.aria-valuenow]="step()"><span [style.width.%]="(step() / 4) * 100"></span></span>
+    <app-step-progress [count]="4" [current]="step()" [label]="{ th: 'ขั้นตอนการสมัคร', en: 'Signup progress' }" />
     <form class="stack grow" (submit)="$event.preventDefault(); step() < 4 ? next() : submit()">
       @if (stepError(); as e) {
         <p class="card err" role="alert" id="signup-error">{{ i18n.t(e) }}</p>
@@ -120,20 +121,6 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
     a {
       color: inherit;
       font-weight: 700;
-    }
-    .progress {
-      display: block;
-      block-size: 6px;
-      border-radius: var(--radius-xs);
-      background: var(--line);
-      overflow: hidden;
-      margin-block: 4px;
-      span {
-        display: block;
-        block-size: 100%;
-        background: var(--brand);
-        transition: width 0.2s;
-      }
     }
   `,
 })

@@ -11,6 +11,7 @@ import { AuthDemo, normalizePhone, PASSWORD_MIN, type SignupForm } from '../../c
 import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
+import { StepProgress } from '../../shared/step-progress';
 import { PushStatus } from '../../shared/push-status';
 import { Steps, type Step } from '../../shared/steps';
 import { SIGNUP_ERROR } from '../auth/auth-owner';
@@ -33,11 +34,11 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
 
 @Component({
   selector: 'app-head-signup',
-  imports: [PageHeader, PasswordField, TermsCheck, RouterLink, AgencyFields, ProfileExtras],
+  imports: [PageHeader, StepProgress, PasswordField, TermsCheck, RouterLink, AgencyFields, ProfileExtras],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'ขั้น ' + step() + ' จาก 4 · ', en: 'Step ' + step() + ' of 4 · ' }) + i18n.t(stepNames[step() - 1])" [title]="i18n.t({ th: 'สมัครหน่วยงาน', en: 'Register an agency' })" [back]="step() === 1 ? url('A05') : undefined" />
-    <span class="progress" role="progressbar" aria-valuemin="1" aria-valuemax="4" [attr.aria-label]="i18n.t({ th: 'ขั้นตอนการสมัคร', en: 'Signup progress' })" [attr.aria-valuetext]="i18n.t({ th: 'ขั้นที่ ', en: 'Step ' }) + step() + i18n.t({ th: ' จาก 4', en: ' of 4' })" [attr.aria-valuenow]="step()"><span [style.width.%]="(step() / 4) * 100"></span></span>
+    <app-step-progress [count]="4" [current]="step()" [label]="{ th: 'ขั้นตอนการสมัคร', en: 'Signup progress' }" />
     <form class="stack grow" (submit)="$event.preventDefault(); step() < 4 ? next() : submit()">
       @if (stepError(); as e) {
         <p class="card err" role="alert" id="signup-error">{{ i18n.t(e) }}</p>
@@ -148,20 +149,6 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
     a {
       color: inherit;
       font-weight: 700;
-    }
-    .progress {
-      display: block;
-      block-size: 6px;
-      border-radius: var(--radius-xs);
-      background: var(--line);
-      overflow: hidden;
-      margin-block: 4px;
-      span {
-        display: block;
-        block-size: 100%;
-        background: var(--brand);
-        transition: width 0.2s;
-      }
     }
   `,
 })

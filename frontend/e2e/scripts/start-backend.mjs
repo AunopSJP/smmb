@@ -14,7 +14,7 @@ const child = spawn(process.execPath, ['scripts/dev-mock.mjs'], {
   env: {
     ...process.env,
     PORT: '3211',
-    MOCK_DB_PORT: '54339',
+    MOCK_DB_PORT: process.env.E2E_DB_PORT ?? '54339', // เครื่อง Windows บางเครื่องสำรองช่วง 54330–54429 ไว้ → ตั้ง E2E_DB_PORT เป็นพอร์ตอื่น
     SMMB_MOCK_DATA_DIR: '.mockdb-e2e',
     SMMB_DEMO_HOST: 'localhost',
     PUBLIC_BASE_URL: 'http://localhost:4211',

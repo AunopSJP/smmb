@@ -154,7 +154,7 @@ const toMinutes = (hhmm: string): number | null => {
             <span class="chip ok window">{{ i18n.t({ th: 'อยู่ในเวลาตรวจ', en: 'Patrol hours' }) }} {{ windowText() }}</span>
             <p class="count">
               <strong>{{ s.houses_checked }}</strong>
-              <span class="muted">/ {{ s.houses_total }} {{ i18n.t({ th: 'หลัง ตรวจแล้ว', en: 'houses checked' }) }}</span>
+              <span class="muted">/ {{ s.houses_total }} {{ i18n.t({ th: 'หลัง ตรวจแล้ว', en: 'houses checked' }) }} · {{ percent() }}%</span>
             </p>
             <span class="bar" role="progressbar" aria-valuemin="0" [attr.aria-label]="i18n.t({ th: 'บ้านที่ตรวจแล้ว', en: 'Houses checked' })" [attr.aria-valuenow]="s.houses_checked" [attr.aria-valuemax]="s.houses_total">
               <span [style.width.%]="percent()"></span>
