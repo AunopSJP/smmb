@@ -46,6 +46,17 @@ describe('PushStatus', () => {
     expect((await renderAsync(true, true, false)).textContent).toContain('เปิดแจ้งเตือน');
   });
 
+  it('compact bar links to the help page when this device cannot turn on directly', () => {
+    const el = render(false, 'ios-not-installed', true);
+    expect(el.textContent).toContain('ดูวิธีเปิด');
+    expect(el.querySelector('button.btn')).toBeNull();
+  });
+
+  it('compact bar turns on directly when nothing blocks it', () => {
+    const el = render(false, null, true);
+    expect(el.querySelector('button.btn')?.textContent).toContain('เปิดแจ้งเตือน');
+  });
+
   it('says this device is on and offers a test', () => {
     const el = render(true, null);
     expect(el.textContent).toContain('เครื่องนี้รับแจ้งเตือนอยู่');

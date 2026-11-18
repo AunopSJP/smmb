@@ -95,8 +95,8 @@ const REFRESH_MS = 10_000;
       />
 
       <div class="stack page">
-        <!-- C4: แบนเนอร์เต็มแสดงเฉพาะหน้าหลัก (และหน้าตั้งค่าการแจ้งเตือน) · จำการปิดต่อเครื่อง -->
-        <app-push-status [dismissible]="true" [hideWhenOn]="true" />
+        <!-- แถบบรรทัดเดียวแบบหน้าเจ้าหน้าที่ · เจ้าของบ้านกดปิดไว้ก่อนได้ (จำต่อเครื่อง) -->
+        <app-push-status [compact]="true" [dismissible]="true" deviceLabel="owner" />
         @if (boxes().length > 1) {
           <app-box-picker [boxes]="boxes()" [value]="b.id" (pick)="select($event)" />
         }

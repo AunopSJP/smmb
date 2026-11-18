@@ -51,7 +51,12 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
       @if (compact()) {
         <div class="card status warn bar" role="status">
           <strong class="grow lead"><app-icon name="alert" [size]="18" />{{ i18n.t({ th: 'ยังไม่ได้รับแจ้งเตือนบนเครื่องนี้', en: 'Notifications are off on this device' }) }}</strong>
-          <button type="button" class="btn" [disabled]="busy()" (click)="turnOn()">{{ i18n.t({ th: 'เปิดแจ้งเตือน', en: 'Turn on' }) }}</button>
+          <!-- เครื่องนี้กดเปิดตรง ๆ ไม่ได้ (iPhone ยังไม่ติดตั้ง / LINE / เคยปฏิเสธสิทธิ์) → พาไปหน้าที่มีคำแนะนำเต็ม -->
+          @if (blocker()) {
+            <a class="btn secondary" routerLink="/settings/notifications">{{ i18n.t({ th: 'ดูวิธีเปิด', en: 'How to turn on' }) }}</a>
+          } @else {
+            <button type="button" class="btn" [disabled]="busy()" (click)="turnOn()">{{ i18n.t({ th: 'เปิดแจ้งเตือน', en: 'Turn on' }) }}</button>
+          }
           @if (dismissible() && !required()) {
             <button type="button" class="x" (click)="snooze()" [attr.aria-label]="i18n.t({ th: 'ปิดไว้ก่อน จะเตือนอีกครั้งใน ', en: 'Dismiss for now — reminds again in ' }) + hours + i18n.t({ th: ' ชั่วโมง', en: ' hours' })">✕</button>
           }
@@ -160,6 +165,9 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
         align-items: center;
         gap: 10px;
         padding: 10px 12px;
+      }
+      &.bar .x {
+        margin: 0 -8px 0 -6px;
       }
       &.bar strong {
         font-size: var(--fs-sm);
