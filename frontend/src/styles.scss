@@ -923,7 +923,7 @@ app-area-shell main > :not(router-outlet) {
   background: var(--line);
   position: relative;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background-color var(--dur-fast) var(--ease-out);
   margin: 0;
 
   &::after {
@@ -936,10 +936,11 @@ app-area-shell main > :not(router-outlet) {
     border-radius: 50%;
     background: #fff;
     box-shadow: 0 1px 3px rgb(0 0 0 / 30%);
-    transition: transform 0.15s;
+    transition: transform var(--dur-base) var(--ease-out);
   }
+  /* เปิด = แดงแบรนด์ (ผู้ใช้เลือก 2026-11-18) · เขียวสงวนให้ "สำเร็จ" เท่านั้น */
   &:checked {
-    background: var(--ok);
+    background: var(--action-bg);
   }
   &:checked::after {
     transform: translateX(20px);

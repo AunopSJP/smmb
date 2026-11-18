@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- แบบ maskable: พื้นเต็มภาพ + เนื้อหาอยู่ในโซนปลอดภัย 80% กลางภาพ -->
+  <rect width="512" height="512" fill="#9a2f36"/>
+  <g transform="translate(256 256) scale(0.8) translate(-256 -256)">
+  <g transform="translate(0 -22)">
+      <rect x="332" y="82" width="26" height="170" rx="10" fill="#fff"/>
+      <rect x="350" y="82" width="86" height="54" rx="10" fill="#fff"/>
+      <path d="M72 350V250a100 100 0 0 1 100-100h168a100 100 0 0 1 100 100v100z" fill="#fff"/>
+      <path d="M72 298h368v52H72z" fill="#e6e6e8"/>
+      <rect x="150" y="214" width="212" height="28" rx="14" fill="#6f1f25"/>
+      <rect x="226" y="350" width="60" height="130" rx="8" fill="#fff"/>
+      <rect x="226" y="350" width="60" height="22" fill="#e6e6e8"/>
+    </g>
+  </g>
+</svg>
