@@ -195,6 +195,11 @@ bool cameraStart() {
   }
   // ภาพ native ตามสเก็ตช์ esp32-cam-qvga15: ไม่กลับภาพ/ไม่เร่ง contrast (ภาพกลับซ้าย-ขวาถอดได้ด้วยการลองกลับด้านใน scanFrame) · sharpness/ae ปรับได้ด้วย cam
   if (sensor_t* sen = esp_camera_sensor_get()) {
+    // 0.2.27 ตามโปรไฟล์ camap: เพดานเกน 2× กันนอยส์ตอนแสงน้อย + เปิดสมดุลแสงขาว/ชดเชยแสงอัตโนมัติ · พิมพ์ PID ให้รู้ว่าเซ็นเซอร์ตัวไหน
+    Serial.printf("[cam] sensor PID 0x%04X · %s · xclk %u MHz\n", (unsigned)sen->id.PID, settings.camSize.c_str(), (unsigned)settings.camXclk);
+    sen->set_gainceiling(sen, GAINCEILING_2X);
+    sen->set_whitebal(sen, 1);
+    sen->set_exposure_ctrl(sen, 1);
     if (settings.camSharp != 0) sen->set_sharpness(sen, settings.camSharp);
     if (settings.camAe != 0) sen->set_ae_level(sen, settings.camAe);
     sen->set_vflip(sen, settings.camFlip & 1);

@@ -77,6 +77,7 @@ const analyze = document.querySelector('#analyze');
 const analysisStatus = document.querySelector('#analysis-status');
 const faceLayer = document.querySelector('#faces');
 let analysisTimer;
+let analysisRequest = 0;
 let timeout;
 let firstFrame;
 function stopWaiting() {
@@ -107,6 +108,7 @@ function connect() {
 feed.addEventListener('error', unavailable);
 async function updateAnalysis(value) {
   clearTimeout(analysisTimer);
+  const request = ++analysisRequest;
   const manual = value !== undefined;
   if (manual) analyze.disabled = true;
   try {
@@ -114,6 +116,7 @@ async function updateAnalysis(value) {
     const response = await fetch('/analysis', update);
     if (!response.ok) throw new Error('Analysis unavailable');
     const current = await response.json();
+    if (request !== analysisRequest) return;
     analyze.checked = current.enabled;
     analyze.disabled = false;
     const message = current.qr ? 'QR: ' + current.qr : current.enabled ? 'ยังไม่พบ QR' : '';
@@ -130,6 +133,7 @@ async function updateAnalysis(value) {
     faceLayer.replaceChildren(...boxes);
     if (current.enabled) analysisTimer = setTimeout(updateAnalysis, 800);
   } catch {
+    if (request !== analysisRequest) return;
     if (manual) analyze.checked = !value;
     faceLayer.replaceChildren();
     analysisStatus.textContent = 'อ่านผลวิเคราะห์ไม่ได้ · ลองเชื่อมต่อใหม่';
@@ -158,7 +162,7 @@ function refreshSettings() {
 retry.addEventListener('click', () => {
   connect();
   refreshSettings();
-  updateAnalysis();
+  if (!analyze.disabled) updateAnalysis();
 });
 settings.addEventListener('submit', async (event) => {
   event.preventDefault();

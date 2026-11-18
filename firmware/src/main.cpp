@@ -452,11 +452,19 @@ static bool hookCameraStart()
   return ok;
 }
 
+/** 0.2.27: จดสถานะพลังงานหลังปิดกล้อง — ไว้ไล่เหตุกระแสค้าง (กล้องดับจริงไหม · CPU กลับ 160 ไหม · modem sleep เปิดไหม) */
+static void logPowerAfterCamera()
+{
+  Serial.printf("[power] camera %s · cpu %u MHz · modem sleep %s · rssi %d\n", cameraRunning() ? "STILL ON" : "off", getCpuFrequencyMhz(),
+                psApplied ? "ON" : "off", WiFi.RSSI());
+}
+
 static void hookCameraStop()
 {
   cameraStop();
   if (!cameraRunning())
     setCpuFrequencyMhz(CPU_IDLE_MHZ);
+  logPowerAfterCamera();
 }
 
 static void hookPowerSaveChanged()

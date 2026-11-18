@@ -20,12 +20,13 @@ void settingsLoad() {
   settings.psMode = prefs.getUChar("psmode", 0);
   if (settings.psMode > 2) settings.psMode = 0;
   // โปรไฟล์ค่ากล้อง 2 = ตามสเก็ตช์ esp32-cam-qvga15 (JPEG QVGA q12 20 MHz sharp 0) — ค่าที่จำไว้จากรุ่นทดลองก่อนหน้าไม่ถูกใช้
-  if (prefs.getUChar("camprof", 0) == 2) {
-    settings.camSize = prefs.getString("camsz", "qvga");
-    settings.camXclk = prefs.getUChar("camxc", 20);
+  // 0.2.27: โปรไฟล์ 3 = ตามโปรไฟล์ camap (JPEG VGA q10 10 MHz) — ค่าจำไว้จากโปรไฟล์ 2 (QVGA 20 MHz) ไม่ถูกใช้ → ตู้เดิมได้ค่าใหม่ทันทีหลังอัปเดต
+  if (prefs.getUChar("camprof", 0) == 3) {
+    settings.camSize = prefs.getString("camsz", "vga");
+    settings.camXclk = prefs.getUChar("camxc", 10);
     settings.camAe = (int8_t)prefs.getChar("camae", 0);
     settings.camJpeg = prefs.getBool("camjpg", true);
-    settings.camQ = prefs.getUChar("camq", 12);
+    settings.camQ = prefs.getUChar("camq", 10);
     settings.camSharp = (int8_t)prefs.getChar("camsh", 0);
     settings.camFlip = prefs.getUChar("camflip", 3);
   }
@@ -46,7 +47,7 @@ void settingsSave() {
   prefs.putBool("dsleep", settings.sleep);
   prefs.putBool("dbgcam", settings.debugCam);
   prefs.putUChar("psmode", settings.psMode);
-  prefs.putUChar("camprof", 2);
+  prefs.putUChar("camprof", 3);
   prefs.putString("camsz", settings.camSize);
   prefs.putUChar("camxc", settings.camXclk);
   prefs.putChar("camae", settings.camAe);
