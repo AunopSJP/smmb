@@ -8,8 +8,11 @@ import type { ServerPrefs } from './session';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type TextSize = 'normal' | 'large' | 'xlarge';
-/** easy = เห็นเฉพาะที่จำเป็น · default = ปกติ · advanced = เห็นรายละเอียดทุกอย่าง */
-export type UiMode = 'easy' | 'default' | 'advanced';
+/** easy = เห็นเฉพาะที่จำเป็น · default = ปกติ (เลิกโหมด advanced แล้ว — ค่าเก่าที่จำไว้แปลงเป็น default) */
+export type UiMode = 'easy' | 'default';
+
+/** ค่าโหมดที่ได้จากเบราว์เซอร์/เซิร์ฟเวอร์ (อาจเป็น 'advanced' จากรุ่นก่อน) → โหมดที่ใช้ได้ */
+export const toUiMode = (m: string | null | undefined): UiMode => (m === 'easy' ? 'easy' : 'default');
 
 interface Saved {
   theme: Theme;
@@ -19,7 +22,7 @@ interface Saved {
   nightAutoDark?: boolean;
   mutedTypes?: string[];
   easyMode?: boolean;
-  mode?: UiMode;
+  mode?: UiMode | 'advanced';
 }
 
 const bangkokHour = () =>
@@ -44,7 +47,6 @@ export class DisplaySettings {
   /** โหมดใช้งานง่าย: ตัวใหญ่ ปุ่มใหญ่ ซ่อนรายละเอียดรอง หน้าหลักเจ้าของบ้านเรียบง่าย (ทุกบทบาท) */
   readonly mode = signal<UiMode>('default');
   readonly easyMode = computed(() => this.mode() === 'easy');
-  readonly advancedMode = computed(() => this.mode() === 'advanced');
 
   /** เปลี่ยนโหมด · โหมดง่ายใช้หน้าหลักแบบเรียบง่ายด้วย */
   setMode(m: UiMode): void {
@@ -94,7 +96,7 @@ export class DisplaySettings {
     if (p.text_size) this.textSize.set(p.text_size);
     if (p.simple_home !== undefined) this.simpleHome.set(p.simple_home);
     if (p.night_auto_dark !== undefined) this.nightAutoDark.set(p.night_auto_dark);
-    if (p.ui_mode) this.mode.set(p.ui_mode);
+    if (p.ui_mode) this.mode.set(toUiMode(p.ui_mode));
     else if (p.easy_mode !== undefined) this.mode.set(p.easy_mode ? 'easy' : 'default');
     if (p.muted_types) this.mutedTypes.set(p.muted_types);
   }
@@ -112,7 +114,7 @@ export class DisplaySettings {
       this.simpleHome.set(saved.simpleHome);
       this.nightAutoDark.set(saved.nightAutoDark ?? true);
       this.mutedTypes.set(saved.mutedTypes ?? []);
-      this.mode.set(saved.mode ?? (saved.easyMode ? 'easy' : 'default'));
+      this.mode.set(saved.mode ? toUiMode(saved.mode) : saved.easyMode ? 'easy' : 'default');
       this.lang.set(saved.lang);
     }
     const t = setInterval(() => this.hour.set(bangkokHour()), 60_000);

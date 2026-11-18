@@ -51,9 +51,6 @@ const km = (a: LatLng, b: LatLng): number => {
           <app-agency-map [agencies]="items()" [home]="home()" [(selected)]="selected" [height]="display.easyMode() ? 200 : 240" />
         }
       }
-      @if (advanced()) {
-        <p class="muted small adv-only">{{ i18n.t({ th: 'หน่วยงาน ', en: 'Agencies: ' }) }}{{ agencies().length }}{{ i18n.t({ th: ' แห่ง · เรียงตามระยะจากบ้าน', en: ' · sorted by distance from home' }) }}</p>
-      }
       @if (failed()) {
         <app-load-error (retry)="load()" />
       } @else if (loaded() && !agencies().length) {
@@ -205,7 +202,6 @@ export class OwnerAgencies {
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
   protected readonly display = inject(DisplaySettings);
-  protected readonly advanced = this.display.advancedMode;
   private readonly http = inject(HttpClient);
   private readonly owner = inject(OwnerApi);
   protected readonly agencies = signal<AgencyMapItem[]>([]);

@@ -218,12 +218,6 @@ import { PageHeader } from '../../shared/page-header';
     .thumb[data-m='default'] {
       .th-rows i:nth-child(n + 3) { display: none; }
     }
-    .thumb[data-m='advanced'] {
-      gap: 3px;
-      .th-hero { padding: 3px 4px; u { inline-size: 9px; block-size: 9px; } s { block-size: 3px; } }
-      .th-rows { gap: 2px; i { block-size: 5px; } i::after { inset-block: 1px; inline-size: 12px; } }
-      .th-btn { block-size: 9px; border-radius: var(--radius-xs); }
-    }
     .t {
       inline-size: 20px;
       text-align: center;
@@ -296,7 +290,6 @@ export class OwnerDisplay {
   protected readonly modeOptions: { value: UiMode; label: Tr; hint: Tr; short: Tr }[] = [
     { value: 'easy', label: { th: 'โหมดง่าย', en: 'Easy' }, hint: { th: 'ตัวใหญ่ ปุ่มใหญ่ เห็นเฉพาะสิ่งที่จำเป็นจริง ๆ ใช้งานไม่ยาก', en: 'Large text and buttons — only what you really need' }, short: { th: 'ตัวใหญ่ ปุ่มใหญ่', en: 'Large text, large buttons' } },
     { value: 'default', label: { th: 'โหมดปกติ', en: 'Default' }, hint: { th: 'ใช้งานทั่วไป เห็นมากกว่าโหมดง่าย แต่ไม่แสดงรายละเอียดทางเทคนิค', en: 'Everyday use — more than Easy, without technical details' }, short: { th: 'ข้อมูลพอดี', en: 'Just the right amount' } },
-    { value: 'advanced', label: { th: 'โหมดละเอียด', en: 'Advanced' }, hint: { th: 'แสดงข้อมูลเพิ่มเติมที่เป็นประโยชน์ เช่น ประวัติครบและเวลาแบบละเอียด', en: 'Extra useful details, like the full history and exact times' }, short: { th: 'ข้อมูลครบขึ้น', en: 'More detail' } },
   ];
   protected readonly notifyOptions = computed<{ type: string; label: Tr; hint: Tr }[]>(() =>
     this.officer()

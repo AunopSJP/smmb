@@ -110,9 +110,7 @@ export class HeadSettings {
     const m = this.display.mode();
     return m === 'easy'
       ? this.i18n.t({ th: 'ง่าย', en: 'Easy' })
-      : m === 'advanced'
-        ? this.i18n.t({ th: 'ละเอียด', en: 'Detailed' })
-        : this.i18n.t({ th: 'ปกติ', en: 'Normal' });
+      : this.i18n.t({ th: 'ปกติ', en: 'Normal' });
   });
 
   constructor() {

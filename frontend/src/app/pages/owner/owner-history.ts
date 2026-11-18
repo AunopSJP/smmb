@@ -300,7 +300,7 @@ export class OwnerHistory {
   protected readonly range = this.store.selection;
   protected readonly caption = computed(() => {
     const b = this.store.boxes().find((x) => x.id === this.store.boxId());
-    return b ? this.i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + b.house_no + (this.display.advancedMode() ? ' · ' + b.id : '') : '';
+    return b ? this.i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + b.house_no : '';
   });
   /** รายการที่เซิร์ฟเวอร์กรองตามช่วงมาให้แล้ว */
   protected readonly display = inject(DisplaySettings);
@@ -668,7 +668,7 @@ export class OwnerDelivery {
   imports: [PageHeader, RouterLink, Icon, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="display.advancedMode() ? (box()?.id ?? '') : ''" [title]="i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' })" [back]="url('H12')" />
+    <app-page-header [title]="i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' })" [back]="url('H12')" />
     <div class="stack grow">
       @if (failed()) {
         <app-load-error (retry)="load()" />
@@ -696,26 +696,6 @@ export class OwnerDelivery {
             <li><span class="n">1</span><span><strong>{{ i18n.t({ th: 'ตรวจไฟของตู้', en: 'Check the box power' }) }}</strong><small>{{ i18n.t({ th: 'มีคนถอดปลั๊กหรือปิดสวิตช์หรือเปล่า', en: 'Was it unplugged or switched off?' }) }}</small></span></li>
             <li><span class="n">2</span><span><strong>{{ i18n.t({ th: 'ตรวจ Wi-Fi บ้าน', en: 'Check your home Wi-Fi' }) }}</strong><small>{{ i18n.t({ th: 'ลองรีสตาร์ตเราเตอร์ ตู้ต่อได้เฉพาะ 2.4 GHz', en: 'Restart the router — the box only works on 2.4 GHz' }) }}</small></span></li>
             <li><span class="n">3</span><span><strong>{{ i18n.t({ th: 'รอสักครู่', en: 'Wait a little' }) }}</strong><small>{{ i18n.t({ th: 'แผงโซลาร์ต้องได้รับแดดในตอนกลางวัน', en: 'The solar panel needs daylight' }) }}</small></span></li>
-          </ol>
-        </section>
-      }
-      @if (display.advancedMode() && box(); as b) {
-        <!-- OwnOffline_A: ตัวเลขจริงจาก GET /boxes/:id -->
-        <div class="adv-grid">
-          <div class="cell"><span class="label">{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</span><strong class="value mono">{{ b.id }}</strong></div>
-          <div class="cell"><span class="label">{{ i18n.t({ th: 'สถานะ', en: 'State' }) }}</span><strong class="value mono">{{ b.status }}</strong></div>
-          <div class="cell"><span class="label">{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</span><strong class="value num">{{ b.last_seen_at ? exact(b.last_seen_at) : '—' }}</strong></div>
-          <div class="cell"><span class="label">{{ i18n.t({ th: 'แบตก่อนหลุด', en: 'Battery' }) }}</span><strong class="value">{{ b.battery ? b.battery.pct + '%' : '—' }}</strong></div>
-          <div class="cell"><span class="label">{{ i18n.t({ th: 'รายงานแบตเมื่อ', en: 'Battery reported' }) }}</span><strong class="value mono">{{ b.battery?.reported_at ? exact(b.battery!.reported_at!) : '—' }}</strong></div>
-          <div class="cell"><span class="label">{{ i18n.t({ th: 'ชาร์จ', en: 'Charging' }) }}</span><strong class="value">{{ b.battery?.charging === null || !b.battery ? '—' : b.battery.charging ? i18n.t({ th: 'กำลังชาร์จ', en: 'Charging' }) : i18n.t({ th: 'ไม่ได้ชาร์จ', en: 'Not charging' }) }}</strong></div>
-        </div>
-        <section class="card adv-cause">
-          <strong>{{ i18n.t({ th: 'สาเหตุที่เป็นไปได้ (เรียงตามโอกาส)', en: 'Likely causes (most likely first)' }) }}</strong>
-          <ol>
-            <li>{{ i18n.t({ th: 'สัญญาณ Wi-Fi อ่อน', en: 'Weak Wi-Fi signal' }) }}</li>
-            <li>{{ i18n.t({ th: 'ไฟตัด / แบตต่ำ', en: 'Power cut / low battery' }) }}</li>
-            <li>{{ i18n.t({ th: 'เราเตอร์รีสตาร์ต / เปลี่ยนรหัส Wi-Fi', en: 'Router restarted / Wi-Fi password changed' }) }}</li>
-            <li>{{ i18n.t({ th: 'ใช้ 5 GHz (ตู้รับเฉพาะ 2.4 GHz)', en: 'Using 5 GHz (the box only supports 2.4 GHz)' }) }}</li>
           </ol>
         </section>
       }

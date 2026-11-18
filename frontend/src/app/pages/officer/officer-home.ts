@@ -231,20 +231,6 @@ const toMinutes = (hhmm: string): number | null => {
             }
           </ul>
         }
-
-        <section class="adv-only stack-tight">
-          <h2 class="section-title">{{ i18n.t({ th: 'บันทึกสแกนล่าสุดของคุณ', en: 'Your latest scan log' }) }}</h2>
-          <div class="card logs">
-            @for (l of logs(); track l.id) {
-              <div>
-                {{ time(l.at) }} · {{ l.box_id ?? '—' }} ·
-                {{ l.method === 'code' ? i18n.t({ th: 'พิมพ์รหัส', en: 'typed code' }) : i18n.t({ th: 'สแกน QR', en: 'QR scan' }) }}
-              </div>
-            } @empty {
-              <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีบันทึกการสแกน', en: 'No scan log yet' })" [hint]="i18n.t({ th: 'สแกนหรือพิมพ์รหัสที่ตู้แล้วจะแสดงที่นี่', en: 'Scans and typed codes will show here' })" />
-            }
-          </div>
-        </section>
       } @else if (!error()) {
         <app-loading-rows [rows]="4" [label]="i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' })" />
       }
@@ -310,9 +296,7 @@ export class OfficerHome {
 
   constructor() {
     void this.load();
-    void this.loadLogs();
     liveRefresh(() => this.load(), REFRESH_MS);
-    liveRefresh(() => this.loadLogs(), LOG_REFRESH_MS);
   }
 
   async load(): Promise<void> {
@@ -322,19 +306,6 @@ export class OfficerHome {
       this.error.set(false);
     } catch (err) {
       if (apiError(err).status !== 401) this.error.set(true);
-    }
-  }
-
-  /** โหมดละเอียดเท่านั้น — บันทึกการสแกนของตัวเอง (GET /officer/logs) */
-  private async loadLogs(): Promise<void> {
-    if (!this.display.advancedMode()) return;
-    if (Date.now() - this.logsAt < LOG_REFRESH_MS / 2) return;
-    this.logsAt = Date.now();
-    try {
-      const r = await this.api.logs(1);
-      this.logs.set(r.data.slice(0, 4));
-    } catch {
-      // ไม่มีบันทึกก็ปล่อยว่าง
     }
   }
 

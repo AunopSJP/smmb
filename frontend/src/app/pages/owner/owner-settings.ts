@@ -29,7 +29,7 @@ import { bkkClock, fmtDate } from '../../core/time';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
-      [caption]="box() ? i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + (box()!.house_no ?? '') + (display.advancedMode() ? ' · ' + box()!.id : '') : i18n.t({ th: 'ยังไม่ได้ผูกตู้', en: 'No mailbox yet' })"
+      [caption]="box() ? i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + (box()!.house_no ?? '') : i18n.t({ th: 'ยังไม่ได้ผูกตู้', en: 'No mailbox yet' })"
       [title]="i18n.t({ th: 'ตั้งค่า', en: 'Settings' })"
       [bell]="url('H14')"
     />
@@ -154,28 +154,6 @@ import { bkkClock, fmtDate } from '../../core/time';
         </section>
         <a class="btn secondary easy-hide" [routerLink]="url('A07')" [queryParams]="{ from: 'H13' }">{{ i18n.t({ th: '+ ผูกตู้เพิ่ม', en: '+ Link another mailbox' }) }}</a>
 
-        @if (display.advancedMode()) {
-          <!-- SettingsAdv: ข้อมูลทางเทคนิคที่มีใน API จริง (ไม่มีข้อมูลเฟิร์มแวร์/เครื่องที่เข้าสู่ระบบ) -->
-          <h2 class="group">{{ i18n.t({ th: 'ข้อมูลทางเทคนิค', en: 'Technical details' }) }}</h2>
-          <section class="card">
-            <dl class="kv">
-              <dt>{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd class="mono">{{ b.id }}</dd>
-              <dt>{{ i18n.t({ th: 'สถานะ', en: 'State' }) }}</dt><dd>{{ statusText(b.status) }}</dd>
-              <dt>{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</dt><dd class="num">{{ b.last_seen_at ? exact(b.last_seen_at) : '—' }}</dd>
-              <dt>{{ i18n.t({ th: 'แบตเตอรี่', en: 'Battery' }) }}</dt><dd class="mono">{{ b.battery ? b.battery.pct + '%' : '—' }}{{ b.battery ? ' · ' + (b.battery.charging ? i18n.t({ th: 'กำลังชาร์จ', en: 'charging' }) : i18n.t({ th: 'ไม่ได้ชาร์จ', en: 'not charging' })) : '' }}</dd>
-              <dt>{{ i18n.t({ th: 'รายงานแบตเมื่อ', en: 'Battery reported' }) }}</dt><dd class="mono">{{ b.battery?.reported_at ? exact(b.battery!.reported_at!) : '—' }}</dd>
-              <dt>{{ i18n.t({ th: 'คำสั่ง Wi-Fi', en: 'Wi-Fi command' }) }}</dt><dd>{{ wifiStatusText(b.wifi_reset.status) }} · <span class="mono">{{ b.wifi_reset.ap_name }}</span></dd>
-              @if (b.wifi_reset.requested_at) { <dt>{{ i18n.t({ th: 'สั่งเมื่อ', en: 'Requested' }) }}</dt><dd class="num">{{ exact(b.wifi_reset.requested_at) }}</dd> }
-              @if (b.wifi_reset.done_at) { <dt>{{ i18n.t({ th: 'ตู้รับคำสั่ง', en: 'Received' }) }}</dt><dd class="num">{{ exact(b.wifi_reset.done_at) }}</dd> }
-              @if (b.qr_task) {
-                <dt>{{ i18n.t({ th: 'เคส QR', en: 'QR case' }) }}</dt><dd class="mono">{{ b.qr_task.case_id }} · {{ b.qr_task.health }} · {{ exact(b.qr_task.requested_at) }}</dd>
-              }
-              @if (b.open_sos) {
-                <dt>{{ i18n.t({ th: 'SOS ที่เปิดอยู่', en: 'Open SOS' }) }}</dt><dd class="mono">{{ b.open_sos.id }} · {{ b.open_sos.stage }} · {{ b.open_sos.status }}</dd>
-              }
-            </dl>
-          </section>
-        }
 
         <!-- 3) ข้อมูลที่กรอกไว้ (พับเก็บ แตะเพื่อแก้) -->
         <h2 class="group" id="owner-details">{{ i18n.t({ th: 'ข้อมูลที่กรอกไว้', en: 'Your details' }) }}</h2>
@@ -466,7 +444,7 @@ export class OwnerSettings {
   protected readonly display = inject(DisplaySettings);
   /** สรุปค่าการแสดงผลปัจจุบัน (โหมด · ขนาดตัวอักษร) อ่านจาก DisplaySettings จริง */
   protected readonly displaySummary = computed<Tr>(() => {
-    const mode: Record<UiMode, Tr> = { easy: { th: 'ง่าย', en: 'easy' }, default: { th: 'ปกติ', en: 'default' }, advanced: { th: 'ละเอียด', en: 'advanced' } };
+    const mode: Record<UiMode, Tr> = { easy: { th: 'ง่าย', en: 'easy' }, default: { th: 'ปกติ', en: 'default' } };
     const size: Record<TextSize, Tr> = { normal: { th: 'ตัวปกติ', en: 'normal text' }, large: { th: 'ตัวใหญ่', en: 'large text' }, xlarge: { th: 'ตัวใหญ่มาก', en: 'extra-large text' } };
     const m = mode[this.display.mode()];
     const z = size[this.display.textSize()];

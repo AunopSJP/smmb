@@ -14,7 +14,7 @@ import { bkkClock } from '../../core/time';
   imports: [RouterLink, PageHeader, EmptyState, LoadingRows],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [caption]="box() ? i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + (box()!.house_no ?? '') + (display.advancedMode() ? ' · ' + box()!.id + ' · ' + box()!.name : multi() ? ' · ' + box()!.name : '') : i18n.t({ th: 'ตั้งค่า', en: 'Settings' })" [title]="i18n.t({ th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' })" [back]="url('H13')" />
+    <app-page-header [caption]="box() ? i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + (box()!.house_no ?? '') + (multi() ? ' · ' + box()!.name : '') : i18n.t({ th: 'ตั้งค่า', en: 'Settings' })" [title]="i18n.t({ th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' })" [back]="url('H13')" />
     <div class="stack grow">
       @if (!loaded()) {
         <app-loading-rows [rows]="2" [label]="i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' })" />
@@ -50,16 +50,6 @@ import { bkkClock } from '../../core/time';
           </div>
         }
 
-        @if (display.advancedMode()) {
-          <section class="card">
-            <dl class="kv">
-              <dt>{{ i18n.t({ th: 'สถานะคำสั่ง', en: 'Command state' }) }}</dt><dd>{{ wifiStatusText(w.status) }}</dd>
-              <dt>{{ i18n.t({ th: 'ชื่อ AP', en: 'AP name' }) }}</dt><dd class="mono">{{ w.ap_name }}</dd>
-              <dt>{{ i18n.t({ th: 'สั่งเมื่อ', en: 'Requested' }) }}</dt><dd class="num">{{ w.requested_at ? exact(w.requested_at) : '—' }}</dd>
-              <dt>{{ i18n.t({ th: 'ตู้รับคำสั่ง', en: 'Received' }) }}</dt><dd class="num">{{ w.done_at ? exact(w.done_at) : '—' }}</dd>
-            </dl>
-          </section>
-        }
 
         @if (w.status === 'done' || (w.status === 'pending' && !boxOffline)) {
           <!-- OwnWifi_E: 3 ขั้นสั้น -->

@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { DisplaySettings } from '../../core/display-settings';
 import { I18n } from '../../core/i18n';
 import { Session } from '../../core/session';
@@ -11,7 +10,7 @@ import { PushStatus } from '../../shared/push-status';
 /** H14 แจ้งเตือน — รายการจริงจาก GET /me/notifications · แตะแต่ละรายการไปหน้าที่เกี่ยวข้อง */
 @Component({
   selector: 'app-owner-notifications',
-  imports: [PageHeader, NotificationList, PushStatus, RouterLink],
+  imports: [PageHeader, NotificationList, PushStatus],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [title]="i18n.t({ th: 'การแจ้งเตือน', en: 'Notifications' })" [back]="url('H03')" />
@@ -22,10 +21,6 @@ import { PushStatus } from '../../shared/push-status';
       <!-- C4: หน้าแจ้งเตือนย้อนหลัง = แถบบรรทัดเดียว (แบบเต็มอยู่ที่หน้าหลัก/ตั้งค่าการแจ้งเตือน) -->
       <app-push-status [compact]="true" [dismissible]="true" />
       <app-notification-list />
-      @if (advanced()) {
-        <p class="muted small adv-only">{{ i18n.t({ th: 'เก็บในหน้านี้แม้ push ไม่ถึง · ชนิดที่ปิดรับไว้จะไม่เก็บและไม่ส่ง · SOS/ตู้มีปัญหา/QR ปลอม ปิดไม่ได้', en: 'Items stay here even if the push did not arrive. Muted types are not stored or sent. SOS, mailbox problems and fake QR alerts cannot be muted.' }) }}</p>
-        <a class="btn secondary adv-only" routerLink="/settings/notifications">{{ i18n.t({ th: 'ตั้งค่าการแจ้งเตือน', en: 'Notification settings' }) }}</a>
-      }
     </div>
   `,
 })
@@ -36,5 +31,4 @@ export class OwnerNotifications {
   protected readonly url = screenUrl;
   protected readonly caption = computed(() => this.session.me()?.display_name ?? '');
   protected readonly easy = this.display.easyMode;
-  protected readonly advanced = this.display.advancedMode;
 }

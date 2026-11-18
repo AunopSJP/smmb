@@ -30,7 +30,7 @@ import { Icon } from './icon';
         <a class="circle bell" [routerLink]="bell()" [attr.aria-label]="i18n.t({ th: 'แจ้งเตือน', en: 'Notifications' }) + (unread.count() ? ' (' + unread.count() + ')' : '')">
           <app-icon name="bell" [size]="22" />
           @if (unread.count() > 0) {
-            <span class="badge" aria-hidden="true">{{ display.advancedMode() ? unread.count() : (unread.count() > 9 ? '9+' : unread.count()) }}</span>
+            <span class="badge" aria-hidden="true">{{ unread.count() > 9 ? '9+' : unread.count() }}</span>
           }
         </a>
       }

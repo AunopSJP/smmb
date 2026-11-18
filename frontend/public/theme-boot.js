@@ -8,7 +8,7 @@
     var root = document.documentElement;
     if (s.theme === 'dark' || s.theme === 'light') root.setAttribute('data-theme', s.theme);
     if (s.textSize) root.setAttribute('data-text-size', s.textSize);
-    if (s.mode) root.setAttribute('data-mode', s.mode);
+    if (s.mode) root.setAttribute('data-mode', s.mode === 'easy' ? 'easy' : 'default');
     if (s.lang) root.setAttribute('lang', s.lang);
   } catch (e) {
     /* localStorage ปิด/ค่าเสีย — ปล่อยให้ Angular จัดการ */

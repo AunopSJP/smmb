@@ -114,27 +114,6 @@ interface RecentLog {
         </label>
       }
 
-      @if (display.advancedMode()) {
-        <!-- โหมดละเอียด: เพิ่มจำนวนออนไลน์ (คำนวณจากตู้ทั้งหมด − ออฟไลน์) ตาม HeadAdv -->
-        <div class="stats4">
-          <div class="stat">
-            <p class="value">{{ checked() }}/{{ total() }}</p>
-            <p class="label">{{ i18n.t({ th: 'ตรวจแล้ว', en: 'Checked' }) }}</p>
-          </div>
-          <div class="stat">
-            <p class="value" [class.warn]="offline() > 0">{{ offline() }}</p>
-            <p class="label">{{ i18n.t({ th: 'ออฟไลน์', en: 'Offline' }) }}</p>
-          </div>
-          <div class="stat">
-            <p class="value">{{ online() }}</p>
-            <p class="label">{{ i18n.t({ th: 'ออนไลน์', en: 'Online' }) }}</p>
-          </div>
-          <a class="stat link" [routerLink]="url('O12')" [queryParams]="{ from: 'L04' }">
-            <p class="value" [class.sos]="(today()?.sos_open ?? 0) > 0">{{ today() ? (today()!.sos_open) : '—' }}</p>
-            <p class="label">SOS</p>
-          </a>
-        </div>
-      } @else {
         <div class="stats3 easy-hide">
           <div class="stat">
             <p class="value">{{ checked() }} / {{ total() }}</p>
@@ -149,7 +128,7 @@ interface RecentLog {
             <p class="label">{{ i18n.t({ th: 'SOS เปิดอยู่', en: 'Open SOS' }) }}</p>
           </a>
         </div>
-      }
+      
 
       @if ((today()?.members_pending ?? 0) > 0) {
         <a class="card pend easy-hide" [routerLink]="url('L05')">
@@ -206,19 +185,6 @@ interface RecentLog {
         }
       </nav>
 
-      @if (display.advancedMode() && recent().length) {
-        <div class="sec adv-only">
-          <h2 class="section-title">{{ i18n.t({ th: 'บันทึกล่าสุด', en: 'Latest activity' }) }}</h2>
-          <span class="muted small">{{ i18n.t({ th: 'ทั้งหน่วยงาน', en: 'Whole agency' }) }}</span>
-        </div>
-        <ul class="feed adv-only">
-          @for (l of recent(); track l.id) {
-            <li>
-              {{ exactTime(l.at) }} · {{ l.house_no ?? l.box_id ?? '—' }} · {{ l.officer?.display_name ?? '—' }}
-            </li>
-          }
-        </ul>
-      }
       </div>
       </div>
     </div>
@@ -509,10 +475,6 @@ export class HeadHome {
       const f = this.zoneId() || this.filter();
       untracked(() => void this.load(f));
     });
-    // โหมดละเอียดต้องใช้บันทึกล่าสุด — โหลดเมื่อเข้าโหมดเท่านั้น
-    effect(() => {
-      if (this.display.advancedMode()) untracked(() => void this.loadRecent());
-    });
     // SOS / ตรวจแล้ว / คำขอเข้าทีม ของทั้งหน่วยงาน ขึ้นเองโดยไม่ต้องรีเฟรช
     liveRefresh(() => this.refreshAll(), 10_000);
   }
@@ -548,7 +510,6 @@ export class HeadHome {
 
   private async refreshAll(): Promise<void> {
     await this.load(this.zoneId() || this.filter());
-    if (this.display.advancedMode()) await this.loadRecent();
   }
 
   private async load(f: string): Promise<void> {
@@ -563,10 +524,5 @@ export class HeadHome {
 
   protected retry(): void {
     void this.refreshAll();
-  }
-
-  private async loadRecent(): Promise<void> {
-    const r = await firstValueFrom(this.http.get<{ data: RecentLog[] }>('/api/v1/agency/logs?page=1')).catch(() => null);
-    this.recent.set((r?.data ?? []).slice(0, 5));
   }
 }

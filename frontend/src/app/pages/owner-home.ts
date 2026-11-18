@@ -91,7 +91,7 @@ const REFRESH_MS = 10_000;
       </div>
     } @else if (b(); as b) {
       <app-page-header
-        [caption]="i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + b.house_no + (b.name ? ' · ' + b.name : '') + (display.mode() === 'advanced' ? ' · ' + b.id : '')"
+        [caption]="i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) + b.house_no + (b.name ? ' · ' + b.name : '')"
         [title]="i18n.t({ th: 'หน้าหลัก', en: 'Home' })"
         [bell]="url('H14')"
       />
@@ -114,29 +114,13 @@ const REFRESH_MS = 10_000;
           <section class="card offline stack" role="status">
             <strong class="off-head"><app-icon name="alert" [size]="18" />{{ i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' }) }}</strong>
             <!-- C5: โหมดง่ายเหลือหัวข้อ + 1 ประโยค + ปุ่มเดียว · รายละเอียด/ปุ่ม Wi-Fi/ช่าง ไปอยู่ H12-d -->
-            <!-- โหมดปกติก็ใช้แบบสั้น (จอแรกต้องเห็นสถานะอื่นด้วย) · เช็กลิสต์/ปุ่ม Wi-Fi/ช่าง เต็ม ๆ เหลือเฉพาะโหมดละเอียด -->
-            @if (easy() || !display.advancedMode()) {
+            <!-- ใช้แบบสั้น (จอแรกต้องเห็นสถานะอื่นด้วย) · เช็กลิสต์/ปุ่ม Wi-Fi/ช่าง เต็ม ๆ อยู่ H12-d -->
               <span class="small">{{ i18n.t({ th: 'เจ้าหน้าที่จะตรวจตู้ไม่ได้จนกว่าตู้จะกลับมาออนไลน์', en: 'Officers cannot check the mailbox until it is back online' }) }}</span>
               @if (!easy() && lastInspection(b); as li) {
                 <span class="small">{{ i18n.t({ th: 'เจ้าหน้าที่ตรวจล่าสุด ', en: 'Last officer check ' }) }}{{ li }}</span>
               }
               <a class="btn secondary" [routerLink]="url('H12-d')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'ดูวิธีแก้', en: 'See how to fix it' }) }}</a>
-            } @else {
-              <span class="small">{{ i18n.t({ th: 'เจ้าหน้าที่จะตรวจตู้ไม่ได้จนกว่าตู้จะกลับมาออนไลน์', en: 'Officers cannot check the mailbox until it is back online' }) }}</span>
-              @if (lastInspection(b); as li) {
-                <span class="small">{{ i18n.t({ th: 'เจ้าหน้าที่ตรวจล่าสุด ', en: 'Last officer check ' }) }}{{ li }}</span>
-              }
-              <ol class="checks small">
-                <li>{{ i18n.t({ th: 'แบตตู้อาจหมด — แผงโซลาร์โดนแดดไหม', en: 'The battery may be empty — is the solar panel in sun?' }) }}</li>
-                <li>{{ i18n.t({ th: 'Wi-Fi บ้านใช้งานได้ไหม', en: 'Is your home Wi-Fi working?' }) }}</li>
-                <li>{{ i18n.t({ th: 'เพิ่งเปลี่ยนรหัส Wi-Fi ใช่ไหม', en: 'Did you just change the Wi-Fi password?' }) }}</li>
-              </ol>
-              <div class="two">
-                <a class="btn secondary" [routerLink]="url('H13-b')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'ตั้ง Wi-Fi ใหม่', en: 'Set up Wi-Fi' }) }}</a>
-                <a class="btn" [routerLink]="url('H13-c')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'แจ้งช่าง', en: 'Get a technician' }) }}</a>
-              </div>
-              <a class="see-all" [routerLink]="url('H12-d')" [queryParams]="{ box: b.id }">{{ i18n.t({ th: 'ดูสาเหตุและวิธีแก้ทั้งหมด', en: 'See causes and fixes' }) }}</a>
-            }
+            
           </section>
         </ng-template>
         <ng-template #tQr let-b>
@@ -330,11 +314,8 @@ const REFRESH_MS = 10_000;
                     <span class="muted small block">{{ e.method === 'code' ? i18n.t({ th: 'ไรเดอร์พิมพ์รหัส', en: 'Rider typed the code' }) : i18n.t({ th: 'ไรเดอร์สแกน QR', en: 'Rider scanned the QR' }) }}</span>
                   </span>
                 }
-                @if (display.advancedMode()) {
-                  <span class="muted small adv-only num">{{ timeSec(e.at) }}</span>
-                } @else {
                   <span class="muted small">{{ day(e.at) }} {{ time(e.at) }}</span>
-                }
+                
                 <app-icon name="chevronRight" [size]="18" />
                </a>
               </li>
@@ -700,7 +681,7 @@ export class OwnerHome implements OnDestroy {
 
   /** โหมดปกติแสดง 4 รายการล่าสุด · โหมดละเอียดแสดงทั้งหมด */
   protected eventsFor(b: BoxDetail): BoxDetail['latest_events'] {
-    return this.display.advancedMode() ? b.latest_events : b.latest_events.slice(0, 4);
+    return b.latest_events.slice(0, 4);
   }
 
   /** เวลาแบบมีวินาทีสำหรับโหมดละเอียด — รูปแบบกลาง (A8) */

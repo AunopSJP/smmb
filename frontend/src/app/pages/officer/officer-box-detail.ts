@@ -177,6 +177,6 @@ export class OfficerBoxDetailPage implements OnInit {
 
   /** เวลา: โหมดปกติถึงนาที (เหมือนฝั่งเจ้าของบ้าน) · วินาทีเฉพาะโหมดละเอียด */
   protected when(iso: string): string {
-    return this.display.advancedMode() ? fmtWhenSec(iso, this.i18n.lang()) : fmtWhen(iso, this.i18n.lang());
+    return fmtWhen(iso, this.i18n.lang());
   }
 }

@@ -360,7 +360,6 @@ export class PushStatus implements OnInit {
     try {
       await fn();
       await this.session.refresh();
-      if (this.display.advancedMode()) await this.loadServer();
     } catch (error) {
       this.toast.show(error instanceof PushBlockedError ? { th: 'เบราว์เซอร์นี้ยังเปิดแจ้งเตือนไม่ได้ — ดูคำอธิบายในกรอบ', en: 'Notifications are blocked here — see the box for help' } : this.failureText(error));
     } finally {

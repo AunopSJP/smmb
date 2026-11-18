@@ -69,13 +69,6 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
           <app-call-buttons [big]="true" />
           <p class="note"><span class="dot live"></span>{{ i18n.t({ th: 'ยังรอเจ้าหน้าที่รับเรื่องอยู่เบื้องหลัง', en: 'Still waiting for an officer in the background' }) }}</p>
         </div>
-        @if (display.advancedMode()) {
-          <div class="adv-grid">
-            <div><span>{{ i18n.t({ th: 'รหัส SOS', en: 'SOS ID' }) }}</span><b class="mono">{{ id() }}</b></div>
-            <div><span>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</span><b class="mono">{{ sos()?.status ?? '—' }}</b></div>
-            <div><span>{{ i18n.t({ th: 'ส่งเมื่อ', en: 'Sent' }) }}</span><b class="num">{{ sos()?.created_at ? exact(sos()!.created_at) : '—' }}</b></div>
-          </div>
-        }
       } @else {
         <header class="sos-head">
           <span class="pill">{{ i18n.t({ th: 'SOS ส่งแล้ว · บ้านเลขที่ ', en: 'SOS sent · house ' }) }}{{ sos()?.box?.house_no }}</span>
@@ -90,16 +83,6 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
           </p>
         </header>
 
-        @if (display.advancedMode()) {
-          <div class="adv-grid">
-            <div><span>{{ i18n.t({ th: 'รหัส SOS', en: 'SOS ID' }) }}</span><b class="mono">{{ id() }}</b></div>
-            <div><span>{{ i18n.t({ th: 'ขั้น', en: 'Stage' }) }}</span><b class="mono">{{ st === 'zone' ? '1' : '2' }}/3</b></div>
-            <div><span>{{ i18n.t({ th: 'ผ่านมา', en: 'Elapsed' }) }}</span><b class="num">{{ time() }}</b></div>
-          </div>
-          @if (sos()?.created_at) {
-            <p class="adv-line num">{{ i18n.t({ th: 'ส่ง ', en: 'sent ' }) }}{{ exact(sos()!.created_at) }} · {{ i18n.t({ th: 'เปลี่ยนขั้น ', en: 'stage ' }) }}{{ exact(sos()!.stage_changed_at) }}</p>
-          }
-        }
 
         <div class="sos-body">
           <ol class="steps">
@@ -344,13 +327,6 @@ export class SosWaiting {
       </header>
       <div class="sos-body">
         <app-call-buttons [big]="true" />
-        @if (display.advancedMode()) {
-          <div class="card adv-only adv-note">
-            <strong>{{ i18n.t({ th: 'เหตุที่ SOS ส่งไม่ได้', en: 'Why the SOS cannot be sent' }) }}</strong>
-            <p>{{ i18n.t({ th: 'บ้านนี้ไม่อยู่ในโซนของหน่วยงานใด ระบบจึงไม่ได้สร้างเคส SOS', en: 'This house is not in any agency zone, so no SOS case was created.' }) }}</p>
-            <a class="btn secondary" [routerLink]="url('H16')">{{ i18n.t({ th: 'ดูหน่วยงานใกล้บ้าน', en: 'See agencies near you' }) }}</a>
-          </div>
-        }
         <p class="muted small center easy-hide">{{ i18n.t({ th: 'ระบบบันทึกเหตุนี้ไว้แล้ว ผู้ดูแลระบบจะเห็น', en: 'This event is recorded and the admin will see it' }) }}</p>
       </div>
       <footer class="sos-foot">
@@ -390,9 +366,6 @@ export class SosNoOfficer {
       <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="cancel-title">
         <h2 id="cancel-title">{{ i18n.t({ th: 'ยกเลิก SOS ใช่ไหม?', en: 'Cancel your SOS?' }) }}</h2>
         <p class="muted small easy-hide">{{ i18n.t({ th: 'เลือกเหตุผล ระบบจะแจ้งเจ้าหน้าที่ให้ทราบว่ายกเลิกแล้ว', en: 'Pick a reason — officers will be told it is cancelled' }) }}</p>
-        @if (display.advancedMode() && id()) {
-          <p class="muted small">{{ i18n.t({ th: 'กรุณาแจ้งเจ้าหน้าที่ว่าเคสนี้ถูกยกเลิกแล้ว', en: 'Please let the officer know this case is cancelled' }) }}</p>
-        }
         <button type="button" class="btn secondary option" (click)="cancel('safe')">
           <app-icon name="shield" [size]="20" />{{ i18n.t({ th: 'ปลอดภัยแล้ว', en: 'I am safe now' }) }}
         </button>
@@ -476,15 +449,6 @@ export class SosCancel {
         }
         @if (display.easyMode()) {
           <p class="tip easy-only">{{ i18n.t({ th: 'ระหว่างรอ อยู่ในที่ปลอดภัย ล็อกประตู และเปิดไฟหน้าบ้านไว้ให้เจ้าหน้าที่หาบ้านเจอ', en: 'While you wait, stay safe, lock the door and keep the porch light on so they can find you.' }) }}</p>
-        }
-        @if (display.advancedMode()) {
-          <section class="card adv-card adv-only">
-            <dl class="kv">
-              <dt>{{ i18n.t({ th: 'ส่ง SOS', en: 'SOS sent' }) }}</dt><dd>{{ sos()?.created_at ? exact(sos()!.created_at) : '—' }}</dd>
-              <dt>{{ i18n.t({ th: 'รับเรื่อง', en: 'Accepted' }) }}</dt><dd>{{ sos()?.accepted_by?.at ? exact(sos()!.accepted_by!.at) : '—' }}</dd>
-              <dt>{{ i18n.t({ th: 'รับภายใน', en: 'Accepted within' }) }}</dt><dd>{{ acceptedWithin() }}</dd>
-            </dl>
-          </section>
         }
         <p class="muted small center">{{ i18n.t({ th: 'เบอร์โทรเห็นได้เฉพาะตอน SOS เปิดอยู่', en: 'The number is only shown while the SOS is open' }) }}</p>
         <p class="note"><span class="dot"></span>{{ i18n.t({ th: 'เมื่อเจ้าหน้าที่ปิดเรื่อง จะแจ้งให้ทราบ', en: 'You will be notified when the officer closes it' }) }}</p>
@@ -605,14 +569,6 @@ export class SosAccepted {
             <p>{{ sos()?.close_note }}</p>
           </div>
         </section>
-        @if (display.advancedMode()) {
-          <section class="card adv-only">
-            <dl class="kv">
-              <dt>{{ i18n.t({ th: 'ส่ง SOS', en: 'SOS sent' }) }}</dt><dd>{{ sos()?.created_at ? exact(sos()!.created_at) : '—' }}</dd>
-              <dt>{{ i18n.t({ th: 'รับเรื่อง', en: 'Accepted' }) }}</dt><dd>{{ sos()?.accepted_by?.at ? exact(sos()!.accepted_by!.at) : '—' }}</dd>
-            </dl>
-          </section>
-        }
         }
       </div>
       <footer class="sos-foot">

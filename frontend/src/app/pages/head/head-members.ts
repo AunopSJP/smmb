@@ -48,7 +48,7 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
       @if ((view() === 'pending' || display.easyMode()) && !pending().length) {
         <p class="card muted easy-hide">{{ i18n.t({ th: 'ไม่มีคนรออนุมัติ', en: 'Nobody is waiting' }) }}</p>
       }
-      @if (pending().length && (view() === 'pending' || display.easyMode() || display.advancedMode())) {
+      @if (pending().length && (view() === 'pending' || display.easyMode())) {
         <h2 class="section-title">{{ i18n.t({ th: 'ขอเข้าหน่วยงาน', en: 'Asking to join' }) }}</h2>
         @for (m of pending(); track m.id) {
           <section class="card pending">
@@ -85,7 +85,7 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
         }
       }
 
-      @if ((view() === 'all' || display.advancedMode()) && !display.easyMode()) {
+      @if (view() === 'all' && !display.easyMode()) {
       <h2 class="section-title">{{ i18n.t({ th: 'ในหน่วยงานแล้ว', en: 'In the agency' }) }} ({{ team().length }})</h2>
       <nav class="list">
         <!-- D5: จัดกลุ่มตามสถานะ (หัวหน้า / ใช้งาน / ปิดสิทธิ์) -->

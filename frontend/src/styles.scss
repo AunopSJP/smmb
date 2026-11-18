@@ -257,39 +257,6 @@
     block-size: 26px;
   }
 }
-:root[data-mode='advanced'] {
-  --radius: 14px;
-  --radius-sm: 10px;
-  --radius-xs: 4px;
-  --radius-lg: 16px;
-  --gap: 10px;
-
-  .card {
-    padding: 12px 14px;
-  }
-  .row {
-    padding: 10px 14px;
-    min-block-size: 48px;
-  }
-  .kv {
-    font-size: var(--fs-sm);
-    gap: 6px 14px;
-  }
-  .section-title {
-    font-size: var(--fs-sm);
-    letter-spacing: 0.04em;
-    color: var(--text-muted);
-  }
-  .stat .value {
-    font-size: var(--fs-xl);
-  }
-}
-/* โหมดละเอียดบนจอคอม: เคยย่อ 0.96 แต่ทำให้ข้อความเล็ก 0.75rem ต่ำกว่า 12px — คงขนาดเท่าโหมดปกติ (ความละเอียดได้จากข้อมูลที่แสดงมากกว่า ไม่ใช่ตัวเล็กลง) */
-@media (min-width: 1024px) {
-  :root[data-mode='advanced'] {
-    --text-scale-mode: 1;
-  }
-}
 /* ตัวเลข/วันเวลา: ใช้ tabular-nums ให้หลักตรงกันโดยไม่ต้องเปลี่ยนเป็นฟอนต์ mono (C6)
    mono สงวนไว้สำหรับรหัสตู้/เวอร์ชันเท่านั้น */
 .num {
@@ -413,21 +380,17 @@ textarea {
   }
 }
 
-/* โหมดเห็นรายละเอียด: .adv-only (รหัส/เวอร์ชัน/ข้อมูลเทคนิค) เห็นเฉพาะโหมดละเอียด · โหมดอื่นซ่อน */
-/* หน้าที่เป็นแดชบอร์ดบนจอคอม: บนมือถือซ่อนส่วนละเอียด ยกเว้นโหมดละเอียด (ตามแคนวาสที่ออกแบบสำหรับมือถือ) */
+/* โหมดมีแค่ easy กับ default: .adv-only คือข้อมูลเทคนิคของโหมดละเอียดที่เลิกแล้ว — ซ่อนทุกโหมด (รอลบ markup ออกจากหน้า) */
+.adv-only {
+  display: none !important;
+}
+/* .desk-only: ซ่อนบนมือถือ/แท็บเล็ต แสดงบนจอคอม */
 @media (max-width: 1023px) {
-  :root:not([data-mode='advanced']) .desk-only {
+  .desk-only {
     display: none !important;
   }
 }
 :root:not([data-mode='easy']) .easy-only {
-  display: none !important;
-}
-:root:not([data-mode='advanced']) .adv-only {
-  display: none !important;
-}
-/* โหมดละเอียดมีตารางตัวเลขเทคนิคแล้ว — ซ่อนการ์ดสรุปที่ซ้ำ (แบต/ติดต่อล่าสุด) */
-:root[data-mode='advanced'] .adv-hide {
   display: none !important;
 }
 
