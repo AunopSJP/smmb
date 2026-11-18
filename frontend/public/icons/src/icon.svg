@@ -1,13 +1,47 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <!-- ไอคอน Smart Mailbox: ตู้จดหมายแบนหลายโทนเล็กน้อย (สไตล์ flat icon) บนพื้นแดงหม่นแบรนด์ #9a2f36 · ไม่มีเงา/ไล่สี/ตัวอักษร -->
+  <!-- ไอคอน Smart Mailbox ตามตู้จริง + โซลาร์ + กล้อง + Wi-Fi + QR · แบนหลายโทน ไม่มีเงา/ไล่สี/ตัวอักษร -->
   <rect width="512" height="512" rx="112" fill="#9a2f36"/>
-  <g transform="translate(0 -22)">
-      <rect x="332" y="82" width="26" height="170" rx="10" fill="#fff"/>
-      <rect x="350" y="82" width="86" height="54" rx="10" fill="#fff"/>
-      <path d="M72 350V250a100 100 0 0 1 100-100h168a100 100 0 0 1 100 100v100z" fill="#fff"/>
-      <path d="M72 298h368v52H72z" fill="#e6e6e8"/>
-      <rect x="150" y="214" width="212" height="28" rx="14" fill="#6f1f25"/>
-      <rect x="226" y="350" width="60" height="130" rx="8" fill="#fff"/>
-      <rect x="226" y="350" width="60" height="22" fill="#e6e6e8"/>
+  <g transform="translate(256 256) scale(0.95) translate(-256 -256)"><g transform="translate(0 5)">
+      <!-- แผงโซลาร์: ฝาบางต่อกับหลังตู้ -->
+      <rect x="132" y="76" width="248" height="46" rx="14" fill="#e6e6e8"/>
+      <path d="M194.7 80v26M256 80v26M317.3 80v26" stroke="#9a2f36" stroke-width="5" stroke-linecap="round"/>
+      <!-- ตัวตู้ + แผงหน้า -->
+      <rect x="96" y="108" width="320" height="316" rx="42" fill="#17171a"/>
+      <rect x="120" y="186" width="272" height="214" rx="18" fill="#c8414a"/>
+      <!-- กล้อง (ซ้าย) และ Wi-Fi (ขวา) กึ่งกลางแถบบน -->
+      <circle cx="168" cy="147" r="21" fill="#d9d9dc"/>
+      <circle cx="168" cy="147" r="11.5" fill="#6f1f25"/>
+      <circle cx="163.5" cy="142.5" r="3.5" fill="#fff"/>
+      <g fill="none" stroke="#d9d9dc" stroke-width="10" stroke-linecap="round">
+        <path d="M332.7 143.3A16 16 0 0 1 355.3 143.3"/>
+        <path d="M321.4 132A32 32 0 0 1 366.6 132"/>
+      </g>
+      <circle cx="344" cy="158" r="6.5" fill="#d9d9dc"/>
+      <!-- QR -->
+      <g transform="translate(192 206)">
+        <rect width="128" height="128" rx="16" fill="#fff"/>
+        <g fill="#17171a">
+          <rect x="14" y="14" width="36" height="36" rx="7"/>
+          <rect x="78" y="14" width="36" height="36" rx="7"/>
+          <rect x="14" y="78" width="36" height="36" rx="7"/>
+          <rect x="80" y="80" width="14" height="14" rx="3"/>
+          <rect x="100" y="100" width="14" height="14" rx="3"/>
+          <rect x="100" y="80" width="14" height="14" rx="3"/>
+        </g>
+        <g fill="#fff">
+          <rect x="21" y="21" width="22" height="22" rx="4"/>
+          <rect x="85" y="21" width="22" height="22" rx="4"/>
+          <rect x="21" y="85" width="22" height="22" rx="4"/>
+        </g>
+        <g fill="#17171a">
+          <rect x="28" y="28" width="8" height="8" rx="2"/>
+          <rect x="92" y="28" width="8" height="8" rx="2"/>
+          <rect x="28" y="92" width="8" height="8" rx="2"/>
+        </g>
+      </g>
+      <!-- ช่องหยอด -->
+      <rect x="176" y="354" width="160" height="24" rx="7" fill="#17171a"/>
+      <rect x="182" y="357" width="148" height="3" rx="1.5" fill="#3a3a40"/>
     </g>
+</g>
 </svg>
