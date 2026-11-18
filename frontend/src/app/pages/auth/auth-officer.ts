@@ -419,7 +419,7 @@ export class AuthPushRequired {
   template: `
     <app-page-header caption="Smart Mailbox" [title]="t().title" [back]="update() ? undefined : backUrl()" />
     <div class="stack grow">
-      <p class="muted small easy-hide">{{ t().intro }}</p>
+      <p class="muted small easy-hide">{{ intro() }}</p>
       @for (sec of t().sections; track sec.title; let first = $first; let i = $index) {
         <section class="card sec" [class.first]="first" [class.easy-hide]="i > 1">
           <h2>{{ sec.title }}</h2>
@@ -491,6 +491,8 @@ export class AuthTerms {
   });
   /** ของจริง: GET /api/v1/terms/current (body_md มีทั้งไทยและอังกฤษ คั่นด้วย <!-- en -->) */
   protected readonly t = computed(() => TERMS[this.i18n.lang()]);
+  /** ตัดสัญลักษณ์ ⚠️ นำหน้าตอนแสดงผลเท่านั้น (ข้อความข้อตกลงและเวอร์ชันไม่เปลี่ยน → ไม่ต้องให้ใครยอมรับใหม่) */
+  protected readonly intro = computed(() => this.t().intro.replace(/^[⚠️\s]+/u, ''));
   protected readonly version = TERMS_VERSION;
 
   private formOf(code: string | undefined): FormKey | null {
