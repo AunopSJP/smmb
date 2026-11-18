@@ -4,10 +4,9 @@
 .tabs {
   display: flex;
   gap: 4px;
-  background: var(--surface);
+  background: var(--track);
   padding: 4px;
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow);
 
   button {
     flex: 1;
@@ -15,14 +14,19 @@
     background: transparent;
     color: var(--text-muted);
     padding: 10px 6px;
-    border-radius: var(--radius-sm);
+    border-radius: calc(var(--radius-sm) - 4px);
     font-weight: var(--fw-strong);
     font-size: var(--fs-sm);
     cursor: pointer;
+    transition:
+      background-color var(--dur-fast) var(--ease-out),
+      color var(--dur-fast) var(--ease-out);
   }
+  /* แท็บที่เลือก = พื้นการ์ดลอยจากราง + ตัวอักษรหลัก (ไม่ใช้สีแดงกับทุกอย่าง) */
   button.active {
-    background: var(--brand-lighter);
-    color: var(--brand-text);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow);
   }
 }
 /* โหมดละเอียด: รหัสโซน/เขตเวลา/เวลาอัปเดต — แสดงเฉพาะ .adv-only */

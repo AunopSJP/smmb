@@ -110,12 +110,13 @@
   --sos-fg: #fff;
   --icon-bg: #2a2e35;
 
-  --bg: #121417;
-  --surface: #1c1f24;
+  /* พื้นหลังเข้มกว่าการ์ดชัดเจน + เส้นขอบบาง ๆ แทนเงา (โหมดมืดเงามองไม่เห็น) */
+  --bg: #0f1114;
+  --surface: #1e2227;
   --text: #eceef1;
   --text-muted: #a3a9b2;
   --ok: #4cc777;
-  --shadow: 0 1px 3px rgb(0 0 0 / 40%);
+  --shadow: 0 0 0 1px rgb(255 255 255 / 7%);
   --brand-text: #e8a0a5;
   --badge-bg: #b3261e;
   --track: #14171b;
@@ -134,11 +135,11 @@
 
 /* ลิงก์ข้อความในโหมดมืดใช้แดงอ่อนเพื่อ contrast (ปุ่ม/แถว/แท็บมีสีของตัวเอง) */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) a:not(.btn):not(.row):not(.tab):not(.tile) {
+  :root:not([data-theme='light']) a:not(.btn):not(.row):not(.menu-row):not(.tab):not(.tile) {
     color: var(--brand-text);
   }
 }
-:root[data-theme='dark'] a:not(.btn):not(.row):not(.tab):not(.tile) {
+:root[data-theme='dark'] a:not(.btn):not(.row):not(.menu-row):not(.tab):not(.tile) {
   color: var(--brand-text);
 }
 
@@ -339,6 +340,19 @@
   align-items: center;
   min-block-size: 44px;
   padding-block: 4px;
+}
+/* ปุ่มที่ทำหน้าที่เป็นลิงก์ข้อความ — เดิมไม่มีสไตล์ จึงเป็นปุ่มเทาแบบเบราว์เซอร์ */
+button.see-all,
+button.tap {
+  border: 0;
+  background: none;
+  padding-inline: 0;
+  font: inherit;
+  font-weight: var(--fw-strong);
+  color: var(--brand-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
 }
 /* แผนที่ Leaflet: ปุ่มซูมใหญ่พอแตะ + เครดิตอ่านออก (ค่าเริ่มต้นเล็ก/จางเกินไป) */
 .leaflet-control-zoom a {
@@ -1278,9 +1292,14 @@ input[type='radio']:disabled + * {
 }
 
 .info-box {
-  background: var(--surface);
+  /* ใช้บนการ์ดได้: ไล่ระดับจากพื้นการ์ด ไม่ใช่สีเดียวกับการ์ดจนกลืน */
+  background: color-mix(in srgb, var(--text) 6%, var(--surface));
   border-radius: var(--radius-sm);
-  padding: 10px 12px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   font-size: var(--fs-sm);
   text-align: start;
 }
@@ -1478,11 +1497,12 @@ details.opt {
   select,
   textarea {
     inline-size: 100%;
-    min-block-size: 52px;
+    min-block-size: 48px;
     padding: 10px 14px;
     border-radius: var(--radius-sm);
-    border: 1.5px solid color-mix(in srgb, var(--text-muted) 55%, transparent);
-    background: var(--surface);
+    border: 1.5px solid color-mix(in srgb, var(--text-muted) 38%, transparent);
+    /* ช่องกรอกลึกกว่าการ์ด (พื้นหลังหน้า) เพื่อให้เห็นว่าเป็นช่องที่พิมพ์ได้ */
+    background: var(--bg);
     color: var(--text);
     font: inherit;
   }

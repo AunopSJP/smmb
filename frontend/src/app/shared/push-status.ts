@@ -144,9 +144,15 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
         border-color: var(--ok);
       }
       &.warn {
-        background: var(--ib-warn-bg);
-        border: 1.5px solid var(--warn);
-        box-shadow: none;
+        /* เตือนแบบสงบ: การ์ดปกติ + แถบสีเตือนด้านข้าง + ไอคอนสีเตือน (ไม่ทาพื้นเหลืองทั้งแถบ) */
+        background: var(--surface);
+        border: 0;
+        box-shadow:
+          inset 3px 0 0 var(--warn),
+          var(--shadow);
+        .lead app-icon {
+          color: var(--warn);
+        }
       }
       /* C4: แถบบรรทัดเดียวสำหรับหน้าที่ไม่ใช่หน้าหลัก/ตั้งค่าการแจ้งเตือน */
       &.bar {
@@ -164,6 +170,7 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
         flex: none;
         min-block-size: 44px;
         padding: 8px 16px;
+        font-size: var(--fs-sm);
       }
     }
     .warn-head {
