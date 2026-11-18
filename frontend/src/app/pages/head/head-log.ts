@@ -239,7 +239,7 @@ const RESULT_TEXT: Record<string, Tr> = {
       background: var(--icon-bg);
       color: var(--text-muted);
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       list-style: none;
     }
     .fgrid {

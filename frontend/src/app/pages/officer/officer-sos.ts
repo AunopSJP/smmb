@@ -270,7 +270,7 @@ export class OfficerSosList {
       align-items: center;
     }
     .pill {
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       font-size: var(--fs-sm);
       padding: 2px 10px;
       border-radius: var(--radius-lg);
@@ -402,7 +402,7 @@ export class OfficerSosCase implements OnInit {
       align-items: center;
       gap: 4px;
       color: var(--sos-fg);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       font-size: var(--fs-sm);
       text-decoration: none;
     }
@@ -484,7 +484,7 @@ const OUTCOMES: { v: string; label: Tr }[] = [
       align-items: center;
       gap: 4px;
       color: var(--brand-text);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       font-size: var(--fs-sm);
       text-decoration: none;
     }

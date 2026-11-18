@@ -58,7 +58,7 @@
 }
 .kpi-value {
   font-size: var(--fs-2xl);
-  font-weight: 700;
+  font-weight: var(--fw-strong);
   line-height: 1.15;
   font-variant-numeric: tabular-nums;
 }
@@ -278,7 +278,7 @@
 }
 .panel h2 {
   font-size: var(--fs-base);
-  font-weight: 700;
+  font-weight: var(--fw-strong);
 }
 .panel header a,
 .act a {
@@ -343,7 +343,7 @@
 .num {
   text-align: end;
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: var(--fw-strong);
   inline-size: 56px;
 }
 .act {
@@ -473,7 +473,7 @@
 }
 .easy-n {
   font-size: var(--fs-2xl);
-  font-weight: 800;
+  font-weight: var(--fw-strong);
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }

@@ -196,7 +196,7 @@ export class AccountActions {
       background: var(--danger-bg);
       color: var(--sos);
       box-shadow: none;
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
   `,
 })

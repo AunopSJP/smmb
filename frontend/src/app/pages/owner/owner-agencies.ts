@@ -122,7 +122,7 @@ const km = (a: LatLng, b: LatLng): number => {
       background: var(--icon-bg);
       color: var(--brand-text);
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .ag.on .num {
       background: var(--action-bg);

@@ -227,7 +227,7 @@ import { PageHeader } from '../../shared/page-header';
     .t {
       inline-size: 20px;
       text-align: center;
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .preview {
       background: var(--bg);
@@ -235,7 +235,7 @@ import { PageHeader } from '../../shared/page-header';
       padding: 10px 12px;
     }
     .sample {
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       font-size: var(--fs-md);
       color: var(--ok);
     }

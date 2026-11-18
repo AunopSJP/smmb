@@ -138,7 +138,7 @@ export class RiderApi {
     }
     .demo-tools a {
       color: inherit;
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
   `,
 })
@@ -239,11 +239,11 @@ export class RiderCode {
     .house {
       text-align: center;
       .label {
-        font-weight: 700;
+        font-weight: var(--fw-strong);
       }
       .no {
         font-size: var(--fs-3xl);
-        font-weight: 700;
+        font-weight: var(--fw-strong);
         line-height: 1.15;
         font-variant-numeric: tabular-nums;
       }
@@ -257,7 +257,7 @@ export class RiderCode {
     .expired {
       border: 2px solid var(--sos);
       color: var(--sos);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       a {
         display: block;
         margin-block-start: 4px;
@@ -421,7 +421,7 @@ export class RiderLimited {
         <p class="house">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ house() }}</p>
         <p class="small">
           {{ i18n.t({ th: 'แจ้งเจ้าของบ้านแล้ว', en: 'Owner notified' }) }}<span class="easy-hide"> {{ at() ?? '' }}</span><br />
-          {{ i18n.t({ th: 'ปิดหน้านี้ได้ ขอบคุณที่ใช้บริการ', en: 'You can close this page. Thank you!' }) }}
+          {{ i18n.t({ th: 'ปิดหน้านี้ได้ ขอบคุณที่ใช้บริการ', en: 'You can close this page. Thank you' }) }}
         </p>
         <p class="small adv-only">{{ i18n.t({ th: 'ตั๋วใช้แล้ว · ไม่เก็บข้อมูลผู้ส่ง', en: 'ticket used · no sender identity stored' }) }}</p>
       </div>
@@ -443,7 +443,7 @@ export class RiderLimited {
     }
     .house {
       font-size: var(--fs-md);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
   `,
 })

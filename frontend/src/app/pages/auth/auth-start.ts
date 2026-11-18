@@ -181,7 +181,7 @@ export class AuthLine {
         fill: var(--text);
       }
       .strongT {
-        font-weight: 700;
+        font-weight: var(--fw-strong);
       }
       .muted {
         fill: var(--text-muted);
@@ -375,7 +375,7 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
     }
     .link {
       color: var(--brand-text);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     /* B2: ปุ่มข้อความ (ไม่ใช่ตัวแดงลอย) — พื้นที่แตะ 44px */
     .forgot-link {
@@ -386,7 +386,7 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
       background: none;
       color: var(--brand-text);
       font: inherit;
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       text-decoration: underline;
       text-underline-offset: 3px;
       cursor: pointer;
@@ -561,7 +561,7 @@ export class AuthSignin implements OnInit {
     }
     .link {
       color: var(--brand-text);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
   `,
 })

@@ -92,22 +92,29 @@ export async function cameraPermission(): Promise<'granted' | 'denied' | 'prompt
       position: absolute;
       left: 8%;
       right: 8%;
-      top: 50%;
+      top: 12%;
+      bottom: 12%;
+      /* เส้นกวาดเลื่อนด้วย transform (ไม่กระทบ layout) — รางสูงเท่าช่วงที่เส้นวิ่ง */
+      container-type: size;
+    }
+    .line::after {
+      content: '';
+      position: absolute;
+      inset-inline: 0;
+      top: 0;
       height: 2px;
       background: var(--media-line);
       animation: sweep 1.8s ease-in-out infinite alternate;
     }
     @keyframes sweep {
-      from {
-        top: 12%;
-      }
       to {
-        top: 88%;
+        transform: translateY(calc(100cqh - 2px));
       }
     }
     @media (prefers-reduced-motion: reduce) {
-      .line {
+      .line::after {
         animation: none;
+        transform: translateY(calc(50cqh - 1px));
       }
     }
     .torch {
@@ -122,7 +129,7 @@ export async function cameraPermission(): Promise<'granted' | 'denied' | 'prompt
       background: rgb(0 0 0 / 55%);
       color: var(--on-dark);
       font: inherit;
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       cursor: pointer;
     }
   `,

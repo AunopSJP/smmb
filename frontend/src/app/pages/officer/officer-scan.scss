@@ -31,7 +31,7 @@
 }
 .aim {
   margin-block-start: 24px;
-  font-weight: 700;
+  font-weight: var(--fw-strong);
 }
 .frame {
   position: relative;
@@ -68,22 +68,29 @@
   position: absolute;
   inset-inline-start: 8%;
   inset-inline-end: 8%;
-  inset-block-start: 50%;
+  inset-block-start: 15%;
+  inset-block-end: 15%;
+  /* เส้นกวาดเลื่อนด้วย transform (ไม่กระทบ layout) — รางสูงเท่าช่วงที่เส้นวิ่ง */
+  container-type: size;
+}
+.line::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 0;
   block-size: 2px;
   background: var(--media-line);
   animation: scan 2s ease-in-out infinite alternate;
 }
 @keyframes scan {
-  from {
-    inset-block-start: 15%;
-  }
   to {
-    inset-block-start: 85%;
+    transform: translateY(calc(100cqh - 2px));
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .line {
+  .line::after {
     animation: none;
+    transform: translateY(calc(50cqh - 1px));
   }
 }
 .hint {
@@ -97,7 +104,7 @@
   background: rgb(255 255 255 / 15%);
   color: var(--on-dark);
   font: inherit;
-  font-weight: 700;
+  font-weight: var(--fw-strong);
   cursor: pointer;
   &[aria-pressed='true'] {
     background: var(--torch-on-bg);

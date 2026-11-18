@@ -157,7 +157,7 @@ let nextId = 0;
     }
     .eyebrow {
       font-size: var(--fs-xs);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       letter-spacing: 0.04em;
       text-transform: uppercase;
       color: var(--text-muted);
@@ -180,7 +180,7 @@ let nextId = 0;
       background: var(--icon-bg);
       color: var(--text-muted);
       font-size: var(--fs-xs);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       font-variant-numeric: tabular-nums;
       i {
         margin-inline: 1px;
@@ -225,7 +225,7 @@ let nextId = 0;
       justify-content: space-between;
       margin: 4px 8px 6px;
       font-size: var(--fs-xs);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       letter-spacing: 0.02em;
       color: var(--text-muted);
       span {

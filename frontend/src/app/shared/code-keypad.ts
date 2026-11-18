@@ -32,7 +32,7 @@ import { I18n } from '../core/i18n';
       color: var(--text);
       font: inherit;
       font-size: var(--fs-lg);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       box-shadow: var(--shadow);
       cursor: pointer;
       touch-action: manipulation;

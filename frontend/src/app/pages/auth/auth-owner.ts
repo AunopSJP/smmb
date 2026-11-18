@@ -120,7 +120,7 @@ export const SIGNUP_ERROR: Record<string, Tr> = {
     }
     a {
       color: inherit;
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
   `,
 })
@@ -471,7 +471,7 @@ export class AuthActivate implements OnInit {
       display: flex;
       align-items: center;
       gap: 6px;
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .segmented {
       flex-wrap: wrap;

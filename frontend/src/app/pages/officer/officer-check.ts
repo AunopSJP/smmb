@@ -112,7 +112,7 @@ async function startInspection(api: InspectionApi, router: Router, body: Paramet
     }
     .checking {
       margin: 48px 0;
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .msg {
       background: rgb(255 255 255 / 12%);
@@ -278,7 +278,7 @@ const CAMERA_NOTE: Record<string, Tr> = {
       padding-block: 6px;
       gap: 4px;
       color: var(--brand-text);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       font-size: var(--fs-sm);
       text-decoration: none;
     }
@@ -297,7 +297,7 @@ const CAMERA_NOTE: Record<string, Tr> = {
     input {
       font: inherit;
       font-size: var(--fs-xl);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       letter-spacing: 0.1em;
       min-block-size: 60px;
       padding: 8px 14px;
@@ -404,7 +404,7 @@ const CONDITIONS: { v: QrCondition; label: Tr; wide?: boolean }[] = [
       font-size: var(--fs-lg);
     }
     .strong {
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .tech {
       margin: 0;
@@ -423,7 +423,7 @@ const CONDITIONS: { v: QrCondition; label: Tr; wide?: boolean }[] = [
         background: var(--surface);
         color: var(--text);
         font: inherit;
-        font-weight: 700;
+        font-weight: var(--fw-strong);
         cursor: pointer;
       }
       button[aria-checked='true'] {
@@ -631,7 +631,7 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
   `,
   styles: `
     .strong {
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .err {
       color: var(--sos);
@@ -656,7 +656,7 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
       background: var(--danger-bg);
       color: var(--sos);
       font-size: var(--fs-xl);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       &::after {
         content: '';
         position: absolute;
@@ -841,7 +841,7 @@ interface WakeLockSentinelLike {
       font-size: var(--fs-lg);
     }
     .strong {
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .retry {
       background: var(--warn-bg);
@@ -881,7 +881,7 @@ interface WakeLockSentinelLike {
         block-size: 40px;
         border-radius: 50%;
         border: 2px solid var(--line);
-        font-weight: 700;
+        font-weight: var(--fw-strong);
         font-variant-numeric: tabular-nums;
       }
     }
@@ -1121,7 +1121,7 @@ const HOLD_MS = 8000;
           <span class="spinner" aria-hidden="true"></span>
           <h1>{{ i18n.t({ th: 'กำลังบันทึกผลการตรวจ…', en: 'Saving the inspection…' }) }}</h1>
           <p class="small">{{ i18n.t({ th: 'กรุณายืนอยู่หน้าตู้จนกว่าจะเสร็จ', en: 'Please stay in front of the mailbox until it finishes' }) }}</p>
-          <div class="bar easy-hide" aria-hidden="true"><span [style.width.%]="progress()"></span></div>
+          <div class="bar easy-hide" aria-hidden="true"><span [style.transform]="'scaleX(' + progress() / 100 + ')'"></span></div>
         </div>
       </div>
     } @else if (failed()) {
@@ -1205,12 +1205,13 @@ const HOLD_MS = 8000;
         display: block;
         height: 100%;
         background: var(--success-fg);
-        transition: width 0.25s linear;
+        transform-origin: 0 50%;
+        transition: transform 0.25s linear;
       }
     }
     .house {
       font-size: var(--fs-md);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .tech {
       margin: 0;

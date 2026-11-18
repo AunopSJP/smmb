@@ -150,7 +150,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       padding: 12px 16px;
       background: var(--on-dark);
       color: var(--sos);
-      font-weight: 800;
+      font-weight: var(--fw-strong);
       text-align: center;
       border-radius: 0 0 var(--radius-sm) var(--radius-sm);
     }
@@ -261,7 +261,7 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       border-radius: 50%;
       border: 1.5px solid currentColor;
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     li.now .num {
       background: var(--sos-bg);
@@ -415,7 +415,7 @@ export class SosNoOfficer {
       display: grid;
       place-items: center;
       color: rgb(255 255 255 / 45%);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .option {
       justify-content: flex-start;
@@ -500,7 +500,7 @@ export class SosCancel {
       padding: 12px 16px;
       background: var(--on-dark);
       color: var(--sos);
-      font-weight: 800;
+      font-weight: var(--fw-strong);
       text-align: center;
     }
     .check {

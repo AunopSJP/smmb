@@ -117,7 +117,7 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
     }
     .code {
       font-size: var(--fs-2xl);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       letter-spacing: 0.06em;
     }
   `,
@@ -455,7 +455,7 @@ const ROLE_LABEL: Record<string, Tr> = {
       background: var(--icon-bg);
       color: var(--text-muted);
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .block {
       display: block;
@@ -567,7 +567,7 @@ const ROLE_LABEL: Record<string, Tr> = {
       border-radius: 50%;
       background: var(--brand-light);
       color: var(--brand-dark);
-      font-weight: 800;
+      font-weight: var(--fw-strong);
     }
     .empty {
       display: flex;
@@ -588,7 +588,7 @@ const ROLE_LABEL: Record<string, Tr> = {
     }
     .temp {
       font-size: var(--fs-xl);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       letter-spacing: 0.06em;
     }
     .chip {

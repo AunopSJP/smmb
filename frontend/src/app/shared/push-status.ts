@@ -11,6 +11,7 @@ import { fmtWhenSec } from '../core/time';
 import { isSnoozed, PUSH_NUDGE_KEY, PUSH_NUDGE_SNOOZE_HOURS, snoozeUntil } from '../core/snooze';
 import { Toast } from '../core/toast';
 import { screenUrl } from '../screens/registry';
+import { Icon } from './icon';
 
 const readStored = (): string | null => {
   try {
@@ -27,14 +28,14 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
  */
 @Component({
   selector: 'app-push-status',
-  imports: [RouterLink],
+  imports: [RouterLink, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (on() && (compact() || hideWhenOn())) {
       <!-- เปิดแล้ว: ไม่ต้องมีแถบให้กดเปิดอีก -->
     } @else if (on()) {
       <div class="card status ok">
-        <strong>{{ i18n.t({ th: '🔔 เครื่องนี้รับแจ้งเตือนอยู่', en: '🔔 This device gets notifications' }) }}</strong>
+        <strong class="lead"><app-icon name="bell" [size]="18" />{{ i18n.t({ th: 'เครื่องนี้รับแจ้งเตือนอยู่', en: 'This device gets notifications' }) }}</strong>
         <small class="easy-hide">{{ i18n.t({ th: 'มือถือ/คอมพิวเตอร์เครื่องอื่นที่เข้าสู่ระบบบัญชีนี้ ต้องเปิดแยกเครื่องละครั้ง', en: 'Every other phone or computer you sign in on needs to turn it on separately' }) }}</small>
         <div class="row-btns easy-hide">
           <button type="button" class="btn secondary" [disabled]="busy()" (click)="test()">{{ i18n.t({ th: 'ส่งทดสอบ', en: 'Send a test' }) }}</button>
@@ -49,7 +50,7 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
       <!-- C4: หน้าอื่น (compact) = แถบบรรทัดเดียว + ปุ่ม "เปิด" · หน้าหลัก/ตั้งค่าการแจ้งเตือน = แบบเต็ม -->
       @if (compact()) {
         <div class="card status warn bar" role="status">
-          <strong class="grow">{{ i18n.t({ th: '🔕 ยังไม่ได้รับแจ้งเตือนบนเครื่องนี้', en: '🔕 Notifications are off on this device' }) }}</strong>
+          <strong class="grow lead"><app-icon name="alert" [size]="18" />{{ i18n.t({ th: 'ยังไม่ได้รับแจ้งเตือนบนเครื่องนี้', en: 'Notifications are off on this device' }) }}</strong>
           <button type="button" class="btn" [disabled]="busy()" (click)="turnOn()">{{ i18n.t({ th: 'เปิดแจ้งเตือน', en: 'Turn on' }) }}</button>
           @if (dismissible() && !required()) {
             <button type="button" class="x" (click)="snooze()" [attr.aria-label]="i18n.t({ th: 'ปิดไว้ก่อน จะเตือนอีกครั้งใน ', en: 'Dismiss for now — reminds again in ' }) + hours + i18n.t({ th: ' ชั่วโมง', en: ' hours' })">✕</button>
@@ -58,7 +59,7 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
       } @else {
       <div class="card status warn">
         <div class="warn-head">
-          <strong class="grow">{{ i18n.t({ th: '🔕 เครื่องนี้ยังไม่ได้รับแจ้งเตือน', en: '🔕 This device is not getting notifications' }) }}</strong>
+          <strong class="grow lead"><app-icon name="alert" [size]="18" />{{ i18n.t({ th: 'เครื่องนี้ยังไม่ได้รับแจ้งเตือน', en: 'This device is not getting notifications' }) }}</strong>
           @if (dismissible() && !required()) {
             <button type="button" class="x" (click)="snooze()" [attr.aria-label]="i18n.t({ th: 'ปิดไว้ก่อน จะเตือนอีกครั้งใน ', en: 'Dismiss for now — reminds again in ' }) + hours + i18n.t({ th: ' ชั่วโมง', en: ' hours' })">✕</button>
           }
@@ -100,7 +101,7 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
         <strong>{{ i18n.t({ th: 'ผลการตรวจ', en: 'Check results' }) }}</strong>
         @for (s of diag(); track $index) {
           <div class="diag-step" [class.bad]="!s.ok">
-            <span>{{ s.ok ? '✅' : '❌' }} {{ i18n.t(s.label) }}</span>
+            <span class="lead"><app-icon [name]="s.ok ? 'check' : 'alert'" [size]="16" />{{ i18n.t(s.label) }}</span>
             @if (!s.ok && s.fix) { <small class="fix">{{ i18n.t(s.fix) }}</small> }
           </div>
         }
@@ -109,6 +110,11 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
     }
   `,
   styles: `
+    .lead {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
     .diag {
       display: flex;
       flex-direction: column;

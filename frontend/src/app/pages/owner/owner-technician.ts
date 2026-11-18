@@ -150,7 +150,7 @@ import { bkkClock, fmtWhen } from '../../core/time';
     @media (hover: hover) {
       .choice:hover { background: var(--icon-bg); }
     }
-    .choice:has(input:checked) { background: var(--brand-lighter); color: var(--brand-dark); font-weight: 700; }
+    .choice:has(input:checked) { background: var(--brand-lighter); color: var(--brand-dark); font-weight: var(--fw-strong); }
     button:disabled { opacity: 0.6; }
     .st {
       display: flex;
@@ -167,7 +167,7 @@ import { bkkClock, fmtWhen } from '../../core/time';
       .on {
         background: var(--action-bg);
         color: var(--action-fg);
-        font-weight: 700;
+        font-weight: var(--fw-strong);
       }
     }
     .appt {
@@ -213,7 +213,7 @@ import { bkkClock, fmtWhen } from '../../core/time';
         background: var(--icon-bg);
         color: var(--text-muted);
         font-size: var(--fs-xs);
-        font-weight: 700;
+        font-weight: var(--fw-strong);
       }
       .done .d { background: var(--ok); color: var(--surface); }
       b, small { display: block; }

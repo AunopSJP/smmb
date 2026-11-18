@@ -126,7 +126,7 @@ import { TERMS, TERMS_VERSION } from '../../core/terms';
     }
     a {
       color: inherit;
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
   `,
 })

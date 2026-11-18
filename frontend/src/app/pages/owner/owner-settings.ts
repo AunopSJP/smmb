@@ -322,7 +322,7 @@ import { bkkClock, fmtDate } from '../../core/time';
     .group {
       margin: 12px 4px 0;
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       letter-spacing: 0.02em;
       color: var(--text-muted);
     }
@@ -404,7 +404,7 @@ import { bkkClock, fmtDate } from '../../core/time';
       gap: 6px;
       margin: 0;
       color: var(--ok);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .nobox {
       display: flex;
@@ -451,7 +451,7 @@ import { bkkClock, fmtDate } from '../../core/time';
       cursor: pointer;
     }
     .link.strong {
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .signout {
       margin-block-start: auto;

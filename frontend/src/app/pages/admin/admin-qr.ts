@@ -113,7 +113,7 @@ const fmtDate = (iso: string, lang: 'th' | 'en') => fmtWhen(iso, lang);
       align-items: center;
       justify-content: center;
       gap: 6px;
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .qr {
       inline-size: 55mm;
@@ -122,7 +122,7 @@ const fmtDate = (iso: string, lang: 'th' | 'en') => fmtWhen(iso, lang);
     /* ใบพิมพ์: ใช้ pt (หน่วยกระดาษ) ไม่ใช่โทเคนหน้าจอ — 20pt รหัส, 9pt คำอธิบาย */
     .code {
       font-size: 20pt;
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       letter-spacing: 0.08em;
     }
     .meta,
@@ -264,7 +264,7 @@ export class QrPrintSheet {
       opacity: 0.75;
     }
     .who.me {
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       color: var(--brand-text);
     }
     .go {
@@ -624,7 +624,7 @@ const REISSUE_STEPS: FlowStep[] = [
     }
     .eyebrow {
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       color: var(--brand-text);
       text-transform: uppercase;
       letter-spacing: 0.04em;
@@ -653,7 +653,7 @@ const REISSUE_STEPS: FlowStep[] = [
       margin: 0;
     }
     .options legend {
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       margin-block-end: 6px;
     }
     .options label {
@@ -716,7 +716,7 @@ const REISSUE_STEPS: FlowStep[] = [
       border-radius: 50%;
       border: 1.5px solid var(--line-strong, var(--line));
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .steps li.done .num {
       background: var(--success-bg);

@@ -60,7 +60,7 @@ import { I18n } from '../core/i18n';
       }
       .colon {
         color: var(--text-muted);
-        font-weight: 700;
+        font-weight: var(--fw-strong);
       }
       :host-context([data-mode='easy']) select {
         min-block-size: 60px;

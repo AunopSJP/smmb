@@ -79,6 +79,14 @@
      ใช้ 50% สำหรับวงกลม และ 999px สำหรับแคปซูล/ป้ายเท่านั้น */
   --radius-xs: 6px;
   --radius-lg: 22px;
+  /* ── โทเคนการเคลื่อนไหวกลาง (2026-11-18) ──────────────────────────────
+     ห้ามใช้ `ease` ลอย ๆ หรือฮาร์ดโค้ดวินาทีในคอมโพเนนต์ใหม่ — ใช้ตัวแปรนี้
+     fast = ฟีดแบ็กการกด/hover · base = เมนู/การ์ดเข้า-ออก */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  /* น้ำหนักตัวหนา: ปกติ/ละเอียด 600 (ลำดับความสำคัญอ่านจากขนาด+สี) · โหมดง่ายคง 700 ให้ตัวไทยอ่านชัดบนจอเล็ก */
+  --fw-strong: 600;
+  --dur-fast: 0.12s;
+  --dur-base: 0.18s;
   /* สเกลตัวอักษร = ที่ผู้ใช้เลือก × โหมดการแสดงผล แล้วบีบด้วย min/max ของชนิดจอ (ดูด้านล่าง) */
   --text-scale-user: 1;
   --text-scale-mode: 1;
@@ -185,6 +193,7 @@
 
 /* ตามแคนวาสดีไซน์ UX/UI (2026-11-06): โหมดง่าย = การ์ดมน-ใหญ่ ตัวหนา ปุ่มสูง · โหมดละเอียด = แน่นขึ้น ตัวเลข/รหัสใช้ฟอนต์ mono */
 :root[data-mode='easy'] {
+  --fw-strong: 700;
   --radius: 24px;
   --radius-sm: 20px;
   --radius-xs: 8px;
@@ -196,7 +205,7 @@
   }
   .section-title {
     font-size: var(--fs-lg);
-    font-weight: 700;
+    font-weight: var(--fw-strong);
   }
   .chip {
     font-size: var(--fs-base);
@@ -563,7 +572,7 @@ button.row:active {
   font-size: var(--fs-sm);
 }
 .section-title {
-  font-weight: 700;
+  font-weight: var(--fw-strong);
   font-size: var(--fs-base);
   margin: 8px 4px 0;
 }
@@ -579,15 +588,19 @@ button.row:active {
   border: 0;
   border-radius: var(--radius);
   font: inherit;
-  font-weight: 700;
+  font-weight: var(--fw-strong);
   font-size: var(--fs-base);
   cursor: pointer;
   text-decoration: none;
   background: var(--action-bg);
   color: var(--action-fg);
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
 
-  &:active {
+  &:active:not(:disabled) {
     background: color-mix(in srgb, var(--action-bg) 86%, #000);
+    transform: scale(0.98);
   }
   &.secondary {
     background: var(--surface);
@@ -608,7 +621,7 @@ button.row:active {
   padding: 3px 10px;
   border-radius: var(--radius-lg);
   font-size: var(--fs-xs);
-  font-weight: 700;
+  font-weight: var(--fw-strong);
   white-space: nowrap;
   background: var(--ib-bg);
   color: var(--ib-fg);
@@ -742,7 +755,7 @@ button.row:active {
   }
   .value {
     font-size: var(--fs-xl);
-    font-weight: 700;
+    font-weight: var(--fw-strong);
     line-height: 1.2;
   }
   .ok {
@@ -793,7 +806,7 @@ app-area-shell main > :not(router-outlet) {
   dd {
     margin: 0;
     text-align: end;
-    font-weight: 700;
+    font-weight: var(--fw-strong);
     overflow-wrap: break-word;
   }
   .ok {
@@ -825,7 +838,7 @@ app-area-shell main > :not(router-outlet) {
   button[aria-pressed='true'] {
     background: var(--surface);
     color: var(--brand-text);
-    font-weight: 700;
+    font-weight: var(--fw-strong);
     box-shadow: 0 1px 2px rgb(20 38 46 / 15%);
   }
   /* ตัวกรองแบบแคปซูล */
@@ -851,7 +864,7 @@ app-area-shell main > :not(router-outlet) {
     background: var(--ib-bg);
     border-color: var(--brand);
     color: var(--ib-fg);
-    font-weight: 700;
+    font-weight: var(--fw-strong);
     box-shadow: none;
   }
 }
@@ -961,12 +974,12 @@ app-area-shell main > :not(router-outlet) {
   }
   .timer {
     font-size: var(--fs-2xl);
-    font-weight: 700;
+    font-weight: var(--fw-strong);
     font-variant-numeric: tabular-nums;
   }
   .pill {
     font-size: var(--fs-xs);
-    font-weight: 700;
+    font-weight: var(--fw-strong);
     padding: 2px 10px;
     border-radius: var(--radius-lg);
     background: rgb(255 255 255 / 20%);
@@ -1045,7 +1058,7 @@ app-area-shell main > :not(router-outlet) {
 
   button {
     font: inherit;
-    font-weight: 700;
+    font-weight: var(--fw-strong);
     padding: 4px 10px;
     border-radius: var(--radius-lg);
     border: 0;
@@ -1094,7 +1107,7 @@ app-area-shell main > :not(router-outlet) {
   block-size: 72px;
   border-radius: 50%;
   font-size: var(--fs-2xl);
-  font-weight: 700;
+  font-weight: var(--fw-strong);
   background: var(--icon-bg);
   color: var(--text-muted);
 
@@ -1125,7 +1138,7 @@ app-area-shell main > :not(router-outlet) {
   padding: 0;
 
   legend {
-    font-weight: 700;
+    font-weight: var(--fw-strong);
     margin-block-end: 8px;
     padding: 0;
   }
@@ -1138,7 +1151,7 @@ app-area-shell main > :not(router-outlet) {
     border-radius: var(--radius-sm);
     border: 1.5px solid var(--line);
     background: var(--surface);
-    font-weight: 700;
+    font-weight: var(--fw-strong);
     cursor: pointer;
   }
   label:has(input:checked) {
@@ -1187,8 +1200,11 @@ input[type='radio']::before {
   block-size: 10px;
   border-radius: 50%;
   background: var(--brand);
-  transform: scale(0);
-  transition: transform 0.15s ease;
+  transform: scale(0.4);
+  opacity: 0;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
 }
 @media (hover: hover) {
   input[type='radio']:hover {
@@ -1202,6 +1218,7 @@ input[type='radio']:checked {
 }
 input[type='radio']:checked::before {
   transform: scale(1);
+  opacity: 1;
 }
 input[type='radio']:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--brand) 32%, transparent);
@@ -1294,7 +1311,7 @@ section.form-section + section.form-section {
 .form-title {
   margin: 0;
   font-size: var(--fs-md);
-  font-weight: 700;
+  font-weight: var(--fw-strong);
   color: var(--brand-dark);
 }
 .form-hint {
@@ -1320,7 +1337,7 @@ fieldset {
   > legend {
     padding: 0;
     margin-block-end: 8px;
-    font-weight: 700;
+    font-weight: var(--fw-strong);
     font-size: var(--fs-base);
   }
 }
@@ -1404,7 +1421,7 @@ details.opt {
   }
   .done {
     color: var(--ok);
-    font-weight: 700;
+    font-weight: var(--fw-strong);
   }
 }
 .opt-body {
@@ -1443,7 +1460,7 @@ details.opt {
     border-color: var(--brand);
     background: var(--brand-light);
     color: var(--brand-dark);
-    font-weight: 700;
+    font-weight: var(--fw-strong);
   }
 }
 
@@ -1454,7 +1471,7 @@ details.opt {
   gap: 6px;
 
   > span {
-    font-weight: 700;
+    font-weight: var(--fw-strong);
     font-size: var(--fs-base);
   }
   input:not([type='checkbox']):not([type='radio']),
@@ -1517,7 +1534,7 @@ details.opt {
   }
   > span {
     flex: none;
-    font-weight: 700;
+    font-weight: var(--fw-strong);
   }
 }
 .warn-text {
@@ -1554,7 +1571,7 @@ details.opt {
     background: var(--text);
     color: var(--surface);
     font-size: var(--fs-sm);
-    font-weight: 700;
+    font-weight: var(--fw-strong);
   }
   strong,
   small {
@@ -1781,7 +1798,7 @@ details.opt {
       background: var(--icon-bg);
       color: var(--text-muted);
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       letter-spacing: 0.02em;
     }
 
@@ -1838,7 +1855,7 @@ details.opt {
 
   > h2 {
     font-size: var(--fs-base);
-    font-weight: 700;
+    font-weight: var(--fw-strong);
   }
   > .hint {
     margin-block-start: -8px;
@@ -1999,7 +2016,7 @@ details.opt {
     --shadow: 0 1px 2px rgb(20 38 46 / 8%);
 
     .btn {
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
   }
   /* การ์ดแอดมินบนมือถือ = การ์ดมนไร้ขอบเหมือนแคนวาส (จอคอมยังเป็นตารางเดิม) */
@@ -2293,7 +2310,7 @@ details.opt {
     border-block-end: 1px solid var(--line-strong);
     color: var(--text-muted);
     font-size: var(--fs-xs);
-    font-weight: 700;
+    font-weight: var(--fw-strong);
     letter-spacing: 0.07em;
     text-transform: uppercase;
   }
@@ -2524,7 +2541,7 @@ details.opt {
   }
   .section-head h2 {
     font-size: var(--fs-base);
-    font-weight: 700;
+    font-weight: var(--fw-strong);
   }
   .section-head .count {
     color: var(--text-muted);

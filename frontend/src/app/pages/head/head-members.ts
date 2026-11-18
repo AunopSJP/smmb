@@ -136,7 +136,7 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
       background: var(--icon-bg);
       color: var(--text-muted);
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .two {
       display: grid;
@@ -160,12 +160,12 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
     }
     .code {
       font-size: var(--fs-xl);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       letter-spacing: 0.06em;
     }
     a.small {
       color: var(--brand-text);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
   `,
 })
@@ -330,7 +330,7 @@ export class HeadMembers implements OnInit {
     }
     .temp {
       font-size: var(--fs-xl);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       letter-spacing: 0.06em;
     }
     .danger-outline {

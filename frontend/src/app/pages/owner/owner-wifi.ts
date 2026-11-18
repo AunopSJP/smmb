@@ -151,7 +151,7 @@ import { bkkClock } from '../../core/time';
       background: var(--action-bg);
       color: var(--action-fg);
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .easy-steps {
       gap: 18px;

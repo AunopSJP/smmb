@@ -146,14 +146,14 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
       background: var(--badge-bg);
       color: var(--badge-fg);
       font-size: var(--fs-xs);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .more {
       display: block;
       margin-block-start: 4px;
       color: var(--brand-text);
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .meta {
       display: block;
@@ -174,7 +174,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
       color: var(--brand-text);
       font: inherit;
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       cursor: pointer;
     }
     .read-all[disabled] {
@@ -185,7 +185,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
     .day {
       margin: 8px 4px 0;
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       color: var(--text-muted);
     }
     .feed {
@@ -252,7 +252,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
       font-weight: 600;
     }
     .unread .top strong {
-      font-weight: 800;
+      font-weight: var(--fw-strong);
     }
     time {
       flex: none;

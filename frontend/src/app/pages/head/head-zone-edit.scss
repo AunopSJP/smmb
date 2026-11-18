@@ -16,7 +16,7 @@
     color: var(--text-muted);
     padding: 10px 6px;
     border-radius: var(--radius-sm);
-    font-weight: 700;
+    font-weight: var(--fw-strong);
     font-size: var(--fs-sm);
     cursor: pointer;
   }
@@ -43,7 +43,7 @@
   padding: 4px;
   font: inherit;
   font-size: var(--fs-sm);
-  font-weight: 700;
+  font-weight: var(--fw-strong);
   color: var(--brand);
   text-decoration: none;
   cursor: pointer;
@@ -64,7 +64,7 @@
   background: var(--surface);
   color: var(--text);
   font: inherit;
-  font-weight: 700;
+  font-weight: var(--fw-strong);
   font-size: var(--fs-sm);
   cursor: pointer;
 
@@ -82,7 +82,7 @@
 }
 .warn-text {
   color: var(--orange);
-  font-weight: 700;
+  font-weight: var(--fw-strong);
 }
 /* กล่องเพิ่มช่วงเวลาตรวจ — ป้าย เริ่ม/ถึง เห็นบนจอ · ช่องสูง 52px แตะง่าย · ปุ่มเต็มความกว้าง
    (เดิมเป็น input HH:mm ที่ใช้ flex-wrap แล้วปุ่มตกบรรทัดและช่องเตี้ย 21px) */
@@ -105,7 +105,7 @@
   flex: none;
   min-inline-size: 3.25rem;
   font-size: var(--fs-base);
-  font-weight: 700;
+  font-weight: var(--fw-strong);
 }
 .small-btn {
   inline-size: auto;
@@ -256,7 +256,7 @@
     border-radius: 50%;
     background: var(--brand-lighter);
     color: var(--brand-text);
-    font-weight: 700;
+    font-weight: var(--fw-strong);
     font-size: var(--fs-sm);
   }
   .name-row {

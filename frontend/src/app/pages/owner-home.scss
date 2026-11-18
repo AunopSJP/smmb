@@ -7,7 +7,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 700;
+  font-weight: var(--fw-strong);
   color: var(--ok);
   font-size: var(--fs-md);
 
@@ -29,12 +29,12 @@
 }
 .big-text {
   font-size: var(--fs-lg);
-  font-weight: 700;
+  font-weight: var(--fw-strong);
   margin-block-start: 8px;
 }
 .big-when {
   font-size: var(--fs-xl);
-  font-weight: 800;
+  font-weight: var(--fw-strong);
   line-height: 1.25;
 }
 
@@ -97,7 +97,7 @@
   min-block-size: 124px;
   text-align: center;
   font-size: var(--fs-md);
-  font-weight: 700;
+  font-weight: var(--fw-strong);
   span {
     display: flex;
     flex-direction: column;
@@ -229,7 +229,7 @@
 }
 .see-all {
   color: var(--brand);
-  font-weight: 700;
+  font-weight: var(--fw-strong);
   font-size: var(--fs-sm);
   text-decoration: none;
   display: inline-flex;
@@ -332,7 +332,7 @@
   }
   span {
     font-size: var(--fs-xl);
-    font-weight: 700;
+    font-weight: var(--fw-strong);
   }
   strong {
     font-size: var(--fs-3xl);
@@ -447,7 +447,7 @@
   border-radius: 50%;
   background: var(--brand-light);
   color: var(--brand-dark);
-  font-weight: 800;
+  font-weight: var(--fw-strong);
 }
 .btn.big {
   display: flex;

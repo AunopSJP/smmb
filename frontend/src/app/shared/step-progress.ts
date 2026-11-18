@@ -58,7 +58,7 @@ import { Icon } from './icon';
       background: var(--surface);
       color: var(--text-muted);
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     li.done .dot,
     li.now .dot {

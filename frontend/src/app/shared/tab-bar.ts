@@ -57,7 +57,7 @@ import { Icon } from './icon';
     }
     a.active {
       color: var(--brand-text);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
   `,
 })

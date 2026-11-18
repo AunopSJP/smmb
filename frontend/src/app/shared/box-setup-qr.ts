@@ -32,7 +32,7 @@ export function setupQrLink(boxId: string, secret: string, serverUrl: string): s
   template: `
     @if (link(); as l) {
       <div class="stack setup" role="group" [attr.aria-label]="i18n.t({ th: 'QR ตั้งค่าตู้', en: 'Box setup QR' })">
-        <p class="setup-warn">⚠️ {{ i18n.t({ th: 'QR นี้เท่ากับรหัสลับ ห้ามถ่ายภาพหรือส่งต่อ', en: 'This QR equals the device secret — do not photograph or share it' }) }}</p>
+        <p class="setup-warn"><app-icon name="alert" [size]="18" /> {{ i18n.t({ th: 'QR นี้เท่ากับรหัสลับ ห้ามถ่ายภาพหรือส่งต่อ', en: 'This QR equals the device secret — do not photograph or share it' }) }}</p>
         <div class="qr-box">
           <app-qr-image [text]="l" [label]="i18n.t({ th: 'QR ตั้งค่าตู้ ', en: 'Setup QR ' }) + boxId()" />
         </div>
@@ -68,7 +68,7 @@ export function setupQrLink(boxId: string, secret: string, serverUrl: string): s
       background: var(--sos-bg);
       color: var(--sos-fg);
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .qr-box {
       inline-size: min(100%, 240px);

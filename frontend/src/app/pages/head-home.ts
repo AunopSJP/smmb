@@ -264,7 +264,7 @@ interface RecentLog {
     .stats3 .value,
     .stats4 .value {
       font-size: var(--fs-xl);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       line-height: 1.2;
     }
     .stats4 .value {
@@ -304,7 +304,7 @@ interface RecentLog {
     }
     .hero-n {
       font-size: var(--fs-3xl);
-      font-weight: 800;
+      font-weight: var(--fw-strong);
       line-height: 1;
       /* A9: ตัวเลขความคืบหน้าใช้สีข้อความ ไม่ใช่แดงแบรนด์ */
       color: var(--text);
@@ -384,7 +384,7 @@ interface RecentLog {
       background: var(--icon-bg);
       color: var(--text);
       font-size: var(--fs-lg);
-      font-weight: 800;
+      font-weight: var(--fw-strong);
     }
     .big.warn .big-n {
       background: var(--ib-warn-bg);
@@ -410,7 +410,7 @@ interface RecentLog {
       border-radius: var(--radius-sm);
       background: var(--sos-bg);
       color: var(--sos-fg);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       font-size: var(--fs-sm);
     }
     .sec {

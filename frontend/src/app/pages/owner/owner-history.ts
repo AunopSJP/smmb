@@ -259,7 +259,7 @@ const clockSec = bkkClock;
     }
     .day {
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       color: var(--text-muted);
       margin: 6px 4px -4px;
     }
@@ -816,7 +816,7 @@ export class OwnerDelivery {
       border-radius: 50%;
       background: var(--ib-bg);
       color: var(--ib-fg);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       font-size: var(--fs-sm);
     }
     .steps small {

@@ -175,7 +175,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       background: var(--icon-bg);
       color: var(--text-muted);
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .group-head .n {
       font-variant-numeric: tabular-nums;
@@ -186,7 +186,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       border-radius: var(--radius-sm);
       background: var(--icon-bg);
       color: var(--text-muted);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .status.ok {
       background: var(--ok-bg);
@@ -246,7 +246,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
     }
     .batt.low {
       color: var(--warn);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .bar {
       inline-size: 56px;
@@ -282,7 +282,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       background: none;
       color: inherit;
       font: inherit;
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       cursor: pointer;
       text-align: start;
     }
@@ -339,7 +339,7 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
     }
     .easy-summary b {
       font-size: var(--fs-xl);
-      font-weight: 800;
+      font-weight: var(--fw-strong);
       line-height: 1.1;
       font-variant-numeric: tabular-nums;
     }

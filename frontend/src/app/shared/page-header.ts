@@ -57,7 +57,7 @@ import { Icon } from './icon';
     }
     h1 {
       font-size: var(--fs-lg);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       line-height: 1.35;
       overflow-wrap: break-word;
     }
@@ -75,7 +75,7 @@ import { Icon } from './icon';
       background: var(--badge-bg);
       color: var(--badge-fg);
       font-size: var(--fs-xs);
-      font-weight: 800;
+      font-weight: var(--fw-strong);
       line-height: 1.5;
       text-align: center;
     }

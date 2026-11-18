@@ -47,7 +47,7 @@ export interface HouseMapPoint {
       /* 12px ที่โหมดปกติ และโตตามโหมดตัวอักษรแต่ไม่เกิน 14px เพื่อให้เลข 2 หลักยังพอดีหมุด */
       /* เครดิตแผนที่ (Leaflet สร้างเอง) — ใช้ขั้นเล็กสุดของสเกล ไม่ต่ำกว่า 12px */
       font-size: var(--fs-xs);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     :host ::ng-deep .h-pin > span {
       rotate: 45deg;

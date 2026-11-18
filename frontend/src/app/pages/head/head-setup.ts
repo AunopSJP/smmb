@@ -140,7 +140,7 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
       margin: 0;
       padding: 0;
       legend {
-        font-weight: 700;
+        font-weight: var(--fw-strong);
         font-size: var(--fs-base);
         padding: 0;
         margin-block-end: 6px;
@@ -148,7 +148,7 @@ const typeLabel = (v: SignupForm['agency_type']) => AGENCY_TYPES.find((t) => t.v
     }
     a {
       color: inherit;
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
   `,
 })
@@ -433,11 +433,11 @@ const NEXT_STEPS: Step[] = [
       color: var(--ok);
     }
     .strong {
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .code {
       font-size: var(--fs-2xl);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       letter-spacing: 0.06em;
       font-variant-numeric: tabular-nums;
     }

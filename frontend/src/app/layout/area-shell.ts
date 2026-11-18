@@ -255,7 +255,7 @@ const MOCK_SCREENS = new Set<string>();
       color: var(--text);
       box-shadow: var(--shadow);
       font: inherit;
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       transform: translateY(-200%);
     }
     .skip-link:focus-visible {
@@ -286,7 +286,6 @@ const MOCK_SCREENS = new Set<string>();
       }
       .admin-layout {
         grid-template-columns: 264px minmax(0, 1fr);
-        transition: grid-template-columns 0.18s ease;
       }
       .admin-layout.nav-mini {
         grid-template-columns: 72px minmax(0, 1fr);
@@ -412,7 +411,7 @@ const MOCK_SCREENS = new Set<string>();
     .side .sub a.active {
       color: var(--brand-dark);
       background: var(--brand-light);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .side .sub a.active::before {
       display: none;
@@ -466,13 +465,13 @@ const MOCK_SCREENS = new Set<string>();
       border-radius: var(--radius-sm);
       background: var(--action-bg);
       color: var(--action-fg);
-      font-weight: 800;
+      font-weight: var(--fw-strong);
       font-size: var(--fs-lg);
     }
     .name {
       display: flex;
       flex-direction: column;
-      font-weight: 800;
+      font-weight: var(--fw-strong);
       line-height: 1.35;
     }
     .name small {
@@ -489,7 +488,7 @@ const MOCK_SCREENS = new Set<string>();
       background: none;
       font: inherit;
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       color: var(--text-muted);
       padding: 16px 12px 6px;
       cursor: pointer;
@@ -526,7 +525,7 @@ const MOCK_SCREENS = new Set<string>();
       background: var(--icon-bg);
       color: var(--text);
       font-size: var(--fs-xs);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       text-align: center;
       font-variant-numeric: tabular-nums;
     }
@@ -545,7 +544,7 @@ const MOCK_SCREENS = new Set<string>();
     .side a.active {
       background: var(--brand-light);
       color: var(--brand-dark);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .side a.active app-icon {
       color: var(--brand-text);
@@ -577,7 +576,7 @@ const MOCK_SCREENS = new Set<string>();
       border-radius: 50%;
       background: var(--brand-light);
       color: var(--brand-dark);
-      font-weight: 800;
+      font-weight: var(--fw-strong);
     }
     .who {
       flex: 1;

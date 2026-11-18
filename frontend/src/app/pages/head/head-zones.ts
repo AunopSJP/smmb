@@ -142,7 +142,7 @@ const ZONE_ERROR: Record<string, Tr> = {
     }
     .warn-text {
       color: var(--orange);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .zone-meta {
       overflow-wrap: break-word;
@@ -464,7 +464,7 @@ export class HeadZones implements OnInit {
     .lg.picked { background: var(--map-picked); }
     .warn-text {
       color: var(--orange);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .hit,
     .officer {

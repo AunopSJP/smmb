@@ -315,7 +315,7 @@ export class ProfileExtras {
   styles: `
     .care {
       color: var(--sos);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
   `,
 })

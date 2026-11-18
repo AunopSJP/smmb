@@ -113,7 +113,7 @@ function todayInBangkok(): string {
     }
     summary {
       cursor: pointer;
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       min-block-size: 44px;
     }
     .history {
@@ -430,7 +430,7 @@ export class UserPlan {
       color: var(--text);
       font: inherit;
       font-size: var(--fs-sm);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       cursor: pointer;
       white-space: nowrap;
     }

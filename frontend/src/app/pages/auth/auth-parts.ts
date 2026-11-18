@@ -49,7 +49,7 @@ import { screenUrl } from '../../screens/registry';
       background: var(--surface);
       color: var(--text);
       font: inherit;
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       cursor: pointer;
     }
   `,
@@ -103,7 +103,7 @@ export class PasswordField {
     }
     a {
       color: var(--brand-text);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
   `,
 })

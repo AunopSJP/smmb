@@ -182,7 +182,7 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
       border-radius: var(--radius-sm);
       background: var(--icon-bg);
       color: var(--text-muted);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .status.ok {
       background: var(--ok-bg);
@@ -470,10 +470,10 @@ export class TechWifi {
         <p class="muted">{{ i18n.t({ th: 'ตู้ไม่มีไฟสถานะ ใช้เสียงปี๊บบอก', en: 'The box has no status light — it beeps' }) }}</p>
       </div>
       <div class="info-box">
-        <p>🔔 {{ i18n.t({ th: 'ปี๊บสั้น 1 ครั้ง = เชื่อมต่ออินเทอร์เน็ตได้ / พร้อมสแกน', en: '1 short beep = online / ready to scan' }) }}</p>
-        <p>🔔🔔 {{ i18n.t({ th: 'ปี๊บสั้น 2 ครั้ง = อ่าน QR ผ่าน', en: '2 short beeps = QR passed' }) }}</p>
-        <p>🔔— {{ i18n.t({ th: 'ปี๊บยาว 1 ครั้ง = อ่านไม่ผ่าน ให้ลองอีกครั้ง', en: '1 long beep = not read, try again' }) }}</p>
-        <p>—🔔🔔 {{ i18n.t({ th: 'ปี๊บยาว 1 + สั้น 2 = เชื่อมต่ออินเทอร์เน็ต/เซิร์ฟเวอร์ไม่ได้', en: 'long + 2 short = no network / server' }) }}</p>
+        <p><span class="beep" aria-hidden="true">•</span> {{ i18n.t({ th: 'ปี๊บสั้น 1 ครั้ง = เชื่อมต่ออินเทอร์เน็ตได้ / พร้อมสแกน', en: '1 short beep = online / ready to scan' }) }}</p>
+        <p><span class="beep" aria-hidden="true">• •</span> {{ i18n.t({ th: 'ปี๊บสั้น 2 ครั้ง = อ่าน QR ผ่าน', en: '2 short beeps = QR passed' }) }}</p>
+        <p><span class="beep" aria-hidden="true">—</span> {{ i18n.t({ th: 'ปี๊บยาว 1 ครั้ง = อ่านไม่ผ่าน ให้ลองอีกครั้ง', en: '1 long beep = not read, try again' }) }}</p>
+        <p><span class="beep" aria-hidden="true">— • •</span> {{ i18n.t({ th: 'ปี๊บยาว 1 + สั้น 2 = เชื่อมต่ออินเทอร์เน็ต/เซิร์ฟเวอร์ไม่ได้', en: 'long + 2 short = no network / server' }) }}</p>
       </div>
       <div class="stack push-end">
         <a class="btn" [routerLink]="url('T01')">{{ i18n.t({ th: 'กลับเช็กลิสต์', en: 'Back to checklist' }) }}</a>
@@ -484,6 +484,13 @@ export class TechWifi {
   styles: `
     .grow {
       flex: 1;
+    }
+    .beep {
+      display: inline-block;
+      min-inline-size: 3.5em;
+      font-family: var(--mono, ui-monospace, monospace);
+      font-weight: 600;
+      color: var(--brand-text);
     }
     .info-box {
       display: flex;

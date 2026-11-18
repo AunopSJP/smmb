@@ -74,7 +74,7 @@ const STATE: Record<Job['status'] | 'starting', { label: Tr; tone: '' | 'ok' | '
       border-radius: var(--radius-sm);
       background: var(--icon-bg);
       color: var(--text-muted);
-      font-weight: 700;
+      font-weight: var(--fw-strong);
     }
     .status.ok {
       background: var(--ok-bg);

@@ -130,7 +130,7 @@ export class Toast {
       background: none;
       color: inherit;
       font: inherit;
-      font-weight: 700;
+      font-weight: var(--fw-strong);
       cursor: pointer;
     }
     /* toast พื้นสลับสี (var(--text)) — กรอบโฟกัสทั่วไปสีชมพู/แดงกลืนกับพื้น จึงใช้สีตัวอักษรของ toast (ตัดกัน ≥14:1) */
