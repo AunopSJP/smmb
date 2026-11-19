@@ -22,6 +22,8 @@ export interface BoxJobForBox {
   expires_at: number;
   scan_timeout_s: number;
   attempt_max: number;
+  /** งานตรวจจริงที่แอดมินเปิดโหมดดูภาพสดไว้ → ตู้ส่งภาพสดระหว่างสแกน (โปรโตคอล §2.7) · ไม่เปิด = ไม่มีฟิลด์นี้ */
+  preview?: boolean;
 }
 
 /** ข้อมูลที่ตู้ส่งมาในผลอ่าน QR แต่ละครั้ง */

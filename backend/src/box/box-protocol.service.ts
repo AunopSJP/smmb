@@ -6,6 +6,7 @@ import { NotificationService } from '../push/notification.service.js';
 import type { BoxConfig } from './box-config.js';
 import { BoxConfigService } from './box-config.service.js';
 import { BoxJobService, type BoxJobForBox } from './box-job.service.js';
+import { BoxPreviewService } from './box-preview.service.js';
 import { FirmwareService } from './firmware.service.js';
 import { JobHub } from './job-hub.js';
 
@@ -77,6 +78,7 @@ export class BoxProtocolService {
     private readonly hub: JobHub,
     private readonly notifications: NotificationService,
     private readonly firmware: FirmwareService,
+    private readonly preview: BoxPreviewService,
   ) {}
 
   /**
@@ -240,6 +242,8 @@ export class BoxProtocolService {
     /** งานก่อน (ตรวจตู้ไม่ควรรอ) แล้วค่อยคำสั่ง */
     const look = async () => {
       const job = await this.jobs.takePending(boxId);
+      // แอดมินเปิดโหมดดูภาพสดของตู้นี้อยู่ → งานตรวจจริงบอกตู้ให้ส่งภาพสดระหว่างสแกน
+      if (job && job.type === 'inspect' && this.preview.liveActive(boxId)) job.preview = true;
       return { job, command: job ? null : await this.pendingCommand(boxId) };
     };
 

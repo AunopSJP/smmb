@@ -49,6 +49,12 @@ export interface AdminBoxRow {
 
 export type BeepPattern = 'ready' | 'pass' | 'retry' | 'fail' | 'error' | 'wifi';
 
+/** สถานะโหมดดูภาพสดตอนตรวจจริง */
+export interface LiveViewState {
+  active: boolean;
+  expires_at: string | null;
+}
+
 export interface FirmwareInfo {
   version: string;
   sha256: string;
@@ -355,6 +361,15 @@ export class AdminApi {
   /** ภาพล่าสุดจากกล้องตู้ระหว่างงานทดสอบ (204 = ยังไม่มีภาพ) */
   preview(id: string): Promise<{ job_id: string; at: string; jpeg_b64: string } | null> {
     return this.get(`/api/v1/admin/boxes/${encodeURIComponent(id)}/preview`);
+  }
+  /** โหมดดูภาพสดตอนเจ้าหน้าที่ตรวจจริง (เปิดได้ครั้งละ 15 นาที · บันทึกการเปิด/ปิด) */
+  liveView(id: string): Promise<LiveViewState> {
+    return this.get(`/api/v1/admin/boxes/${encodeURIComponent(id)}/live-view`);
+  }
+  setLiveView(id: string, on: boolean): Promise<LiveViewState> {
+    return on
+      ? this.post(`/api/v1/admin/boxes/${encodeURIComponent(id)}/live-view`)
+      : firstValueFrom(this.http.delete<LiveViewState>(`/api/v1/admin/boxes/${encodeURIComponent(id)}/live-view`));
   }
   testJob(id: string, jobId: string): Promise<Job> {
     return this.get(`/api/v1/admin/boxes/${encodeURIComponent(id)}/test-jobs/${encodeURIComponent(jobId)}`);

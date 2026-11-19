@@ -8,6 +8,7 @@ import { Toast } from '../../core/toast';
 import { screenUrl } from '../../screens/registry';
 import { BoxSetupQr } from '../../shared/box-setup-qr';
 import { BoxTest } from '../../shared/box-test';
+import { AdminBoxLiveView } from './admin-box-liveview';
 import { Confirm } from '../../shared/confirm-dialog';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
@@ -20,7 +21,7 @@ import { LOW_BATTERY_PCT, boxBadge, seenText, SLOT_LABEL } from './admin-box-sha
 
 @Component({
   selector: 'app-admin-box',
-  imports: [RouterLink, PageHeader, QrImage, BoxTest, BoxSetupQr, Icon, EmptyState, AdminBoxFirmware, AdminBoxDiagnostics, AdminBoxReports],
+  imports: [RouterLink, PageHeader, QrImage, BoxTest, BoxSetupQr, Icon, EmptyState, AdminBoxFirmware, AdminBoxDiagnostics, AdminBoxReports, AdminBoxLiveView],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [caption]="i18n.t({ th: 'แอดมิน', en: 'Admin' })" [title]="i18n.t({ th: 'ตู้ ', en: 'Mailbox ' }) + (box()?.house_no ?? id() ?? '')" [back]="url('D03')" />
@@ -271,6 +272,8 @@ import { LOW_BATTERY_PCT, boxBadge, seenText, SLOT_LABEL } from './admin-box-sha
         <div class="easy-hide">
         <h2 class="section-title">{{ i18n.t({ th: 'ทดสอบปลุกตู้', en: 'Wake test' }) }}</h2>
         <app-box-test [boxId]="b.id" (finished)="reload()" />
+
+        <app-admin-box-liveview [boxId]="b.id" />
 
         <app-admin-box-diagnostics [box]="b" (changed)="reload()" />
         </div>

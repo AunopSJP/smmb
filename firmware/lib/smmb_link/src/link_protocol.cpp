@@ -470,9 +470,15 @@ static void runJob(JsonObjectConst job)
   const unsigned long t0 = millis();
 
   previewJobId = jobId;
-  setPreview(cameraTest);
+  // 0.2.35: งานตรวจจริงที่แอดมินเปิดโหมดดูภาพสดไว้ (เซิร์ฟเวอร์ใส่ preview:true) ส่งภาพสดระหว่างสแกนเหมือนงานทดสอบ
+  const bool livePreview = job["preview"] | false;
+  setPreview(cameraTest || livePreview);
   if (cameraTest)
     linkEvent("camera_test_started", jobId.c_str());
+  // 0.2.34: ส่งเสียง "พร้อม" ก่อนเปิดกล้อง — ไซเรนกิน ~0.5 A ถ้าดังพร้อมกล้อง+Wi-Fi บนแหล่งจ่าย 3.7 V / 1 A กระแสเกินลิมิต ไฟตก ตู้รีเซ็ตก่อนส่ง ready
+  // เสียงดังจบ (beep บล็อกจนจบ) แล้วค่อยเปิดกล้อง · ได้ยินเสียง = ตู้ตื่นและรับงานแล้วเสมอ
+  linkBeep("ready");
+  delay(200); // 0.2.33: ให้วิทยุ Wi-Fi/ไซเรนหยุดดึงกระแสก่อน แล้วค่อยเปิดกล้อง ไม่ให้กระแสพุ่งซ้อนกัน
   if (!linkHooks.cameraStart())
   {
     setPreview(false);
@@ -480,9 +486,8 @@ static void runJob(JsonObjectConst job)
     linkBeep("error");
     return;
   }
-  const bool flash = linkHooks.cameraAutoFlash ? linkHooks.cameraAutoFlash(boxConfig.flashWhenDark) : false;
-  linkBeep("ready");
-  const LinkResponse ready = linkRequest("POST", "/v1/box/jobs/" + jobId + "/ready", flash ? "{\"flash\":true}" : "{\"flash\":false}");
+  // 0.2.33: แจ้งเซิร์ฟเวอร์ก่อน แล้วค่อยเปิดไฟแฟลช (LED บนบอร์ดดึงกระแสสูง)
+  const LinkResponse ready = linkRequest("POST", "/v1/box/jobs/" + jobId + "/ready", "{\"flash\":false}");
   Serial.printf("[job] ready after %lu ms\n", millis() - t0);
   if (ready.status != 200)
   {
@@ -492,6 +497,7 @@ static void runJob(JsonObjectConst job)
       onAuthFailed(ready);
     return; // 410 = งานหมดอายุ / 404 = ไม่ใช่งานของตู้นี้ → กลับไปรอ
   }
+  const bool flash = linkHooks.cameraAutoFlash ? linkHooks.cameraAutoFlash(boxConfig.flashWhenDark) : false;
   if (cameraTest)
   {
     JsonDocument d;

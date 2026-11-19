@@ -230,6 +230,23 @@ export class AdminBoxController {
     return this.boxes.testJob(p.box_id, p.job_id);
   }
 
+  /** โหมดดูภาพสดตอนเจ้าหน้าที่ตรวจจริง: สถานะ / เปิด 15 นาที / ปิด (บันทึกใน data_access_log_tb) */
+  @Get('boxes/:box_id/live-view')
+  liveView(@Param() p: BoxIdParam) {
+    return this.boxes.liveView(p.box_id);
+  }
+
+  @Post('boxes/:box_id/live-view')
+  @HttpCode(HttpStatus.OK)
+  liveViewOn(@Auth() auth: AuthContext, @Param() p: BoxIdParam) {
+    return this.boxes.setLiveView(p.box_id, true, auth.userId);
+  }
+
+  @Delete('boxes/:box_id/live-view')
+  liveViewOff(@Auth() auth: AuthContext, @Param() p: BoxIdParam) {
+    return this.boxes.setLiveView(p.box_id, false, auth.userId);
+  }
+
   /** ภาพล่าสุดจากกล้องตอนทดสอบ (หน้า D04) — ไม่มีภาพ/เก่าเกิน 30 วิ → 204 */
   @Get('boxes/:box_id/preview')
   previewFrame(@Param() p: BoxIdParam, @Res({ passthrough: true }) res: Response) {

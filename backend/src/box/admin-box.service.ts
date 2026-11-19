@@ -8,6 +8,7 @@ import { pickOverride, type BoxConfig, type BoxConfigDefaults, type BoxStatus } 
 import { BoxConfigService } from './box-config.service.js';
 import { deviceSecret, frontQrToken, newActivateToken, newPrintCode, showPrintCode } from './box-crypto.js';
 import { BoxJobService, type JobDto } from './box-job.service.js';
+import { BoxPreviewService } from './box-preview.service.js';
 import { NotificationService } from '../push/notification.service.js';
 import { BEEP_TTL_S, STANDBY_TTL_S, setupApName, WIFI_RESET_TTL_H, type BeepPattern } from './box-protocol.service.js';
 import { JobHub } from './job-hub.js';
@@ -167,6 +168,7 @@ export class AdminBoxService {
     private readonly jobs: BoxJobService,
     private readonly notifications: NotificationService,
     private readonly hub: JobHub,
+    private readonly preview: BoxPreviewService,
   ) {}
 
   /**
@@ -519,6 +521,29 @@ export class AdminBoxService {
       );
       return { box_id: boxId, device_secret: deviceSecret(this.config.get('BOX_MASTER_KEY', { infer: true }), boxId) };
     });
+  }
+
+  /** สถานะโหมดดูภาพสดตอนตรวจจริง (หน้า D04) */
+  async liveView(boxId: string): Promise<{ active: boolean; expires_at: string | null }> {
+    await this.load(this.pool, boxId);
+    const until = this.preview.liveExpiresAt(boxId);
+    return { active: !!until, expires_at: until?.toISOString() ?? null };
+  }
+
+  /**
+   * เปิด/ปิดโหมดดูภาพสดตอนเจ้าหน้าที่ตรวจจริง (✅ ผู้ใช้สั่ง 2026-11-19) — เปิดได้ครั้งละ 15 นาที ภาพอยู่ในหน่วยความจำ ไม่เก็บ
+   * บันทึกทุกครั้งที่เปิด/ปิดใน data_access_log_tb (ใคร · ตู้ไหน · เมื่อไหร่)
+   */
+  async setLiveView(boxId: string, on: boolean, adminId: string): Promise<{ active: boolean; expires_at: string | null }> {
+    await this.load(this.pool, boxId);
+    await this.pool.query(`INSERT INTO app.data_access_log_tb (actor_user_id, subject_kind, subject_id, fields) VALUES ($1, 'box', $2, $3)`, [
+      adminId,
+      boxId,
+      [on ? 'live_view_on' : 'live_view_off'],
+    ]);
+    if (on) this.preview.enableLive(boxId);
+    else this.preview.disableLive(boxId);
+    return this.liveView(boxId);
   }
 
   async createTestJob(boxId: string, adminId: string): Promise<JobDto> {

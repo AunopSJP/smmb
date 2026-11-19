@@ -305,7 +305,7 @@ static void tracePollDone(int res, unsigned long ms)
 // 1) CPU: รอที่ 160 MHz (Wi-Fi ต้อง ≥ 80) · เปิดกล้อง/สแกน QR ใช้ 240 MHz แล้วกลับมา 160 (APB 80 MHz เท่ากัน → Serial ไม่เพี้ยน)
 // 2) Wi-Fi modem sleep แบบอัตโนมัติ: เปิดเมื่อสัญญาณแรงพอ · ปิดเองเมื่อสัญญาณอ่อน หรือถาม long-poll ล้มเหลวติดกัน
 #define CPU_IDLE_MHZ 160
-#define CPU_BUSY_MHZ 240
+#define CPU_BUSY_MHZ 160 // 0.2.33: ไม่ขึ้น 240 ตอนเปิดกล้อง — ลดกระแสพุ่งตอนปลุกตู้ (QVGA ถอดได้ ~5 ภาพ/วิ ที่ 160 เท่าเดิม)
 #define PS_ON_RSSI -70                       // สัญญาณแรงกว่านี้ → เปิด modem sleep
 #define PS_OFF_RSSI -76                      // อ่อนกว่านี้ → ปิด (ห่างจากค่าเปิด 6 dB กันสลับไปมา)
 #define PS_FAIL_LIMIT 2                      // long-poll ล้มเหลวติดกันกี่ครั้งถึงถือว่า modem sleep ใช้ไม่ได้บน Wi-Fi นี้
