@@ -387,16 +387,28 @@ static void setPreview(bool on)
     linkHooks.setPreviewSink(on ? previewSink : nullptr, 2500);
 }
 
+static const uint32_t PHOTO_DELAY_MIN_MS = 3000;  // เวลาให้แอปขึ้นหน้าถัดไปและเจ้าหน้าที่ลดมือถือลง ไม่บังหน้า
+static const uint32_t PHOTO_DELAY_SPREAD_MS = 1500;
+static const uint32_t PHOTO_UPLOAD_TIMEOUT_MS = 20000;  // รูปใหญ่สุด ~107 KB หลัง base64 บน Wi-Fi อ่อน
+
 // Snapface (✅ ผู้ใช้สั่ง 2026-11-05): หลังตรวจผ่าน ตู้ถ่ายรูปเจ้าหน้าที่ 1 รูป ณ เวลาสุ่ม แล้วส่ง
 // POST /v1/box/jobs/:id/photo { jpeg_b64 } — ไม่มีเสียง/ไฟบอก · ส่งไม่ได้ก็ทิ้ง (ไม่เก็บไว้ส่งทีหลัง)
 static void sendInspectionPhoto(const String &jobId)
 {
   if (!linkHooks.snapshotJpeg)
     return;
-  delay(1500 + esp_random() % 2500);
+  const unsigned long startedAt = millis();
+  if (linkHooks.preparePhoto && !linkHooks.preparePhoto())
+    Serial.println("[job] photo: prepare failed - using scan mode");
+  const uint32_t waitMs = PHOTO_DELAY_MIN_MS + esp_random() % PHOTO_DELAY_SPREAD_MS;
+  const uint32_t spentMs = millis() - startedAt;
+  if (spentMs < waitMs)
+    delay(waitMs - spentMs);
   uint8_t *jpeg = nullptr;
   size_t len = 0;
-  if (!linkHooks.snapshotJpeg(&jpeg, &len) || !jpeg)
+  const bool captured = linkHooks.snapshotJpeg(&jpeg, &len) && jpeg;
+  linkHooks.cameraStop(); // ถ่ายเสร็จปิดกล้องและไฟทันที ไม่ต้องเปิดค้างระหว่างส่งรูป
+  if (!captured)
   {
     Serial.println("[job] photo: snapshot failed");
     return;
@@ -433,7 +445,7 @@ static void sendInspectionPhoto(const String &jobId)
     return;
   }
   body += "\"}";
-  const LinkResponse r = linkRequest("POST", "/v1/box/jobs/" + jobId + "/photo", body, 8000);
+  const LinkResponse r = linkRequest("POST", "/v1/box/jobs/" + jobId + "/photo", body, PHOTO_UPLOAD_TIMEOUT_MS);
   Serial.printf("[job] photo %u B -> %d\n", (unsigned)len, r.status);
 }
 

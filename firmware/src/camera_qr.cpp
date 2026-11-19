@@ -21,6 +21,20 @@ static struct quirc* qr = nullptr;
 static struct quirc* qrFull = nullptr;
 static bool flashOn = false;
 
+// 0.2.32: ส่วนสแกน QR ทั้งหมดในไฟล์นี้เป็นของ 0.2.25 (ผู้ใช้สั่ง 2026-11-19 — รุ่นนั้นสแกนได้ดี) · ส่วนที่เพิ่มคือโหมดถ่ายใบหน้าด้านล่าง
+// โหมดถ่ายใบหน้า (Snapface): ความละเอียดสูงกว่าโหมดสแกน · ขนาดไฟล์ต้องไม่เกินที่เซิร์ฟเวอร์รับ (85 KB)
+static constexpr framesize_t PHOTO_FRAME_SIZE = FRAMESIZE_XGA;  // 1024×768
+static constexpr int PHOTO_QUALITY = 6;                         // วัดบนบอร์ดจริง: ~35 KB · เกินขนาดแล้วค่อยลด
+static constexpr int PHOTO_QUALITY_STEP = 3;
+static constexpr int PHOTO_QUALITY_MAX = 22;
+static constexpr size_t PHOTO_MAX_BYTES = 80000;
+static constexpr uint8_t PHOTO_SETTLE_FRAMES = 12;  // ให้แสงอัตโนมัติและสมดุลสีนิ่งก่อนถ่าย
+static constexpr uint32_t PHOTO_SETTLE_MAX_MS = 2500;
+static constexpr uint8_t PHOTO_FRAMES = 3;          // ถ่ายกี่เฟรมแล้วเลือกเฟรมที่ได้รายละเอียดมากสุด
+static constexpr uint8_t PHOTO_MAX_GRABS = 10;
+static bool photoMode = false;
+static int photoQuality = PHOTO_QUALITY;
+
 bool cameraRunning() { return running; }
 
 // ── ภาพตัวอย่าง ─────────────────────────────────────────────────────────
@@ -170,6 +184,7 @@ static camera_config_t makeConfig() {
 
 bool cameraStart() {
   if (running) return true;
+  photoMode = false;
   camera_config_t c = makeConfig();
   esp_err_t err = esp_camera_init(&c);
   // กล้องหาไม่เจอชั่วคราว (ไฟตก/เซนเซอร์ค้าง) → ปิด-เปิดขา PWDN แล้วลองใหม่ 2 ครั้งก่อนยอมแพ้
@@ -195,11 +210,6 @@ bool cameraStart() {
   }
   // ภาพ native ตามสเก็ตช์ esp32-cam-qvga15: ไม่กลับภาพ/ไม่เร่ง contrast (ภาพกลับซ้าย-ขวาถอดได้ด้วยการลองกลับด้านใน scanFrame) · sharpness/ae ปรับได้ด้วย cam
   if (sensor_t* sen = esp_camera_sensor_get()) {
-    // 0.2.27 ตามโปรไฟล์ camap: เพดานเกน 2× กันนอยส์ตอนแสงน้อย + เปิดสมดุลแสงขาว/ชดเชยแสงอัตโนมัติ · พิมพ์ PID ให้รู้ว่าเซ็นเซอร์ตัวไหน
-    Serial.printf("[cam] sensor PID 0x%04X · %s · xclk %u MHz\n", (unsigned)sen->id.PID, settings.camSize.c_str(), (unsigned)settings.camXclk);
-    sen->set_gainceiling(sen, GAINCEILING_2X);
-    sen->set_whitebal(sen, 1);
-    sen->set_exposure_ctrl(sen, 1);
     if (settings.camSharp != 0) sen->set_sharpness(sen, settings.camSharp);
     if (settings.camAe != 0) sen->set_ae_level(sen, settings.camAe);
     sen->set_vflip(sen, settings.camFlip & 1);
@@ -230,6 +240,7 @@ void cameraStop() {
   if (!running || held) return;
   esp_camera_deinit();
   running = false;
+  photoMode = false;
   cameraSensorSleep();
 }
 
@@ -291,24 +302,15 @@ static bool scanFrame(const GrayImg& g, struct quirc* decoder, bool fullFrame, S
   const int offsetY = (frameHeight - scanHeight) / 2;
   if (quirc_resize(decoder, scanWidth, scanHeight) < 0) return false;
 
-  // คัดลอกกรอบจากภาพเทาเข้า quirc แล้ว quirc_end · mirror = กลับซ้าย-ขวาตั้งแต่ตอนคัดลอก
-  // (quirc_end แปลงภาพเป็นขาวดำใน buffer เดิม — กลับภาพหลังจากนั้นไม่ได้ ต้องคัดลอกจากภาพเทาใหม่)
-  auto load = [&](bool mirror) {
-    int width = 0;
-    int height = 0;
-    uint8_t* image = quirc_begin(decoder, &width, &height);
-    for (int y = 0; y < height; y++) {
-      const uint8_t* src = g.px + static_cast<size_t>(offsetY + y) * frameWidth + offsetX;
-      uint8_t* row = image + static_cast<size_t>(y) * width;
-      if (mirror) {
-        for (int x = 0; x < width; x++) row[x] = src[width - 1 - x];
-      } else {
-        memcpy(row, src, width);
-      }
-    }
-    quirc_end(decoder);
-  };
-  load(false);
+  int width = 0;
+  int height = 0;
+  uint8_t* image = quirc_begin(decoder, &width, &height);
+  for (int y = 0; y < height; y++) {
+    memcpy(image + static_cast<size_t>(y) * width,
+           g.px + static_cast<size_t>(offsetY + y) * frameWidth + offsetX,
+           width);
+  }
+  quirc_end(decoder);
   foundShape = quirc_count(decoder) > 0;
   if (!foundShape) return false;
 
@@ -319,7 +321,12 @@ static bool scanFrame(const GrayImg& g, struct quirc* decoder, bool fullFrame, S
   // ไม่กรอง = รัน quirc ซ้ำทั้งภาพทุกเฟรมที่เห็น QR แต่ยังถอดไม่ออก → เฟรมเรตหายครึ่งตอนที่ QR อยู่หน้ากล้องพอดี
   const bool mirrored = settings.camFlip == 1 || settings.camFlip == 2;
   if (!decoded && mirrored) {
-    load(true);
+    image = quirc_begin(decoder, &width, &height);
+    for (int y = 0; y < height; y++) {
+      uint8_t* row = image + static_cast<size_t>(y) * width;
+      for (int x = 0; x < width / 2; x++) std::swap(row[x], row[width - 1 - x]);
+    }
+    quirc_end(decoder);
     decodeAll(text);
   }
   qr = previous;
@@ -368,7 +375,6 @@ QrRead cameraScanQr(uint32_t timeoutMs) {
   uint32_t lastPreviewAt = start;  // ภาพแรกส่งหลังสแกนไปแล้ว 1 ช่วง
   quirc_decode_error_t lastErr = QUIRC_SUCCESS;
   while (millis() - start < timeoutMs) {
-    esp_task_wdt_reset();  // job ที่ตั้งเวลา/จำนวนครั้งสูง ๆ (สูงสุด 60 วิ × 5) รวมแล้วเกิน watchdog 180 วิ
     camera_fb_t* fb = esp_camera_fb_get();
     if (!fb) {
       delay(20);
@@ -424,14 +430,106 @@ QrRead cameraScanQr(uint32_t timeoutMs) {
   return r;
 }
 
+// ── ถ่ายใบหน้า (Snapface) ─────────────────────────────────────────────────
+/** ทิ้งเฟรมที่ถ่ายด้วยค่าก่อนหน้า · หยุดทันทีถ้ากล้องไม่ส่งภาพ */
+static void discardFrames(uint8_t count) {
+  for (uint8_t i = 0; i < count; i++) {
+    camera_fb_t* fb = esp_camera_fb_get();
+    if (!fb) return;
+    esp_camera_fb_return(fb);
+  }
+}
+
+/** สลับกล้องจากโหมดสแกนเป็นโหมดถ่ายใบหน้า · ไฟส่อง (ถ้าเปิดอยู่จากตอนสแกน) คงไว้ตามเดิม */
+bool cameraPreparePhoto() {
+  if (running) {
+    esp_camera_deinit();
+    running = false;
+  }
+  photoMode = false;
+  camera_config_t c = makeConfig();
+  c.pixel_format = PIXFORMAT_JPEG;
+  c.frame_size = PHOTO_FRAME_SIZE;
+  c.jpeg_quality = PHOTO_QUALITY;
+  esp_err_t err = esp_camera_init(&c);
+  if (err != ESP_OK) {
+    pinMode(CAM_PIN_PWDN, OUTPUT);
+    digitalWrite(CAM_PIN_PWDN, HIGH);
+    delay(100);
+    digitalWrite(CAM_PIN_PWDN, LOW);
+    delay(300);
+    err = esp_camera_init(&c);
+  }
+  if (err != ESP_OK) {
+    Serial.printf("[cam] photo mode init failed 0x%x\n", err);
+    return false;
+  }
+  if (sensor_t* sen = esp_camera_sensor_get()) {
+    sen->set_whitebal(sen, 1);
+    sen->set_awb_gain(sen, 1);
+    sen->set_exposure_ctrl(sen, 1);
+    sen->set_gain_ctrl(sen, 1);
+    sen->set_gainceiling(sen, GAINCEILING_8X);
+    sen->set_vflip(sen, settings.camFlip & 1);
+    sen->set_hmirror(sen, (settings.camFlip >> 1) & 1);
+  }
+  running = true;
+  photoMode = true;
+  photoQuality = PHOTO_QUALITY;
+  const uint32_t start = millis();
+  for (uint8_t i = 0; i < PHOTO_SETTLE_FRAMES && millis() - start < PHOTO_SETTLE_MAX_MS; i++) {
+    esp_task_wdt_reset();
+    discardFrames(1);
+  }
+  return true;
+}
+
+/** ถ่ายหลายเฟรมแล้วเก็บ JPEG ที่ใหญ่สุด (รายละเอียดมากสุด = เบลอน้อยสุด) · เกินขนาดที่ส่งได้ → ลดคุณภาพแล้วถ่ายใหม่ */
+static bool capturePhoto(uint8_t** out, size_t* len) {
+  uint8_t* best = (uint8_t*)ps_malloc(PHOTO_MAX_BYTES);
+  if (!best) return false;
+  size_t bestLen = 0;
+  uint8_t kept = 0;
+  sensor_t* sen = esp_camera_sensor_get();
+  for (uint8_t grab = 0; grab < PHOTO_MAX_GRABS && kept < PHOTO_FRAMES; grab++) {
+    esp_task_wdt_reset();
+    camera_fb_t* fb = esp_camera_fb_get();
+    if (!fb) continue;
+    const bool isJpeg = fb->format == PIXFORMAT_JPEG && fb->len > 2 && fb->buf[0] == 0xFF && fb->buf[1] == 0xD8;
+    if (isJpeg && fb->len <= PHOTO_MAX_BYTES) {
+      kept++;
+      if (fb->len > bestLen) {
+        memcpy(best, fb->buf, fb->len);
+        bestLen = fb->len;
+      }
+      esp_camera_fb_return(fb);
+      continue;
+    }
+    esp_camera_fb_return(fb);
+    if (isJpeg && sen && photoQuality < PHOTO_QUALITY_MAX) {
+      photoQuality = min(photoQuality + PHOTO_QUALITY_STEP, PHOTO_QUALITY_MAX);
+      sen->set_quality(sen, photoQuality);
+      discardFrames(2);
+    }
+  }
+  if (!bestLen) {
+    free(best);
+    return false;
+  }
+  *out = best;
+  *len = bestLen;
+  Serial.printf("[cam] photo %u B · quality %d · frames %u\n", (unsigned)bestLen, photoQuality, kept);
+  return true;
+}
+
 bool cameraSnapshotJpeg(uint8_t** out, size_t* len) {
+  if (running && photoMode) return capturePhoto(out, len);
   bool started = !running && cameraStart();
   if (!running) return false;
   camera_fb_t* fb = esp_camera_fb_get();
   bool ok = false;
   if (fb && fb->format == PIXFORMAT_JPEG) {
-    *out = (uint8_t*)ps_malloc(fb->len);
-    if (!*out) *out = (uint8_t*)malloc(fb->len);
+    *out = (uint8_t*)malloc(fb->len);
     if (*out) {
       memcpy(*out, fb->buf, fb->len);
       *len = fb->len;

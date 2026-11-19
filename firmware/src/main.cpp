@@ -502,6 +502,7 @@ static void linkSetup()
   h.scanQr = hookScanQr;
   h.cameraAutoFlash = cameraAutoFlash;
   h.setPreviewSink = cameraSetPreviewSink;
+  h.preparePhoto = cameraPreparePhoto; // Snapface: สลับเป็นโหมดถ่ายใบหน้าทันทีที่ตรวจผ่าน
   h.snapshotJpeg = cameraSnapshotJpeg; // Snapface หลังตรวจผ่าน
   h.beep = beepByName;
   h.saveConfig = settingsSaveConfig;
@@ -679,6 +680,7 @@ static void runCommand(String line)
         "  beep [ready|pass|retry|fail|error|wifi]  play a buzzer pattern (default ready)\n"
         "  identify               blink the flash LED (find this board)\n"
         "  scan [sec]             open the camera and try to read a QR (no server)\n"
+        "  photo                  test the face-photo mode: prints the JPEG size only (nothing is sent or kept)\n"
         "  debugcam on|off        live camera page http://<box ip>/?k=<key> (test only, off by default)\n"
         "  camweb [sec]           the same page, temporarily (default 120 s)\n"
         "  portal                 start the Wi-Fi setup portal\n"
@@ -772,6 +774,24 @@ static void runCommand(String line)
       cameraAutoFlash(boxConfig.flashWhenDark);
       QrRead q = cameraScanQr(sec * 1000);
       Serial.printf("scan: %s\n", q.ok ? q.text.c_str() : "(nothing)");
+      hookCameraStop();
+    }
+  }
+  else if (cmd == "photo")
+  {
+    // ทดสอบโหมดถ่ายใบหน้าตามลำดับงานจริง · รายงานแค่ขนาดไฟล์ ไม่ส่งและไม่เก็บภาพ
+    if (hookCameraStart())
+    {
+      cameraAutoFlash(boxConfig.flashWhenDark);
+      const uint32_t startedAt = millis();
+      const bool prepared = cameraPreparePhoto();
+      const uint32_t preparedMs = millis() - startedAt;
+      uint8_t *jpeg = nullptr;
+      size_t len = 0;
+      const bool ok = cameraSnapshotJpeg(&jpeg, &len) && jpeg;
+      Serial.printf("photo: prepared %s in %u ms · captured %s · %u B · total %u ms\n", prepared ? "yes" : "no", preparedMs, ok ? "yes" : "no", (unsigned)len,
+                    millis() - startedAt);
+      free(jpeg);
       hookCameraStop();
     }
   }

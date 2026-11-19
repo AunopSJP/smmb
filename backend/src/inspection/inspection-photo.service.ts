@@ -5,7 +5,7 @@ import { PG_POOL } from '../db/db.module.js';
 /** เก็บรูปกี่วัน (ผู้ใช้กำหนด 2026-11-04 "เก็บประมาณ 1 เดือน") */
 export const PHOTO_KEEP_DAYS = 30;
 export const PHOTO_MAX_BYTES = 400_000;
-/** ตู้ต้องส่งรูปภายในกี่วินาทีหลังตรวจผ่าน (ตู้ถ่ายทันทีหลังผ่าน 1.5–4 วิ) */
+/** ตู้ต้องส่งรูปภายในกี่วินาทีหลังตรวจผ่าน (ตู้ถ่ายหลังผ่านราว 3–6 วิ แล้วจึงส่ง) */
 export const BOX_PHOTO_WINDOW_S = 120;
 /** JSON ของตู้จำกัด 120 KB (app-setup) → JPEG ใน base64 ได้ราว 85 KB */
 export const BOX_PHOTO_MAX_BYTES = 85_000;

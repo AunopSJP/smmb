@@ -1105,9 +1105,11 @@ export class OfficerBadgeFailed implements OnInit {
 
 /**
  * หลังตู้ตอบ "ผ่าน" ตู้ยังทำงานต่ออีกไม่กี่วินาที (ผู้ใช้สั่ง 2026-11-06: ให้เจ้าหน้าที่ยืนอยู่หน้าตู้จนตู้ทำงานครบ)
- * ตู้รอ 1.5–4 วิ + ส่งข้อมูล ~1–2 วิ → 8 วิพอ · ข้อความบนจอต้องไม่บอกว่าตู้ทำอะไร
+ * ตู้ใช้เวลาหลังตรวจผ่านราว 6–8 วิ จึงค้างหน้านี้ 9 วิ แล้วค่อยแจ้งผล · ข้อความบนจอต้องไม่บอกว่าตู้ทำอะไร
  */
-const HOLD_MS = 8000;
+const HOLD_MS = 9000;
+/** ผลที่ผ่านมานานกว่านี้ = เปิดดูย้อนหลัง ไม่ต้องค้างหน้า */
+const HOLD_STALE_MS = 120_000;
 
 @Component({
   selector: 'app-officer-done',
@@ -1120,7 +1122,7 @@ const HOLD_MS = 8000;
         <div class="result">
           <span class="spinner" aria-hidden="true"></span>
           <h1>{{ i18n.t({ th: 'กำลังบันทึกผลการตรวจ…', en: 'Saving the inspection…' }) }}</h1>
-          <p class="small">{{ i18n.t({ th: 'กรุณายืนอยู่หน้าตู้จนกว่าจะเสร็จ', en: 'Please stay in front of the mailbox until it finishes' }) }}</p>
+          <p class="small">{{ i18n.t({ th: 'ลดมือถือลง แล้วยืนหันหน้าเข้าหาตู้จนกว่าจะเสร็จ', en: 'Lower your phone and stay facing the mailbox until it finishes' }) }}</p>
           <div class="bar easy-hide" aria-hidden="true"><span [style.transform]="'scaleX(' + progress() / 100 + ')'"></span></div>
         </div>
       </div>
@@ -1261,12 +1263,26 @@ export class OfficerDone implements OnInit {
     void this.ngOnInit();
   }
 
-  /** ค้างหน้า "กำลังบันทึก" จนครบ HOLD_MS นับจากเวลาที่ผ่าน (เปิดหน้านี้ทีหลัง/รีเฟรช = ไม่ค้างซ้ำ) */
+  /** เวลาที่เครื่องนี้เห็นผลครั้งแรก — ใช้นาฬิกาเครื่องเดียว นาฬิกามือถือเพี้ยนจึงไม่ทำให้ข้ามการรอ · รีเฟรชแล้วนับต่อ */
+  private holdStart(checkedAt: number): number | null {
+    const key = `smmb.inspection-hold.${this.id()}`;
+    const now = Date.now();
+    try {
+      const saved = Number(sessionStorage.getItem(key));
+      if (saved > 0) return saved;
+      if (now - checkedAt > HOLD_STALE_MS) return null;
+      sessionStorage.setItem(key, String(now));
+    } catch {
+      if (now - checkedAt > HOLD_STALE_MS) return null;
+    }
+    return now;
+  }
+
+  /** ค้างหน้า "กำลังบันทึก" จนครบ HOLD_MS แล้วค่อยแจ้งผล (เปิดดูย้อนหลัง/รีเฟรชหลังครบแล้ว = ไม่ค้างซ้ำ) */
   private hold(checkedAt: number): void {
-    const elapsed = Number.isFinite(checkedAt) ? Date.now() - checkedAt : 0;
-    const start = Math.min(Math.max(elapsed, 0), HOLD_MS);
-    if (!Number.isFinite(checkedAt) || elapsed >= HOLD_MS) return;
-    const t0 = Date.now() - start;
+    if (!Number.isFinite(checkedAt)) return;
+    const t0 = this.holdStart(checkedAt);
+    if (t0 === null || Date.now() - t0 >= HOLD_MS) return;
     this.holding.set(true);
     const timer = setInterval(() => {
       const spent = Date.now() - t0;
