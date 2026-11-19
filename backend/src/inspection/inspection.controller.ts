@@ -51,7 +51,7 @@ export class InspectionController {
     return this.inspections.get(auth.userId, p.id);
   }
 
-  /** QR ประจำตัว — ขอใหม่ทุก ~9 วิ (อายุ 15 วิ) — เพดานเผื่อเปิดหน้าใหม่ / เน็ตกระตุก */
+  /** QR ประจำตัว — ขอใหม่ทุก ~24 วิ (อายุ 30 วิ) — เพดานเผื่อเปิดหน้าใหม่ / เน็ตกระตุก */
   @RateLimit({ limit: 20, windowSec: 60 })
   @Get(':id/badge')
   badge(@Auth() auth: AuthContext, @Param() p: IdParam) {

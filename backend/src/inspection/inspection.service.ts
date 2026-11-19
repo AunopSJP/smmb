@@ -13,8 +13,8 @@ import { badgeToken, readBadge } from '../box/box-crypto.js';
 import { BoxJobService, type AttemptBody, type Verdict } from '../box/box-job.service.js';
 import { SosService, type SosCardDto } from '../sos/sos.service.js';
 
-/** QR ประจำตัวอายุ 15 วิ (✅ ผู้ใช้สั่ง 2026-11-06 "ปรับ QR ประจำตัวให้เร็วกว่านี้ แต่ไม่เร็วเกินไปจนตู้อ่านไม่ทัน") */
-export const BADGE_TTL_S = 15;
+/** QR ประจำตัวอายุ 30 วิ (✅ ผู้ใช้สั่ง 2026-11-19 เพิ่มจาก 15 วิ เพื่อให้กล้องตู้จับทัน · เดิม 15 วิ ตาม 2026-11-06 "ไม่เร็วเกินไปจนตู้อ่านไม่ทัน") */
+export const BADGE_TTL_S = 30;
 /** เผื่อเวลาจากจอมือถือ → กล้องตู้ → เซิร์ฟเวอร์ (แสดงเมื่อใกล้หมดอายุ อ่านได้ภายใน ~1–2 วิ + เน็ตกระตุก) */
 export const BADGE_GRACE_S = 4;
 /** สแกนนานเกินนี้ = QR น่าจะเสีย → ติดธง + ถาม O03 (✅ api.md §6.2) */
@@ -317,7 +317,7 @@ export class InspectionService implements OnModuleInit {
     };
   }
 
-  /** QR ประจำตัว — ออกใหม่ทุก ~9 วิ (อายุ 15 วิ) · ตู้ต้อง ready แล้ว (409 NOT_READY) · จบ/หมดอายุ → 410 INSPECTION_CLOSED */
+  /** QR ประจำตัว — ออกใหม่ทุก ~24 วิ (อายุ 30 วิ) · ตู้ต้อง ready แล้ว (409 NOT_READY) · จบ/หมดอายุ → 410 INSPECTION_CLOSED */
   async badge(userId: string, id: string): Promise<{ qr: string; expires_at: string }> {
     const ins = await this.get(userId, id);
     if (ins.status === 'waking') throw new AppError(HttpStatus.CONFLICT, 'NOT_READY', 'the mailbox is not ready yet');
