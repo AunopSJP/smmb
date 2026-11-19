@@ -200,7 +200,9 @@ export class InspectionService implements OnModuleInit {
     // 6: ตู้ถือ long-poll อยู่
     const { config } = await this.boxConfigs.forBox(qr.box_id);
     const recentPoll = box.last_poll_date && Date.now() - box.last_poll_date.getTime() <= (config.longpoll_wait_s + POLL_GRACE_S) * 1000;
-    if (!this.jobs.isWaiting(qr.box_id) && !recentPoll) {
+    // ตู้แจ้งก่อนหลับลึกหลังถามงานครั้งสุดท้าย = ไม่ได้ถือสายอยู่ (ปลุกด้วยการสแกนไม่ได้)
+    const asleep = !!box.sleep_date && !!box.last_poll_date && box.sleep_date.getTime() >= box.last_poll_date.getTime();
+    if (!this.jobs.isWaiting(qr.box_id) && (!recentPoll || asleep)) {
       await log('box_offline', at);
       throw new AppError(HttpStatus.SERVICE_UNAVAILABLE, 'BOX_OFFLINE', 'the mailbox is not online');
     }
@@ -570,8 +572,8 @@ export class InspectionService implements OnModuleInit {
   }
 
   private async box(boxId: string) {
-    const { rows } = await this.pool.query<{ owner_user_id: string | null; service_active: boolean; last_poll_date: Date | null }>(
-      `SELECT owner_user_id, service_active, last_poll_date FROM app.box_tb WHERE box_id = $1`,
+    const { rows } = await this.pool.query<{ owner_user_id: string | null; service_active: boolean; last_poll_date: Date | null; sleep_date: Date | null }>(
+      `SELECT owner_user_id, service_active, last_poll_date, sleep_date FROM app.box_tb WHERE box_id = $1`,
       [boxId],
     );
     return rows[0];

@@ -1,4 +1,4 @@
-import { windowProblem } from './head-zones';
+import { nextWindow, windowProblem } from './head-zones';
 
 /** ช่วงเวลาตรวจของโซน: กันเวลาซ้อน/ซ้ำ/กลับด้าน ก่อนกด "เพิ่มช่วงเวลานี้" */
 describe('windowProblem', () => {
@@ -31,5 +31,30 @@ describe('windowProblem', () => {
     expect(windowProblem('9:00', '10:00', [])).toBe(true);
     expect(windowProblem('09:00', '', [])).toBe(true);
     expect(windowProblem('', '', [])).toBe(true);
+  });
+});
+
+/** ปุ่ม "เพิ่มช่วงเวลา": เติมแถวใหม่ที่ไม่ทับช่วงเดิมเมื่อทำได้ */
+describe('nextWindow', () => {
+  it('starts with a morning window', () => {
+    expect(nextWindow([])).toEqual(['06:00', '09:00']);
+  });
+
+  it('continues after the latest window for 3 hours', () => {
+    expect(nextWindow([['06:00', '09:00']])).toEqual(['09:00', '12:00']);
+    expect(nextWindow([['17:00', '20:00'], ['06:00', '09:00']])).toEqual(['20:00', '23:00']);
+  });
+
+  it('caps at 23:59', () => {
+    expect(nextWindow([['18:00', '22:00']])).toEqual(['22:00', '23:59']);
+  });
+
+  it('goes before the first window when the evening is full', () => {
+    expect(nextWindow([['12:00', '23:59']])).toEqual(['09:00', '12:00']);
+  });
+
+  it('never returns an empty window', () => {
+    const [f, t] = nextWindow([['00:00', '23:59']]);
+    expect(f < t).toBe(true);
   });
 });

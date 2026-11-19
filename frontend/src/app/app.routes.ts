@@ -238,5 +238,6 @@ export const routes: Routes = [
     data: { titleTr: { th: 'ข้อมูลของฉัน', en: 'My data' } },
     title: 'ข้อมูลของฉัน · Smart Mailbox',
   },
-  { path: '**', redirectTo: '' },
+  // ลิงก์ผิด/หน้าที่ถูกถอด → บอกว่าไม่พบ (เดิมเด้งไปหน้าแรกเงียบ ๆ ผู้ใช้ไม่รู้ว่าลิงก์เสีย)
+  { path: '**', redirectTo: 'error/not-found' },
 ];

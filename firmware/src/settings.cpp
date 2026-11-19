@@ -28,7 +28,7 @@ void settingsLoad() {
     settings.camAe = (int8_t)prefs.getChar("camae", 0);
     settings.camJpeg = prefs.getBool("camjpg", true);
     settings.camQ = prefs.getUChar("camq", 12);
-    settings.camSharp = (int8_t)prefs.getChar("camsh", 0);
+    settings.camSharp = (int8_t)prefs.getChar("camsh", 2);
   }
   String cfg = prefs.getString("cfg", "");
   uint32_t ver = prefs.getUInt("cfgver", 0);

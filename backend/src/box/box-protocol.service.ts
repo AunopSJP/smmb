@@ -196,6 +196,11 @@ export class BoxProtocolService {
 
   /** เหตุการณ์อื่น (ปุ่ม Boot ล้าง Wi-Fi / แบตวิกฤต / กล้องเสีย / ตอบรับคำสั่งเปลี่ยน Wi-Fi) — ส่งครั้งเดียว */
   async event(boxId: string, body: Body): Promise<{ server_time: number; config_ver: number }> {
+    // ตู้แจ้งว่ากำลังหลับลึก: จดไว้ไม่ให้ถือว่าออนไลน์ (ไม่เก็บเป็นเหตุการณ์ — เกิดทุกครั้งที่หลับ)
+    if (body.type === 'sleeping') {
+      await this.pool.query(`UPDATE app.box_tb SET sleep_date = now(), last_seen_date = now() WHERE box_id = $1`, [boxId]);
+      return { server_time: nowS(), config_ver: (await this.configs.forBox(boxId)).ver };
+    }
     await this.pool.query(`INSERT INTO app.box_report_tb (box_id, kind, body) VALUES ($1, 'event', $2)`, [boxId, body]);
     await this.pool.query(`UPDATE app.box_tb SET last_seen_date = now() WHERE box_id = $1`, [boxId]);
     if (body.type === 'wifi_reset') await this.completeWifiReset(boxId, body.command_id);

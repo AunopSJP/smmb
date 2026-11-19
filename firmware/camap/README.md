@@ -24,6 +24,21 @@ pio device monitor --port COM20 --baud 115200
 
 ค่าใน Arduino IDE ที่เทียบกับโปรไฟล์นี้คือ Board → **AI Thinker ESP32-CAM**, Board Manager → **esp32 by Espressif Systems 2.0.17**, Partition Scheme → **Huge APP (3MB No OTA/1MB SPIFFS)** และ PSRAM → **Enabled** หากมีเมนูให้เลือก โปรไฟล์ AI Thinker ใน core นี้กำหนด PSRAM มาแล้ว โปรเจกต์นี้คอมไพล์และแฟลชผ่าน PlatformIO ตามคำสั่งด้านบน
 
+## รุ่น `camtest` — ทดสอบกล้องหน้างานโดยไม่ต้องต่อ Serial (2026-11-19)
+
+ใช้โค้ดชุดเดียวกับ `camap` ต่างกันที่: Wi-Fi ชื่อ **`CAMTEST-xxxxxx`** รหัสคงที่ **`camtest1234`** (รับได้ 1 เครื่อง) · เปิด **http://192.168.4.1/** · แฟลชกลับผ่าน Wi-Fi นี้ได้ (ArduinoOTA ใช้รหัสจาก `ota.local.ini`) · ตารางพาร์ทิชันเหมือนเฟิร์มแวร์ตู้
+
+```powershell
+pio run -d firmware -e camtest
+pio run -d firmware -e camtest -t upload --upload-port COM20
+```
+
+ตัวอ่าน QR ใช้ `firmware/src/qr_scan.h` ตัวเดียวกับเฟิร์มแวร์ตู้ (กลับด้านเอง เพราะภาพจากกล้องตู้เป็นภาพกระจก) — หน้าเว็บจะบอก "ภาพกระจก กลับด้านให้อัตโนมัติ" เมื่ออ่านได้ทางนี้
+
+หน้าเว็บวาด **เส้นล้อม QR** ที่ตู้เห็น: เขียว = ถอดรหัสได้ · เหลือง = เห็นรูปทรงแต่ถอดไม่ได้ (เบลอ/เล็ก/แสงสะท้อน) · รุ่นนี้ปิดตรวจใบหน้าให้เบาลง
+
+ไฟล์พร้อมใช้ `firmware/.pio/build/camtest/firmware.bin` · ห้ามติดตั้งค้างในตู้จริง (รหัสคงที่ + กล้องเปิดตลอด) · กลับเป็นเฟิร์มแวร์ตู้: ต่อ Wi-Fi `CAMTEST-xxxxxx` แล้วรัน `pio run -d firmware -e esp32cam-ota -t upload --upload-port 192.168.4.1`
+
 ถ้าหน้าเว็บเปิดได้แต่ไม่มีภาพ ให้ดูบรรทัด `Camera:` และ `Stream server:` ที่ Serial Monitor หากต้องการกลับไปใช้เฟิร์มแวร์ตู้ ให้แฟลชโปรไฟล์ `esp32cam` ผ่านสาย
 
 ถ้าเห็น `Brownout detector was triggered` ตอนเปิด Wi-Fi ให้ตรวจแหล่งจ่ายไฟ สำหรับบอร์ด AI Thinker ให้ใช้ไฟ 5 V ที่นิ่งกับขา 5V และ GND ของบอร์ด หากแยกไฟจากตัวแปลง USB-to-Serial ให้ต่อ GND ร่วมกันและถอดสาย VCC ของตัวแปลงออก

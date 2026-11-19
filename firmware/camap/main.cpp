@@ -9,8 +9,19 @@
 #include "frame_analysis.h"
 #include "viewer.h"
 
+#ifdef CAMTEST
+#include <ArduinoOTA.h>
+#include <Preferences.h>
+#endif
+
 namespace {
+#ifdef CAMTEST
+// รุ่นทดสอบกล้อง: Wi-Fi ชื่อ CAMTEST-xxxxxx รหัสคงที่ (ใช้ทดสอบหน้างานเท่านั้น · รับได้ 1 เครื่อง · อย่าติดตั้งค้างในตู้จริง)
+constexpr char AP_PREFIX[] = "CAMTEST";
+constexpr char CAMTEST_PASSWORD[] = "camtest1234";
+#else
 constexpr char AP_PREFIX[] = "ESP32-CAM";
+#endif
 constexpr uint32_t SERIAL_BAUD = 115200;
 constexpr uint32_t CPU_CLOCK_MHZ = 80;
 constexpr uint32_t CAMERA_CLOCK_HZ = 10000000;
@@ -21,9 +32,18 @@ constexpr char STREAM_TYPE[] = "multipart/x-mixed-replace; boundary=esp32frame";
 constexpr char FRAME_BOUNDARY[] = "\r\n--esp32frame\r\n";
 constexpr char FRAME_HEADER[] = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 bool cameraReady = false;
+#ifdef CAMTEST
+// camtest: เพิ่ม XGA/SXGA ไว้ดูว่าภาพชัดขึ้นไหมเมื่อละเอียดขึ้น (วิเคราะห์ QR ทำถึง VGA เท่านั้น)
+constexpr framesize_t RESOLUTIONS[] = {FRAMESIZE_QQVGA, FRAMESIZE_QVGA, FRAMESIZE_VGA, FRAMESIZE_XGA, FRAMESIZE_SXGA};
+#else
 constexpr framesize_t RESOLUTIONS[] = {FRAMESIZE_QQVGA, FRAMESIZE_QVGA, FRAMESIZE_VGA};
+#endif
 constexpr int JPEG_QUALITIES[] = {10, 14, 22};
+#ifdef CAMTEST
+constexpr size_t VGA_INDEX = 4;  // ชื่อเดิม = ดัชนีความละเอียดสูงสุดเมื่อมี PSRAM (camtest: SXGA)
+#else
 constexpr size_t VGA_INDEX = 2;
+#endif
 constexpr size_t DEFAULT_QUALITY = 0;
 constexpr int SENSOR_CONTRAST = 1;
 constexpr int AUTO_CONTROL_ENABLED = 1;
@@ -151,6 +171,32 @@ esp_err_t streamCamera(httpd_req_t *request) {
   return result;
 }
 
+#ifdef CAMTEST
+// ── ความคมของภาพ (sharpness ของเซนเซอร์) ──
+int sharpLevel = 2;  // -3..+3 (ค่าเริ่มต้นของ camtest +2 — ภาพ QR ต้องการขอบคม)
+
+// GET /tune?sharp=-3..3 → ตั้งความคม แล้วตอบสถานะ JSON · ไม่มี query = อ่านสถานะเฉย ๆ
+esp_err_t tuneHandler(httpd_req_t *request) {
+  if (!cameraReady) return cameraUnavailable(request);
+  char query[32] = {};
+  char value[8] = {};
+  const bool hasQuery = httpd_req_get_url_query_str(request, query, sizeof(query)) == ESP_OK;
+  if (xSemaphoreTake(cameraMutex, pdMS_TO_TICKS(CAMERA_LOCK_TIMEOUT_MS)) != pdTRUE) return cameraUnavailable(request);
+  sensor_t *sensor = esp_camera_sensor_get();
+  if (hasQuery && httpd_query_key_value(query, "sharp", value, sizeof(value)) == ESP_OK) {
+    const int level = atoi(value);
+    if (level >= -3 && level <= 3 && sensor->set_sharpness && sensor->set_sharpness(sensor, level) == 0) sharpLevel = level;
+  }
+  const int pid = sensor->id.PID;
+  xSemaphoreGive(cameraMutex);
+  char response[48];
+  snprintf(response, sizeof(response), "{\"pid\":%d,\"sharp\":%d}", pid, sharpLevel);
+  httpd_resp_set_type(request, "application/json");
+  httpd_resp_set_hdr(request, "Cache-Control", "no-store");
+  return httpd_resp_sendstr(request, response);
+}
+#endif
+
 esp_err_t startServer(httpd_config_t config, const httpd_uri_t *routes, size_t routeCount) {
   httpd_handle_t server = nullptr;
   const esp_err_t started = httpd_start(&server, &config);
@@ -207,6 +253,11 @@ esp_err_t initCamera() {
     Serial.printf("Sensor tuning return codes: contrast=%d gain=%d AWB=%d AE=%d\n",
                   contrast, gain, whiteBalance, exposure);
   }
+#ifdef CAMTEST
+  // camtest: init จองบัฟเฟอร์ตามขนาดสูงสุด (SXGA) แล้วเริ่มที่ VGA · ตั้งความคมให้ OV5640
+  sensor->set_framesize(sensor, FRAMESIZE_VGA);
+  if (sensor->id.PID == OV5640_PID) sensor->set_sharpness(sensor, sharpLevel);
+#endif
   return ESP_OK;
 }
 
@@ -221,6 +272,28 @@ void limitWifiPower() {
   Serial.printf("Wi-Fi transmit power: %s\n", esp_err_to_name(result));
 }
 }
+
+#ifdef CAMTEST
+// แฟลชกลับเป็นเฟิร์มแวร์ตู้ผ่าน Wi-Fi ของบอร์ดนี้ (ต่อ CAMTEST-xxxxxx แล้วอัปโหลดไปที่ 192.168.4.1) · ต้องมีรหัสใน ota.local.ini
+void startOta() {
+  if (sizeof(OTA_PASS) <= 1) {
+    Serial.println("OTA off: set the password in ota.local.ini and rebuild");
+    return;
+  }
+  Preferences prefs;
+  prefs.begin("smmb", true);
+  const String box = prefs.getString("box", "");
+  prefs.end();
+  String digits;
+  for (char ch : box)
+    if (isdigit(ch)) digits += ch;
+  const String host = "camtest-" + (digits.length() ? digits : String(static_cast<uint32_t>(ESP.getEfuseMac() & 0xffffff), HEX));
+  ArduinoOTA.setHostname(host.c_str());
+  ArduinoOTA.setPassword(OTA_PASS);
+  ArduinoOTA.begin();
+  Serial.printf("OTA ready: %s.local (192.168.4.1)\n", host.c_str());
+}
+#endif
 
 void setup() {
   setCpuFrequencyMhz(CPU_CLOCK_MHZ);
@@ -239,9 +312,15 @@ void setup() {
     return;
   }
   limitWifiPower();
+#ifdef CAMTEST
+  snprintf(password, sizeof(password), "%s", CAMTEST_PASSWORD);
+  const bool apStarted = WiFi.softAP(ssid, password, 6, 0, 1);  // ช่อง 6 · ไม่ซ่อน · รับ 1 เครื่องเท่านั้น
+#else
   snprintf(password, sizeof(password), "%08lX%08lX",
            static_cast<unsigned long>(esp_random()), static_cast<unsigned long>(esp_random()));
-  if (!WiFi.softAP(ssid, password)) {
+  const bool apStarted = WiFi.softAP(ssid, password);
+#endif
+  if (!apStarted) {
     Serial.println("Wi-Fi access point failed");
     return;
   }
@@ -262,6 +341,9 @@ void setup() {
     {"/settings", HTTP_PUT, cameraSettings, nullptr},
     {"/analysis", HTTP_GET, analysisSettings, nullptr},
     {"/analysis", HTTP_PUT, analysisSettings, nullptr},
+#ifdef CAMTEST
+    {"/tune", HTTP_GET, tuneHandler, nullptr},
+#endif
   };
   esp_err_t result = startServer(config, viewer, sizeof(viewer) / sizeof(viewer[0]));
   if (result != ESP_OK) {
@@ -275,8 +357,16 @@ void setup() {
   const httpd_uri_t stream = {"/stream", HTTP_GET, streamCamera, nullptr};
   result = startServer(config, &stream, 1);
   Serial.printf("Stream server: %s\n", esp_err_to_name(result));
+#ifdef CAMTEST
+  startOta();
+#endif
 }
 
 void loop() {
+#ifdef CAMTEST
+  ArduinoOTA.handle();
+  delay(10);
+#else
   delay(1000);
+#endif
 }

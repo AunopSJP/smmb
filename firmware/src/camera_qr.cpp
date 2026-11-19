@@ -6,6 +6,7 @@
 #include "board.h"
 #include "settings.h"
 #include "quirc/quirc.h"
+#include "qr_scan.h"
 #include "img_converters.h"
 #include <ArduinoJson.h>
 
@@ -210,7 +211,7 @@ bool cameraStart() {
   }
   // ภาพ native ตามสเก็ตช์ esp32-cam-qvga15: ไม่กลับภาพ/ไม่เร่ง contrast (ภาพกลับซ้าย-ขวาถอดได้ด้วยการลองกลับด้านใน scanFrame) · sharpness/ae ปรับได้ด้วย cam
   if (sensor_t* sen = esp_camera_sensor_get()) {
-    if (settings.camSharp != 0) sen->set_sharpness(sen, settings.camSharp);
+    sen->set_sharpness(sen, settings.camSharp);
     if (settings.camAe != 0) sen->set_ae_level(sen, settings.camAe);
     sen->set_vflip(sen, settings.camFlip & 1);
     sen->set_hmirror(sen, (settings.camFlip >> 1) & 1);
@@ -272,27 +273,49 @@ bool cameraAutoFlash(bool allowed) {
   return flashOn;
 }
 
-/** ถอด QR ใน quirc ตอนนี้ · ok = ได้ข้อความ */
+/** สถานะถอดล่าสุด (ไว้บอกสาเหตุตอนสแกนไม่ติด) */
 static quirc_decode_error_t lastDecodeErr = QUIRC_SUCCESS;
 
-// quirc_code + quirc_data ~13 KB — ไว้นอก stack (stack ของ loop มี 8 KB เคยล้นจนบอร์ดรีสตาร์ต)
+// quirc_code ×2 + quirc_data ~17 KB — ไว้นอก stack (stack ของ loop มี 8 KB เคยล้นจนบอร์ดรีสตาร์ต)
 static struct quirc_code code;
+static struct quirc_code flippedCode;
 static struct quirc_data data;
 
-static bool decodeAll(String& out) {
-  int count = quirc_count(qr);
-  for (int i = 0; i < count; i++) {
-    quirc_extract(qr, i, &code);
-    quirc_decode_error_t e = quirc_decode(&code, &data);
-    if (e != QUIRC_SUCCESS) lastDecodeErr = e;
-    if (e == QUIRC_SUCCESS) {
-      out = String((const char*)data.payload).substring(0, data.payload_len);
-      return true;
+// ผลวินิจฉัยของการสแกนรอบนี้ — ส่งขึ้นหน้า D04 ตอนอ่านไม่ได้ (scan_diag)
+static int lastShapePx = 0;       // ความกว้างรูปทรง QR ที่ใหญ่สุดในภาพ (px) · QR ประจำตัว 29 โมดูล ควร ≥ ~100 px
+static uint8_t lastBright = 0;    // ความสว่างเฉลี่ยกลางภาพเฟรมล่าสุด
+static int lastQrPath = 0;        // เส้นทางที่ถอดได้ครั้งล่าสุด (QR_PATH_*) · 2/4 = ภาพกระจก
+static int lastQrPass = 0;        // 1 = รอบแรก · 2 = รอบสอง (ลับขอบ)
+
+/** ความสว่างเฉลี่ยกลางภาพ (สุ่มทุก 8 พิกเซล) */
+static uint8_t frameBrightness(const GrayImg& g) {
+  uint32_t sum = 0, n = 0;
+  for (size_t y = g.h / 4; y < (size_t)g.h * 3 / 4; y += 8)
+    for (size_t x = g.w / 4; x < (size_t)g.w * 3 / 4; x += 8) {
+      sum += g.px[y * g.w + x];
+      n++;
     }
-  }
-  return false;
+  return n ? sum / n : 0;
 }
 
+static const char* qrPathName(int path) {
+  switch (path) {
+    case QR_PATH_PLAIN: return "plain";
+    case QR_PATH_MIRROR: return "mirrored";
+    case QR_PATH_GRAY: return "gray-sampled";
+    case QR_PATH_GRAY_MIRROR: return "gray-sampled mirrored";
+    default: return "-";
+  }
+}
+
+// ภาพลับขอบสำหรับรอบสองของ qrScanGray (จองใน PSRAM ครั้งเดียว โตตามกรอบที่ใหญ่สุด)
+static uint8_t* sharpBuf = nullptr;
+static size_t sharpCap = 0;
+
+/**
+ * อ่าน QR จากกรอบภาพเทา — กระบวนการทั้งหมดอยู่ใน qr_scan.h (ทดสอบบนคอมด้วย quirc ตัวเดียวกับในตู้ ดู firmware/test/qr_host)
+ * ภาพจากกล้องตู้เป็นภาพกระจก → ตัวอ่านกลับด้านเอง · สุ่มจากภาพเทาเมื่อภาพเบลอ · รอบสองลับขอบเมื่อเจอ QR แต่ถอดไม่ได้
+ */
 static bool scanFrame(const GrayImg& g, struct quirc* decoder, bool fullFrame, String& text, bool& foundShape) {
   const int frameWidth = g.w;
   const int frameHeight = g.h;
@@ -300,36 +323,25 @@ static bool scanFrame(const GrayImg& g, struct quirc* decoder, bool fullFrame, S
   const int scanHeight = fullFrame ? frameHeight : centerHeight(frameHeight);
   const int offsetX = (frameWidth - scanWidth) / 2;
   const int offsetY = (frameHeight - scanHeight) / 2;
-  if (quirc_resize(decoder, scanWidth, scanHeight) < 0) return false;
-
-  int width = 0;
-  int height = 0;
-  uint8_t* image = quirc_begin(decoder, &width, &height);
-  for (int y = 0; y < height; y++) {
-    memcpy(image + static_cast<size_t>(y) * width,
-           g.px + static_cast<size_t>(offsetY + y) * frameWidth + offsetX,
-           width);
+  const size_t need = static_cast<size_t>(scanWidth) * scanHeight;
+  if (sharpCap < need) {
+    free(sharpBuf);
+    sharpBuf = static_cast<uint8_t*>(ps_malloc(need));
+    sharpCap = sharpBuf ? need : 0;
   }
-  quirc_end(decoder);
-  foundShape = quirc_count(decoder) > 0;
-  if (!foundShape) return false;
 
-  struct quirc* previous = qr;
-  qr = decoder;
-  const bool decoded = decodeAll(text);
-  // ภาพกลับซ้าย-ขวาเกิดเฉพาะเมื่อกลับแกนเดียว (camFlip 1 หรือ 2) · 0 และ 3 (หมุน 180°) quirc ถอดได้เอง
-  // ไม่กรอง = รัน quirc ซ้ำทั้งภาพทุกเฟรมที่เห็น QR แต่ยังถอดไม่ออก → เฟรมเรตหายครึ่งตอนที่ QR อยู่หน้ากล้องพอดี
-  const bool mirrored = settings.camFlip == 1 || settings.camFlip == 2;
-  if (!decoded && mirrored) {
-    image = quirc_begin(decoder, &width, &height);
-    for (int y = 0; y < height; y++) {
-      uint8_t* row = image + static_cast<size_t>(y) * width;
-      for (int x = 0; x < width / 2; x++) std::swap(row[x], row[width - 1 - x]);
-    }
-    quirc_end(decoder);
-    decodeAll(text);
+  QrScanInfo info;
+  const int path = qrScanGray(decoder, g.px + static_cast<size_t>(offsetY) * frameWidth + offsetX, frameWidth, scanWidth, scanHeight,
+                              sharpCap ? sharpBuf : nullptr, &code, &flippedCode, &data, &info);
+  foundShape = info.grids > 0;
+  lastShapePx = max(lastShapePx, info.widestPx);
+  if (!path) {
+    if (info.grids > 0) lastDecodeErr = QUIRC_ERROR_DATA_ECC;
+    return false;
   }
-  qr = previous;
+  lastQrPath = path;
+  lastQrPass = info.pass;
+  text = String((const char*)data.payload).substring(0, data.payload_len);
   return text.length() > 0;
 }
 
@@ -370,6 +382,8 @@ QrRead cameraScanQr(uint32_t timeoutMs) {
   QrRead r;
   if (!running) return r;
   ScanGuard guard;
+  lastShapePx = 0;
+  lastBright = 0;
   const uint32_t start = millis();
   int frames = 0, framesWithShape = 0;
   uint32_t lastPreviewAt = start;  // ภาพแรกส่งหลังสแกนไปแล้ว 1 ช่วง
@@ -403,6 +417,7 @@ QrRead cameraScanQr(uint32_t timeoutMs) {
       delay(20);
       continue;
     }
+    lastBright = frameBrightness(g);
     const bool fullFrame = frames % QR_FULL_FRAME_INTERVAL == 0;
     const bool decoded = scanFrame(g, fullFrame ? qrFull : qr, fullFrame, text, found);
     previewStore(g, found, text);
@@ -418,15 +433,21 @@ QrRead cameraScanQr(uint32_t timeoutMs) {
       r.ms = millis() - start;
       r.frames = static_cast<uint16_t>(frames);
       r.qrShapes = static_cast<uint16_t>(framesWithShape);
-      Serial.printf("[cam] QR in %u ms after %d frames: %.60s\n", r.ms, frames, text.c_str());
+      r.widestPx = static_cast<uint16_t>(lastShapePx);
+      r.brightness = lastBright;
+      Serial.printf("[cam] QR in %u ms after %d frames · width %d px · %s%s\n", r.ms, frames, lastShapePx, lastQrPass == 2 ? "sharpened · " : "",
+                    qrPathName(lastQrPath));
       return r;
     }
   }
   r.ms = millis() - start;
   r.frames = static_cast<uint16_t>(frames);
   r.qrShapes = static_cast<uint16_t>(framesWithShape);
-  Serial.printf("[cam] no QR in %u ms (%d frames · frames with a QR shape: %d · last decode error: %s)\n", r.ms, frames, framesWithShape,
-                lastErr ? quirc_strerror(lastErr) : "-");
+  r.widestPx = static_cast<uint16_t>(lastShapePx);
+  r.brightness = lastBright;
+  r.err = lastErr ? quirc_strerror(lastErr) : "";
+  Serial.printf("[cam] no QR in %u ms (%d frames · frames with a QR shape: %d · widest %d px · brightness %u · last decode error: %s)\n", r.ms, frames,
+                framesWithShape, lastShapePx, (unsigned)lastBright, lastErr ? quirc_strerror(lastErr) : "-");
   return r;
 }
 

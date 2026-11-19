@@ -52,64 +52,116 @@
   text-decoration: none;
   cursor: pointer;
 }
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-block-size: 44px;
-  padding: 6px 14px;
-  border-radius: var(--radius-lg);
-  border: 1.5px solid var(--line);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  font-weight: var(--fw-strong);
-  font-size: var(--fs-sm);
-  cursor: pointer;
-
-  span {
-    color: var(--text-muted);
-  }
-  &.red {
-    border-color: var(--brand);
-    background: var(--brand-lighter);
-    color: var(--brand);
-  }
-  &.more {
-    color: var(--text-muted);
-  }
-}
 .warn-text {
   color: var(--orange);
   font-weight: var(--fw-strong);
 }
-/* กล่องเพิ่มช่วงเวลาตรวจ — ป้าย เริ่ม/ถึง เห็นบนจอ · ช่องสูง 52px แตะง่าย · ปุ่มเต็มความกว้าง
-   (เดิมเป็น input HH:mm ที่ใช้ flex-wrap แล้วปุ่มตกบรรทัดและช่องเตี้ย 21px) */
-.add-window {
-  display: grid;
+/* ── เวลาตรวจ: 1 แถว = 1 ช่วง แก้ในแถวได้ทันที ──
+   แถวกว้าง: [เลข] [เริ่ม] ถึง [จบ] [ลบ] · จอแคบ (<420px) ช่องเวลาเรียงสองบรรทัด */
+fieldset.hours {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+
+  > legend {
+    inline-size: 100%;
+    padding: 0;
+    margin-block-end: 8px;
+  }
+}
+.win-list {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  max-inline-size: 26rem;
-  padding: 12px;
+}
+.win-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  grid-template-areas: 'n from lt to del' '. err err err err';
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--surface) 96%, var(--text) 4%);
+  transition: border-color var(--dur-fast) var(--ease-out);
+
+  &.bad {
+    border-color: var(--sos);
+  }
+  app-time-select {
+    min-inline-size: 0;
+  }
 }
-.time-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-inline-size: 0;
-}
-.time-label {
-  flex: none;
-  min-inline-size: 3.25rem;
-  font-size: var(--fs-base);
+.win-n {
+  display: grid;
+  place-items: center;
+  inline-size: 26px;
+  block-size: 26px;
+  border-radius: 50%;
+  background: var(--track);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
   font-weight: var(--fw-strong);
+  font-variant-numeric: tabular-nums;
+}
+.win-to {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.win-row .win-n { grid-area: n; }
+.win-row app-time-select:first-of-type { grid-area: from; }
+.win-row app-time-select:last-of-type { grid-area: to; }
+.win-row .win-to { grid-area: lt; }
+.win-row .icon-btn { grid-area: del; }
+.win-from {
+  display: none;
+  grid-area: lf;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.win-err {
+  grid-area: err;
+  color: var(--sos);
+  font-weight: var(--fw-strong);
+}
+/* จอแคบ: เริ่ม/ถึง เรียงสองบรรทัด มีป้ายกำกับทุกบรรทัด */
+@media (max-width: 419px) {
+  .win-row {
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'n lf from del'
+      'n lt to del'
+      'n err err err';
+
+    .win-n { align-self: start; margin-block-start: 13px; }
+    .win-from { display: block; }
+  }
+}
+.add-win {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.dirty {
+  margin: 0;
+  color: var(--orange);
+  font-weight: var(--fw-strong);
+}
+.area-tag {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* เตือน "ต้องดู" = ส้ม (ระบบสีความหมาย) · พื้นจาง + ขอบบาง ไม่ใช่แถบสีด้านข้าง */
+.warn-box {
+  background: var(--warn-bg);
+  border: 1px solid color-mix(in srgb, var(--orange-line) 45%, transparent);
+}
+.back-suggest {
+  align-self: flex-start;
 }
 .small-btn {
   inline-size: auto;
@@ -135,10 +187,6 @@
   border-radius: var(--radius-lg);
   font-size: var(--fs-sm);
   cursor: pointer;
-}
-.pill.pending {
-  border-style: dashed;
-  opacity: 0.8;
 }
 
 /* ── เพิ่มบ้านเข้าโซน (multi-select) ── */
@@ -201,13 +249,18 @@
   gap: 8px;
 }
 .pick-bar {
+  position: sticky;
+  inset-block-end: 12px;
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--brand) 30%, var(--line));
   border-radius: var(--radius-sm);
-  background: var(--brand-lighter);
+  background: var(--surface);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 18%);
 
   .btn {
     inline-size: auto;
@@ -293,4 +346,20 @@
 :host-context([data-mode='easy']) .search-row input {
   min-block-size: 52px;
   font-size: var(--fs-md);
+}
+/* เลขหมุดในรายการ — ตรงกับหมุดหมายเลขบนแผนที่ */
+.hit-n {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 22px;
+  block-size: 22px;
+  padding-inline: 5px;
+  margin-inline-end: 6px;
+  border-radius: 11px;
+  background: var(--brand);
+  color: var(--on-dark);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-strong);
+  font-variant-numeric: tabular-nums;
+  vertical-align: 1px;
 }

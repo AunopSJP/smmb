@@ -541,6 +541,21 @@ static void runJob(JsonObjectConst job)
         linkBeep("error");
       break;
     }
+    // 0.2.36: อ่านไม่ได้ในงานตรวจจริง → ส่งผลวินิจฉัย (ตัวเลขล้วน ไม่มีภาพ) ขึ้นหน้า D04 เพื่อหาสาเหตุ · best-effort ไม่เปลี่ยนผล /result
+    if (!cameraTest && !q.ok)
+    {
+      JsonDocument d;
+      d["type"] = "scan_diag";
+      d["job_id"] = jobId;
+      d["attempt"] = attempt;
+      d["frames"] = q.frames;
+      d["qr_shapes"] = q.qrShapes;
+      d["widest_px"] = q.widestPx;
+      d["brightness"] = q.brightness;
+      d["read_ms"] = q.ms;
+      d["decode_err"] = q.err;
+      postEvent(d, 3000);
+    }
     if (cameraTest)
     {
       JsonDocument d;

@@ -169,7 +169,8 @@ export function requireRole(role: DemoRole): CanActivateFn {
     if (!ok) {
       // ยังไม่มีบทบาทที่ใช้ได้ (รออนุมัติ) → หน้ารอของสถานะนั้น · มีบทบาทอื่น → หน้าแรกของบทบาทนั้น
       if (!me.roles.length) return router.parseUrl(pendingPath(me));
-      const first = me.roles[0];
+      // หัวหน้า (มีทั้ง officer+head) ไปหน้าหัวหน้า — ตรงกับ homeRedirect/guestOnly (เดิมใช้ roles[0] จึงไปหน้าเจ้าหน้าที่)
+      const first = me.roles.includes('head') ? 'head' : me.roles[0];
       return router.createUrlTree([(first && ROLE_HOME[first]) || screenUrl('A04')]);
     }
     session.use(role === 'officer' && !me.roles.includes('officer') ? 'head' : role);

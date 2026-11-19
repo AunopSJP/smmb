@@ -13,6 +13,7 @@ import { screenUrl } from '../../screens/registry';
 import { PageHeader } from '../../shared/page-header';
 import { PlacePicker, type PlaceChange } from '../../shared/place-picker';
 import { TimeSelect } from '../../shared/time-select';
+import { Icon } from '../../shared/icon';
 import { liveRefresh } from '../../core/live-refresh';
 
 // หัวหน้า: L06 โซนทั้งหมด · L07 แก้โซน (ชื่อ · เวลาตรวจ · บ้าน · เจ้าหน้าที่) — ใช้ API จริง (api.md §8.3)
@@ -27,6 +28,28 @@ const MAX_WINDOWS = 4;
 export function windowProblem(from: string, to: string, existing: [string, string][]): boolean {
   if (!/^\d{2}:\d{2}$/.test(from) || !/^\d{2}:\d{2}$/.test(to) || from >= to) return true;
   return existing.some(([a, b]) => from < b && a < to);
+}
+
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function toHhmm(mins: number): string {
+  return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+}
+
+/**
+ * ช่วงใหม่ที่จะเพิ่ม: ยังไม่มี → 06:00–09:00 · มีแล้ว → ต่อจากช่วงที่จบช้าสุด 3 ชม. (ไม่เกิน 23:59)
+ * ถ้าท้ายวันเต็มแล้วให้ไปเริ่มก่อนช่วงแรก — ผู้ใช้ปรับต่อในแถวได้เสมอ
+ */
+export function nextWindow(existing: [string, string][]): [string, string] {
+  if (!existing.length) return ['06:00', '09:00'];
+  const lastEnd = Math.max(...existing.map(([, t]) => toMinutes(t)));
+  if (lastEnd <= 23 * 60) return [toHhmm(lastEnd), toHhmm(Math.min(lastEnd + 180, 23 * 60 + 59))];
+  const firstStart = Math.min(...existing.map(([f]) => toMinutes(f)));
+  if (firstStart >= 180) return [toHhmm(firstStart - 180), toHhmm(firstStart)];
+  return ['06:00', '09:00']; // ไม่มีช่องว่าง — แถวจะขึ้น "ทับกับช่วงอื่น" ให้ผู้ใช้ปรับเอง
 }
 
 const ZONE_ERROR: Record<string, Tr> = {
@@ -95,7 +118,7 @@ const ZONE_ERROR: Record<string, Tr> = {
           <app-loading-rows [rows]="2" [label]="i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' })" />
         } @else {
           <app-empty-state [title]="i18n.t({ th: 'ยังไม่มีโซน', en: 'No zones yet' })" [hint]="i18n.t({ th: 'โซนคือกลุ่มบ้านที่เจ้าหน้าที่ดูแล — สร้างโซนแรกเพื่อเริ่ม', en: 'A zone is a group of houses your officers cover — create the first one to begin' })">
-            <a class="btn" [routerLink]="url('L06')">{{ i18n.t({ th: 'สร้างโซน', en: 'Create a zone' }) }}</a>
+            <a class="btn" [routerLink]="url('L07')" [queryParams]="{ zone: 'new' }">{{ i18n.t({ th: 'สร้างโซน', en: 'Create a zone' }) }}</a>
           </app-empty-state>
         }
       }
@@ -197,7 +220,7 @@ export class HeadZones implements OnInit {
 
 @Component({
   selector: 'app-head-zone-edit',
-  imports: [PageHeader, RouterLink, LoadError, EmptyState, HousesMap, PlacePicker, TimeSelect],
+  imports: [PageHeader, RouterLink, LoadError, EmptyState, LoadingRows, HousesMap, PlacePicker, TimeSelect, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './head-zone-edit.scss',
   template: `
@@ -211,7 +234,10 @@ export class HeadZones implements OnInit {
           <button type="button" role="tab" [attr.aria-selected]="tab() === 'officers'" [class.active]="tab() === 'officers'" (click)="tab.set('officers')">{{ i18n.t({ th: 'เจ้าหน้าที่', en: 'Officers' }) }} ({{ z.officers.length }})</button>
         </div>
       }
-      @if (tab() === 'settings' || isNew()) {
+      @if (!isNew() && !zone()) {
+        <!-- ระหว่างโหลดโซนเดิม ห้ามโชว์ฟอร์มว่าง (ดูเหมือนโซนใหม่ แล้วกดบันทึกทับได้) -->
+        <app-loading-rows [rows]="3" [label]="i18n.t({ th: 'กำลังโหลดโซน…', en: 'Loading zone…' })" />
+      } @else if (tab() === 'settings' || isNew()) {
       <section class="card stack">
         <label class="field">
           <span>{{ i18n.t({ th: 'ชื่อโซน', en: 'Zone name' }) }}</span>
@@ -225,40 +251,52 @@ export class HeadZones implements OnInit {
             <p class="muted small mono adv-only">{{ a.subdistrict || '—' }} / {{ a.district }} / {{ a.province }}</p>
           }
         </fieldset>
-        <div class="head">
-          <strong>{{ i18n.t({ th: 'เวลาตรวจ', en: 'Patrol hours' }) }}</strong>
-          <span class="muted small">Asia/Bangkok</span>
-        </div>
-        <div class="chips" aria-live="polite">
-          @for (w of windows(); track $index) {
-            <button type="button" class="pill" (click)="removeWindow($index)" [attr.aria-label]="i18n.t({ th: 'นำออก ', en: 'Remove ' }) + w.join('–')">{{ w[0] }}–{{ w[1] }} <span aria-hidden="true">×</span></button>
-          } @empty {
-            <span class="warn-text small">{{ i18n.t({ th: 'ยังไม่มีเวลาตรวจ — ตู้จะไม่รับงานตรวจ', en: 'No patrol hours — boxes won’t take inspections' }) }}</span>
-          }
-        </div>
-        @if (windows().length < maxWindows) {
-          <div class="add-window">
-            <!-- เลือกเวลาด้วยตัวเลือก ชั่วโมง:นาที (24 ชม.) แทนการพิมพ์ HH:mm เอง · มีป้าย เริ่ม/ถึง บนจอ -->
-            <div class="time-row">
-              <span class="time-label">{{ i18n.t({ th: 'เริ่ม', en: 'From' }) }}</span>
-              <app-time-select [value]="from()" [label]="i18n.t({ th: 'เริ่ม', en: 'From' })" (changed)="from.set($event)" />
-            </div>
-            <div class="time-row">
-              <span class="time-label">{{ i18n.t({ th: 'ถึง', en: 'To' }) }}</span>
-              <app-time-select [value]="to()" [label]="i18n.t({ th: 'ถึง', en: 'To' })" (changed)="to.set($event)" />
-            </div>
-            <button type="button" class="btn secondary" (click)="addWindow()">{{ i18n.t({ th: '+ เพิ่มช่วงเวลานี้', en: '+ Add this window' }) }}</button>
+        <fieldset class="stack hours">
+          <legend class="head">
+            <strong>{{ i18n.t({ th: 'เวลาตรวจ', en: 'Patrol hours' }) }}</strong>
+            <span class="muted small">{{ i18n.t({ th: 'เวลาไทย · 24 ชม.', en: 'Thai time · 24 h' }) }}</span>
+          </legend>
+          <!-- แก้ช่วงเวลาตรงในแถวได้เลย (เดิมต้องเลือกเวลาแล้วกด "เพิ่มช่วง" อีกปุ่มก่อนบันทึก — ลืมกดแล้วเวลาหาย) -->
+          <div class="win-list" aria-live="polite">
+            @for (w of windows(); track $index; let i = $index) {
+              @let bad = rowProblem(i);
+              <div class="win-row" [class.bad]="bad">
+                <span class="win-n" aria-hidden="true">{{ i + 1 }}</span>
+                <span class="win-from" aria-hidden="true">{{ i18n.t({ th: 'เริ่ม', en: 'from' }) }}</span>
+                <app-time-select [value]="w[0]" [label]="i18n.t({ th: 'ช่วงที่ ' + (i + 1) + ' เริ่ม', en: 'Window ' + (i + 1) + ' from' })" (changed)="setWindow(i, 0, $event)" />
+                <span class="win-to">{{ i18n.t({ th: 'ถึง', en: 'to' }) }}</span>
+                <app-time-select [value]="w[1]" [label]="i18n.t({ th: 'ช่วงที่ ' + (i + 1) + ' ถึง', en: 'Window ' + (i + 1) + ' to' })" (changed)="setWindow(i, 1, $event)" />
+                <button type="button" class="icon-btn" (click)="removeWindow(i)" [attr.aria-label]="i18n.t({ th: 'ลบช่วงที่ ', en: 'Remove window ' }) + (i + 1)">
+                  <app-icon name="close" [size]="18" />
+                </button>
+                @if (bad) {
+                  <span class="win-err small">{{ i18n.t(bad) }}</span>
+                }
+              </div>
+            } @empty {
+              <p class="warn-text small">{{ i18n.t({ th: 'ยังไม่มีเวลาตรวจ — ตู้จะไม่รับงานตรวจ', en: 'No patrol hours — boxes won’t take inspections' }) }}</p>
+            }
           </div>
-        }
-        <p class="muted small">{{ i18n.t({ th: 'ข้ามเที่ยงคืนให้แยก 2 ช่วง', en: 'Split overnight into 2 windows' }) }}@if (zone()?.patrol_limit_hours; as lim) { · {{ i18n.t({ th: 'ตู้ตื่นเฉพาะช่วงตรวจ (ประหยัดไฟ) — รวมไม่เกิน ', en: 'Boxes are awake only in these hours (saves power) — at most ' }) }}{{ lim }} {{ i18n.t({ th: 'ชม./วัน ต่อตู้', en: 'h/day per box' }) }} }</p>
-        @if (windows().length) {
-          <p class="muted small adv-only">{{ windows().length }}/{{ maxWindows }} {{ i18n.t({ th: 'ช่วง', en: 'windows' }) }} · {{ durationText() }}</p>
-        }
+          @if (windows().length < maxWindows) {
+            <button type="button" class="btn secondary add-win" (click)="addWindow()">
+              <app-icon name="plus" [size]="18" />{{ i18n.t({ th: 'เพิ่มช่วงเวลา', en: 'Add a window' }) }}
+            </button>
+          }
+          <p class="muted small">
+            @if (windows().length) {
+              <span [class.warn-text]="overLimit()">{{ i18n.t({ th: 'รวม ', en: 'Total ' }) }}{{ durationText() }}{{ i18n.t({ th: '/วัน', en: '/day' }) }}@if (zone()?.patrol_limit_hours; as lim) { {{ i18n.t({ th: '(เพดาน ', en: '(limit ' }) }}{{ lim }} {{ i18n.t({ th: 'ชม.)', en: 'h)' }) }} }</span> ·
+            }
+            {{ i18n.t({ th: 'ข้ามเที่ยงคืนให้แยกเป็น 2 ช่วง · ตู้ตื่นเฉพาะช่วงตรวจเพื่อประหยัดไฟ', en: 'Split overnight into 2 windows · boxes wake only in these hours to save power' }) }}
+          </p>
+        </fieldset>
         @if (error(); as e) {
           <p class="err small" role="alert">{{ i18n.t(e) }}</p>
         }
-        <button type="button" class="btn" [disabled]="busy() || !name().trim()" (click)="saveBasics()">
-          {{ isNew() ? i18n.t({ th: 'สร้างโซน', en: 'Create zone' }) : i18n.t({ th: 'บันทึกชื่อ + เวลาตรวจ', en: 'Save name + hours' }) }}
+        @if (dirty() && !isNew()) {
+          <p class="dirty small" role="status">{{ i18n.t({ th: 'มีการแก้ไขที่ยังไม่บันทึก', en: 'You have unsaved changes' }) }}</p>
+        }
+        <button type="button" class="btn" [disabled]="busy() || !name().trim() || (!isNew() && !dirty())" (click)="saveBasics()">
+          {{ busy() ? i18n.t({ th: 'กำลังบันทึก…', en: 'Saving…' }) : isNew() ? i18n.t({ th: 'สร้างโซน', en: 'Create zone' }) : i18n.t({ th: 'บันทึกการตั้งค่า', en: 'Save settings' }) }}
         </button>
       </section>
 
@@ -296,16 +334,26 @@ export class HeadZones implements OnInit {
                   @if (h.area) { <span class="muted small block">{{ h.area }}</span> }
                 </span>
                 @if (h.pending) {
-                  <span class="chip">{{ i18n.t({ th: 'รอเจ้าของบ้านยืนยัน', en: 'Awaiting owner' }) }}</span>
+                  <span class="chip warn">{{ i18n.t({ th: 'รอเจ้าของบ้านยืนยัน', en: 'Awaiting owner' }) }}</span>
                 } @else {
                   <span class="chip ok">{{ i18n.t({ th: 'อยู่ในโซน', en: 'In zone' }) }}</span>
                 }
-                <button type="button" class="icon-btn" (click)="askRemoveHouse(h)" [attr.aria-label]="(h.pending ? i18n.t({ th: 'ยกเลิกคำขอ ', en: 'Cancel request ' }) : i18n.t({ th: 'นำออก ', en: 'Remove ' })) + (h.house_no ?? h.box_id)">
-                  <span aria-hidden="true">×</span>
+                <button type="button" class="icon-btn" (click)="askRemoveHouse(h)" [attr.aria-label]="(h.pending ? i18n.t({ th: 'ถอนคำขอ ', en: 'Withdraw request ' }) : i18n.t({ th: 'นำออก ', en: 'Remove ' })) + (h.house_no ?? h.box_id) + (h.box_name ? ' ' + h.box_name : '')">
+                  <app-icon name="close" [size]="18" />
                 </button>
               </div>
             } @empty {
-              <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีบ้านในโซน', en: 'No houses in this zone yet' })" />
+              <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีบ้านในโซน', en: 'No houses in this zone yet' })" [hint]="areaReady() ? i18n.t({ th: 'เลือกบ้านจากรายการด้านล่าง แล้วกดส่งคำขอ', en: 'Pick houses from the list below, then send requests' }) : ''" />
+            }
+          </div>
+        </section>
+
+        <!-- เพิ่มบ้าน แยกการ์ดจากรายการบ้านในโซน — ไม่ปนกันว่าแถวไหน "อยู่แล้ว" แถวไหน "เลือกเพื่อเพิ่ม" -->
+        <section class="card stack">
+          <div class="head">
+            <strong>{{ i18n.t({ th: 'เพิ่มบ้านเข้าโซน', en: 'Add houses' }) }}</strong>
+            @if (zone()?.area; as a) {
+              <span class="muted small area-tag">{{ a.district }}</span>
             }
           </div>
           @if (!areaReady()) {
@@ -314,20 +362,31 @@ export class HeadZones implements OnInit {
               <button type="button" class="see-all" (click)="goArea()">{{ i18n.t({ th: 'ไปตั้งพื้นที่', en: 'Set the area' }) }}</button>
             </p>
           } @else {
+          @if (overLimit()) {
+            <!-- เซิร์ฟเวอร์จะตีกลับ PATROL_HOURS_LIMIT ตอนส่งคำขอ — บอกก่อนให้แก้ต้นเหตุ ไม่ต้องรอเลือกบ้านแล้วล้ม -->
+            <p class="info-box warn-box small" role="status">
+              {{ i18n.t({ th: 'เวลาตรวจของโซนนี้รวมเกินเพดานชั่วโมงของตู้ — ส่งคำขอเพิ่มบ้านจะไม่ผ่านจนกว่าจะลดเวลาตรวจ', en: 'This zone’s patrol hours exceed the box hour limit — requests will fail until you shorten them' }) }}
+              <button type="button" class="see-all" (click)="tab.set('settings')">{{ i18n.t({ th: 'ไปแก้เวลาตรวจ', en: 'Edit patrol hours' }) }}</button>
+            </p>
+          }
           <form class="search-row" (submit)="$event.preventDefault(); search()">
             <input type="search" [attr.aria-label]="i18n.t({ th: 'ค้นบ้าน', en: 'Search houses' })" [placeholder]="i18n.t({ th: 'เลขที่ หรือหมู่บ้าน', en: 'House no. or village' })" [value]="q()" (input)="q.set($any($event.target).value)" />
             <button type="submit" class="btn secondary small-btn" [disabled]="searching()">{{ i18n.t({ th: 'ค้น', en: 'Search' }) }}</button>
           </form>
-          <div class="filters easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'ตัวกรอง', en: 'Filters' })">
-            <label class="chip-toggle"><input type="checkbox" [checked]="onlyUnzoned()" (change)="onlyUnzoned.set($any($event.target).checked); refilter()" />{{ i18n.t({ th: 'ยังไม่มีใครดูแล', en: 'Not covered yet' }) }}</label>
-            <label class="chip-toggle"><input type="checkbox" [checked]="onlyOnline()" (change)="onlyOnline.set($any($event.target).checked); refilter()" />{{ i18n.t({ th: 'ตู้ออนไลน์', en: 'Box online' }) }}</label>
+          <!-- แหล่งรายการ: แนะนำ (ค่าเริ่ม) / ยังไม่มีใครดูแล / ผลค้น — แทนปุ่มใหญ่ 2 ปุ่มที่ดูเหมือนคำสั่งคนละอย่าง -->
+          <div class="segmented easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'แสดงบ้าน', en: 'Show houses' })">
+            <button type="button" [attr.aria-pressed]="mode() === 'suggest'" [disabled]="searching()" (click)="suggest()">{{ i18n.t({ th: 'แนะนำ', en: 'Suggested' }) }}</button>
+            <button type="button" [attr.aria-pressed]="mode() === 'browse'" [disabled]="searching()" (click)="browse()">{{ i18n.t({ th: 'ยังไม่มีใครดูแล', en: 'Not covered' }) }}</button>
           </div>
-          <button type="button" class="btn small-btn browse" [disabled]="searching()" (click)="suggest()">
-            {{ i18n.t({ th: 'บ้านที่แนะนำในพื้นที่', en: 'Suggested houses in this area' }) }}
-          </button>
-          <button type="button" class="btn secondary small-btn browse easy-hide" [disabled]="searching()" (click)="browse()">
-            {{ i18n.t({ th: 'ดูบ้านที่ยังไม่มีใครดูแล', en: 'Show houses nobody covers yet' }) }}
-          </button>
+          @if (mode() === 'search') {
+            <button type="button" class="see-all back-suggest" (click)="q.set(''); suggest()">{{ i18n.t({ th: 'ล้างคำค้น · กลับไปบ้านที่แนะนำ', en: 'Clear search · back to suggestions' }) }}</button>
+          }
+          <div class="filters easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'ตัวกรอง', en: 'Filters' })">
+            @if (mode() === 'search') {
+              <label class="chip-toggle"><input type="checkbox" [checked]="onlyUnzoned()" (change)="onlyUnzoned.set($any($event.target).checked); refilter()" />{{ i18n.t({ th: 'ยังไม่มีใครดูแล', en: 'Not covered yet' }) }}</label>
+            }
+            <label class="chip-toggle"><input type="checkbox" [checked]="onlyOnline()" (change)="onlyOnline.set($any($event.target).checked); refilter()" />{{ i18n.t({ th: 'เฉพาะตู้ออนไลน์', en: 'Online boxes only' }) }}</label>
+          </div>
           @if (searchFailed()) {
             <app-load-error (retry)="rerun()" />
           } @else if (searched()) {
@@ -340,19 +399,16 @@ export class HeadZones implements OnInit {
                 <button type="button" class="see-all" (click)="selectAllPicks()">{{ i18n.t({ th: 'เลือกที่แสดงทั้งหมด', en: 'Select all shown' }) }}</button>
               }
             </div>
-            @if (picked().size) {
-              <div class="pick-bar">
-                <span>{{ i18n.t({ th: 'เลือก ', en: 'Selected ' }) }}{{ picked().size }}{{ i18n.t({ th: ' หลัง', en: ' houses' }) }}</span>
-                <button type="button" class="see-all" (click)="clearPicks()">{{ i18n.t({ th: 'ล้างที่เลือก', en: 'Clear' }) }}</button>
-                <button type="button" class="btn" [disabled]="savingHouses()" (click)="addPicked()">{{ savingHouses() ? i18n.t({ th: 'กำลังส่ง…', en: 'Sending…' }) : i18n.t({ th: 'ส่งคำขอ ', en: 'Send requests ' }) + picked().size }}</button>
-              </div>
-            }
             <div class="hit-list">
               @for (h of hits(); track h.box_id) {
                 @let canPick = selectable(h);
                 <label class="hit" [class.done]="!canPick" [class.picked]="picked().has(h.box_id)">
                   <input type="checkbox" [checked]="picked().has(h.box_id)" [disabled]="!canPick" (change)="togglePick(h.box_id)" />
                   <span class="grow">
+                    <!-- เลขเดียวกับหมุดบนแผนที่ -->
+                    @if (pinNo().get(h.box_id); as n) {
+                      <span class="hit-n" [attr.aria-label]="i18n.t({ th: 'หมุดที่ ', en: 'Pin ' }) + n">{{ n }}</span>
+                    }
                     <strong>{{ h.house_no ?? h.box_id }}</strong>
                     @if (h.area) { <span class="chip">{{ h.area }}</span> }
                     <span class="muted small block">{{ h.box_id }}{{ h.box_name ? ' · ' + h.box_name : '' }}{{ h.locality ? ' · ' + h.locality : '' }}</span>
@@ -369,17 +425,25 @@ export class HeadZones implements OnInit {
                     </span>
                   </span>
                   @if (pendingHere(h.box_id)) {
-                    <span class="chip">{{ i18n.t({ th: 'รอเจ้าของบ้านยืนยัน', en: 'Awaiting owner' }) }}</span>
+                    <span class="chip warn">{{ i18n.t({ th: 'รอเจ้าของบ้านยืนยัน', en: 'Awaiting owner' }) }}</span>
                   } @else if (inZone(h.box_id)) {
                     <span class="chip ok">{{ i18n.t({ th: 'อยู่ในโซนนี้แล้ว', en: 'In this zone' }) }}</span>
                   }
                 </label>
               }
             </div>
+            @if (picked().size) {
+              <!-- ติดล่างจอระหว่างเลื่อนรายการ — ไม่ต้องเลื่อนกลับขึ้นไปหาปุ่มส่ง -->
+              <div class="pick-bar">
+                <span><strong>{{ picked().size }}</strong>{{ i18n.t({ th: ' หลังที่เลือก', en: ' selected' }) }}</span>
+                <button type="button" class="see-all" (click)="clearPicks()">{{ i18n.t({ th: 'ล้าง', en: 'Clear' }) }}</button>
+                <button type="button" class="btn" [disabled]="savingHouses()" (click)="addPicked()">{{ savingHouses() ? i18n.t({ th: 'กำลังส่ง…', en: 'Sending…' }) : i18n.t({ th: 'ส่งคำขอ', en: 'Send requests' }) }}</button>
+              </div>
+            }
             @if (!hits().length) {
               <p class="muted small">
                 {{ mode() === 'suggest'
-                  ? i18n.t({ th: 'ไม่มีบ้านแนะนำ — ยังไม่มีบ้านที่ข้อมูลครบในพื้นที่โซนนี้ (บ้านที่ข้อมูลไม่ครบจะไม่ถูกแนะนำ) · ลองพิมพ์ค้นบ้านเอง', en: 'No suggestions — no complete houses in this zone area yet (incomplete houses are not suggested) · try searching' })
+                  ? i18n.t({ th: 'ไม่มีบ้านแนะนำเพิ่ม — บ้านที่ข้อมูลครบในพื้นที่นี้อยู่ในโซนหรือรอเจ้าของยืนยันแล้ว (บ้านที่ข้อมูลไม่ครบจะไม่ถูกแนะนำ) · ลองพิมพ์ค้นบ้านเอง', en: 'No more suggestions — complete houses in this area are already in the zone or awaiting the owner (incomplete houses are not suggested) · try searching' })
                   : mode() === 'browse'
                   ? i18n.t({ th: 'ไม่มีบ้านที่รอเพิ่มแล้ว — ทุกหลังที่เจ้าของผูกตู้แล้วมีหน่วยงานดูแลอยู่', en: 'Nothing waiting — every bound house is already covered' })
                   : i18n.t({ th: 'ไม่พบ — ค้นได้เฉพาะตู้ที่เจ้าของบ้านผูกแล้ว (ตรวจสอบว่าเจ้าของผูกตู้แล้ว และพิมพ์บ้านเลขที่ตรงกับที่เจ้าของกรอก)', en: 'Nothing found — only boxes already bound by an owner (check the owner has bound it and the number matches what they entered)' }) }}
@@ -528,8 +592,6 @@ export class HeadZoneEdit {
     this.district.set(c.district);
     this.subdistrict.set(c.subdistrict);
   }
-  protected readonly from = signal('06:00');
-  protected readonly to = signal('09:00');
   protected readonly error = signal<Tr | null>(null);
   protected readonly busy = signal(false);
   protected readonly q = signal('');
@@ -574,6 +636,9 @@ export class HeadZoneEdit {
     return pts;
   });
 
+  /** box_id → เลขหมุดบนแผนที่ (ผลค้นที่มีพิกัด) */
+  protected readonly pinNo = computed(() => new Map(this.mapPoints().filter((p) => p.n).map((p) => [p.box_id, p.n!])));
+
   constructor() {
     effect(() => {
       const id = this.zoneParam();
@@ -595,6 +660,7 @@ export class HeadZoneEdit {
       this.province.set('');
       this.district.set('');
       this.subdistrict.set('');
+      this.saved.set(this.snapshot());
       if (!this.initialTabSet) {
         this.initialTabSet = true;
         this.tab.set('settings');
@@ -613,42 +679,72 @@ export class HeadZoneEdit {
       this.province.set(z.area?.province ?? '');
       this.district.set(z.area?.district ?? '');
       this.subdistrict.set(z.area?.subdistrict ?? '');
+      this.saved.set(this.snapshot());
       // เปิดโซนครั้งแรก → โชว์บ้านที่ยังไม่มีใครดูแลเลย (ไม่ต้องกดปุ่มก่อน)
       if (!this.autoBrowsed && z.area) {
         this.autoBrowsed = true;
         void this.suggest();
       }
     } catch {
-      void this.router.navigateByUrl(screenUrl('L06'));
+      // โซนถูกลบ / ไม่อยู่ในหน่วยงาน — บอกเหตุผลก่อนพากลับ (เดิมเด้งกลับเงียบ ๆ)
+      this.toast.error({ th: 'เปิดโซนนี้ไม่ได้ — อาจถูกลบไปแล้ว หรืออินเทอร์เน็ตขัดข้อง', en: 'Couldn’t open this zone — it may have been deleted, or the connection failed' });
+      void this.router.navigateByUrl(screenUrl('L06'), { replaceUrl: true });
     }
   }
 
+  /** เพิ่มแถวใหม่ต่อจากช่วงสุดท้าย (3 ชม.) — ผู้ใช้ปรับเวลาในแถวได้ทันที */
   protected addWindow(): void {
-    const [f, t] = [this.from(), this.to()];
-    // กันซ้อน/ซ้ำกับช่วงที่มีอยู่ — ไม่ต้องรอเซิร์ฟเวอร์ปฏิเสธ (ข้อความเดียวกันเพราะแก้ครั้งเดียวกัน)
-    if (windowProblem(f, t, this.windows())) {
-      this.error.set(ZONE_ERROR['WINDOWS_INVALID']);
-      return;
-    }
     this.error.set(null);
-    this.windows.update((w) => [...w, [f, t] as [string, string]].sort((a, b) => a[0].localeCompare(b[0])));
+    this.windows.update((w) => [...w, nextWindow(w)]);
   }
 
   protected removeWindow(i: number): void {
+    this.error.set(null);
     this.windows.update((w) => w.filter((_, j) => j !== i));
   }
 
+  protected setWindow(i: number, part: 0 | 1, value: string): void {
+    this.error.set(null);
+    this.windows.update((w) => w.map((x, j) => (j === i ? ((part === 0 ? [value, x[1]] : [x[0], value]) as [string, string]) : x)));
+  }
+
+  /** ปัญหาของแถว i (เริ่มไม่ก่อนจบ / ทับแถวอื่น) — ขึ้นใต้แถวทันที ไม่ต้องรอกดบันทึก */
+  protected rowProblem(i: number): Tr | null {
+    const w = this.windows();
+    const [f, t] = w[i];
+    if (f >= t) return { th: 'เวลาเริ่มต้องก่อนเวลาสิ้นสุด', en: 'Start must be before end' };
+    if (windowProblem(f, t, w.filter((_, j) => j !== i))) return { th: 'ทับกับช่วงอื่น', en: 'Overlaps another window' };
+    return null;
+  }
+
+  /** ค่าที่โหลดมาล่าสุด — ใช้บอก "ยังไม่บันทึก" และปิดปุ่มบันทึกเมื่อไม่มีอะไรเปลี่ยน */
+  private readonly saved = signal('');
+  private snapshot(): string {
+    return JSON.stringify([this.name().trim(), [...this.windows()].sort(), this.areaBody()]);
+  }
+  protected readonly dirty = computed(() => this.snapshot() !== this.saved());
+  protected readonly overLimit = computed(() => {
+    const lim = this.zone()?.patrol_limit_hours;
+    return !!lim && this.totalMinutes() > lim * 60;
+  });
+
   /** POST /agency/zones (สร้าง) · PATCH /agency/zones/:id (ชื่อ + เวลาตรวจ) */
   protected async saveBasics(): Promise<void> {
+    if (this.windows().some((_, i) => this.rowProblem(i))) {
+      this.error.set({ th: 'แก้ช่วงเวลาที่ขึ้นสีแดงก่อนบันทึก', en: 'Fix the highlighted windows before saving' });
+      return;
+    }
+    const windows = [...this.windows()].sort((a, b) => a[0].localeCompare(b[0]));
+    this.windows.set(windows);
     this.busy.set(true);
     this.error.set(null);
     try {
       if (this.isNew()) {
-        const z = await this.api.createZone(this.name().trim(), this.windows(), this.areaBody());
+        const z = await this.api.createZone(this.name().trim(), windows, this.areaBody());
         this.toast.show({ th: 'สร้างโซนแล้ว — เพิ่มบ้านและเจ้าหน้าที่ต่อ', en: 'Zone created — now add houses and officers' });
         void this.router.navigate([screenUrl('L07')], { queryParams: { zone: z.id }, replaceUrl: true });
       } else {
-        await this.api.updateZone(this.zone()!.id, { name: this.name().trim(), windows: this.windows(), ...this.areaBody() });
+        await this.api.updateZone(this.zone()!.id, { name: this.name().trim(), windows, ...this.areaBody() });
         this.toast.show({ th: 'บันทึกแล้ว — ตู้ได้เวลาตรวจใหม่ตอนรายงานครั้งถัดไป', en: 'Saved — boxes get the new hours at their next report' });
         await this.load(this.zone()!.id);
       }
@@ -824,8 +920,12 @@ export class HeadZoneEdit {
     });
     if (!ok) return;
     this.savingHouses.set(true);
-    await this.setHouses([...this.currentHouses(), ...ids]);
-    this.picked.set(new Set());
+    const saved = await this.setHouses([...this.currentHouses(), ...ids]);
+    // ส่งไม่ผ่าน → เก็บที่เลือกไว้ ให้แก้สาเหตุแล้วกดส่งซ้ำได้ (เดิมล้างทิ้งทุกกรณี)
+    if (saved) {
+      this.picked.set(new Set());
+      this.toast.show({ th: `ส่งคำขอ ${ids.length} หลังแล้ว — รอเจ้าของบ้านกดยอมรับ`, en: `Sent ${ids.length} ${ids.length === 1 ? 'request' : 'requests'} — waiting for owners to accept` }, 'ok');
+    }
     this.savingHouses.set(false);
   }
 
@@ -836,26 +936,26 @@ export class HeadZoneEdit {
     const label = h.box_name ? `${name} (${h.box_name})` : name;
     const ok = await this.confirm.ask({
       title: h.pending
-        ? { th: `ยกเลิกคำขอของบ้าน ${label}?`, en: `Cancel the request for ${label}?` }
+        ? { th: `ถอนคำขอของบ้าน ${label}?`, en: `Withdraw the request for ${label}?` }
         : { th: `นำบ้าน ${label} ออกจากโซน?`, en: `Remove ${label} from this zone?` },
       body: h.pending
         ? { th: 'เจ้าของบ้านจะไม่ได้รับคำขอให้ยอมรับอีก (เพิ่มใหม่ได้ภายหลัง)', en: 'The owner will no longer see this request (you can add it again later).' }
         : { th: 'บ้านหลังนี้จะไม่ถูกตรวจและไม่รับ SOS ของโซนนี้ (ประวัติเดิมยังอยู่)', en: 'This house will no longer be inspected or receive SOS for this zone (history is kept).' },
-      confirm: h.pending ? { th: 'ยกเลิกคำขอ', en: 'Cancel request' } : { th: 'นำออก', en: 'Remove' },
+      // "ถอนคำขอ" ไม่ใช่ "ยกเลิกคำขอ" — กันสับสนกับปุ่ม "ยกเลิก" (ปิดหน้าต่าง) ที่อยู่ติดกัน
+      confirm: h.pending ? { th: 'ถอนคำขอ', en: 'Withdraw' } : { th: 'นำออก', en: 'Remove' },
       danger: true,
     });
-    if (ok) await this.removeHouse(h.box_id);
+    if (ok && (await this.setHouses(this.currentHouses().filter((id) => id !== h.box_id)))) {
+      this.toast.show(h.pending ? { th: `ถอนคำขอของบ้าน ${label} แล้ว`, en: `Withdrew the request for ${label}` } : { th: `นำบ้าน ${label} ออกจากโซนแล้ว`, en: `Removed ${label} from the zone` }, 'ok');
+    }
   }
 
-  protected removeHouse(boxId: string): Promise<void> {
-    return this.setHouses(this.currentHouses().filter((id) => id !== boxId));
-  }
-
-  /** PUT /agency/zones/:id/houses — แทนที่ทั้งชุด (ทีละคำขอ ใช้ชุดล่าสุดเสมอ) */
-  private setHouses(ids: string[]): Promise<void> {
+  /** PUT /agency/zones/:id/houses — แทนที่ทั้งชุด (ทีละคำขอ ใช้ชุดล่าสุดเสมอ) · คืน false ถ้าบันทึกไม่ผ่าน */
+  private async setHouses(ids: string[]): Promise<boolean> {
     const z = this.zone();
-    if (!z) return Promise.resolve();
+    if (!z) return false;
     this.houseIds = ids;
+    let ok = true;
     this.houseSave = this.houseSave.then(async () => {
       if (this.houseIds !== ids) return; // มีการกดใหม่กว่า — รอบนั้นบันทึกชุดล่าสุดเอง
       try {
@@ -863,17 +963,20 @@ export class HeadZoneEdit {
         if (this.houseIds !== ids) return;
         this.houseIds = null;
         await this.load(z.id);
-        if (this.searched()) await (this.mode() === 'browse' ? this.browse() : this.search());
+        // รันรายการเดิมซ้ำ (เดิมโหมด "แนะนำ" กลายเป็น "ยังไม่มีใครดูแล" หลังส่งคำขอ)
+        if (this.searched()) this.rerun();
       } catch (err) {
+        ok = false;
         this.houseIds = null;
         await this.load(z.id).catch(() => undefined);
         const e = apiError(err);
-        this.toast.show(ZONE_ERROR[e.code ?? ''] ?? { th: 'บันทึกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t save — check your connection and try again' });
+        this.toast.error(ZONE_ERROR[e.code ?? ''] ?? { th: 'บันทึกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t save — check your connection and try again' });
       } finally {
         if (this.houseIds === null) this.savingHouses.set(false);
       }
     });
-    return this.houseSave;
+    await this.houseSave;
+    return ok;
   }
 
   protected inOfficers(id: string): boolean {
@@ -929,7 +1032,7 @@ export class HeadZoneEdit {
       } catch {
         this.officerIds = null;
         await this.load(z.id).catch(() => undefined);
-        this.toast.show({ th: 'บันทึกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t save — check your connection and try again' });
+        this.toast.error({ th: 'บันทึกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t save — check your connection and try again' });
       } finally {
         if (this.officerIds === null) this.savingOfficers.set(false);
       }
@@ -938,20 +1041,17 @@ export class HeadZoneEdit {
   }
 
   /** โหมดละเอียด: เวลารวมของทุกช่วงในหนึ่งวัน (คำนวณจากช่วงที่ตั้งไว้จริง) */
+  private readonly totalMinutes = computed(() => this.windows().reduce((n, [f, t]) => n + Math.max(0, toMinutes(t) - toMinutes(f)), 0));
+
   protected durationText(): string {
-    const mins = this.windows().reduce((n, [f, t]) => n + this.toMinutes(t) - this.toMinutes(f), 0);
+    const mins = this.totalMinutes();
     const h = Math.floor(mins / 60);
     const m = mins % 60;
-    return this.i18n.t({ th: `${h} ชม. ${m} น.`, en: `${h} h ${m} m` });
+    return m ? this.i18n.t({ th: `${h} ชม. ${m} น.`, en: `${h} h ${m} m` }) : this.i18n.t({ th: `${h} ชม.`, en: `${h} h` });
   }
 
   protected updated(iso: string): string {
     return fmtWhenSec(iso, this.i18n.lang());
-  }
-
-  private toMinutes(hhmm: string): number {
-    const [h, m] = hhmm.split(':').map(Number);
-    return h * 60 + m;
   }
 
   protected async remove(): Promise<void> {
@@ -971,9 +1071,11 @@ export class HeadZoneEdit {
       return;
     try {
       await this.api.removeZone(z.id);
-      void this.router.navigateByUrl(screenUrl('L06'));
+      this.toast.show({ th: `ลบโซน "${z.name}" แล้ว`, en: `Deleted zone "${z.name}"` });
+      // replaceUrl: กดย้อนกลับแล้วไม่ไปเจอหน้าแก้โซนที่ถูกลบไปแล้ว
+      void this.router.navigateByUrl(screenUrl('L06'), { replaceUrl: true });
     } catch {
-      this.toast.show({ th: 'ลบไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t delete — check your connection and try again' });
+      this.toast.error({ th: 'ลบไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t delete — check your connection and try again' });
     }
   }
 }

@@ -19,6 +19,9 @@ struct QrRead
   uint32_t ms = 0;
   uint16_t frames = 0;
   uint16_t qrShapes = 0;
+  uint16_t widestPx = 0;  // ความกว้างรูปทรง QR ใหญ่สุดที่เห็น (px) · ไม่เห็น = 0
+  uint8_t brightness = 0; // ความสว่างกลางภาพเฟรมล่าสุด 0..255
+  String err;             // ข้อผิดพลาดถอดรหัสล่าสุด (เห็นรูปทรงแต่ถอดไม่ได้) · ว่าง = ไม่มี
 };
 
 /**

@@ -20,6 +20,9 @@ h1{font-size:clamp(1.5rem,5vw,2rem);margin:0}
 .screen{position:relative;aspect-ratio:4/3;background:#090c0a;border:1px solid #516056;border-radius:8px;overflow:hidden;display:grid;place-items:center}
 img{width:100%;height:100%;object-fit:contain}
 #faces{position:absolute;inset:0;pointer-events:none}
+#qrbox{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#qrbox polygon{fill:none;stroke:#fbbf24;stroke-width:3;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+#qrbox polygon.ok{stroke:#4ade80}
 .face{position:absolute;box-sizing:border-box;border:2px solid #b8e3be}
 .controls{display:flex;justify-content:flex-end;margin-top:16px}
 .analysis{margin-top:16px}
@@ -39,10 +42,10 @@ button:disabled,fieldset:disabled button{opacity:.65;cursor:default}
 </style>
 <main>
 <header><h1>ESP32-CAM</h1><p id="status" role="status">กำลังเปิดกล้อง…</p></header>
-<div class="screen"><img id="feed" alt="ภาพสดจากกล้อง" hidden><div id="faces" aria-hidden="true"></div></div>
+<div class="screen"><img id="feed" alt="ภาพสดจากกล้อง" hidden><div id="faces" aria-hidden="true"></div><svg id="qrbox" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true"></svg></div>
 <div class="controls"><button id="retry" type="button">เชื่อมต่อใหม่</button></div>
 <section class="analysis" aria-label="วิเคราะห์ภาพ">
-<label><input id="analyze" type="checkbox" disabled> สแกน QR และตรวจจับใบหน้า</label>
+<label><input id="analyze" type="checkbox" disabled> <span id="analyze-text">สแกน QR และตรวจจับใบหน้า</span></label>
 <p id="analysis-status" role="status"></p>
 </section>
 <form id="settings">
@@ -52,6 +55,8 @@ button:disabled,fieldset:disabled button{opacity:.65;cursor:default}
 <option value="0">160 × 120</option>
 <option value="1">320 × 240</option>
 <option value="2">640 × 480</option>
+<option value="3">1024 × 768 (ดูความคม)</option>
+<option value="4">1280 × 1024 (ดูความคม)</option>
 </select></label>
 <label>คุณภาพ JPEG<select name="quality">
 <option value="0">สูง</option>
@@ -62,6 +67,10 @@ button:disabled,fieldset:disabled button{opacity:.65;cursor:default}
 </fieldset>
 <p id="settings-status" role="status"></p>
 </form>
+<section class="analysis" id="tune" hidden aria-label="ความคมของภาพ">
+<label>ความคมของภาพ (sharpness)<select id="sharp"><option value="-3">-3</option><option value="-2">-2</option><option value="-1">-1</option><option value="0">0</option><option value="1">+1</option><option value="2">+2</option><option value="3">+3</option></select></label>
+<p id="tune-status" role="status">โฟกัสปรับที่เลนส์เท่านั้น (หมุนเลนส์ถ้าเป็นแบบโฟกัสมือ)</p>
+</section>
 <noscript><p>เปิด JavaScript เพื่อดูภาพสด</p></noscript>
 </main>
 <script>
@@ -76,6 +85,66 @@ const quality = settings.elements.namedItem('quality');
 const analyze = document.querySelector('#analyze');
 const analysisStatus = document.querySelector('#analysis-status');
 const faceLayer = document.querySelector('#faces');
+const qrLayer = document.querySelector('#qrbox');
+const analyzeText = document.querySelector('#analyze-text');
+const SVG_NS = 'http://www.w3.org/2000/svg';
+// ความคมของเซนเซอร์ (เฉพาะ camtest — รุ่นอื่นไม่มี /tune แล้วส่วนนี้ซ่อนอยู่)
+const tuneBox = document.querySelector('#tune');
+const sharpSelect = document.querySelector('#sharp');
+async function loadTune(query) {
+  try {
+    const response = await fetch('/tune' + (query ? '?' + query : ''));
+    if (!response.ok) throw new Error('no tune');
+    const t = await response.json();
+    tuneBox.hidden = false;
+    sharpSelect.value = String(t.sharp);
+  } catch {
+    tuneBox.hidden = true;
+  }
+}
+sharpSelect.addEventListener('change', () => loadTune('sharp=' + sharpSelect.value));
+// ความกว้าง QR ที่ตู้เห็น (พิกเซลของภาพวิเคราะห์) และเทียบกับตู้จริงที่ใช้ภาพกว้าง 320 px — QR ประจำตัวต้องกว้างราว 100 px ขึ้นไปถึงถอดได้
+const PROD_WIDTH = 320;
+const MIN_PROD_QR_PX = 100;
+// บอกว่างานวิเคราะห์เบื้องหลังยังเดินอยู่ไหม: จำนวนรอบ + เวลาต่อรอบ (runs ไม่เพิ่ม = วิเคราะห์ไม่เสร็จ)
+function analysisInfo(current) {
+  return current.runs === undefined ? '' : ' · วิเคราะห์แล้ว ' + current.runs + ' รอบ (รอบละ ' + current.ms + ' ms)';
+}
+// path 2/4 = ภาพจากกล้องเป็นกระจก ตัวอ่านกลับด้านให้เอง · pass 2 = ต้องลับขอบก่อนถึงอ่านได้ (ภาพเบลอ)
+function pathNote(current) {
+  const mirror = current.path === 2 || current.path === 4;
+  return (mirror ? ' · ภาพกระจก กลับด้านให้อัตโนมัติ' : '') + (current.pass === 2 ? ' · ลับขอบ' : '');
+}
+function qrWidthPx(current) {
+  if (!current.aw || !current.qrboxes || !current.qrboxes.length) return 0;
+  const b = current.qrboxes[0];
+  const xs = [b[0], b[2], b[4], b[6]];
+  return Math.max(...xs) - Math.min(...xs);
+}
+function qrSize(current) {
+  const w = qrWidthPx(current);
+  if (!w) return '';
+  return ' · กว้าง ' + w + ' px จากภาพ ' + current.aw + ' px (เทียบตู้จริง ≈ ' + Math.round(w * PROD_WIDTH / current.aw) + ' px)';
+}
+function qrVerdict(current) {
+  const prod = qrWidthPx(current) * PROD_WIDTH / (current.aw || PROD_WIDTH);
+  return prod < MIN_PROD_QR_PX ? 'เล็กเกินไป — ขยับเข้าใกล้กล้อง' : 'ขนาดพอแต่ถอดไม่ได้ — น่าจะเบลอ (เลนส์โฟกัสไม่ตรงระยะ) หรือจอสะท้อนแสง';
+}
+// เส้นล้อม QR ที่ตู้เห็น: เขียว = ถอดรหัสได้ · เหลือง = เห็นรูปทรงแต่ถอดไม่ได้
+function drawQr(current) {
+  if (feed.hidden || !current.aw || !current.qrboxes || !current.qrboxes.length) {
+    qrLayer.replaceChildren();
+    return;
+  }
+  qrLayer.replaceChildren(...current.qrboxes.map((b) => {
+    const polygon = document.createElementNS(SVG_NS, 'polygon');
+    const points = [];
+    for (let i = 0; i < 8; i += 2) points.push((b[i] / current.aw).toFixed(4) + ',' + (b[i + 1] / current.ah).toFixed(4));
+    polygon.setAttribute('points', points.join(' '));
+    if (b[8]) polygon.setAttribute('class', 'ok');
+    return polygon;
+  }));
+}
 let analysisTimer;
 let analysisRequest = 0;
 let timeout;
@@ -89,12 +158,14 @@ function unavailable() {
   feed.hidden = true;
   feed.removeAttribute('src');
   faceLayer.replaceChildren();
+  qrLayer.replaceChildren();
   status.textContent = 'เปิดภาพไม่ได้ · ลองเชื่อมต่อใหม่';
 }
 function connect() {
   stopWaiting();
   feed.hidden = true;
   faceLayer.replaceChildren();
+  qrLayer.replaceChildren();
   status.textContent = 'กำลังเปิดกล้อง…';
   feed.src = 'http://' + location.hostname + ':)HTML" CAMAP_STRINGIFY(CAMAP_STREAM_PORT) R"HTML(/stream?t=' + Date.now();
   firstFrame = setInterval(() => {
@@ -118,9 +189,13 @@ async function updateAnalysis(value) {
     const current = await response.json();
     if (request !== analysisRequest) return;
     analyze.checked = current.enabled;
+    if (current.face_off) analyzeText.textContent = 'สแกน QR · วาดกรอบล้อม QR';
     analyze.disabled = false;
-    const message = current.qr ? 'QR: ' + current.qr : current.enabled ? 'ยังไม่พบ QR' : '';
+    const seen = current.qrboxes && current.qrboxes.length;
+    const base = !feed.hidden && feed.naturalWidth > 640 ? 'ภาพใหญ่กว่า 640×480 — ไม่วิเคราะห์ QR (ใช้ดูความคมของภาพอย่างเดียว)' : current.qr ? 'QR: ' + current.qr + qrSize(current) + pathNote(current) : seen ? 'เห็นรูปทรง QR' + qrSize(current) + ' · ' + qrVerdict(current) : current.enabled ? 'ยังไม่พบ QR' : '';
+    const message = base && current.enabled ? base + analysisInfo(current) : base;
     if (analysisStatus.textContent !== message) analysisStatus.textContent = message;
+    drawQr(current);
     const boxes = feed.hidden ? [] : current.faces.map(([x, y, width, height]) => {
       const box = document.createElement('span');
       box.className = 'face';
@@ -131,11 +206,12 @@ async function updateAnalysis(value) {
       return box;
     });
     faceLayer.replaceChildren(...boxes);
-    if (current.enabled) analysisTimer = setTimeout(updateAnalysis, 800);
+    if (current.enabled) analysisTimer = setTimeout(updateAnalysis, 600);
   } catch {
     if (request !== analysisRequest) return;
     if (manual) analyze.checked = !value;
     faceLayer.replaceChildren();
+    qrLayer.replaceChildren();
     analysisStatus.textContent = 'อ่านผลวิเคราะห์ไม่ได้ · ลองเชื่อมต่อใหม่';
     if (analyze.checked) analysisTimer = setTimeout(updateAnalysis, 1600);
     analyze.disabled = false;
@@ -187,6 +263,7 @@ settings.addEventListener('submit', async (event) => {
 refreshSettings();
 updateAnalysis();
 connect();
+loadTune();
 </script>
 </html>)HTML";
 

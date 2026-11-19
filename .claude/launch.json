@@ -18,7 +18,8 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["frontend/e2e/scripts/start-backend.mjs"],
       "port": 3211,
-      "autoPort": false
+      "autoPort": false,
+      "env": { "E2E_DB_PORT": "61339" }
     },
     {
       "name": "e2e-web",

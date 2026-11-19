@@ -21,9 +21,38 @@ export function resetReasonText(body: Record<string, unknown>): { text: Tr; bad:
   return RESET_TEXT[reason] ?? { text: { th: `เริ่มทำงานใหม่: ${reason}`, en: `Restarted: ${reason}` }, bad: false };
 }
 
+const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+/** QR ประจำตัว (29 โมดูล) ต้องกว้างในภาพอย่างน้อยราวนี้ (px) ตู้ถึงถอดได้ */
+export const MIN_QR_PX = 100;
+
+/** event scan_diag (ตู้อ่านไม่ได้ตอนตรวจจริง) → ข้อความบอกสาเหตุที่น่าจะเป็น · ไม่ใช่ scan_diag = null */
+export function scanDiagHint(body: Record<string, unknown>): Tr | null {
+  if (body['type'] !== 'scan_diag') return null;
+  const frames = num(body['frames']);
+  const shapes = num(body['qr_shapes']);
+  const px = num(body['widest_px']);
+  const bright = num(body['brightness']);
+  const err = typeof body['decode_err'] === 'string' ? body['decode_err'] : '';
+  if (frames === 0) return { th: 'กล้องไม่ส่งภาพให้ตู้เลย — ตรวจสายกล้องและไฟเลี้ยง', en: 'The camera gave the box no frames — check the camera cable and power' };
+  if (!shapes) {
+    if (bright !== null && bright >= 235) return { th: 'ภาพสว่างจ้า (ไหม้) — ลดความสว่างจอ หรือเอียงจอเลี่ยงแสงสะท้อน', en: 'Image is blown out — lower the screen brightness or tilt it' };
+    if (bright !== null && bright <= 40) return { th: 'ภาพมืดเกินไป — เพิ่มความสว่างจอมือถือ', en: 'Image is too dark — raise the phone brightness' };
+    return { th: 'ตู้ไม่เห็นรูปทรง QR เลย — QR ไม่อยู่ในภาพ เบลอ หรือเล็กเกินไป · ลองห่างราว 1 ฝ่ามือ ถือนิ่ง ๆ', en: 'The box saw no QR shape — not in view, blurred or too small · try a hand’s width away, hold still' };
+  }
+  if (px !== null && px > 0 && px < MIN_QR_PX) {
+    return { th: `ตู้เห็น QR แต่เล็กเกินไป (กว้าง ${px} px ต้องราว ${MIN_QR_PX} px ขึ้นไป) — ขยับเข้าใกล้กล้อง`, en: `The box saw the QR but it is too small (${px} px wide, needs about ${MIN_QR_PX}+) — move closer` };
+  }
+  return {
+    th: `ตู้เห็น QR ขนาดพอ (กว้าง ${px ?? '?'} px) แต่ถอดรหัสไม่ได้${err ? ` (${err})` : ''} — มักเป็นภาพเบลอ ขอบ QR ถูกตัด หรือจอสะท้อนแสง`,
+    en: `The box saw a QR of fair size (${px ?? '?'} px wide) but could not decode it${err ? ` (${err})` : ''} — usually blur, a cropped edge or glare`,
+  };
+}
+
 /** ชนิด event ที่ตู้ส่ง (ไลบรารี smmb_link) */
 const EVENT_TEXT: Record<string, Tr> = {
   camera_error: { th: 'กล้องเปิดไม่ได้', en: 'Camera failed to start' },
+  scan_diag: { th: 'ตู้อ่าน QR ประจำตัวไม่ได้ (ตรวจจริง)', en: 'Box could not read the badge QR (real inspection)' },
   camera_test_started: { th: 'เริ่มทดสอบกล้อง', en: 'Camera test started' },
   camera_ready: { th: 'กล้องพร้อม (ทดสอบ)', en: 'Camera ready (test)' },
   camera_scan_result: { th: 'ผลสแกน (ทดสอบ)', en: 'Scan result (test)' },
@@ -47,6 +76,9 @@ const EVENT_TEXT: Record<string, Tr> = {
                 <strong>{{ reportTitle(r) }}</strong>
                 @if (resetReason(r.body); as reset) {
                   <span class="small block reset" [class.bad]="reset.bad">{{ i18n.t(reset.text) }}</span>
+                }
+                @if (scanHint(r.body); as hint) {
+                  <span class="small block reset bad">{{ i18n.t(hint) }}</span>
                 }
                 <span class="muted small block">{{ reportLine(r.body) }}</span>
                 @if (traceLines(r.body); as lines) {
@@ -109,6 +141,7 @@ export class AdminBoxReports {
   }
 
   protected readonly resetReason = resetReasonText;
+  protected readonly scanHint = scanDiagHint;
 
   /** awake_trace: บรรทัดบันทึกที่ตู้จดไว้ (เวลาในตู้ · เหตุการณ์ · ค่า) — ไม่ใช่ event นี้ = null */
   protected traceLines(body: Record<string, unknown>): string[] | null {
@@ -126,6 +159,18 @@ export class AdminBoxReports {
     if (typeof rssi === 'number' || typeof rssi === 'string') parts.push(this.i18n.t({ th: `สัญญาณ ${rssi}`, en: `signal ${rssi}` }));
     const fw = body['fw'];
     if (typeof fw === 'string' || typeof fw === 'number') parts.push(this.i18n.t({ th: `เฟิร์มแวร์ ${fw}`, en: `firmware ${fw}` }));
+    if (body['type'] === 'scan_diag') {
+      const attempt = body['attempt'];
+      if (typeof attempt === 'number') parts.push(this.i18n.t({ th: `ครั้งที่ ${attempt}`, en: `try ${attempt}` }));
+      const frames = body['frames'];
+      if (typeof frames === 'number') parts.push(this.i18n.t({ th: `ลอง ${frames} เฟรม`, en: `${frames} frames` }));
+      const shapes = body['qr_shapes'];
+      if (typeof shapes === 'number') parts.push(this.i18n.t({ th: `เห็นรูปทรง QR ${shapes} เฟรม`, en: `QR shape in ${shapes}` }));
+      const px = body['widest_px'];
+      if (typeof px === 'number') parts.push(this.i18n.t({ th: `กว้างสุด ${px} px`, en: `widest ${px} px` }));
+      const bright = body['brightness'];
+      if (typeof bright === 'number') parts.push(this.i18n.t({ th: `สว่าง ${bright}/255`, en: `brightness ${bright}/255` }));
+    }
     return parts.join(' · ');
   }
 }

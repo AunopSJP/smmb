@@ -439,6 +439,9 @@ static LinkScan hookScanQr(uint32_t timeoutMs)
   r.ms = q.ms;
   r.frames = q.frames;
   r.qrShapes = q.qrShapes;
+  r.widestPx = q.widestPx;
+  r.brightness = q.brightness;
+  r.err = q.err;
   return r;
 }
 
@@ -615,6 +618,7 @@ static void sleepUntilNextEvent()
   traceAdd('D', sleepS, s, lastPollAgeS(), pollsThisWake);
   traceFlush();
 #endif
+  linkEvent("sleeping"); // แจ้งเซิร์ฟเวอร์ว่าตู้หลับแล้ว (ปลุกด้วยสแกนไม่ได้) ก่อนปิด Wi-Fi · 0.2.40
   Serial.flush();
   cameraStop();
   buzzerHoldOffForSleep();
@@ -894,7 +898,7 @@ static void runCommand(String line)
       cameraBench();
     else if (what == "q" && val.toInt() >= 4 && val.toInt() <= 30)
       settings.camQ = val.toInt();
-    else if (what == "sharp" && val.toInt() >= -2 && val.toInt() <= 2)
+    else if (what == "sharp" && val.toInt() >= -3 && val.toInt() <= 3)
       settings.camSharp = val.toInt();
     else if (what == "flip" && val.toInt() >= 0 && val.toInt() <= 3)
       settings.camFlip = val.toInt(); // 0 ไม่กลับ · 1 บน-ล่าง · 2 ซ้าย-ขวา · 3 หมุน 180°
