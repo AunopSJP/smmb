@@ -49,6 +49,18 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
         working-directory: backend
+      # สร้างคีย์ VAPID ใหม่ทุกรอบ (ใช้เฉพาะรอบนี้ ไม่เก็บใน repo) — ไม่มีคีย์ = push "down" แล้วเทสต์ /api/health ล้ม
+      - name: VAPID ชั่วคราว
+        working-directory: backend
+        run: |
+          keys=$(node -e "const k=require('web-push').generateVAPIDKeys();console.log(k.publicKey+' '+k.privateKey)")
+          read -r pub priv <<< "$keys"
+          echo "::add-mask::$priv"
+          {
+            echo "VAPID_PUBLIC_KEY=$pub"
+            echo "VAPID_PRIVATE_KEY=$priv"
+            echo "VAPID_SUBJECT=mailto:ci@example.invalid"
+          } >> "$GITHUB_ENV"
       - name: migrate + seed
         working-directory: backend
         run: |

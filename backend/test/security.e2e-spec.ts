@@ -43,6 +43,10 @@ const PUBLIC = new Set([
   'GET /api/v1/me/push/vapid-key',
   // พร็อกซีกระเบื้องแผนที่ (@Public ทั้ง controller) — ไม่มีข้อมูลผู้ใช้ · หน้าสมัครใช้ก่อนล็อกอิน
   'GET /api/v1/map-tiles/:z/:x/:y',
+  // ✅ 2026-11-16 รายชื่อจังหวัด/เขต/แขวง (@Public ทั้ง controller · api.md §3.3) — ข้อมูลราชการ ไม่มีข้อมูลส่วนบุคคล · หน้าสมัครใช้ก่อนล็อกอิน
+  'GET /api/v1/places/provinces',
+  'GET /api/v1/places/provinces/:id/districts',
+  'GET /api/v1/places/districts/:id/subdistricts',
 ]);
 
 const isPublic = (r: { method: string; path: string }) =>

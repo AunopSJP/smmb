@@ -36,7 +36,7 @@ test('เจ้าของบ้านสมัคร ผูกตู้ ตั
 
   // ขั้น 4 · ตรวจและยืนยัน
   await expect(page.getByText('ขั้น 4 จาก 4')).toBeVisible();
-  await expect(page.getByText('12/3 ซอยทดสอบ 1 บางนา บางนา กรุงเทพมหานคร 10260')).toBeVisible();
+  await expect(page.getByText('12/3 ซอยทดสอบ 1 บางนาเหนือ บางนา กรุงเทพมหานคร 10260')).toBeVisible();
 
   await page.locator('.terms input[type=checkbox]').check();
   await page.getByRole('button', { name: 'สมัครและไปผูกตู้' }).click();

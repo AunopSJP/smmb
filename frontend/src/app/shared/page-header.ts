@@ -27,10 +27,12 @@ import { Icon } from './icon';
         <h1>{{ title() }}</h1>
       </div>
       @if (bell()) {
-        <a class="circle bell" [routerLink]="bell()" [attr.aria-label]="i18n.t({ th: 'แจ้งเตือน', en: 'Notifications' }) + (unread.count() ? ' (' + unread.count() + ')' : '')">
+        <!-- ชื่อปุ่มมาจากข้อความข้างใน (ไม่ใช้ aria-label) → ตัวเลขที่ตาเห็นอยู่ในชื่อเสมอ (WCAG 2.5.3) · screen reader อ่าน "แจ้งเตือน 9+" -->
+        <a class="circle bell" [routerLink]="bell()">
           <app-icon name="bell" [size]="22" />
-          @if (unread.count() > 0) {
-            <span class="badge" aria-hidden="true">{{ unread.count() > 9 ? '9+' : unread.count() }}</span>
+          <span class="sr-only">{{ i18n.t({ th: 'แจ้งเตือน', en: 'Notifications' }) }}</span>
+          @if (badge()) {
+            <span class="badge">{{ badge() }}</span>
           }
         </a>
       }
@@ -130,6 +132,12 @@ export class PageHeader {
   private readonly session = inject(Session);
   private readonly router = inject(Router);
   readonly caption = input<string>();
+
+  /** ตัวเลขบนกระดิ่ง ('' = ไม่มี) */
+  protected readonly badge = computed(() => {
+    const n = this.unread.count();
+    return n > 9 ? '9+' : n > 0 ? String(n) : '';
+  });
 
   /**
    * บริบทบรรทัดบนตามบทบาท (A6) — ใช้ caption ที่หน้าส่งมา ถ้าไม่มีจึงเติมค่ากลาง:

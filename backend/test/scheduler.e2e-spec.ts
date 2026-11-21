@@ -4,6 +4,7 @@ import pg from 'pg';
 import request from 'supertest';
 import { SHORT_WINDOW, allDayWindows } from './all-day-zone.js';
 import { acceptPendingHouses } from './zone-consent.js';
+import { COMPLETE_HOUSE } from './complete-house.js';
 import { configureApp } from '../src/app-setup.js';
 import { AppModule } from '../src/app.module.js';
 import { PG_POOL } from '../src/db/db.module.js';
@@ -56,6 +57,7 @@ describe('Scheduler (e2e)', () => {
     const b = await register();
     const owner = await signupOwner(house);
     await as(owner.cookie).post('/api/v1/boxes/activate', { qr_text: b.qr.find((q) => q.slot === 'activate')!.url }).expect(200);
+    await http().patch(`/api/v1/boxes/${b.box_id}`).set('Cookie', owner.cookie).send(COMPLETE_HOUSE).expect(200);
     return { b, owner };
   };
   const readyHead = async () => {

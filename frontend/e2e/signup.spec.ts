@@ -60,7 +60,7 @@ test('เจ้าหน้าที่สมัคร: เลขประจำ
   await next(page).click();
 
   await expect(page.getByText('ขั้น 3 จาก 3')).toBeVisible();
-  await expect(page.getByText('45/6 ซอยทดสอบ 2 บางนา บางนา กรุงเทพมหานคร 10260')).toBeVisible();
+  await expect(page.getByText('45/6 ซอยทดสอบ 2 บางนาเหนือ บางนา กรุงเทพมหานคร 10260')).toBeVisible();
   await expect(page.getByText('คอนโด / อพาร์ตเมนต์ · 2 คน')).toBeVisible();
   await page.locator('.terms input[type=checkbox]').check();
   await page.getByRole('button', { name: 'เพิ่มบทบาทแล้วไปผูกตู้' }).click();

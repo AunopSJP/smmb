@@ -5,6 +5,7 @@ import pg from 'pg';
 import request from 'supertest';
 import { SHORT_WINDOW, allDayWindows } from './all-day-zone.js';
 import { acceptPendingHouses } from './zone-consent.js';
+import { COMPLETE_HOUSE } from './complete-house.js';
 import { configureApp } from '../src/app-setup.js';
 import { AppModule } from '../src/app.module.js';
 import { signRequest } from '../src/box/box-crypto.js';
@@ -84,6 +85,7 @@ describe('Boxes (e2e)', () => {
     const owner = await signupOwner(house);
     const url = b.qr.find((q) => q.slot === 'activate')!.url;
     await as(owner.cookie).post('/api/v1/boxes/activate', { qr_text: url }).expect(200);
+    await as(owner.cookie).patch(`/api/v1/boxes/${b.box_id}`, COMPLETE_HOUSE).expect(200);
     return { b, owner };
   };
   const readyHead = async () => {
@@ -319,7 +321,11 @@ describe('Boxes (e2e)', () => {
     it('changing the defaults changes every box config_ver so boxes pick it up', async () => {
       const [b] = await register();
       const first = await box(b, 'POST', '/v1/box/boot', { config_ver: 0 }).expect(200);
-      const cur = (await as(admin.cookie).get('/api/v1/admin/box-config').expect(200)).body.config;
+      // GET ส่ง wifi_power_save / sleep_outside_window มาด้วย แต่ PUT รับเฉพาะ 5 ค่าที่แอดมินแก้ได้ (เหมือนหน้า D10)
+      const { report_at, scan_timeout_s, max_attempts, flash_when_dark, longpoll_wait_s } = (
+        await as(admin.cookie).get('/api/v1/admin/box-config').expect(200)
+      ).body.config;
+      const cur = { report_at, scan_timeout_s, max_attempts, flash_when_dark, longpoll_wait_s };
       await as(admin.cookie).put('/api/v1/admin/box-config', { ...cur, longpoll_wait_s: 99 }).expect(400);
       try {
         await as(admin.cookie).put('/api/v1/admin/box-config', { ...cur, longpoll_wait_s: 40 }).expect(200);
@@ -380,7 +386,18 @@ describe('Boxes (e2e)', () => {
       const owner = await signupOwner('12/3');
       const url = b.qr.find((q) => q.slot === 'activate')!.url;
       const res = await as(owner.cookie).post('/api/v1/boxes/activate', { qr_text: url }).expect(200);
-      expect(res.body).toEqual({ box: { id: b.box_id, name: '', house_no: '12/3', area: '', status: 'offline' }, needs_name: true });
+      expect(res.body).toEqual({
+        box: {
+          id: b.box_id,
+          name: '',
+          house_no: '12/3',
+          area: '',
+          address: { line: '', subdistrict: '', district: '', province: '' },
+          location: null,
+          status: 'offline',
+        },
+        needs_name: true,
+      });
 
       const other = await signupOwner();
       expect((await as(other.cookie).post('/api/v1/boxes/activate', { qr_text: url }).expect(409)).body.code).toBe('BOX_ALREADY_OWNED');
@@ -396,6 +413,7 @@ describe('Boxes (e2e)', () => {
       expect(rows).toEqual([
         { result: 'ok', method: 'scan' },
         { result: 'already_owned', method: 'scan' },
+        { result: 'already_mine', method: 'scan' }, // เจ้าของเดิมสแกนซ้ำ — ยังบันทึก (กฎข้อ 6)
       ]);
     });
 
@@ -433,7 +451,9 @@ describe('Boxes (e2e)', () => {
       const z2 = (await as(guard.cookie).post('/api/v1/agency/zones', { name: 'ประตู 1', windows: [['06:15', '06:45'], ['20:00', '20:30']] }).expect(201)).body;
 
       const houses = await as(police.cookie).put(`/api/v1/agency/zones/${z1.id}/houses`, { box_ids: [b.box_id] }).expect(200);
-      expect(houses.body).toEqual([{ box_id: b.box_id, house_no: '55/1', box_name: null, area: null, box_status: expect.any(String), pending: true }]);
+      expect(houses.body).toEqual([
+        { box_id: b.box_id, house_no: '55/1', box_name: null, area: null, box_status: expect.any(String), pending: true, lat: COMPLETE_HOUSE.lat, lng: COMPLETE_HOUSE.lng },
+      ]);
       await acceptPendingHouses(pool);
       await as(guard.cookie).put(`/api/v1/agency/zones/${z2.id}/houses`, { box_ids: [b.box_id] }).expect(200);
       await acceptPendingHouses(pool);
@@ -891,7 +911,7 @@ describe('Boxes (e2e)', () => {
       const first = await signupOwner('95/1');
       const [b] = await register();
       await as(first.cookie).post('/api/v1/boxes/activate', { qr_text: b.qr.find((q) => q.slot === 'activate')!.url }).expect(200);
-      await http().patch(`/api/v1/boxes/${b.box_id}`).set('Cookie', first.cookie).send({ name: 'ตู้เก่า', area: 'หมู่บ้านเก่า' }).expect(200);
+      await http().patch(`/api/v1/boxes/${b.box_id}`).set('Cookie', first.cookie).send({ name: 'ตู้เก่า', area: 'หมู่บ้านเก่า', ...COMPLETE_HOUSE }).expect(200);
       const head = await readyHead();
       const zone = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ขายบ้าน', windows: [['06:00', '06:30']] }).expect(201)).body;
       await as(head.cookie).put(`/api/v1/agency/zones/${zone.id}/houses`, { box_ids: [b.box_id] }).expect(200);

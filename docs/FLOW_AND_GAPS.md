@@ -71,7 +71,7 @@
 | W-04 | 🔴 P0 | ยังไม่ตัดสินโดเมนจริงก่อนพิมพ์ QR ตู้ | ⬜ (รอผู้ใช้ตัดสิน) |
 | W-05 | 🔴 P0 | backup ยังเป็นเอกสาร ไม่มีระบบ/ไม่เคยซ้อม restore | ⬜ (เซิร์ฟเวอร์) |
 | W-06 | 🟠 P1 | ไม่มี uptime monitor / alert นอกเครื่อง | ⬜ (เซิร์ฟเวอร์) |
-| W-07 | 🟠 P1 | CI ไม่รัน e2e (98 เคส) | ⬜ (ต่อจาก W-03) |
+| W-07 | 🟠 P1 | CI ไม่รัน e2e (98 เคส) | 🟡 มี `e2e.yml` แล้ว แต่ล้มทุกรอบ 13–21 พ.ย. · แก้เทสต์แล้ว 21 พ.ย. (ในเครื่อง backend 177/177 · web 17/17) · รอเขียวบน GitHub |
 | W-08 | 🟠 P1 | frontend ไม่มี lint เลย | ✅ 10 พ.ย. (oxlint + guardian) |
 | W-09 | 🟠 P1 | single-instance (JobHub in-memory) ไม่มี guard ตอน boot | ✅ 10 พ.ย. (advisory lock) |
 | W-10 | 🟠 P1 | PDPA / ระยะเก็บ log+รูป ยังไม่ตัดสิน | 🟡 ใส่ retention ตามข้อตกลงในโค้ดแล้ว (log 1 ปี · security/รายงาน 90 วัน · session 30 วัน · รูป 30 วัน) · รอผู้ใช้ยืนยัน + privacy policy |
@@ -82,7 +82,7 @@
 | W-15 | 🟡 P2 | 3-mode marker ขาด 2 ไฟล์ | ✅ 10 พ.ย. (allowlist) |
 | W-16 | 🟡 P2 | `backend/.mockdb-*` ค้าง 23 โฟลเดอร์ | ✅ 10 พ.ย. (คืน 940.6 MB) |
 | W-17 | 🟡 P2 | ไม่มีทางดู long-poll/คิวงานสด | ✅ 10 พ.ย. (`GET /admin/diagnostics/box-jobs`) |
-| W-18 | 🟡 P2 | nginx ยังไม่เปิด HSTS/CSP | ✅ 10 พ.ย. CSP บังคับใช้ + HSTS 1 วัน บน prod · เหลือใส่ HSTS ซ้ำใน `location /smmb/` |
+| W-18 | 🟡 P2 | nginx ยังไม่เปิด HSTS/CSP | ✅ 10 พ.ย. CSP บังคับใช้ + HSTS 1 วัน บน prod · HSTS ใน `location /smmb/` มีแล้ว (`deploy/nginx-smmb.conf:96` · ตรวจ 21 พ.ย.) |
 
 ---
 
@@ -152,6 +152,11 @@
 - **งาน:** เพิ่ม job `e2e` ใน `.github/workflows/` พร้อม `services: postgres:17`, `redis:7` · ตั้ง `DB_POOL_MAX=1` ตามข้อจำกัด mock · รัน `npm run migrate && npm run seed:dev && npm run test:e2e`
 - **DoD:** PR แรกที่รันแล้ว e2e เขียว · ถ้าล้มเห็น log ชัด
 - **สถานะ 13 พ.ย. 2026 (เขียนแล้ว ยังไม่เคยรันบน GitHub):** เพิ่ม `.github/workflows/e2e.yml` 2 job — `backend-e2e` (postgres:17 + redis:7 → migrate → seed:dev → test:e2e) และ `web-e2e` (Playwright chromium · backend mock เปิดโดย `playwright.config.ts`) · อัปโหลด trace เมื่อล้ม · ค้าง DoD จนกว่าจะ push แล้วเห็นเขียวจริง
+- **สถานะ 21 พ.ย. 2026 (แก้แล้ว รอยืนยันบน GitHub):** workflow นี้**ล้มทุกรอบตั้งแต่สร้าง** (33 รอบ 13–21 พ.ย.) เพราะเทสต์ไม่ได้ตามกฎใหม่ ไม่ใช่โค้ดจริงพัง · guardian ไม่จับ เพราะรันแค่ unit · แก้:
+  - backend 16 เทสต์: บ้านต้องข้อมูลครบก่อนเข้าโซน (กฎ 2026-11-16 → `test/complete-house.ts` ใช้ใน `boundBox` ของ box/scheduler/sos-rider) · คำตอบผูกตู้มี `address`/`location` · `ZoneHouse` มี `lat`/`lng` · log `already_mine` · PUT `/admin/box-config` รับ 5 ค่าที่แก้ได้ (GET มีเพิ่ม 2) · route `/places/*` เป็น public · CI สร้างคีย์ VAPID ชั่วคราวทุกรอบ (ไม่มีคีย์ = push down → `/api/health` degraded)
+  - web 4 เทสต์: สรุปที่อยู่ใช้แขวงจาก dropdown (`บางนาเหนือ`) · **บั๊กจริง** ปุ่มกระดิ่ง (`shared/page-header.ts`) ชื่อสำหรับ screen reader ไม่มีตัวเลขที่ตาเห็น ("9+") → ใช้ข้อความในปุ่มแทน `aria-label` (WCAG 2.5.3)
+  - ผลในเครื่อง: backend e2e **177/177** (Postgres 17 + Redis จริง) · web e2e **17/17** (ใช้ server ที่เปิดค้าง `E2E_REUSE=1` — ยังไม่ได้รันแบบเปิด server ใหม่ในเครื่อง)
+  - ปิด W-07 เมื่อ GitHub Actions เขียวทั้ง 2 job
 
 ### W-08 🟠 P1 — frontend ไม่มี lint
 
