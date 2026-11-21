@@ -328,6 +328,16 @@ bool linkBoot()
   deserializeJson(res, r.body);
   absorbConfig(res);
   booted = true;
+  if (linkRtc.photoStep)
+  {
+    // 0.2.41: รอบก่อนตู้รีเซ็ตระหว่างถ่าย/ส่งรูป Snapface → บอกว่าตายที่ขั้นไหน
+    JsonDocument d;
+    d["type"] = "photo_crash";
+    d["step"] = linkRtc.photoStep;
+    d["reset"] = linkResetReason();
+    linkRtc.photoStep = 0;
+    postEvent(d, 1500);
+  }
   Serial.printf("[boot] ok · awake until +%ds\n", (int)(linkRtc.awakeUntil > nowUtc() ? linkRtc.awakeUntil - nowUtc() : 0));
   linkBeep("ready");
   handleCommand(res["command"]);
@@ -397,28 +407,67 @@ static void sendInspectionPhoto(const String &jobId)
 {
   if (!linkHooks.snapshotJpeg)
     return;
+  // 0.2.41: รายงานผลขึ้น D04 (photo_diag) ทุกครั้ง · ขั้นที่ทำอยู่จดไว้ใน RTC เผื่อตู้รีเซ็ตกลางทาง (บูตถัดไปส่ง photo_crash)
+  size_t len = 0;
+  int httpStatus = 0;
+  const char *outcome = "ok";
+  auto finish = [&]()
+  {
+    linkRtc.photoStep = 0;
+    JsonDocument d;
+    d["type"] = "photo_diag";
+    d["job_id"] = jobId;
+    d["outcome"] = outcome;
+    d["bytes"] = (uint32_t)len;
+    d["http"] = httpStatus;
+    d["free_heap"] = (uint32_t)ESP.getFreeHeap();
+    postEvent(d, 1500);
+  };
+  // 0.2.42: บอกเซิร์ฟเวอร์ทันทีที่เข้าแต่ละขั้น (photo_step) → ดูที่ D04 ได้เลยว่าค้างขั้นไหน ไม่ต้องรอตู้รีเซ็ตแล้วค่อยอ่านจาก RTC
+  auto stepEvent = [&](uint8_t step)
+  {
+    linkRtc.photoStep = step;
+    JsonDocument d;
+    d["type"] = "photo_step";
+    d["job_id"] = jobId;
+    d["step"] = step;
+    d["free_heap"] = (uint32_t)ESP.getFreeHeap();
+    postEvent(d, 1500);
+  };
   const unsigned long startedAt = millis();
+  // 0.2.42: ปิดไฟแฟลชระหว่างรอจังหวะสุ่ม (LED ร้อน + กินกระแส ~0.3 A) แล้วค่อยวัดแสงใหม่ก่อนถ่ายจริง
+  if (linkHooks.cameraAutoFlash)
+    linkHooks.cameraAutoFlash(false);
+  linkRtc.photoStep = 1;
   if (linkHooks.preparePhoto && !linkHooks.preparePhoto())
     Serial.println("[job] photo: prepare failed - using scan mode");
+  stepEvent(2);
   const uint32_t waitMs = PHOTO_DELAY_MIN_MS + esp_random() % PHOTO_DELAY_SPREAD_MS;
   const uint32_t spentMs = millis() - startedAt;
   if (spentMs < waitMs)
     delay(waitMs - spentMs);
   uint8_t *jpeg = nullptr;
-  size_t len = 0;
+  stepEvent(3);
+  if (linkHooks.cameraAutoFlash)
+    linkHooks.cameraAutoFlash(boxConfig.flashWhenDark);
   const bool captured = linkHooks.snapshotJpeg(&jpeg, &len) && jpeg;
   linkHooks.cameraStop(); // ถ่ายเสร็จปิดกล้องและไฟทันที ไม่ต้องเปิดค้างระหว่างส่งรูป
   if (!captured)
   {
     Serial.println("[job] photo: snapshot failed");
+    outcome = "snapshot_failed";
+    finish();
     return;
   }
   if (len == 0 || len > 85000)
   {
     Serial.printf("[job] photo: size %u B out of range - dropped\n", (unsigned)len);
     free(jpeg);
+    outcome = "size_out_of_range";
+    finish();
     return;
   }
+  stepEvent(4);
   // เข้ารหัส base64 ลง String ทีละช่วงเล็ก ๆ — ไม่ต้องมีบัฟเฟอร์ base64 ก้อนใหญ่ซ้อนกับ body (heap ภายในของ ESP32-CAM น้อย)
   String body;
   if (!body.reserve(((len + 2) / 3) * 4 + 24))
@@ -426,6 +475,8 @@ static void sendInspectionPhoto(const String &jobId)
     Serial.printf("[job] photo: no heap for %u B body (free %u, largest %u) - dropped\n", (unsigned)len, (unsigned)ESP.getFreeHeap(),
                   (unsigned)ESP.getMaxAllocHeap());
     free(jpeg);
+    outcome = "no_heap";
+    finish();
     return;
   }
   body = "{\"jpeg_b64\":\"";
@@ -442,11 +493,18 @@ static void sendInspectionPhoto(const String &jobId)
   if (!ok)
   {
     Serial.println("[job] photo: base64 failed");
+    outcome = "base64_failed";
+    finish();
     return;
   }
   body += "\"}";
+  stepEvent(5);
   const LinkResponse r = linkRequest("POST", "/v1/box/jobs/" + jobId + "/photo", body, PHOTO_UPLOAD_TIMEOUT_MS);
   Serial.printf("[job] photo %u B -> %d\n", (unsigned)len, r.status);
+  httpStatus = r.status;
+  if (r.status != 200)
+    outcome = "upload_failed";
+  finish();
 }
 
 static bool inspectPassFlag = false;

@@ -251,7 +251,7 @@ export class AuthSignupOfficer {
         </div>
       } @else {
         <div class="result">
-          <span class="big-icon danger dots" aria-hidden="true">•••</span>
+          <span class="big-icon info dots" aria-hidden="true">•••</span>
           <h1>{{ i18n.t({ th: 'รอหัวหน้ายืนยัน', en: 'Waiting for your head' }) }}</h1>
           <p class="muted small">
             {{ i18n.t({ th: 'ส่งคำขอเข้าหน่วยงานแล้ว', en: 'Your request has been sent.' }) }}<br />
@@ -344,7 +344,7 @@ export class AuthWaitingHead {
   template: `
     <div class="stack grow">
       <div class="result">
-        <span class="big-icon danger"><app-icon name="bell" [size]="34" /></span>
+        <span class="big-icon warn"><app-icon name="bell" [size]="34" /></span>
         <h1>{{ i18n.t({ th: 'ต้องเปิดแจ้งเตือนก่อน', en: 'Turn on notifications first' }) }}</h1>
         <p class="muted small">
           {{ i18n.t({ th: 'หากไม่เปิด จะไม่ได้รับ SOS จากบ้านในโซน', en: 'Otherwise you will miss SOS alerts from your zone.' }) }}<br />

@@ -431,7 +431,7 @@ export class RiderLimited {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pad done" role="status">
-      <div class="result mid">
+      <div class="result">
         <span class="big-icon white"><app-icon name="check" [size]="40" /></span>
         <h1>{{ i18n.t({ th: 'ส่งสำเร็จ', en: 'Delivered' }) }}</h1>
         <p class="house">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ house() }}</p>
@@ -450,9 +450,6 @@ export class RiderLimited {
     }
     .done .adv-only {
       color: rgb(255 255 255 / 75%);
-    }
-    .mid {
-      margin-block-start: 20vh;
     }
     .result h1 {
       font-size: var(--fs-xl);

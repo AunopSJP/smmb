@@ -547,6 +547,8 @@ bool cameraSnapshotJpeg(uint8_t** out, size_t* len) {
   if (running && photoMode) return capturePhoto(out, len);
   bool started = !running && cameraStart();
   if (!running) return false;
+  // 0.2.41: กล้องเปิดค้างระหว่างรอจังหวะสุ่ม → เฟรมในคิวเก่า ทิ้ง 2 เฟรมให้แสงล่าสุดก่อนถ่ายจริง
+  discardFrames(2);
   camera_fb_t* fb = esp_camera_fb_get();
   bool ok = false;
   if (fb && fb->format == PIXFORMAT_JPEG) {

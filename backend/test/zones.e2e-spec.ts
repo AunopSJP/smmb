@@ -136,9 +136,9 @@ describe('Zones + contacts (e2e)', () => {
     it('create, list with "mine" filter, get, rename, change windows, delete', async () => {
       const ag = await readyAgency();
       const z = await as(ag.cookie)
-        .post('/api/v1/agency/zones', { name: 'โซน A', windows: [['17:00', '21:00'], ['06:00', '09:00']] })
+        .post('/api/v1/agency/zones', { name: 'โซน A', windows: [['17:00', '17:30'], ['06:00', '06:30']] })
         .expect(201);
-      expect(z.body).toMatchObject({ name: 'โซน A', windows: [['06:00', '09:00'], ['17:00', '21:00']], tz: 'Asia/Bangkok', houses_count: 0, officers_count: 0, is_mine: false });
+      expect(z.body).toMatchObject({ name: 'โซน A', windows: [['06:00', '06:30'], ['17:00', '17:30']], tz: 'Asia/Bangkok', houses_count: 0, officers_count: 0, is_mine: false });
 
       await as(ag.cookie).put(`/api/v1/agency/zones/${z.body.id}/officers`, { user_ids: [ag.headId, ag.officer.id] }).expect(200);
       await as(ag.cookie).post('/api/v1/agency/zones', { name: 'โซน B', windows: [] }).expect(201);
@@ -155,8 +155,8 @@ describe('Zones + contacts (e2e)', () => {
       // ไม่มีข้อมูลเกินที่ประกาศ (กฎข้อ 12)
       expect(JSON.stringify(detail.body)).not.toMatch(/password_hash|token_hash|token_version/);
 
-      const renamed = await as(ag.cookie).patch(`/api/v1/agency/zones/${z.body.id}`, { name: 'โซน A1', windows: [['18:00', '20:00']] }).expect(200);
-      expect(renamed.body).toMatchObject({ name: 'โซน A1', windows: [['18:00', '20:00']] });
+      const renamed = await as(ag.cookie).patch(`/api/v1/agency/zones/${z.body.id}`, { name: 'โซน A1', windows: [['18:00', '18:30']] }).expect(200);
+      expect(renamed.body).toMatchObject({ name: 'โซน A1', windows: [['18:00', '18:30']] });
 
       await as(ag.cookie).delete(`/api/v1/agency/zones/${z.body.id}`).expect(200);
       await as(ag.cookie).get(`/api/v1/agency/zones/${z.body.id}`).expect(404);
@@ -168,6 +168,9 @@ describe('Zones + contacts (e2e)', () => {
       const ag = await readyAgency();
       const bad = await as(ag.cookie).post('/api/v1/agency/zones', { name: 'ข้ามคืน', windows: [['22:00', '02:00']] }).expect(400);
       expect(bad.body.code).toBe('WINDOWS_INVALID');
+      // ✅ 2026-11-20 ช่วงละไม่เกิน 30 นาที
+      const tooLong = await as(ag.cookie).post('/api/v1/agency/zones', { name: 'ยาวเกิน', windows: [['06:00', '06:31']] }).expect(400);
+      expect(tooLong.body.code).toBe('WINDOWS_INVALID');
       await as(ag.cookie).post('/api/v1/agency/zones', { name: 'Zone X', windows: [] }).expect(201);
       const dup = await as(ag.cookie).post('/api/v1/agency/zones', { name: 'zone x', windows: [] }).expect(409);
       expect(dup.body.code).toBe('ZONE_NAME_TAKEN');

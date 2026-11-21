@@ -292,7 +292,7 @@ export class HeadSignup {
         </div>
       } @else {
         <div class="result">
-          <span class="big-icon danger dots" aria-hidden="true">•••</span>
+          <span class="big-icon info dots" aria-hidden="true">•••</span>
           <h1>{{ i18n.t({ th: 'รอผู้ดูแลระบบตรวจ', en: 'Waiting for the admin' }) }}</h1>
           <p class="muted small">{{ i18n.t({ th: 'ส่งคำขอแล้ว ปกติใช้ไม่เกิน 1 วันทำการ', en: 'Request sent — usually within 1 working day' }) }}</p>
         </div>

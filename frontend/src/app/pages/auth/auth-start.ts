@@ -222,7 +222,7 @@ export class AuthInstall {
   template: `
     <div class="stack grow">
       <div class="result">
-        <span class="big-icon danger"><app-icon name="bell" [size]="32" /></span>
+        <span class="big-icon info"><app-icon name="bell" [size]="32" /></span>
         <h1>{{ i18n.t({ th: 'เปิดการแจ้งเตือน', en: 'Turn on notifications' }) }}</h1>
         <p class="muted small">
           {{ i18n.t({ th: 'รู้ทันทีเมื่อเจ้าหน้าที่มาตรวจ', en: 'Know right away when an officer checks your box,' }) }}<br />

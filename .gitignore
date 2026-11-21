@@ -22,3 +22,8 @@ firmware/.pio/
 firmware/.vscode/
 handoff/
 reports/
+
+# สกรีนช็อต/ไฟล์ชั่วคราวจากเครื่องมือ (ไม่เก็บใน repo)
+.playwright-mcp/
+.slides-shots/
+/*.png

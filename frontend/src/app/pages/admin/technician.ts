@@ -465,7 +465,7 @@ export class TechWifi {
   template: `
     <div class="stack grow">
       <div class="result">
-        <span class="big-icon danger"><app-icon name="wifi" [size]="34" /></span>
+        <span class="big-icon info"><app-icon name="wifi" [size]="34" /></span>
         <h1>{{ i18n.t({ th: 'ฟังเสียงตู้', en: 'Listen to the box' }) }}</h1>
         <p class="muted">{{ i18n.t({ th: 'ตู้ไม่มีไฟสถานะ ใช้เสียงปี๊บบอก', en: 'The box has no status light — it beeps' }) }}</p>
       </div>

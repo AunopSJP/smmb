@@ -3,6 +3,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import pg from 'pg';
 import request from 'supertest';
+import { SHORT_WINDOW, allDayWindows } from './all-day-zone.js';
 import { acceptPendingHouses } from './zone-consent.js';
 import { configureApp } from '../src/app-setup.js';
 import { AppModule } from '../src/app.module.js';
@@ -82,7 +83,7 @@ describe('Inspections (e2e)', () => {
   };
 
   /** ตู้มีเจ้าของ + อยู่ในโซนของเจ้าหน้าที่ · windows = เวลาตรวจของโซน */
-  const setup = async (windows: [string, string][] = [['00:00', '23:59']]) => {
+  const setup = async (windows?: [string, string][]) => {
     const [b] = (await as(admin.cookie).post('/api/v1/admin/boxes', { count: 1 }).expect(201)).body as Registered[];
     const o = await http()
       .post('/api/v1/auth/signup/owner')
@@ -97,7 +98,8 @@ describe('Inspections (e2e)', () => {
       .send({ address_line: 'ซอย 3', subdistrict: 'ลาดยาว', district: 'จตุจักร', province: 'กรุงเทพมหานคร', lat: 13.7563, lng: 100.5018 })
       .expect(200);
     const ag = await agency();
-    const zone = (await as(ag.head).post('/api/v1/agency/zones', { name: `โซน ${seq++}`, windows }).expect(201)).body;
+    const zone = (await as(ag.head).post('/api/v1/agency/zones', { name: `โซน ${seq++}`, windows: windows ?? SHORT_WINDOW }).expect(201)).body;
+    if (!windows) await allDayWindows(pool, zone.id); // ไม่ระบุ = ตรวจได้ทั้งวัน
     await as(ag.head).put(`/api/v1/agency/zones/${zone.id}/houses`, { box_ids: [b.box_id] }).expect(200);
     await acceptPendingHouses(pool);
     await as(ag.head).put(`/api/v1/agency/zones/${zone.id}/officers`, { user_ids: [ag.officer.id] }).expect(200);
@@ -226,7 +228,8 @@ describe('Inspections (e2e)', () => {
     const { b, officer } = await setup();
     const other = await agency();
     // เจ้าหน้าที่หน่วยงานอื่นมีโซนของตัวเอง (ตรวจได้ทั้งวัน) แต่บ้านนี้ไม่อยู่ในโซนนั้น
-    const otherZone = (await as(other.head).post('/api/v1/agency/zones', { name: 'อื่น', windows: [['00:00', '23:59']] }).expect(201)).body;
+    const otherZone = (await as(other.head).post('/api/v1/agency/zones', { name: 'อื่น', windows: SHORT_WINDOW }).expect(201)).body;
+    await allDayWindows(pool, otherZone.id);
     await as(other.head).put(`/api/v1/agency/zones/${otherZone.id}/officers`, { user_ids: [other.officer.id] }).expect(200);
 
     const fake = b.qr[0].url.replace(/-[A-Z2-9]{6}$/, '-AAAAAA');

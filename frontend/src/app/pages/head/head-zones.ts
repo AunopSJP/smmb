@@ -20,13 +20,16 @@ import { liveRefresh } from '../../core/live-refresh';
 // บ้านหลังเดียวอยู่ในโซนของหลายหน่วยงานได้ · ตู้รับเวลาตรวจใหม่ตอน boot / รายงานรายวัน
 
 const MAX_WINDOWS = 4;
+/** ความยาวสูงสุดของแต่ละช่วงเวลาตรวจ (นาที) — ตรงกับ backend MAX_WINDOW_MINUTES (✅ ผู้ใช้สั่ง 2026-11-20) */
+export const MAX_WINDOW_MINUTES = 30;
 
 /**
- * ตรวจช่วงเวลาตรวจใหม่ก่อนเพิ่ม: "HH:mm" ถูกต้อง · เริ่มก่อนจบ · ไม่ทับช่วงที่มีอยู่
+ * ตรวจช่วงเวลาตรวจใหม่ก่อนเพิ่ม: "HH:mm" ถูกต้อง · เริ่มก่อนจบ · ยาวไม่เกิน 30 นาที · ไม่ทับช่วงที่มีอยู่
  * เทียบสตริงได้ตรง ๆ เพราะ 24 ชม. ความยาวเท่ากัน (ช่วงที่ชิดกัน เช่น 06–09 กับ 09–10 ถือว่าไม่ทับ)
  */
 export function windowProblem(from: string, to: string, existing: [string, string][]): boolean {
   if (!/^\d{2}:\d{2}$/.test(from) || !/^\d{2}:\d{2}$/.test(to) || from >= to) return true;
+  if (tooLong(from, to)) return true;
   return existing.some(([a, b]) => from < b && a < to);
 }
 
@@ -35,26 +38,32 @@ function toMinutes(hhmm: string): number {
   return h * 60 + m;
 }
 
+/** ช่วงยาวเกิน 30 นาทีหรือไม่ (ใช้ทั้งตอนตรวจแถวและก่อนบันทึก) */
+export function tooLong(from: string, to: string): boolean {
+  return toMinutes(to) - toMinutes(from) > MAX_WINDOW_MINUTES;
+}
+
 function toHhmm(mins: number): string {
   return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 }
 
 /**
- * ช่วงใหม่ที่จะเพิ่ม: ยังไม่มี → 06:00–09:00 · มีแล้ว → ต่อจากช่วงที่จบช้าสุด 3 ชม. (ไม่เกิน 23:59)
+ * ช่วงใหม่ที่จะเพิ่ม: ยังไม่มี → 06:00–06:30 · มีแล้ว → ต่อจากช่วงที่จบช้าสุด 30 นาที (ไม่เกิน 23:59)
  * ถ้าท้ายวันเต็มแล้วให้ไปเริ่มก่อนช่วงแรก — ผู้ใช้ปรับต่อในแถวได้เสมอ
  */
 export function nextWindow(existing: [string, string][]): [string, string] {
-  if (!existing.length) return ['06:00', '09:00'];
+  const len = MAX_WINDOW_MINUTES;
+  if (!existing.length) return ['06:00', '06:30'];
   const lastEnd = Math.max(...existing.map(([, t]) => toMinutes(t)));
-  if (lastEnd <= 23 * 60) return [toHhmm(lastEnd), toHhmm(Math.min(lastEnd + 180, 23 * 60 + 59))];
+  if (lastEnd < 23 * 60 + 59) return [toHhmm(lastEnd), toHhmm(Math.min(lastEnd + len, 23 * 60 + 59))];
   const firstStart = Math.min(...existing.map(([f]) => toMinutes(f)));
-  if (firstStart >= 180) return [toHhmm(firstStart - 180), toHhmm(firstStart)];
-  return ['06:00', '09:00']; // ไม่มีช่องว่าง — แถวจะขึ้น "ทับกับช่วงอื่น" ให้ผู้ใช้ปรับเอง
+  if (firstStart >= len) return [toHhmm(firstStart - len), toHhmm(firstStart)];
+  return ['06:00', '06:30']; // ไม่มีช่องว่าง — แถวจะขึ้น "ทับกับช่วงอื่น" ให้ผู้ใช้ปรับเอง
 }
 
 const ZONE_ERROR: Record<string, Tr> = {
   ZONE_AREA_INVALID: { th: 'ต้องใส่จังหวัดและเขต/อำเภอคู่กัน (หรือเว้นว่างทั้งหมด)', en: 'Province and district are required together (or leave all blank)' },
-  WINDOWS_INVALID: { th: 'เวลาตรวจไม่ถูกต้อง (ไม่ทับกัน · เริ่มก่อนจบ · ไม่ข้ามเที่ยงคืน · ไม่เกิน 4 ช่วง)', en: 'Invalid patrol hours (no overlap · start before end · no midnight crossing · max 4)' },
+  WINDOWS_INVALID: { th: 'เวลาตรวจไม่ถูกต้อง (ไม่ทับกัน · เริ่มก่อนจบ · ไม่ข้ามเที่ยงคืน · ช่วงละไม่เกิน 30 นาที · ไม่เกิน 4 ช่วง)', en: 'Invalid patrol hours (no overlap · start before end · no midnight crossing · max 30 min each · max 4)' },
   ZONE_NAME_TAKEN: { th: 'มีโซนชื่อนี้แล้ว', en: 'A zone with this name exists' },
   HOUSE_NOT_FOUND: { th: 'เพิ่มไม่ได้ เพราะมีบ้านที่ไม่พบหรือยังไม่ผูกตู้ — ค้นบ้านใหม่แล้วเลือกอีกครั้ง', en: 'Can’t add: a house was not found or has no mailbox yet — search again and re-select' },
   HOUSE_INCOMPLETE: { th: 'เพิ่มไม่ได้ เพราะมีบ้านที่ข้อมูลยังไม่ครบ (ที่อยู่ / จังหวัด-เขต-แขวง / หมุด) — ให้เจ้าของบ้านกรอกให้ครบก่อน', en: 'Can’t add: a house has incomplete details (address / province-district-subdistrict / pin) — ask the owner to complete them first' },
@@ -713,6 +722,7 @@ export class HeadZoneEdit {
     const w = this.windows();
     const [f, t] = w[i];
     if (f >= t) return { th: 'เวลาเริ่มต้องก่อนเวลาสิ้นสุด', en: 'Start must be before end' };
+    if (tooLong(f, t)) return { th: 'ช่วงละไม่เกิน 30 นาที', en: 'Each window can be at most 30 minutes' };
     if (windowProblem(f, t, w.filter((_, j) => j !== i))) return { th: 'ทับกับช่วงอื่น', en: 'Overlaps another window' };
     return null;
   }

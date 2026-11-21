@@ -86,10 +86,16 @@ export type ZoneFilter = 'mine' | 'all';
 /** เวลาตรวจสูงสุดต่อโซน (✅ เลือก 2026-10-27) */
 export const MAX_WINDOWS = 4;
 
+/** ความยาวสูงสุดของแต่ละช่วงเวลาตรวจ (นาที) — ✅ ผู้ใช้สั่ง 2026-11-20 */
+export const MAX_WINDOW_MINUTES = 30;
+
+/** "HH:mm" → นาทีนับจากเที่ยงคืน */
+const minutesOf = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 /**
- * ตรวจช่วงเวลาตรวจ: "HH:mm" · start < end (ไม่ข้ามเที่ยงคืน — ตรวจข้ามคืนให้แยก 2 ช่วง) · ไม่ทับกัน · ไม่เกิน 4 ช่วง
+ * ตรวจช่วงเวลาตรวจ: "HH:mm" · start < end (ไม่ข้ามเที่ยงคืน — ตรวจข้ามคืนให้แยก 2 ช่วง) · ช่วงละไม่เกิน 30 นาที · ไม่ทับกัน · ไม่เกิน 4 ช่วง
  * คืนช่วงที่เรียงตามเวลาเริ่มแล้ว · ผิด → 400 WINDOWS_INVALID
  */
 export function normalizeWindows(input: unknown): [string, string][] {
@@ -101,6 +107,8 @@ export function normalizeWindows(input: unknown): [string, string][] {
       throw bad('each window must be ["HH:mm","HH:mm"]');
     const [s, e] = [String(w[0]), String(w[1])];
     if (s >= e) throw bad('start must be before end (split overnight windows in two)');
+    // แต่ละช่วงยาวได้ไม่เกิน 30 นาที
+    if (minutesOf(e) - minutesOf(s) > MAX_WINDOW_MINUTES) throw bad(`each window must be at most ${MAX_WINDOW_MINUTES} minutes`);
     return [s, e] as [string, string];
   });
   list.sort((a, b) => a[0].localeCompare(b[0]));

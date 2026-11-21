@@ -49,6 +49,9 @@ struct LinkRtc
   uint32_t jobsDone = 0;   // ไลบรารีนับ · ล้างหลัง report สำเร็จ
   uint32_t scanFail = 0;   // ไลบรารีนับ · ล้างหลัง report สำเร็จ
   uint32_t wifiFail = 0;   // ฝั่งแอปนับ (ต่อ Wi-Fi ไม่ได้) · ล้างหลัง report สำเร็จ
+  // 0.2.41: ขั้นของ Snapface ที่กำลังทำ (0 = ไม่ได้ทำอะไร) · ถ้าตู้รีเซ็ตกลางทาง บูตครั้งถัดไปรายงาน photo_crash พร้อมเลขขั้น
+  // 1 สลับกล้อง · 2 รอจังหวะสุ่ม · 3 ถ่าย · 4 เข้ารหัส · 5 ส่ง
+  uint8_t photoStep = 0;
 };
 extern LinkRtc linkRtc;
 

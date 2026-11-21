@@ -3,6 +3,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import pg from 'pg';
 import request from 'supertest';
+import { SHORT_WINDOW, allDayWindows } from './all-day-zone.js';
 import { acceptPendingHouses } from './zone-consent.js';
 import { configureApp } from '../src/app-setup.js';
 import { AppModule } from '../src/app.module.js';
@@ -428,8 +429,8 @@ describe('Boxes (e2e)', () => {
       const { b } = await boundBox('55/1');
       const police = await readyHead();
       const guard = await readyHead();
-      const z1 = (await as(police.cookie).post('/api/v1/agency/zones', { name: 'สาย 1', windows: [['06:00', '09:00']] }).expect(201)).body;
-      const z2 = (await as(guard.cookie).post('/api/v1/agency/zones', { name: 'ประตู 1', windows: [['08:00', '10:00'], ['20:00', '22:00']] }).expect(201)).body;
+      const z1 = (await as(police.cookie).post('/api/v1/agency/zones', { name: 'สาย 1', windows: [['06:00', '06:30']] }).expect(201)).body;
+      const z2 = (await as(guard.cookie).post('/api/v1/agency/zones', { name: 'ประตู 1', windows: [['06:15', '06:45'], ['20:00', '20:30']] }).expect(201)).body;
 
       const houses = await as(police.cookie).put(`/api/v1/agency/zones/${z1.id}/houses`, { box_ids: [b.box_id] }).expect(200);
       expect(houses.body).toEqual([{ box_id: b.box_id, house_no: '55/1', box_name: null, area: null, box_status: expect.any(String), pending: true }]);
@@ -445,14 +446,14 @@ describe('Boxes (e2e)', () => {
 
       const boot = await box(b, 'POST', '/v1/box/boot', { config_ver: 0 }).expect(200);
       expect(boot.body.config.windows).toEqual([
-        ['06:00', '10:00'],
-        ['20:00', '22:00'],
+        ['06:00', '06:45'],
+        ['20:00', '20:30'],
       ]);
 
       // ย้ายบ้านออกจากโซนหนึ่ง → เวลาตรวจของตู้เปลี่ยน
       await as(guard.cookie).put(`/api/v1/agency/zones/${z2.id}/houses`, { box_ids: [] }).expect(200);
       const next = await box(b, 'POST', '/v1/box/report', { config_ver: boot.body.config_ver }).expect(200);
-      expect(next.body.config.windows).toEqual([['06:00', '09:00']]);
+      expect(next.body.config.windows).toEqual([['06:00', '06:30']]);
 
       // โซนของหน่วยงานอื่น → 404
       await as(guard.cookie).put(`/api/v1/agency/zones/${z1.id}/houses`, { box_ids: [b.box_id] }).expect(404);
@@ -463,7 +464,7 @@ describe('Boxes (e2e)', () => {
       const { b, owner } = await boundBox('57/1');
       const stranger = await boundBox('57/2');
       const head = await readyHead();
-      const z = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ขอความยินยอม', windows: [['06:00', '09:00']] }).expect(201)).body;
+      const z = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ขอความยินยอม', windows: [['06:00', '06:30']] }).expect(201)).body;
 
       const put = await as(head.cookie).put(`/api/v1/agency/zones/${z.id}/houses`, { box_ids: [b.box_id] }).expect(200);
       expect(put.body).toEqual([expect.objectContaining({ box_id: b.box_id, pending: true })]);
@@ -489,7 +490,7 @@ describe('Boxes (e2e)', () => {
       expect(detail.houses).toEqual([expect.objectContaining({ box_id: b.box_id, pending: false })]);
 
       // ปฏิเสธ → ไม่เข้าโซน
-      const z2 = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ถูกปฏิเสธ', windows: [['06:00', '09:00']] }).expect(201)).body;
+      const z2 = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ถูกปฏิเสธ', windows: [['06:00', '06:30']] }).expect(201)).body;
       await as(head.cookie).put(`/api/v1/agency/zones/${z2.id}/houses`, { box_ids: [stranger.b.box_id] }).expect(200);
       const r2 = (await as(stranger.owner.cookie).get('/api/v1/me/zone-requests').expect(200)).body[0];
       await http().post(`/api/v1/me/zone-requests/${r2.id}/reject`).set('Cookie', stranger.owner.cookie).expect(200);
@@ -502,8 +503,8 @@ describe('Boxes (e2e)', () => {
       const noise = await boundBox('161/9'); // มี "61/" อยู่กลางคำ — ตรงต้นคำต้องขึ้นก่อน
       const head = await readyHead();
       const other = await readyHead();
-      const mine = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ของเรา', windows: [['06:00', '09:00']] }).expect(201)).body;
-      const theirs = (await as(other.cookie).post('/api/v1/agency/zones', { name: 'ของเขา', windows: [['06:00', '09:00']] }).expect(201)).body;
+      const mine = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ของเรา', windows: [['06:00', '06:30']] }).expect(201)).body;
+      const theirs = (await as(other.cookie).post('/api/v1/agency/zones', { name: 'ของเขา', windows: [['06:00', '06:30']] }).expect(201)).body;
       await as(head.cookie).put(`/api/v1/agency/zones/${mine.id}/houses`, { box_ids: [taken.b.box_id] }).expect(200);
       await acceptPendingHouses(pool);
       await as(other.cookie).put(`/api/v1/agency/zones/${theirs.id}/houses`, { box_ids: [noise.b.box_id] }).expect(200);
@@ -846,7 +847,8 @@ describe('Boxes (e2e)', () => {
     it('closing blocks officers and riders, tells the owner once, and opening restores it', async () => {
       const { b, owner } = await boundBox('93/1');
       const head = await readyHead();
-      const zone = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ปิดบริการ', windows: [['00:00', '23:59']] }).expect(201)).body;
+      const zone = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ปิดบริการ', windows: SHORT_WINDOW }).expect(201)).body;
+      await allDayWindows(pool, zone.id);
       await as(head.cookie).put(`/api/v1/agency/zones/${zone.id}/houses`, { box_ids: [b.box_id] }).expect(200);
       await acceptPendingHouses(pool);
 
@@ -891,7 +893,7 @@ describe('Boxes (e2e)', () => {
       await as(first.cookie).post('/api/v1/boxes/activate', { qr_text: b.qr.find((q) => q.slot === 'activate')!.url }).expect(200);
       await http().patch(`/api/v1/boxes/${b.box_id}`).set('Cookie', first.cookie).send({ name: 'ตู้เก่า', area: 'หมู่บ้านเก่า' }).expect(200);
       const head = await readyHead();
-      const zone = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ขายบ้าน', windows: [['06:00', '09:00']] }).expect(201)).body;
+      const zone = (await as(head.cookie).post('/api/v1/agency/zones', { name: 'ขายบ้าน', windows: [['06:00', '06:30']] }).expect(201)).body;
       await as(head.cookie).put(`/api/v1/agency/zones/${zone.id}/houses`, { box_ids: [b.box_id] }).expect(200);
       await acceptPendingHouses(pool);
 

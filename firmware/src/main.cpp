@@ -505,7 +505,9 @@ static void linkSetup()
   h.scanQr = hookScanQr;
   h.cameraAutoFlash = cameraAutoFlash;
   h.setPreviewSink = cameraSetPreviewSink;
-  h.preparePhoto = cameraPreparePhoto; // Snapface: สลับเป็นโหมดถ่ายใบหน้าทันทีที่ตรวจผ่าน
+  // 0.2.41: ไม่สลับกล้องเป็น XGA ตอนถ่าย Snapface แล้ว — ตู้รีเซ็ตหลังตรวจผ่าน ~10 วิ (ไม่มี /photo เข้าเซิร์ฟเวอร์) ตรงกับขั้น deinit/init กล้องบนถ่าน
+  // ใช้กล้องที่เปิดอยู่ตอนสแกน (JPEG ฮาร์ดแวร์) ถ่ายเลย · cameraPreparePhoto ยังอยู่ใน camera_qr.cpp เผื่อกลับมาใช้เมื่อแหล่งจ่ายไฟแรงพอ
+  h.preparePhoto = nullptr;
   h.snapshotJpeg = cameraSnapshotJpeg; // Snapface หลังตรวจผ่าน
   h.beep = beepByName;
   h.saveConfig = settingsSaveConfig;

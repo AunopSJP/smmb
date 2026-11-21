@@ -1085,6 +1085,14 @@ app-area-shell main > :not(router-outlet) {
     line-height: 1.35;
   }
 }
+/* หน้าแจ้งผล/รอผลเต็มจอ (O08 กำลังบันทึก · ตรวจแล้ว · ส่งของสำเร็จ ฯลฯ): ผลอยู่กลางพื้นที่ว่าง ปุ่มอยู่ล่าง
+   ใช้เมื่อผลเป็นเนื้อหาสุดท้าย หรือมีแค่ปุ่ม .push-end ต่อท้าย · หน้าที่มีฟอร์ม/ตัวเลือกต่อจากผลยังชิดบนเหมือนเดิม */
+.pad > .result:last-child,
+.pad > .result:has(+ .push-end) {
+  flex: 1;
+  justify-content: center;
+  padding-block: 0;
+}
 .big-icon {
   display: grid;
   place-items: center;
@@ -1096,12 +1104,21 @@ app-area-shell main > :not(router-outlet) {
   background: var(--icon-bg);
   color: var(--text-muted);
 
-  /* ตามแคนวาสดีไซน์: วงกลมขาวมีเงา ไอคอนสีธีม (ไม่ใช้พื้นชมพู/เหลืองอ่อน) */
+  /* ตามแคนวาสดีไซน์: วงกลมขาวมีเงา (ไม่ใช้พื้นชมพู/เหลืองอ่อน) · สีไอคอนบอกความหมาย:
+     info = ข้อมูล/รอ/ขอให้ทำ (สีตัวอักษร) · warn = ต้องดู (ส้ม) · danger = ปัญหา/ไม่ผ่าน (แดง)
+     ok / white = สำเร็จ (เขียว) · แดงแบรนด์ใช้กับปุ่ม/ลิงก์เท่านั้น ไม่ใช้กับไอคอนสถานะ */
+  &.info,
   &.warn,
   &.danger {
     background: var(--surface);
-    color: var(--brand);
+    color: var(--text);
     box-shadow: var(--shadow);
+  }
+  &.warn {
+    color: var(--warn);
+  }
+  &.danger {
+    color: var(--sos);
   }
   &.ok {
     background: var(--ok-bg);

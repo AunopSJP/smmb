@@ -585,7 +585,7 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
     <div class="pad">
       @if (reported()) {
         <div class="result">
-          <span class="big-icon ok"><app-icon name="check" [size]="30" /></span>
+          <span class="big-icon warn"><app-icon name="alert" [size]="30" /></span>
           <h1>{{ i18n.t({ th: 'แจ้งปัญหาตู้แล้ว', en: 'Problem reported' }) }}</h1>
           <p class="muted small">{{ i18n.t({ th: 'แจ้งเจ้าของบ้านและผู้ดูแลระบบแล้ว · บ้านนี้ยังไม่นับว่าตรวจแล้ว', en: 'Owner and admin notified · this house is not counted as checked' }) }}</p>
         </div>
@@ -641,9 +641,6 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
       font-size: var(--fs-xs);
       color: var(--text-muted);
       overflow-wrap: break-word;
-    }
-    .waking {
-      padding-block-start: 48px;
     }
     .spinner {
       position: relative;
@@ -1067,7 +1064,7 @@ export class OfficerBadge implements OnInit {
   template: `
     <div class="pad">
       <div class="result">
-        <span class="big-icon warn" aria-hidden="true">!</span>
+        <span class="big-icon danger" aria-hidden="true">!</span>
         <h1>{{ i18n.t({ th: 'ตู้สแกนไม่ผ่าน', en: 'The box couldn’t scan your QR' }) }}</h1>
         <p class="muted small">{{ i18n.t({ th: 'ตู้อาจมีปัญหา เช่น กล้องสกปรก หรือหมดเวลาก่อนอ่านได้', en: 'The box may have a problem, like a dirty camera, or time ran out' }) }}</p>
         <p class="info-box muted">
@@ -1118,20 +1115,22 @@ const HOLD_STALE_MS = 120_000;
   template: `
     @if (holding()) {
       <!-- ช่วงสั้น ๆ หลังตู้ตอบผ่าน: ให้เจ้าหน้าที่ยืนหน้าตู้ต่ออีกครู่ (ตู้ยังทำงานอยู่) — ไม่บอกว่าตู้ทำอะไร -->
-      <div class="pad done" role="status" aria-live="polite">
+      <!-- ยังไม่เสร็จ = ยังไม่ใช้พื้นเขียว (เขียวเต็มจอเฉพาะ "ตรวจแล้ว" ด้านล่าง) -->
+      <div class="pad" role="status" aria-live="polite">
         <div class="result">
           <span class="spinner" aria-hidden="true"></span>
           <h1>{{ i18n.t({ th: 'กำลังบันทึกผลการตรวจ…', en: 'Saving the inspection…' }) }}</h1>
-          <p class="small">{{ i18n.t({ th: 'ลดมือถือลง แล้วยืนหันหน้าเข้าหาตู้จนกว่าจะเสร็จ', en: 'Lower your phone and stay facing the mailbox until it finishes' }) }}</p>
+          <p class="small muted">{{ i18n.t({ th: 'ลดมือถือลง แล้วยืนหันหน้าเข้าหาตู้จนกว่าจะเสร็จ', en: 'Lower your phone and stay facing the mailbox until it finishes' }) }}</p>
           <div class="bar easy-hide" aria-hidden="true"><span [style.transform]="'scaleX(' + progress() / 100 + ')'"></span></div>
         </div>
       </div>
     } @else if (failed()) {
-      <div class="pad done" role="alert">
+      <!-- ไม่สำเร็จ = ห้ามพื้นเขียว -->
+      <div class="pad" role="alert">
         <div class="result">
-          <span class="big-icon white danger"><app-icon name="alert" [size]="32" /></span>
+          <span class="big-icon danger"><app-icon name="alert" [size]="32" /></span>
           <h1>{{ i18n.t({ th: 'ยืนยันผลการตรวจไม่ได้', en: 'Could not confirm the inspection' }) }}</h1>
-          <p class="small">{{ i18n.t({ th: 'เน็ตอาจหลุดหรือเซิร์ฟเวอร์ไม่ตอบ — อย่าเพิ่งออกจากหน้าจอ ลองโหลดใหม่', en: 'The network or server did not respond — try again before leaving' }) }}</p>
+          <p class="small muted">{{ i18n.t({ th: 'เน็ตอาจหลุดหรือเซิร์ฟเวอร์ไม่ตอบ — อย่าเพิ่งออกจากหน้าจอ ลองโหลดใหม่', en: 'The network or server did not respond — try again before leaving' }) }}</p>
         </div>
         <div class="stack push-end">
           <button type="button" class="btn" (click)="retry()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Try again' }) }}</button>
@@ -1145,17 +1144,18 @@ const HOLD_STALE_MS = 120_000;
         <h1>{{ i18n.t({ th: 'ตรวจแล้ว', en: 'Inspection recorded' }) }}</h1>
         <p class="house">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ ins()?.box?.house_no }} · {{ time(ins()?.checked_at) }}</p>
         <p class="small">{{ i18n.t({ th: 'เจ้าของบ้านได้รับแจ้งเตือนแล้ว', en: 'The owner has been notified' }) }}</p>
+        <!-- อยู่ในกล่องผล เพื่อให้ทั้งก้อนอยู่กลางจอ (กฎ .pad > .result:has(+ .push-end) ใน styles.scss) -->
+        @if (summary(); as s) {
+          <p class="summary">
+            <strong>{{ i18n.t({ th: 'ตรวจแล้ว ', en: 'Checked ' }) }}{{ s.houses_checked }} / {{ s.houses_total }} {{ i18n.t({ th: 'หลัง', en: 'houses' }) }}</strong><br />
+            @if (s.next_house; as next) {
+              <span class="small">{{ i18n.t({ th: 'หลังถัดไป บ้านเลขที่ ', en: 'Next: house ' }) }}{{ next.house_no }}</span>
+            } @else {
+              <span class="small">{{ i18n.t({ th: 'ครบทุกหลังในโซนแล้ว', en: 'Every house in your zone is done' }) }}</span>
+            }
+          </p>
+        }
       </div>
-      @if (summary(); as s) {
-        <p class="summary">
-          <strong>{{ i18n.t({ th: 'ตรวจแล้ว ', en: 'Checked ' }) }}{{ s.houses_checked }} / {{ s.houses_total }} {{ i18n.t({ th: 'หลัง', en: 'houses' }) }}</strong><br />
-          @if (s.next_house; as next) {
-            <span class="small">{{ i18n.t({ th: 'หลังถัดไป บ้านเลขที่ ', en: 'Next: house ' }) }}{{ next.house_no }}</span>
-          } @else {
-            <span class="small">{{ i18n.t({ th: 'ครบทุกหลังในโซนแล้ว', en: 'Every house in your zone is done' }) }}</span>
-          }
-        </p>
-      }
       <div class="stack push-end">
         <!-- ครบทุกหลังแล้ว → ปุ่มหลักคือกลับหน้าสรุป (ไม่ชวนสแกน "หลังถัดไป" ที่ไม่มี) -->
         @if (summary() && !summary()?.next_house) {
@@ -1181,8 +1181,8 @@ const HOLD_STALE_MS = 120_000;
       display: inline-block;
       width: 56px;
       height: 56px;
-      border: 5px solid rgba(255, 255, 255, 0.35);
-      border-top-color: var(--success-fg);
+      border: 5px solid color-mix(in srgb, var(--text) 15%, transparent);
+      border-top-color: var(--text);
       border-radius: 50%;
       animation: spin 0.9s linear infinite;
     }
@@ -1201,12 +1201,12 @@ const HOLD_STALE_MS = 120_000;
       width: min(260px, 70%);
       height: 6px;
       border-radius: var(--radius-xs);
-      background: rgba(255, 255, 255, 0.3);
+      background: color-mix(in srgb, var(--text) 15%, transparent);
       overflow: hidden;
       span {
         display: block;
         height: 100%;
-        background: var(--success-fg);
+        background: var(--text);
         transform-origin: 0 50%;
         transition: transform 0.25s linear;
       }
@@ -1223,6 +1223,8 @@ const HOLD_STALE_MS = 120_000;
       overflow-wrap: break-word;
     }
     .summary {
+      align-self: stretch;
+      margin-block-start: 8px;
       background: rgb(255 255 255 / 15%);
       border-radius: var(--radius-sm);
       padding: 12px 14px;

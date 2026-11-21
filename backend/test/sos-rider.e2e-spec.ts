@@ -2,6 +2,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import pg from 'pg';
 import request from 'supertest';
+import { SHORT_WINDOW, allDayWindows } from './all-day-zone.js';
 import { acceptPendingHouses } from './zone-consent.js';
 import { configureApp } from '../src/app-setup.js';
 import { AppModule } from '../src/app.module.js';
@@ -78,7 +79,8 @@ describe('Rider + SOS + owner home (e2e)', () => {
     await as(head.cookie).post(`/api/v1/agency/members/${officer.id}/approve`).expect(200);
     await enablePush(officer.cookie);
     if (boxId) {
-      const z = (await as(head.cookie).post('/api/v1/agency/zones', { name: `z${seq++}`, windows: [['00:00', '23:59']] }).expect(201)).body;
+      const z = (await as(head.cookie).post('/api/v1/agency/zones', { name: `z${seq++}`, windows: SHORT_WINDOW }).expect(201)).body;
+      await allDayWindows(pool, z.id);
       await as(head.cookie).put(`/api/v1/agency/zones/${z.id}/houses`, { box_ids: [boxId] }).expect(200);
       await acceptPendingHouses(pool);
       await as(head.cookie).put(`/api/v1/agency/zones/${z.id}/officers`, { user_ids: [officer.id] }).expect(200);

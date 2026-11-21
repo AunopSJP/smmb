@@ -2,6 +2,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import pg from 'pg';
 import request from 'supertest';
+import { SHORT_WINDOW, allDayWindows } from './all-day-zone.js';
 import { acceptPendingHouses } from './zone-consent.js';
 import { configureApp } from '../src/app-setup.js';
 import { AppModule } from '../src/app.module.js';
@@ -108,7 +109,8 @@ describe('Scheduler (e2e)', () => {
   const patrolledBox = async () => {
     const { b, owner } = await boundBox(`77/${seq++}`);
     const head = await readyHead();
-    const zone = (await as(head).post('/api/v1/agency/zones', { name: `โซน ${seq++}`, windows: [['00:00', '23:59']] }).expect(201)).body;
+    const zone = (await as(head).post('/api/v1/agency/zones', { name: `โซน ${seq++}`, windows: SHORT_WINDOW }).expect(201)).body;
+    await allDayWindows(pool, zone.id);
     await as(head).put(`/api/v1/agency/zones/${zone.id}/houses`, { box_ids: [b.box_id] }).expect(200);
     await acceptPendingHouses(pool);
     return { b, owner };

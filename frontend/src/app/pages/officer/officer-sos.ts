@@ -189,7 +189,7 @@ export class OfficerSosList {
     } @else if (taken() || (c && c.status !== 'open' && c.status !== 'cancelled' && !c.mine)) {
       <div class="pad">
         <div class="result">
-          <span class="big-icon danger"><app-icon name="check" [size]="30" /></span>
+          <span class="big-icon info"><app-icon name="check" [size]="30" /></span>
           <h1>{{ i18n.t({ th: 'มีเจ้าหน้าที่รับเรื่องแล้ว', en: 'Another officer accepted' }) }}</h1>
           <p class="muted small">{{ i18n.t({ th: 'คุณไม่ต้องเข้าไป ทำงานต่อได้ตามปกติ', en: 'You don’t need to go — carry on' }) }}</p>
         </div>

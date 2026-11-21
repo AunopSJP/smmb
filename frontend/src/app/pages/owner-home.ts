@@ -5,7 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { apiError } from '../core/api';
 import { DisplaySettings } from '../core/display-settings';
 import { I18n } from '../core/i18n';
-import { type BoxDetail, type BoxSummary, minutesAgo, OwnerApi, type Sos } from '../core/owner-api';
+import { type BoxDetail, type BoxSummary, minutesAgo, OwnerApi, type Sos, type ZoneRequest } from '../core/owner-api';
 import { bkkDay, fmtDay, fmtTime, fmtWhen, fmtWhenSec } from '../core/time';
 import { screenUrl } from '../screens/registry';
 import { BoxPicker } from '../shared/box-picker';
@@ -19,7 +19,7 @@ import { liveRefresh } from '../core/live-refresh';
 import { SelectedBox } from '../core/selected-box';
 import { CallButtons } from './owner/call-buttons';
 
-type AlertKey = 'sos' | 'offline' | 'qr' | 'noOfficer';
+type AlertKey = 'sos' | 'zone' | 'offline' | 'qr' | 'noOfficer';
 
 /** ต้องกดค้างกี่วินาทีถึงส่ง SOS (กันกดโดนโดยไม่ตั้งใจ ✅) */
 const HOLD_SEC = 3;
@@ -135,14 +135,28 @@ const REFRESH_MS = 10_000;
         <ng-template #tNoOfficer let-b>
           <p class="card warn-card">
             <strong>{{ i18n.t({ th: 'ยังไม่มีเจ้าหน้าที่ดูแลบ้านนี้', en: 'No officer covers this house yet' }) }}</strong><br />
-            <span class="small">{{ i18n.t({ th: 'กด SOS ระบบจะบอกให้โทร 191 / 1669 ทันที', en: 'SOS will tell you to call 191 / 1669 straight away' }) }}</span>
+            <span class="small">{{ i18n.t({ th: 'รอหน่วยงานขอเพิ่มบ้านเข้าโซน — เมื่อมีคำขอจะขึ้นที่นี่ให้กดยอมรับ · ระหว่างนี้กด SOS ระบบจะบอกให้โทร 191 / 1669 ทันที', en: 'Waiting for an agency to add your house to a zone — the request will show here for you to accept · until then SOS tells you to call 191 / 1669' }) }}</span>
           </p>
         </ng-template>
+        <!-- คำขอเข้าโซน (เดิมมีเฉพาะ H13) — ไม่ยอมรับ = บ้านไม่เข้าโซน ไม่มีใครมาตรวจ จึงต้องเห็นที่หน้าหลัก -->
+        <ng-template #tZone let-b>
+          @for (r of zoneRequestsFor(b); track r.id) {
+            <section class="card stack zone-req" role="status">
+              <strong>{{ i18n.t({ th: 'หน่วยงานขอดูแลบ้านของคุณ', en: 'An agency asks to cover your house' }) }}</strong>
+              <span>{{ r.agency.name }} · {{ i18n.t({ th: 'โซน ', en: 'zone ' }) }}{{ r.zone_name }}</span>
+              <span class="muted small easy-hide">{{ i18n.t({ th: 'ยอมรับแล้ว เจ้าหน้าที่ของหน่วยงานนี้จะมาตรวจตู้ในเวลาตรวจ และได้รับ SOS ของบ้านนี้', en: 'If you accept, this agency’s officers will check your mailbox during patrol hours and receive your SOS' }) }}</span>
+              <div class="two">
+                <button type="button" class="btn secondary" [disabled]="deciding() === r.id" (click)="decideZone(r.id, false)">{{ i18n.t({ th: 'ปฏิเสธ', en: 'Decline' }) }}</button>
+                <button type="button" class="btn" [disabled]="deciding() === r.id" (click)="decideZone(r.id, true)">{{ i18n.t({ th: 'ยอมรับ', en: 'Accept' }) }}</button>
+              </div>
+            </section>
+          }
+        </ng-template>
 
-        <!-- เรื่องเร่ง: แสดงใบเดียว (SOS ก่อนเสมอ → ตู้ออฟไลน์ → QR ชำรุด → ยังไม่มีเจ้าหน้าที่) ที่เหลือพับเป็น "มีอีก N เรื่อง" -->
+        <!-- เรื่องเร่ง: แสดงใบเดียว (SOS ก่อนเสมอ → คำขอเข้าโซน → ตู้ออฟไลน์ → QR ชำรุด → ยังไม่มีเจ้าหน้าที่) ที่เหลือพับเป็น "มีอีก N เรื่อง" -->
         @let alerts = alertKeys(b);
         @if (alerts.length) {
-          <ng-container *ngTemplateOutlet="{ sos: tSos, offline: tOffline, qr: tQr, noOfficer: tNoOfficer }[alerts[0]]; context: { $implicit: b }" />
+          <ng-container *ngTemplateOutlet="{ sos: tSos, zone: tZone, offline: tOffline, qr: tQr, noOfficer: tNoOfficer }[alerts[0]]; context: { $implicit: b }" />
           @if (alerts.length > 1) {
             <button type="button" class="more-alerts" [attr.aria-expanded]="alertsOpen()" (click)="alertsOpen.set(!alertsOpen())">
               <span>{{ alertsOpen() ? i18n.t({ th: 'ซ่อนเรื่องอื่น', en: 'Hide the others' }) : i18n.t({ th: 'มีอีก ' + (alerts.length - 1) + ' เรื่อง', en: (alerts.length - 1) + ' more ' + (alerts.length - 1 === 1 ? 'issue' : 'issues') }) }}</span>
@@ -150,7 +164,7 @@ const REFRESH_MS = 10_000;
             </button>
             @if (alertsOpen()) {
               @for (k of alerts.slice(1); track k) {
-                <ng-container *ngTemplateOutlet="{ sos: tSos, offline: tOffline, qr: tQr, noOfficer: tNoOfficer }[k]; context: { $implicit: b }" />
+                <ng-container *ngTemplateOutlet="{ sos: tSos, zone: tZone, offline: tOffline, qr: tQr, noOfficer: tNoOfficer }[k]; context: { $implicit: b }" />
               }
             }
           }
@@ -499,6 +513,21 @@ const REFRESH_MS = 10_000;
         text-align: center;
       }
     }
+    /* คำขอเข้าโซน = ต้องตัดสินใจ ไม่ใช่ปัญหา → ขอบสีแบรนด์แบบเดียวกับการ์ดใน H13 */
+    .zone-req {
+      border: 2px solid var(--brand);
+      .two {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      :host-context(:root[data-mode='easy']) & .two {
+        grid-template-columns: 1fr;
+      }
+      .two > .btn {
+        text-align: center;
+      }
+    }
     .center {
       text-align: center;
     }
@@ -553,11 +582,42 @@ export class OwnerHome implements OnDestroy {
   /** เรื่องเร่งของตู้นี้ เรียงจากเร่งสุด — SOS ที่ยังเปิดอยู่ขึ้นก่อนเสมอ */
   protected alertKeys(b: BoxDetail): AlertKey[] {
     const keys: AlertKey[] = [];
+    const asked = this.zoneRequestsFor(b).length > 0;
     if (b.open_sos) keys.push('sos');
+    if (asked) keys.push('zone');
     if (b.status === 'offline') keys.push('offline');
     if (b.qr_task) keys.push('qr');
-    if (!b.coverage.has_officer) keys.push('noOfficer');
+    // มีคำขอรออยู่ = การ์ดคำขออธิบายแทนแล้ว ไม่ต้องขึ้น "ยังไม่มีเจ้าหน้าที่" ซ้ำ
+    if (!b.coverage.has_officer && !asked) keys.push('noOfficer');
     return keys;
+  }
+
+  /** คำขอเข้าโซนที่รอเจ้าของยืนยัน (GET /me/zone-requests · api.md §4.6) */
+  protected readonly zoneRequests = signal<ZoneRequest[]>([]);
+  protected readonly deciding = signal<string | null>(null);
+  protected zoneRequestsFor(b: BoxDetail): ZoneRequest[] {
+    return this.zoneRequests().filter((r) => r.box.id === b.id);
+  }
+
+  private async loadZoneRequests(): Promise<void> {
+    // โหลดไม่ได้ = คงค่าเดิมไว้ (ไม่ให้การ์ดหายวูบตอนเน็ตกระตุก) · หน้าตั้งค่ายังมีการ์ดเดียวกัน
+    const list = await this.api.zoneRequests().catch(() => null);
+    if (list) this.zoneRequests.set(list);
+  }
+
+  /** ยอมรับ / ปฏิเสธคำขอของหน่วยงาน — เหมือน H13 */
+  protected async decideZone(id: string, accept: boolean): Promise<void> {
+    if (this.deciding()) return;
+    this.deciding.set(id);
+    try {
+      await this.api.decideZoneRequest(id, accept);
+      this.toast.show(accept ? { th: 'ยอมรับแล้ว', en: 'Accepted' } : { th: 'ปฏิเสธแล้ว', en: 'Declined' });
+    } catch {
+      this.toast.show({ th: 'ทำรายการไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t do that — check your connection and try again' });
+    } finally {
+      this.deciding.set(null);
+      await Promise.all([this.loadZoneRequests(), this.load()]);
+    }
   }
 
   protected readonly holding = signal(false);
@@ -600,7 +660,7 @@ export class OwnerHome implements OnDestroy {
         // id ที่จำไว้ไม่ใช่ตู้ของบัญชีนี้แล้ว (ตู้ถูกถอด) → ตู้แรก
         if (!id || (!this.route.snapshot.queryParamMap.get('box') && !boxes.some((x) => x.id === id))) id = boxes[0].id;
       }
-      const detail = await this.api.box(id);
+      const [detail] = await Promise.all([this.api.box(id), this.loadZoneRequests()]);
       if (seq !== this.loadSeq) return;
       this.selected.set(detail.id);
       this.remembered.id.set(detail.id);
