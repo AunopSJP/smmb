@@ -7,7 +7,7 @@ import { I18n } from '../core/i18n';
   selector: 'app-brand',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class.hero]': 'hero()' },
-  template: `<img src="icons/icon-96x96.png" [attr.width]="hero() ? 72 : 36" [attr.height]="hero() ? 72 : 36" alt="" /><strong>Smart Mailbox</strong>
+  template: `<img src="icons/v2/icon-96x96.png" [attr.width]="hero() ? 72 : 36" [attr.height]="hero() ? 72 : 36" alt="" /><strong>Smart Mailbox</strong>
     @if (hero()) {
       <small>{{ i18n.t({ th: 'ตู้จดหมายอัจฉริยะ ดูแลบ้านคุณ', en: 'The smart mailbox that looks after your home' }) }}</small>
     }`,

@@ -89,7 +89,7 @@ const fmtDate = (iso: string, lang: 'th' | 'en') => fmtWhen(iso, lang);
     <div class="print-sheet">
       @for (s of slots(); track s) {
         <section class="print-card">
-          <header><img src="icons/icon-96x96.png" width="28" height="28" alt="" /> Smart Mailbox</header>
+          <header><img src="icons/v2/icon-96x96.png" width="28" height="28" alt="" /> Smart Mailbox</header>
           @let item = itemFor(s);
           <div class="qr"><app-qr-image [text]="item?.url ?? ''" level="H" [label]="i18n.t(slot[s])" /></div>
           <p class="code">{{ item?.print_code ?? '' }}</p>

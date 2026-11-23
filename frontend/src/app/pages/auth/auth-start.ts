@@ -108,7 +108,7 @@ export class AuthLine {
           <svg class="pic" viewBox="0 0 240 90" role="img" [attr.aria-label]="i18n.t({ th: 'ภาพ: ไอคอน Smart Mailbox บนหน้าจอโฮม', en: 'Picture: the Smart Mailbox icon on the home screen' })">
             <rect x="1" y="1" width="238" height="88" rx="14" class="screen" />
             <!-- B5: ใช้ไอคอนแอปจริง (ไฟล์เดียวกับ manifest) ไม่ใช่รูปซองที่วาดขึ้นเอง -->
-            <image href="icons/icon-96x96.png" x="24" y="14" width="40" height="40" />
+            <image href="icons/v2/icon-96x96.png" x="24" y="14" width="40" height="40" />
             <text x="44" y="68" text-anchor="middle" class="tiny strongT">Smart Mailbox</text>
             <rect x="100" y="14" width="40" height="40" rx="10" class="ghost" />
             <rect x="170" y="14" width="40" height="40" rx="10" class="ghost" />
