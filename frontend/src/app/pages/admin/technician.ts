@@ -85,25 +85,6 @@ export const apName = (boxId: string) => `MAILBOX-${boxId.replace(/\D/g, '').sli
         }
 
         <!-- โหมดละเอียด (TechCheck_A): ข้อมูลตู้จริง + สถานะแต่ละขั้น -->
-        <section class="card adv-only stack">
-          <dl class="kv small">
-            <dt>{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd>{{ b.id }}</dd>
-            <dt>{{ i18n.t({ th: 'ผูกเจ้าของแล้ว', en: 'Owner bound' }) }}</dt><dd>{{ b.bound ? i18n.t({ th: 'ใช่', en: 'Yes' }) : i18n.t({ th: 'ยังไม่ผูก', en: 'Not yet' }) }}</dd>
-            <dt>{{ i18n.t({ th: 'ชื่อ Wi-Fi ของตู้', en: 'Box Wi-Fi name' }) }}</dt><dd>{{ ap() }}</dd>
-            <dt>{{ i18n.t({ th: 'ความแรงสัญญาณ', en: 'Signal strength' }) }}</dt><dd>@if (rssi() !== null) { {{ rssi() }} dBm } @else { — }</dd>
-            <dt>{{ i18n.t({ th: 'รหัสเปิดใช้ตู้', en: 'Activation code' }) }}</dt><dd>{{ activateCode() }}</dd>
-            <dt>{{ i18n.t({ th: 'ขั้นตอน', en: 'Step' }) }}</dt><dd>{{ step() + 1 }} / {{ steps.length }}</dd>
-          </dl>
-          <div class="adv-steps">
-            @for (s of steps; track s.title.th; let i = $index) {
-              <div class="adv-step">
-                <span class="mono">{{ i + 1 }}</span>
-                <span class="grow">{{ i18n.t(s.title) }}</span>
-                <span class="mono" [class.ok-text]="i < step()" [class.warn-text]="i === step()">{{ i < step() ? i18n.t({ th: 'ผ่าน', en: 'done' }) : i === step() ? i18n.t({ th: 'กำลังทำ', en: 'active' }) : i18n.t({ th: 'รอ', en: 'waiting' }) }}</span>
-              </div>
-            }
-          </div>
-        </section>
 
         <div class="stack push-end">
           @switch (step()) {

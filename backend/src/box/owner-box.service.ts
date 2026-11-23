@@ -190,7 +190,13 @@ export class OwnerBoxService {
    * เจ้าของกด "เปลี่ยน Wi-Fi": จดคำสั่งไว้ที่ตู้ + ปลุก long-poll ของตู้ทันที (ตู้ที่หลับอยู่จะรับตอน boot/report ครั้งถัดไป)
    * ตู้ของคนอื่น/ไม่ใช่ตู้ที่ผูก → 404 · มีคำสั่งรออยู่แล้ว → คืนสถานะเดิม (ไม่ออกคำสั่งใหม่ ตู้จะได้ไม่เห็น id สองค่า)
    */
-  async requestWifiReset(userId: string, boxId: string): Promise<WifiResetDto> {
+  async requestWifiReset(userId: string, boxId: string, force = false): Promise<WifiResetDto> {
+    // ตู้ออฟไลน์ (ไม่ใช่แค่หลับตามเวลา) = คำสั่งจะค้างไว้เฉยๆ → ต้องยืนยันด้วย force ชัดเจน
+    const [box] = await this.summaries(userId, boxId);
+    if (!box) throw new NotFoundException();
+    if (box.status === 'offline' && !force) {
+      throw new AppError(HttpStatus.SERVICE_UNAVAILABLE, 'BOX_OFFLINE', 'the mailbox is offline — send force=true to queue the command anyway');
+    }
     const { rows } = await this.pool.query<{ requested: Date | null; done: Date | null }>(
       `UPDATE app.box_tb SET
          wifi_reset_requested_date = CASE WHEN wifi_reset_requested_date > now() - make_interval(hours => $3) THEN wifi_reset_requested_date ELSE now() END,

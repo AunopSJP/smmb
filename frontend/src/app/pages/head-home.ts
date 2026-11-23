@@ -54,9 +54,6 @@ interface RecentLog {
       @if (failed()) {
         <app-load-error (retry)="retry()" />
       }
-      <p class="adv-only code-row">
-        <span>{{ i18n.t({ th: 'รหัสกลุ่ม ', en: 'Group code ' }) }}<b>{{ code() || '—' }}</b></span>
-      </p>
 
       <!-- โหมดง่าย: ตัวเลขใหญ่ 3 ตัว + คำขอรออนุมัติ (ตาม HeadEasy) -->
       <div class="easy-only stack">
@@ -168,12 +165,6 @@ interface RecentLog {
                   {{ i18n.t({ th: 'เจ้าหน้าที่ ', en: 'Officers ' }) }}{{ z.officers.length }}{{ i18n.t({ th: ' คน', en: '' }) }}{{ z.houses_offline ? ' · ' + i18n.t({ th: 'ออฟไลน์ ', en: 'offline ' }) + z.houses_offline + i18n.t({ th: ' ตู้', en: '' }) : '' }}
                 } @else {
                   {{ i18n.t({ th: 'ยังไม่มีคน', en: 'No officers yet' }) }}
-                }
-              </span>
-              <span class="muted small block adv-only">
-                {{ windows(z.windows) }} · {{ i18n.t({ th: 'จนท. ', en: 'officers ' }) }}{{ z.officers.length }} · {{ i18n.t({ th: 'ออนไลน์ ', en: 'online ' }) }}{{ z.houses_total - z.houses_offline }}/{{ z.houses_total }}
-                @if (z.officers.length) {
-                  · {{ officerNames(z) }}
                 }
               </span>
             </span>

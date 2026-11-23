@@ -150,7 +150,6 @@ const RESULT_TEXT: Record<string, Tr> = {
               <strong>{{ l.house_no ?? l.box_id ?? '—' }} · {{ time(l.at) }}</strong>
               <span class="muted small block easy-hide">{{ sub(l) }}</span>
               <span class="muted small block easy-only">{{ l.officer?.display_name ?? '—' }}</span>
-              <span class="muted small block adv-only">{{ i18n.t({ th: 'เวลาบันทึก ', en: 'Logged ' }) }}{{ exact(l.at) }}</span>
             </span>
             <span class="chip" [class.ok]="chipTone(l) === 'ok'" [class.warn]="chipTone(l) === 'warn'" [class.danger]="chipTone(l) === 'danger'">{{ i18n.t(resultText(l)) }}</span>
           </li>

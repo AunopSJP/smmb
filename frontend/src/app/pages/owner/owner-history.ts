@@ -150,7 +150,7 @@ const clockSec = bkkClock;
       </div>
       <div class="segmented chips easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'ประเภท', en: 'Type' })">
         @for (t of types; track t.v) {
-          <button type="button" [class.adv-only]="t.v === 'photo'" [attr.aria-pressed]="typeFilter() === t.v" (click)="typeFilter.set(t.v)">{{ i18n.t(t.label) }}</button>
+          <button type="button" [attr.aria-pressed]="typeFilter() === t.v" (click)="typeFilter.set(t.v)">{{ i18n.t(t.label) }}</button>
         }
       </div>
       @if (range() === 'custom') {
@@ -171,11 +171,6 @@ const clockSec = bkkClock;
       }
 
       @if (items().length) {
-        <div class="counts adv-only">
-          <span>{{ i18n.t({ th: 'ทั้งหมด', en: 'All' }) }} {{ items().length }}</span>
-          <span>{{ i18n.t({ th: 'ตรวจ', en: 'Checks' }) }} {{ countType('inspected') }}</span>
-          <span>{{ i18n.t({ th: 'ส่งของ', en: 'Parcels' }) }} {{ countType('delivered') }}</span>
-        </div>
       }
 
       @if (display.easyMode()) {
@@ -216,7 +211,6 @@ const clockSec = bkkClock;
                 <span class="grow">
                   <strong>{{ i18n.t(k.title) }}</strong>
                   <span class="muted small block">{{ sub(h) }}</span>
-                  <span class="muted small block adv-only mono">{{ tech(h) }}</span>
                 </span>
                 <span class="muted small when">{{ time(h.at) }}</span>
               </a>
@@ -309,7 +303,6 @@ export class OwnerHistory {
     { v: 'all', label: { th: 'ทั้งหมด', en: 'All' } },
     { v: 'inspected', label: { th: 'เจ้าหน้าที่ตรวจ', en: 'Officer checks' } },
     { v: 'delivered', label: { th: 'ของมาส่ง', en: 'Parcels' } },
-    { v: 'photo', label: { th: 'มีรูป', en: 'With photo' } },
   ];
   protected readonly items = computed(() =>
     this.store.events().filter((e) =>
@@ -463,10 +456,6 @@ function useEvent(type: BoxEvent['type']) {
             <dl class="kv">
               <dt>{{ i18n.t({ th: 'เจ้าหน้าที่', en: 'Officer' }) }}</dt><dd>{{ h.officer?.display_name }}</dd>
               <dt>{{ i18n.t({ th: 'หน่วยงาน', en: 'Agency' }) }}</dt><dd>{{ h.officer?.agency_name }}</dd>
-              <dt class="adv-only">{{ i18n.t({ th: 'วันเวลา', en: 'Date' }) }}</dt><dd class="adv-only">{{ exact(h.at) }}</dd>
-              <dt class="adv-only">{{ i18n.t({ th: 'QR ที่สแกน', en: 'QR scanned' }) }}</dt><dd class="adv-only">{{ h.qr_slot === 2 ? i18n.t({ th: 'QR สำรอง', en: 'Backup QR' }) : i18n.t({ th: 'QR หน้าตู้', en: 'Front QR' }) }}</dd>
-              <dt class="adv-only">{{ i18n.t({ th: 'วิธี', en: 'Method' }) }}</dt><dd class="adv-only">{{ h.method === 'code' ? i18n.t({ th: 'พิมพ์รหัส', en: 'Typed code' }) : i18n.t({ th: 'สแกน', en: 'Scan' }) }}</dd>
-              <dt class="adv-only">{{ i18n.t({ th: 'รูปยืนยัน', en: 'Photo' }) }}</dt><dd class="adv-only">{{ h.has_photo ? i18n.t({ th: 'มี · เก็บ 30 วัน', en: 'Yes · kept 30 days' }) : i18n.t({ th: 'ไม่มี', en: 'None' }) }}</dd>
             </dl>
           </section>
         }
@@ -582,9 +571,6 @@ export class OwnerInspection {
             </div>
             <dl class="kv">
               <dt>{{ i18n.t({ th: 'แจ้งโดย', en: 'Reported by' }) }}</dt><dd>{{ i18n.t({ th: 'ไรเดอร์', en: 'Rider' }) }}</dd>
-              <dt class="adv-only">{{ i18n.t({ th: 'วันเวลา', en: 'Date' }) }}</dt><dd class="adv-only">{{ exact(h.at) }}</dd>
-              <dt class="adv-only">{{ i18n.t({ th: 'วิธี', en: 'Method' }) }}</dt><dd class="adv-only">{{ h.method === 'code' ? i18n.t({ th: 'พิมพ์รหัสใต้ QR', en: 'Typed the code' }) : i18n.t({ th: 'สแกน QR หน้าตู้', en: 'Scanned the front QR' }) }}</dd>
-              <dt class="adv-only">{{ i18n.t({ th: 'QR ที่ใช้', en: 'QR used' }) }}</dt><dd class="adv-only">{{ h.qr_slot === 2 ? i18n.t({ th: 'QR สำรอง', en: 'Backup QR' }) : i18n.t({ th: 'QR หน้าตู้', en: 'Front QR' }) }}</dd>
             </dl>
           </section>
         }

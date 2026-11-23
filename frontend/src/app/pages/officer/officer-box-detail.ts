@@ -5,7 +5,7 @@ import { I18n, type Tr } from '../../core/i18n';
 import { InspectionApi, type OfficerBoxDetail } from '../../core/inspection-api';
 import { Session } from '../../core/session';
 import { DisplaySettings } from '../../core/display-settings';
-import { fmtWhen, fmtWhenSec } from '../../core/time';
+import { fmtWhen } from '../../core/time';
 import { screenUrl } from '../../screens/registry';
 import { Icon, type IconName } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
@@ -52,8 +52,6 @@ const STATUS: Record<OfficerBoxDetail['box']['status'], { label: Tr; icon: IconN
             <dd>{{ d.box.last_seen_at ? when(d.box.last_seen_at) : '—' }}</dd>
             <dt>{{ i18n.t({ th: 'แบตเตอรี่', en: 'Battery' }) }}</dt>
             <dd>{{ d.box.battery ? d.box.battery.pct + '%' + (d.box.battery.charging ? i18n.t({ th: ' · ชาร์จอยู่', en: ' · charging' }) : '') : i18n.t({ th: 'ยังไม่รายงาน', en: 'No report yet' }) }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt>
-            <dd class="mono adv-only">{{ d.box.id }}</dd>
           </dl>
         </section>
 

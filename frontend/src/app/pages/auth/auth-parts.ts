@@ -16,6 +16,7 @@ import { screenUrl } from '../../screens/registry';
       <span>{{ i18n.t(label()) }}</span>
       <span class="with-unit">
         <input
+          data-testid="password-input"
           [type]="show() ? 'text' : 'password'"
           [attr.autocomplete]="isNew() ? 'new-password' : 'current-password'"
           autocapitalize="off"

@@ -19,7 +19,6 @@ import { PageHeader } from '../../shared/page-header';
     <div class="stack">
       <app-notification-list />
       <p class="easy-only note">{{ i18n.t({ th: 'แตะรายการเพื่ออ่าน · เปิดแจ้งเตือนไว้ตลอดเพื่อรับ SOS', en: 'Tap an item to read · keep notifications on for SOS' }) }}</p>
-      <p class="adv-only">{{ i18n.t({ th: 'เก็บในหน้านี้แม้ push ไม่ถึง · SOS/ตู้มีปัญหา/QR ปลอม ปิดรับไม่ได้', en: 'kept here even if push fails · SOS/box problem/fake QR cannot be muted' }) }}</p>
     </div>
   `,
   styles: `

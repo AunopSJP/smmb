@@ -40,12 +40,8 @@ const RESULT: Record<string, Tr> = {
   template: `
     <app-page-header [caption]="session.me()?.agency?.name ?? ''" [title]="i18n.t({ th: 'ประวัติ', en: 'History' })" />
     <div class="stack grow">
-      <p class="adv-only">{{ i18n.t({ th: 'เฉพาะของคุณ · แก้ไขย้อนหลังไม่ได้', en: 'yours only · cannot be edited later' }) }}</p>
       <div class="segmented chips easy-hide" role="group" [attr.aria-label]="i18n.t({ th: 'กรองผล', en: 'Filter' })">
         <button type="button" [attr.aria-pressed]="filter() === 'all'" (click)="filter.set('all')">{{ i18n.t({ th: 'ทั้งหมด', en: 'All' }) }}</button>
-        <button type="button" class="adv-only" [attr.aria-pressed]="filter() === 'ok'" (click)="filter.set('ok')">
-          {{ i18n.t({ th: 'ผ่าน', en: 'Passed' }) }}
-        </button>
         <button type="button" [attr.aria-pressed]="filter() === 'problems'" (click)="filter.set('problems')">
           {{ i18n.t({ th: 'ไม่ผ่าน', en: 'Problems' }) }}{{ problemCount() ? ' ' + problemCount() : '' }}
         </button>
@@ -68,7 +64,6 @@ const RESULT: Record<string, Tr> = {
             <span class="grow">
               <strong>{{ title(l) }}</strong>
               <span class="muted small block">{{ when(l.at) }}<span class="easy-hide"> · {{ i18n.t(how(l)) }}</span></span>
-              <span class="muted small block adv-only">{{ i18n.t({ th: 'เวลาบันทึก ', en: 'Logged ' }) }}{{ stamp(l.at) }}</span>
             </span>
             <span class="chip" [class.ok]="chipTone(l) === 'ok'" [class.warn]="chipTone(l) === 'warn'" [class.danger]="chipTone(l) === 'danger'">{{ i18n.t(resultText(l)) }}</span>
           </li>

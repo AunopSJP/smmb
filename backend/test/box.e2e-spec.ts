@@ -1198,7 +1198,7 @@ describe('Boxes (e2e)', () => {
 
       const poll = box(b, 'GET', '/v1/box/jobs?wait=10').then((r) => r);
       await new Promise((r) => setTimeout(r, 300));
-      const req = await as(owner.cookie).post(`/api/v1/boxes/${b.box_id}/wifi-reset`).expect(200);
+      const req = await as(owner.cookie).post(`/api/v1/boxes/${b.box_id}/wifi-reset`).send({ force: true }).expect(200);
       expect(req.body.status).toBe('pending');
       const res = await poll;
       expect(res.status).toBe(200);
@@ -1206,7 +1206,7 @@ describe('Boxes (e2e)', () => {
       expect(res.body.job).toBeUndefined();
 
       // กดซ้ำระหว่างรอ = คำสั่งเดิม (id เดิม)
-      await as(owner.cookie).post(`/api/v1/boxes/${b.box_id}/wifi-reset`).expect(200);
+      await as(owner.cookie).post(`/api/v1/boxes/${b.box_id}/wifi-reset`).send({ force: true }).expect(200);
       expect((await box(b, 'GET', '/v1/box/jobs?wait=0').expect(200)).body.command.id).toBe(res.body.command.id);
 
       // ตอบรับด้วย id ผิด = ไม่ทำอะไร
@@ -1224,7 +1224,7 @@ describe('Boxes (e2e)', () => {
 
     it('a sleeping box gets the command in the boot / report reply', async () => {
       const { b, owner } = await boundBox();
-      await as(owner.cookie).post(`/api/v1/boxes/${b.box_id}/wifi-reset`).expect(200);
+      await as(owner.cookie).post(`/api/v1/boxes/${b.box_id}/wifi-reset`).send({ force: true }).expect(200);
       const boot = await box(b, 'POST', '/v1/box/boot', { fw: 't', config_ver: 0 }).expect(200);
       expect(boot.body.command).toMatchObject({ type: 'wifi_reset' });
       const rep = await box(b, 'POST', '/v1/box/report', { fw: 't', config_ver: boot.body.config_ver }).expect(200);
@@ -1233,7 +1233,7 @@ describe('Boxes (e2e)', () => {
 
     it('the owner can cancel before the box takes it; the box then hears nothing', async () => {
       const { b, owner } = await boundBox();
-      await as(owner.cookie).post(`/api/v1/boxes/${b.box_id}/wifi-reset`).expect(200);
+      await as(owner.cookie).post(`/api/v1/boxes/${b.box_id}/wifi-reset`).send({ force: true }).expect(200);
       const cancelled = await http().delete(`/api/v1/boxes/${b.box_id}/wifi-reset`).set('Cookie', owner.cookie).expect(200);
       expect(cancelled.body.status).toBe('idle');
       await box(b, 'GET', '/v1/box/jobs?wait=0').expect(204);
@@ -1244,24 +1244,32 @@ describe('Boxes (e2e)', () => {
     it('scope: only the owner of that box · others get 404 · an unbound box has no owner · box api needs the signature', async () => {
       const { b, owner } = await boundBox();
       const stranger = await signupOwner('5/5');
-      await as(stranger.cookie).post(`/api/v1/boxes/${b.box_id}/wifi-reset`).expect(404);
+      await as(stranger.cookie).post(`/api/v1/boxes/${b.box_id}/wifi-reset`).send({ force: true }).expect(404);
       await http().delete(`/api/v1/boxes/${b.box_id}/wifi-reset`).set('Cookie', stranger.cookie).expect(404);
       const [unbound] = await register();
-      await as(owner.cookie).post(`/api/v1/boxes/${unbound.box_id}/wifi-reset`).expect(404);
+      await as(owner.cookie).post(`/api/v1/boxes/${unbound.box_id}/wifi-reset`).send({ force: true }).expect(404);
       await http().post(`/api/v1/boxes/${b.box_id}/wifi-reset`).expect(401);
       expect((await wifi(owner.cookie, b.box_id)).status).toBe('idle'); // ของคนอื่นไม่ทำให้ตู้เราเปลี่ยน
       // เจ้าหน้าที่/แอดมินไม่ใช่เจ้าของ → ใช้ไม่ได้
       await as(admin.cookie).post(`/api/v1/boxes/${b.box_id}/wifi-reset`).expect(404);
     });
 
+    it('an offline box is refused with 503 BOX_OFFLINE unless the owner confirms with force=true', async () => {
+      const { b, owner } = await boundBox();
+      await as(owner.cookie).post(`/api/v1/boxes/${b.box_id}/wifi-reset`).expect(503).expect((r) => expect(r.body.code).toBe('BOX_OFFLINE'));
+      expect((await wifi(owner.cookie, b.box_id)).status).toBe('idle'); // ไม่มีคำสั่งค้าง
+      await as(owner.cookie).post(`/api/v1/boxes/${b.box_id}/wifi-reset`).send({ force: true }).expect(200);
+      expect((await wifi(owner.cookie, b.box_id)).status).toBe('pending');
+    });
+
     it('a request nobody picked up for 24 h expires — the box no longer hears it', async () => {
       const { b, owner } = await boundBox();
-      await as(owner.cookie).post(`/api/v1/boxes/${b.box_id}/wifi-reset`).expect(200);
+      await as(owner.cookie).post(`/api/v1/boxes/${b.box_id}/wifi-reset`).send({ force: true }).expect(200);
       await pool.query(`UPDATE app.box_tb SET wifi_reset_requested_date = now() - interval '25 hours' WHERE box_id = $1`, [b.box_id]);
       expect((await wifi(owner.cookie, b.box_id)).status).toBe('expired');
       await box(b, 'GET', '/v1/box/jobs?wait=0').expect(204);
       // กดใหม่ = ออกคำสั่งใหม่ (id ใหม่)
-      expect((await as(owner.cookie).post(`/api/v1/boxes/${b.box_id}/wifi-reset`).expect(200)).body.status).toBe('pending');
+      expect((await as(owner.cookie).post(`/api/v1/boxes/${b.box_id}/wifi-reset`).send({ force: true }).expect(200)).body.status).toBe('pending');
       expect((await box(b, 'GET', '/v1/box/jobs?wait=0').expect(200)).body.command.type).toBe('wifi_reset');
     });
   });

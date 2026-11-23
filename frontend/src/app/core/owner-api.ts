@@ -144,8 +144,8 @@ export class OwnerApi {
   releaseBox(id: string, resetWifi = true): Promise<{ box_id: string; wifi_reset: boolean }> {
     return firstValueFrom(this.http.post<{ box_id: string; wifi_reset: boolean }>(`/api/v1/boxes/${encodeURIComponent(id)}/unbind`, { reset_wifi: resetWifi }));
   }
-  requestWifiReset(id: string): Promise<WifiReset> {
-    return firstValueFrom(this.http.post<WifiReset>(`/api/v1/boxes/${encodeURIComponent(id)}/wifi-reset`, {}));
+  requestWifiReset(id: string, force = false): Promise<WifiReset> {
+    return firstValueFrom(this.http.post<WifiReset>(`/api/v1/boxes/${encodeURIComponent(id)}/wifi-reset`, force ? { force: true } : {}));
   }
   cancelWifiReset(id: string): Promise<WifiReset> {
     return firstValueFrom(this.http.delete<WifiReset>(`/api/v1/boxes/${encodeURIComponent(id)}/wifi-reset`));

@@ -106,9 +106,6 @@ export class RiderApi {
       } @else if (failed()) {
         <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ทำรายการไม่สำเร็จ ลองอีกครั้ง', en: 'Something went wrong — try again' }) }}</p>
       }
-      <p class="muted small adv-only">
-        {{ i18n.t({ th: 'รหัส 8 ตัวอักษร · ตั๋วใช้ได้ 10 นาที · ผิดซ้ำจะถูกพักชั่วคราว', en: '8-character code · ticket valid for 10 minutes · repeated errors pause you briefly' }) }}
-      </p>
       @if (display.easyMode()) {
         <app-code-keypad (key)="press($event)" (back)="backspace()" />
       }
@@ -214,9 +211,6 @@ export class RiderCode {
           <p class="muted small">{{ i18n.t({ th: 'เจ้าของบ้านจะได้รับแจ้งเตือนทันที', en: 'The owner is notified right away' }) }}</p>
         </section>
         <p class="small easy-only">{{ i18n.t({ th: 'วางของลงตู้ก่อน แล้วค่อยกดปุ่ม', en: 'Put the parcel in first, then tap the button' }) }}</p>
-        <p class="muted small adv-only">
-          {{ i18n.t({ th: 'ตั๋วลงลายเซ็น ใช้ครั้งเดียว 10 นาที · ไม่เก็บข้อมูลตัวตนของผู้ส่ง', en: 'signed ticket · single use · 10 minutes · the sender’s identity is not stored' }) }}
-        </p>
 
         @if (expired()) {
           <p class="card expired" role="alert">
@@ -439,7 +433,6 @@ export class RiderLimited {
           {{ i18n.t({ th: 'แจ้งเจ้าของบ้านแล้ว', en: 'Owner notified' }) }}<span class="easy-hide"> {{ at() ?? '' }}</span><br />
           {{ i18n.t({ th: 'ปิดหน้านี้ได้ ขอบคุณที่ใช้บริการ', en: 'You can close this page. Thank you' }) }}
         </p>
-        <p class="small adv-only">{{ i18n.t({ th: 'ตั๋วใช้แล้ว · ไม่เก็บข้อมูลผู้ส่ง', en: 'ticket used · no sender identity stored' }) }}</p>
       </div>
     </div>
   `,
@@ -447,9 +440,6 @@ export class RiderLimited {
     .done {
       background: var(--success-bg);
       color: var(--success-fg);
-    }
-    .done .adv-only {
-      color: rgb(255 255 255 / 75%);
     }
     .result h1 {
       font-size: var(--fs-xl);

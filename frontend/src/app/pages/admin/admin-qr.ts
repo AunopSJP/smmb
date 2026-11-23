@@ -236,11 +236,6 @@ export class QrPrintSheet {
         </details>
       }
       <p class="muted small easy-hide">{{ i18n.t({ th: 'ตรวจอัตโนมัติทุกคืน 23:00 · QR ที่อาจปลอมแจ้งทันที · รายการรีเฟรชเองทุก 10 วินาที', en: 'Checked every night at 23:00 · possible fakes are reported at once · refreshes every 10 s' }) }}</p>
-      <p class="muted small adv-only">
-        {{ i18n.t({ th: 'เปิด ', en: 'Open ' }) }}{{ open().length }} · {{ i18n.t({ th: 'ปิด ', en: 'Closed ' }) }}{{ closed().length }} ·
-        {{ i18n.t({ th: 'อาจปลอม ', en: 'Maybe fake ' }) }}{{ counts().maybe_fake }} · {{ i18n.t({ th: 'เสีย ', en: 'Damaged ' }) }}{{ counts().damaged }} ·
-        {{ i18n.t({ th: 'น่าสงสัย ', en: 'Suspicious ' }) }}{{ counts().suspicious }} · {{ i18n.t({ th: 'ใกล้หมดอายุ ', en: 'Expiring ' }) }}{{ counts().expiring }}
-      </p>
     </div>
   `,
   styles: `

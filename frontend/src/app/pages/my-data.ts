@@ -63,7 +63,6 @@ import { EmptyState, LoadingRows } from '../shared/state-view';
                   <span class="grow">
                     <strong>{{ s.device_label || i18n.t({ th: 'ไม่ทราบเครื่อง', en: 'Unknown device' }) }}</strong>
                     <span class="muted small block">{{ i18n.t({ th: 'ใช้ล่าสุด ', en: 'Last used ' }) }}{{ when(s.last_used_at) }}</span>
-                    <span class="muted small block adv-only">{{ i18n.t({ th: 'เข้าสู่ระบบ ', en: 'Signed in ' }) }}{{ when(s.created_at) }}@if (s.ip_hint) { · {{ s.ip_hint }} }</span>
                   </span>
                   @if (s.current) {
                     <span class="chip ok">{{ i18n.t({ th: 'เครื่องนี้', en: 'This device' }) }}</span>
@@ -112,7 +111,7 @@ import { EmptyState, LoadingRows } from '../shared/state-view';
                     <strong class="warn-text">{{ i18n.t({ th: 'ตอนนี้ลบไม่ได้', en: 'Can’t delete right now' }) }}</strong>
                     <ul class="plain">
                       @for (b of p.blockers; track b.code) {
-                        <li>{{ i18n.t(blockerText(b.code)) }}<span class="adv-only mono"> · {{ b.code }}</span></li>
+                        <li>{{ i18n.t(blockerText(b.code)) }}</li>
                       }
                     </ul>
                   </div>

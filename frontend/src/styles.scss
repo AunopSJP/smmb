@@ -380,10 +380,6 @@ textarea {
   }
 }
 
-/* โหมดมีแค่ easy กับ default: .adv-only คือข้อมูลเทคนิคของโหมดละเอียดที่เลิกแล้ว — ซ่อนทุกโหมด (รอลบ markup ออกจากหน้า) */
-.adv-only {
-  display: none !important;
-}
 /* .desk-only: ซ่อนบนมือถือ/แท็บเล็ต แสดงบนจอคอม */
 @media (max-width: 1023px) {
   .desk-only {
@@ -2382,8 +2378,6 @@ details.opt {
     color: var(--text-muted);
     font-size: var(--fs-xs);
     font-weight: var(--fw-strong);
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
   }
   .list-head .th {
     font-size: inherit;

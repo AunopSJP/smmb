@@ -134,7 +134,6 @@ import { bkkClock, fmtDate } from '../../core/time';
                 {{ b.area || '—' }} <button type="button" class="link" (click)="startArea()">{{ i18n.t({ th: 'แก้ไข', en: 'Edit' }) }}</button>
               }
             </dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd class="adv-only">{{ b.id }}</dd>
             <dt class="easy-hide">{{ i18n.t({ th: 'แบตเตอรี่', en: 'Battery' }) }}</dt>
             <dd class="easy-hide">{{ b.battery ? b.battery.pct + '%' : '—' }}{{ b.battery?.charging ? i18n.t({ th: ' · ชาร์จอยู่', en: ' · charging' }) : '' }}</dd>
             <dt>{{ i18n.t({ th: 'ผู้ดูแล', en: 'Covered by' }) }}</dt>

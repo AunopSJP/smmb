@@ -46,7 +46,6 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
           <p class="muted small easy-hide">
             {{ i18n.t({ th: 'หัวหน้า: ', en: 'Head: ' }) }}{{ heads(a) }} · {{ i18n.t({ th: 'ส่งเมื่อ ', en: 'Sent ' }) }}{{ date(a.created_at) }}
           </p>
-          <p class="small adv-only">{{ i18n.t({ th: 'หัวหน้า: ', en: 'Head: ' }) }}{{ heads(a) }}</p>
           @if (a.address || a.registration_no) {
             <p class="small easy-hide">
               @if (a.address) { {{ i18n.t({ th: 'ที่ตั้ง: ', en: 'Address: ' }) }}{{ a.address }} }

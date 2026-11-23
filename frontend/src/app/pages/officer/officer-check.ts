@@ -80,7 +80,6 @@ async function startInspection(api: InspectionApi, router: Router, body: Paramet
         </button>
         <h1>{{ i18n.t({ th: 'สแกน QR หน้าตู้', en: 'Scan the mailbox QR' }) }}</h1>
       </header>
-      <p class="adv-only">{{ i18n.t({ th: 'อ่าน QR อัตโนมัติ · ไม่บันทึกภาพ', en: 'auto-reads the QR · no photo kept' }) }}</p>
       <p class="aim">{{ i18n.t({ th: 'เล็ง QR หน้าตู้ให้อยู่ในกรอบ', en: 'Fit the mailbox QR inside the frame' }) }}</p>
       @if (ready()) {
         @if (busy()) {
@@ -229,7 +228,6 @@ const CAMERA_NOTE: Record<string, Tr> = {
       }}</a>
       <h1>{{ i18n.t({ th: 'พิมพ์รหัสใต้ QR', en: 'Type the code under the QR' }) }}</h1>
       <p class="muted small">{{ i18n.t({ th: 'รหัส 8 ตัว อยู่ใต้ QR หน้าตู้', en: 'The 8-character code under the mailbox QR' }) }}</p>
-      <p class="muted small adv-only">{{ i18n.t({ th: 'รหัส 8 ตัว คั่นขีดกลางที่ตัวที่ 4 · ไม่แยกตัวพิมพ์เล็ก/ใหญ่ · บันทึกทุกครั้งที่ลอง', en: '8 characters, dash after the 4th · case-insensitive · every try is logged' }) }}</p>
       @if (note(); as n) {
         <p class="chip warn note">{{ i18n.t(n) }}</p>
       }
@@ -309,6 +307,7 @@ const CAMERA_NOTE: Record<string, Tr> = {
     }
     input:focus {
       border-color: var(--brand-text);
+      box-shadow: var(--focus);
     }
     input[aria-invalid='true'] {
       border-color: var(--sos);
@@ -798,11 +797,6 @@ interface WakeLockSentinelLike {
         }
       </div>
 
-      <div class="adv-only grid3 mono">
-        <div>{{ i18n.t({ th: 'เปลี่ยนใน', en: 'Rotate in' }) }}<b>{{ left() }} {{ i18n.t({ th: 'วิ', en: 's' }) }}</b></div>
-        <div>{{ i18n.t({ th: 'หมดอายุ', en: 'Expires' }) }}<b>{{ expText() }}</b></div>
-        <div>{{ i18n.t({ th: 'ครั้งที่', en: 'Try' }) }}<b>{{ ins()?.attempt ?? 1 }} / {{ ins()?.attempts_max ?? 3 }}</b></div>
-      </div>
 
       <div class="countdown" aria-live="off">
         <span class="sec">{{ left() }}</span>

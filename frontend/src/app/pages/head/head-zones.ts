@@ -89,14 +89,6 @@ const ZONE_ERROR: Record<string, Tr> = {
         <a class="btn add" [routerLink]="url('L07')" [queryParams]="{ zone: 'new' }">+ {{ i18n.t({ th: 'สร้างโซน', en: 'New zone' }) }}</a>
       </div>
       @if (shown().length) {
-        <section class="card adv-only">
-          <dl class="kv">
-            <dt>{{ i18n.t({ th: 'โซนที่แสดง', en: 'Zones shown' }) }}</dt><dd class="mono">{{ shown().length }}</dd>
-            <dt>{{ i18n.t({ th: 'บ้านรวม', en: 'Houses' }) }}</dt><dd class="mono">{{ totalHouses() }}</dd>
-            <dt>{{ i18n.t({ th: 'เจ้าหน้าที่รวม', en: 'Officers' }) }}</dt><dd class="mono">{{ totalOfficers() }}</dd>
-            <dt>{{ i18n.t({ th: 'ยังไม่มีเจ้าหน้าที่', en: 'No officers yet' }) }}</dt><dd class="mono">{{ noOfficerZones() }}</dd>
-          </dl>
-        </section>
       }
       @for (z of shown(); track z.id) {
         <a class="card zone" [class.warn]="!z.officers_count" [routerLink]="url('L07')" [queryParams]="{ zone: z.id }">
@@ -116,9 +108,6 @@ const ZONE_ERROR: Record<string, Tr> = {
           @if (!z.area) {
             <span class="warn-text small easy-only">{{ i18n.t({ th: 'ยังไม่ได้ตั้งพื้นที่', en: 'No area set yet' }) }}</span>
           }
-          <span class="muted small block adv-only">
-            {{ areaText(z) }} · {{ i18n.t({ th: 'แก้ล่าสุด ', en: 'updated ' }) }}{{ updated(z) }}
-          </span>
         </a>
       } @empty {
         @if (zonesFailed()) {
@@ -236,7 +225,6 @@ export class HeadZones implements OnInit {
     <app-page-header [caption]="isNew() ? i18n.t({ th: 'สร้างโซน', en: 'New zone' }) : i18n.t({ th: 'แก้ไขโซน', en: 'Edit zone' })" [title]="name() || i18n.t({ th: 'โซนใหม่', en: 'New zone' })" [back]="url('L06')" />
     <div class="stack grow">
       @if (zone(); as z) {
-        <p class="adv-only muted small" style="margin-inline: 4px">{{ i18n.t({ th: 'แก้ล่าสุด ', en: 'Updated ' }) }}{{ updated(z.updated_at) }}</p>
         <div class="tabs" role="tablist" [attr.aria-label]="i18n.t({ th: 'แท็บของโซน', en: 'Zone tabs' })">
           <button type="button" role="tab" [attr.aria-selected]="tab() === 'settings'" [class.active]="tab() === 'settings'" (click)="tab.set('settings')">{{ i18n.t({ th: 'ตั้งค่า', en: 'Settings' }) }}</button>
           <button type="button" role="tab" [attr.aria-selected]="tab() === 'houses'" [class.active]="tab() === 'houses'" (click)="tab.set('houses')">{{ i18n.t({ th: 'บ้าน', en: 'Houses' }) }} ({{ z.houses.length }})</button>
@@ -257,7 +245,6 @@ export class HeadZones implements OnInit {
           <span class="muted small easy-hide">{{ i18n.t({ th: 'ตอนเพิ่มบ้าน จะเห็นเฉพาะบ้านที่อยู่ในพื้นที่นี้', en: 'When adding houses you will only see houses inside this area' }) }}</span>
           <app-place-picker [province]="province()" [district]="district()" [subdistrict]="subdistrict()" [subdistrictRequired]="false" (changed)="setArea($event)" />
           @if (zone()?.area; as a) {
-            <p class="muted small mono adv-only">{{ a.subdistrict || '—' }} / {{ a.district }} / {{ a.province }}</p>
           }
         </fieldset>
         <fieldset class="stack hours">

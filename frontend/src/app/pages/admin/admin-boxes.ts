@@ -126,7 +126,6 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
               <span class="grow">
                 <strong>{{ b.id }}</strong>
                 <span class="muted small block">{{ b.house_no ?? i18n.t({ th: 'ยังไม่ผูกบ้าน', en: 'Not linked to a house' }) }}</span>
-                <span class="muted small block adv-only">{{ i18n.t({ th: 'ติดต่อล่าสุด ', en: 'Last seen ' }) }}{{ i18n.t(seen(b.last_seen_at)) }} · {{ i18n.t({ th: 'เฟิร์มแวร์ ', en: 'firmware ' }) }}{{ b.fw ?? '—' }}</span>
               </span>
             </span>
             <span>
@@ -159,7 +158,6 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
           {{ loadingMore() ? i18n.t({ th: 'กำลังโหลด…', en: 'Loading…' }) : i18n.t({ th: 'โหลดเพิ่ม ', en: 'Load more ' }) + boxes().length + '/' + total() }}
         </button>
       }
-      <p class="muted small adv-only">{{ i18n.t({ th: 'ออฟไลน์ = ไม่ poll เกิน 3 นาทีในเวลาตรวจ · เงียบ = ไม่เห็นเกิน 26 ชม.', en: 'Offline = no poll for over 3 min in patrol hours · silent = unseen over 26 h' }) }}</p>
     </div>
   `,
   styles: `

@@ -55,11 +55,10 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
             <strong>{{ m.display_name }}</strong>
             @if (m.position || m.staff_no) {
               <p class="small">
-                {{ m.position }}<span class="adv-only">{{ m.position && m.staff_no ? ' · ' : '' }}{{ m.staff_no ? i18n.t({ th: 'เลขประจำตัว ', en: 'Staff no. ' }) + m.staff_no : '' }}</span>
+                {{ m.position }}
               </p>
             }
             <p class="muted small">{{ i18n.t({ th: 'เบอร์ ', en: 'Phone ' }) }}{{ m.phone }} · {{ i18n.t({ th: 'ขอเมื่อ ', en: 'asked ' }) }}{{ when(m.joined_at) }}</p>
-            <p class="muted small adv-only">{{ i18n.t({ th: 'โซน ', en: 'Zones ' }) }}{{ zones(m) }}</p>
             <div class="two">
               <button type="button" class="btn secondary" [disabled]="busy()" (click)="decide(m, false)">{{ i18n.t({ th: 'ปฏิเสธ', en: 'Decline' }) }}</button>
               <button type="button" class="btn" [disabled]="busy()" (click)="decide(m, true)">{{ i18n.t({ th: 'อนุมัติ', en: 'Approve' }) }}</button>
@@ -96,7 +95,6 @@ const ago = (iso: string | null, lang: 'th' | 'en'): string => {
             <span class="grow">
               <strong>{{ m.display_name }}@if (m.id === meId()) { <span class="muted small"> ({{ i18n.t({ th: 'คุณ', en: 'you' }) }})</span> }</strong>
               <span class="muted small block">{{ zones(m) }}</span>
-              <span class="muted small block adv-only">@if (m.staff_no) { {{ i18n.t({ th: 'เลขประจำตัว ', en: 'Staff no. ' }) }}{{ m.staff_no }} · }{{ i18n.t({ th: 'เข้าเมื่อ ', en: 'Joined ' }) }}{{ when(m.joined_at) }}</span>
             </span>
             @if (m.status === 'disabled') {
               <span class="chip">{{ i18n.t({ th: 'ปิดสิทธิ์', en: 'Disabled' }) }}</span>
@@ -272,8 +270,6 @@ export class HeadMembers implements OnInit {
             <dt>{{ i18n.t({ th: 'ชื่อ', en: 'Name' }) }}</dt><dd>{{ m.name }}</dd>
             <dt>{{ i18n.t({ th: 'เบอร์', en: 'Phone' }) }}</dt><dd><a [href]="'tel:' + m.phone">{{ m.phone }}</a></dd>
             <dt>{{ i18n.t({ th: 'ตำแหน่ง / ยศ', en: 'Position' }) }}</dt><dd>{{ m.position || '—' }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'เลขประจำตัว', en: 'Staff no.' }) }}</dt><dd class="adv-only">{{ m.staff_no || '—' }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'เข้าร่วมเมื่อ', en: 'Joined' }) }}</dt><dd class="adv-only">{{ when(m.joined_at) }}</dd>
             <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt>
             <dd>{{ m.status === 'active' ? i18n.t({ th: 'ใช้งาน', en: 'Active' }) : i18n.t({ th: 'ปิดสิทธิ์', en: 'Disabled' }) }}{{ m.is_head ? ' · ' + i18n.t({ th: 'หัวหน้า', en: 'Head' }) : '' }}</dd>
             <dt>{{ i18n.t({ th: 'โซน', en: 'Zones' }) }}</dt><dd>{{ zones(m) }}</dd>

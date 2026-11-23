@@ -108,6 +108,7 @@ const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
           <div class="diag-step" [class.bad]="!s.ok">
             <span class="lead"><app-icon [name]="s.ok ? 'check' : 'alert'" [size]="16" />{{ i18n.t(s.label) }}</span>
             @if (!s.ok && s.fix) { <small class="fix">{{ i18n.t(s.fix) }}</small> }
+            @if (readable(s.detail); as d) { <small class="fix">{{ i18n.t(d) }}</small> }
           </div>
         }
         @if (diagBusy()) { <small>{{ i18n.t({ th: 'กำลังตรวจ…', en: 'Checking…' }) }}</small> }
@@ -228,6 +229,10 @@ export class PushStatus implements OnInit {
   protected readonly url = screenUrl;
   protected readonly busy = signal(false);
   protected readonly diag = signal<DiagStep[]>([]);
+  /** detail ที่เป็นข้อความอ่านได้ (Tr) เท่านั้น — ค่าเทคนิคดิบไม่แสดง */
+  protected readable(d: DiagStep['detail']): Tr | null {
+    return typeof d === 'object' && d !== null ? d : null;
+  }
   protected readonly diagBusy = signal(false);
   /** สถานะจาก GET /me/push/status — ใช้ในโหมดละเอียด */
   protected readonly server = signal<PushServerStatus | null>(null);

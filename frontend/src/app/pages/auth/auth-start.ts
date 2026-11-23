@@ -333,7 +333,7 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
         }
         <label class="field">
           <span>{{ i18n.t({ th: 'เบอร์โทรศัพท์', en: 'Phone number' }) }}</span>
-          <input type="tel" inputmode="numeric" autocomplete="tel" placeholder="0__-___-____" [value]="phone()" (input)="phone.set(bindPhone($any($event.target)))" />
+          <input type="tel" data-testid="signin-phone" inputmode="numeric" autocomplete="tel" placeholder="0__-___-____" [value]="phone()" (input)="phone.set(bindPhone($any($event.target)))" />
         </label>
         <app-password-field [(value)]="password" [invalid]="!!error()" />
         <!-- B2: ปุ่มข้อความกดได้จริง เปิดคำอธิบายทุกโหมด (เดิมเป็นตัวแดงที่กดไม่ได้และถูกซ่อนในโหมดง่าย) -->
@@ -349,7 +349,7 @@ const ROLE_CHOICE: Record<DemoAccountRole, { label: Tr; icon: IconName }> = {
         }
 
         <div class="stack auth-actions">
-          <button type="submit" class="btn" [disabled]="busy()">{{ error() ? i18n.t({ th: 'ลองอีกครั้ง', en: 'Try again' }) : i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</button>
+          <button type="submit" class="btn" data-testid="signin-submit" [disabled]="busy()">{{ error() ? i18n.t({ th: 'ลองอีกครั้ง', en: 'Try again' }) : i18n.t({ th: 'เข้าสู่ระบบ', en: 'Sign in' }) }}</button>
           <p class="center small">
             {{ i18n.t({ th: 'ยังไม่มีบัญชี? ', en: 'No account? ' }) }}<a class="link" [routerLink]="url('A05')">{{ i18n.t({ th: 'สมัครสมาชิก', en: 'Sign up' }) }}</a>
           </p>

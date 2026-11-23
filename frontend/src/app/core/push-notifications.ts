@@ -188,7 +188,7 @@ export class PushNotifications {
         : st.keys_match === false
           ? { ok: false, label: { th: 'กุญแจแจ้งเตือนของเซิร์ฟเวอร์ไม่เป็นคู่กัน', en: 'The server’s push keys do not match' }, fix: { th: 'แจ้งผู้ดูแลระบบ (ต้องสร้างกุญแจคู่ใหม่ แล้วทุกเครื่องเปิดแจ้งเตือนใหม่)', en: 'Tell the admin (a new key pair is needed; every device must turn it on again)' } }
           : mine?.usable
-            ? { ok: true, label: { th: 'เซิร์ฟเวอร์รู้จักเครื่องนี้', en: 'The server knows this device' }, detail: mine.last_ok_at ? `ส่งสำเร็จล่าสุด ${new Date(mine.last_ok_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Asia/Bangkok' })}` : 'ยังไม่เคยส่งสำเร็จ' }
+            ? { ok: true, label: { th: 'เซิร์ฟเวอร์รู้จักเครื่องนี้', en: 'The server knows this device' }, detail: mine.last_ok_at ? ((when) => ({ th: `ส่งสำเร็จล่าสุด ${when}`, en: `Last delivered ${when}` }))(new Date(mine.last_ok_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Asia/Bangkok' })) : { th: 'ยังไม่เคยส่งสำเร็จ', en: 'Never delivered yet' } }
             : {
                 ok: false,
                 label: mine ? { th: 'การลงทะเบียนของเครื่องนี้หมดอายุ (เซสชันถูกเตะ/หมดอายุ)', en: 'This device’s registration expired (the session ended)' } : { th: 'เซิร์ฟเวอร์ยังไม่รู้จักเครื่องนี้', en: 'The server does not know this device yet' },
@@ -221,7 +221,7 @@ export class PushNotifications {
     await wait;
     add(
       received
-        ? { ok: true, label: { th: 'Service worker รับแจ้งเตือนแล้ว', en: 'The service worker received it' }, detail: 'ถ้าไม่เห็นเด้ง ดูว่าปิดโหมดห้ามรบกวน/ประหยัดแบตอยู่ไหม และเปิดสิทธิ์แจ้งเตือนของเบราว์เซอร์/แอปในตั้งค่าเครื่อง' }
+        ? { ok: true, label: { th: 'Service worker รับแจ้งเตือนแล้ว', en: 'The service worker received it' }, detail: { th: 'ถ้าไม่เห็นเด้ง ดูว่าปิดโหมดห้ามรบกวน/ประหยัดแบตอยู่ไหม และเปิดสิทธิ์แจ้งเตือนของเบราว์เซอร์/แอปในตั้งค่าเครื่อง', en: "If you don't see it pop up, check that Do Not Disturb / battery saver is off and that notifications are allowed for the browser/app in the device settings" } }
         : {
             ok: false,
             label: { th: 'Service worker ไม่ได้รับแจ้งเตือนภายใน 9 วินาที', en: 'The service worker did not receive it within 9 seconds' },
@@ -261,7 +261,8 @@ export interface PushServerStatus {
 export interface DiagStep {
   ok: boolean;
   label: Tr;
-  detail?: string;
+  /** string = ค่าเทคนิคดิบ (ไม่แสดงผู้ใช้) · Tr = ข้อความที่ผู้ใช้อ่านได้ ไทย/อังกฤษ */
+  detail?: string | Tr;
   fix?: Tr;
 }
 

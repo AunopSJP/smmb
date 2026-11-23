@@ -92,14 +92,11 @@ import { LOW_BATTERY_PCT, boxBadge, seenText, SLOT_LABEL } from './admin-box-sha
         <!-- D1: การ์ดตัวเลขด้านบนมีสถานะ/แบต/เฟิร์มแวร์/ค่าตั้งค่าแล้ว — ตารางเหลือเฉพาะข้อมูลที่ไม่ซ้ำ -->
         <section class="card overview-card">
           <dl class="kv">
-            <dt class="adv-only">{{ i18n.t({ th: 'รหัสตู้', en: 'Box ID' }) }}</dt><dd class="adv-only mono">{{ b.id }}</dd>
             <dt>{{ i18n.t({ th: 'บ้าน', en: 'House' }) }}</dt>
             <dd>{{ b.bound ? (b.house_no + (b.name ? ' · ' + b.name : '')) : i18n.t({ th: 'ยังไม่ผูก', en: 'not bound' }) }}</dd>
             <dt class="easy-hide">{{ i18n.t({ th: 'ถือ long-poll ล่าสุด', en: 'Last long-poll' }) }}</dt>
             <dd class="easy-hide">{{ i18n.t(seen(b.last_poll_at)) }}</dd>
-            <dt class="adv-only">{{ i18n.t({ th: 'ลงทะเบียนเมื่อ', en: 'Registered' }) }}</dt><dd class="adv-only">{{ fwDate(b.registered_at) }}</dd>
             @if (b.service_reason) {
-              <dt class="adv-only">{{ i18n.t({ th: 'เหตุผลปิดบริการ', en: 'Service reason' }) }}</dt><dd class="adv-only">{{ b.service_reason }}</dd>
             }
             <dt>{{ i18n.t({ th: 'เวลาตรวจ', en: 'Patrol hours' }) }}</dt>
             <dd>{{ windows(b) }}</dd>
@@ -255,14 +252,6 @@ import { LOW_BATTERY_PCT, boxBadge, seenText, SLOT_LABEL } from './admin-box-sha
         }
 
         <!-- โหมดละเอียด: สิ่งที่ระบบจะทำจริง (ตาม AdmUnbind_A) — ใช้ข้อมูลที่มีจริงเท่านั้น -->
-        <section class="card adv-only stack">
-          <dl class="kv small">
-            <dt>{{ i18n.t({ th: 'สถานะผูก', en: 'Bound' }) }}</dt><dd>{{ b.bound ? i18n.t({ th: 'ผูกอยู่', en: 'Bound' }) : i18n.t({ th: 'ยังไม่ผูก', en: 'Not bound' }) }}</dd>
-            <dt>{{ i18n.t({ th: 'QR เปิดใช้ตู้', en: 'Activation QR' }) }}</dt>
-            <dd>{{ activationVersion() !== null ? 'v' + activationVersion() : '—' }}</dd>
-          </dl>
-          <p class="muted small">{{ i18n.t({ th: 'ทุกการเพิกถอน QR ถูกบันทึก · การเปิดดูรหัสลับถูกบันทึกไว้ด้วย', en: 'Every QR revocation is logged · revealing the device secret is recorded too' }) }}</p>
-        </section>
         </div>
         }
         @if (tab() === 'firmware') {

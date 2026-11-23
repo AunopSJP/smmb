@@ -218,7 +218,6 @@ const REFRESH_MS = 10_000;
               @if (b.battery) {
                 <strong class="value">{{ b.battery.pct }}%</strong>
                 <span class="bar"><span [style.width.%]="b.battery.pct"></span></span>
-                <span class="label adv-only">{{ chargingText(b) }}</span>
               } @else {
                 <strong class="value muted">{{ i18n.t({ th: 'รอข้อมูล', en: 'No report yet' }) }}</strong>
                 <span class="label">{{ i18n.t({ th: 'ตู้ยังไม่ส่งระดับแบต', en: 'The mailbox has not reported yet' }) }}</span>
@@ -234,7 +233,6 @@ const REFRESH_MS = 10_000;
                 <span class="label">{{ i18n.t({ th: 'ยังไม่เคยติดต่อ', en: 'Never connected' }) }}</span>
               }
               @if (b.last_seen_at) {
-                <span class="label adv-only num">{{ timeSec(b.last_seen_at) }}</span>
               }
             </div>
             <div class="mini cover-cell">
@@ -248,51 +246,9 @@ const REFRESH_MS = 10_000;
             </div>
           </div>
           <!-- HomeAdv: ตัวเลขทางเทคนิคที่ API ส่งมาจริง -->
-          <div class="adv-grid adv-only">
-            <div class="cell">
-              <span class="label">{{ i18n.t({ th: 'แบตเตอรี่', en: 'Battery' }) }}</span>
-              <strong class="value">{{ b.battery ? b.battery.pct + '%' : '—' }}</strong>
-              <span class="label">{{ b.battery ? chargingText(b) : '—' }}</span>
-            </div>
-            <div class="cell">
-              <span class="label">{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</span>
-              <strong class="value num">{{ b.last_seen_at ? timeSec(b.last_seen_at) : '—' }}</strong>
-            </div>
-            <div class="cell">
-              <span class="label">{{ i18n.t({ th: 'รายงานแบตเมื่อ', en: 'Battery reported' }) }}</span>
-              <strong class="value num">{{ b.battery?.reported_at ? timeSec(b.battery!.reported_at!) : '—' }}</strong>
-            </div>
-            <div class="cell">
-              <span class="label">{{ i18n.t({ th: 'เวลาตรวจที่ตู้ใช้', en: 'Patrol at the box' }) }}</span>
-              <strong class="value">{{ b.patrol.in_window ? i18n.t({ th: 'อยู่ในเวลาตรวจ', en: 'In patrol hours' }) : i18n.t({ th: 'นอกเวลาตรวจ', en: 'Outside patrol hours' }) }}</strong>
-            </div>
-            <div class="cell">
-              <span class="label">{{ i18n.t({ th: 'สถานะ', en: 'State' }) }}</span>
-              <strong class="value">{{ statusText(b.status) }}</strong>
-            </div>
-            <div class="cell">
-              <span class="label">{{ i18n.t({ th: 'QR หน้าตู้', en: 'Front QR' }) }}</span>
-              <strong class="value">{{ qrHealthText(b.qr_task?.health) }}</strong>
-            </div>
-          </div>
           @if (b.patrol.windows.length) {
-            <div class="patrol adv-only">
-              <div class="label-row">
-                <span class="label">{{ i18n.t({ th: 'เวลาตรวจวันนี้', en: 'Patrol hours today' }) }}</span>
-                <span class="label num">{{ windowsText(b) }} · {{ nowText() }}</span>
-              </div>
-              <div class="strip" role="img" [attr.aria-label]="windowsText(b)">
-                @for (w of stripWindows(b); track $index) {
-                  <i [style.left.%]="w.left" [style.width.%]="w.width"></i>
-                }
-                <span class="now" [style.left.%]="nowPct()"></span>
-              </div>
-              <div class="ticks"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
-              <span class="label">{{ b.patrol.in_window ? i18n.t({ th: 'ตอนนี้อยู่ในเวลาตรวจ', en: 'Currently in patrol hours' }) : i18n.t({ th: 'ตอนนี้นอกเวลาตรวจ', en: 'Currently outside patrol hours' }) }}</span>
-            </div>
           }
           @if (b.coverage.agency_names.length) {
-            <p class="muted small adv-only">{{ i18n.t({ th: 'ตรวจในรายการล่าสุด ', en: 'Checks in recent activity: ' }) }}{{ inspectedRecent(b) }} {{ i18n.t({ th: 'ครั้ง', en: '' }) }}</p>
           }
         </section>
         }
@@ -318,7 +274,6 @@ const REFRESH_MS = 10_000;
                     <strong>{{ i18n.t({ th: 'เจ้าหน้าที่มาตรวจ', en: 'Officer checked' }) }}</strong>
                     <span class="muted small block">{{ e.officer?.agency_name }} · {{ e.officer?.display_name }}</span>
                     @if (e.has_photo) {
-                      <span class="muted small block adv-only">{{ i18n.t({ th: 'มีรูปยืนยันการตรวจ', en: 'Inspection photo available' }) }}</span>
                     }
                   </span>
                 } @else {
@@ -353,6 +308,7 @@ const REFRESH_MS = 10_000;
         <button
           type="button"
           class="btn big sos"
+          data-testid="sos-hold"
           [class.simple-sos]="easy()"
           [disabled]="sending()"
           (pointerdown)="startHold($event)"

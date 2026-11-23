@@ -131,22 +131,6 @@ const SETTINGS: HubItem[] = [
         </a>
       </nav>
       @if (o(); as ov) {
-        <section class="card adv-only">
-          <dl class="kv">
-            <dt>{{ i18n.t({ th: 'ตู้ทั้งหมด', en: 'Total boxes' }) }}</dt><dd>{{ ov.boxes.total }}</dd>
-            <dt>{{ i18n.t({ th: 'ออนไลน์ / ออฟไลน์', en: 'Online / offline' }) }}</dt><dd>{{ ov.boxes.online }} / {{ ov.boxes.offline }}</dd>
-            <dt>{{ i18n.t({ th: 'ตู้ออฟไลน์', en: 'Boxes offline' }) }}</dt><dd>{{ ov.boxes.offline }}</dd>
-            <dt>{{ i18n.t({ th: 'แบตต่ำ', en: 'Low battery' }) }}</dt><dd>{{ ov.boxes.low_battery }}</dd>
-            <dt>{{ i18n.t({ th: 'พัก / ปิดบริการ / ยังไม่ผูก', en: 'Sleeping / closed / unbound' }) }}</dt><dd>{{ ov.boxes.sleeping }} / {{ ov.boxes.service_closed }} / {{ ov.boxes.unbound }}</dd>
-            <dt>{{ i18n.t({ th: 'ปัญหา QR', en: 'QR issues' }) }}</dt><dd>{{ ov.qr_issues.total }}</dd>
-            <dt>{{ i18n.t({ th: 'คำขอช่างเปิด', en: 'Open technician requests' }) }}</dt><dd>{{ ov.technician_requests_open }}</dd>
-            <dt>{{ i18n.t({ th: 'หน่วยงานรออนุมัติ', en: 'Agencies pending' }) }}</dt><dd>{{ ov.agencies_pending }}</dd>
-            <dt>{{ i18n.t({ th: 'SOS ที่เปิดอยู่', en: 'Open SOS' }) }}</dt><dd>{{ ov.sos_open }}</dd>
-            <dt>{{ i18n.t({ th: 'เฟิร์มแวร์ล่าสุด', en: 'Latest firmware' }) }}</dt><dd>{{ latestFw() || '—' }}</dd>
-            <dt>{{ i18n.t({ th: 'อัปเดตอัตโนมัติ', en: 'Auto update' }) }}</dt><dd>{{ fwAuto() ?? i18n.t({ th: 'ปิด', en: 'Off' }) }}</dd>
-            <dt>{{ i18n.t({ th: 'เจ้าของบ้านตามแพ็กเกจ', en: 'Owners by plan' }) }}</dt><dd>{{ planText() }}</dd>
-          </dl>
-        </section>
       }
     </div>
   `,

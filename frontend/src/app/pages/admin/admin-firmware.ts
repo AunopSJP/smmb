@@ -71,19 +71,6 @@ const kb = (n: number) => (n >= 1_048_576 ? (n / 1_048_576).toFixed(1) + ' MB' :
       </ul>
 
       <!-- โหมดละเอียด (AdmFirmware_A): เวอร์ชันตามตู้จริง + ตู้ค้างรุ่นเก่า -->
-      <section class="card adv-only stack">
-        <strong>{{ i18n.t({ th: 'เวอร์ชันที่ตู้รายงาน', en: 'Versions reported by boxes' }) }}</strong>
-        <dl class="kv small">
-          @for (g of versionGroups(); track g.version) {
-            <dt>{{ g.version }}</dt><dd>{{ g.n }} {{ i18n.t({ th: 'ตู้', en: 'boxes' }) }}</dd>
-          } @empty {
-            <dt>—</dt><dd>—</dd>
-          }
-          <dt>{{ i18n.t({ th: 'อัปเดตอัตโนมัติ', en: 'Auto update' }) }}</dt><dd>{{ auto() ?? i18n.t({ th: 'ปิด', en: 'Off' }) }}</dd>
-          <dt>{{ i18n.t({ th: 'รุ่นล่าสุด', en: 'Latest version' }) }}</dt><dd>{{ latest() || '—' }}</dd>
-        </dl>
-        <p class="muted small">{{ i18n.t({ th: 'ตู้ที่ยังใช้รุ่นเก่า: ', en: 'Boxes on an older version: ' }) }}<span>{{ staleBoxes().join(', ') || '—' }}</span></p>
-      </section>
 
       <section class="card stack easy-hide">
         <strong>{{ i18n.t({ th: 'อัปโหลดรุ่นใหม่', en: 'Upload a new version' }) }}</strong>

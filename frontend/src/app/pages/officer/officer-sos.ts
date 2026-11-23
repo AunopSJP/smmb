@@ -35,14 +35,6 @@ const go = (router: Router, code: string, id?: string) =>
         <button type="button" [attr.aria-pressed]="view() === 'open'" (click)="view.set('open')">{{ i18n.t({ th: 'เปิดอยู่', en: 'Open' }) }} {{ open().length }}</button>
         <button type="button" [attr.aria-pressed]="view() === 'closed'" (click)="view.set('closed')">{{ i18n.t({ th: 'ปิดแล้ว', en: 'Closed' }) }}</button>
       </div>
-      <div class="adv-only card">
-        <dl class="kv">
-          <dt>{{ i18n.t({ th: 'เปิดอยู่', en: 'Open' }) }}</dt>
-          <dd class="mono">{{ open().length }}</dd>
-          <dt>{{ i18n.t({ th: 'ปิด 30 วัน', en: 'Closed · 30 days' }) }}</dt>
-          <dd class="mono">{{ closed().length }}</dd>
-        </dl>
-      </div>
       @if (failed()) {
         <app-load-error (retry)="reload()" />
       } @else if (view() === 'open' && !open().length) {
@@ -374,9 +366,6 @@ export class OfficerSosCase implements OnInit {
           </dl>
           <app-sos-house-details [house]="c?.house ?? null" />
         </section>
-        <p class="muted small adv-only">
-          {{ i18n.t({ th: 'บันทึกการเข้าถึง 1 ครั้ง/คน/เคส · หมดสิทธิ์เห็นข้อมูลเมื่อปิดเรื่อง', en: 'Access logged once per person per case · data access ends when the case closes' }) }}
-        </p>
         @if (c?.house?.location; as loc) {
           <section class="card"><app-map-pin [value]="loc" [height]="200" /></section>
         }
@@ -457,7 +446,6 @@ const OUTCOMES: { v: string; label: Tr }[] = [
     <form class="pad" (submit)="close($event)">
       <a class="back" [routerLink]="url('O10')" [queryParams]="{ id: id() }"><app-icon name="chevronLeft" [size]="16" />{{ i18n.t({ th: 'กลับ', en: 'Back' }) }}</a>
       <h1>{{ i18n.t({ th: 'ปิดเรื่อง SOS', en: 'Close the SOS' }) }}</h1>
-      <p class="muted small adv-only">{{ i18n.t({ th: 'หมายเหตุไม่เกิน 500 ตัวอักษร', en: 'Note up to 500 characters' }) }}</p>
       <fieldset class="options">
         <legend>{{ i18n.t({ th: 'เกิดอะไรขึ้น', en: 'What happened' }) }}</legend>
         @for (o of outcomes; track o.v) {
@@ -471,7 +459,6 @@ const OUTCOMES: { v: string; label: Tr }[] = [
       @if (failed()) {
         <p class="danger-text small" role="alert">{{ i18n.t({ th: 'ปิดเรื่องไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t close — try again' }) }}</p>
       }
-      <p class="muted small adv-only">{{ i18n.t({ th: 'ปิดแล้วแก้ไม่ได้ · บันทึกเวลาและชื่อผู้ปิดเรื่อง', en: 'Cannot be edited after closing · time and name are recorded' }) }}</p>
       <button type="submit" class="btn green big push-end" [disabled]="busy()">{{ i18n.t({ th: 'ยืนยันปิดเรื่อง', en: 'Confirm and close' }) }}</button>
     </form>
   `,
@@ -504,6 +491,7 @@ const OUTCOMES: { v: string; label: Tr }[] = [
     }
     textarea:focus {
       border-color: var(--brand-text);
+      box-shadow: var(--focus);
     }
     .tech {
       margin: 0;

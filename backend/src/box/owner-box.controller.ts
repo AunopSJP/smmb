@@ -40,6 +40,11 @@ class ReleaseBoxDto {
   @IsOptional() @IsBoolean() reset_wifi?: boolean;
 }
 
+class WifiResetBody {
+  /** ตู้ออฟไลน์ก็สั่งค้างไว้ได้ (ตู้รับตอนกลับมาออนไลน์ ภายใน 24 ชม.) — ต้องส่ง true ชัดเจน ไม่งั้น 503 BOX_OFFLINE */
+  @IsOptional() @IsBoolean() force?: boolean;
+}
+
 class UpdateBoxDto {
   @IsOptional() @Transform(trim) @IsString() @Length(1, 40) name?: string;
   /** ย่าน/หมู่บ้าน · '' = ล้าง */
@@ -119,8 +124,8 @@ export class OwnerBoxController {
   @RateLimit({ limit: 5, windowSec: 60 })
   @Post(':box_id/wifi-reset')
   @HttpCode(HttpStatus.OK)
-  requestWifiReset(@Auth() auth: AuthContext, @Param() p: BoxIdParam) {
-    return this.boxes.requestWifiReset(auth.userId, p.box_id);
+  requestWifiReset(@Auth() auth: AuthContext, @Param() p: BoxIdParam, @Body() body: WifiResetBody) {
+    return this.boxes.requestWifiReset(auth.userId, p.box_id, body.force === true);
   }
 
   @RateLimit({ limit: 10, windowSec: 60 })

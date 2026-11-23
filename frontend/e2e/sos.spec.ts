@@ -11,7 +11,7 @@ test('SOS: เจ้าของกด เจ้าหน้าที่เห�
   await signIn(officer, DEMO.officer, DEMO.password, /\/officer$/);
 
   // เจ้าของกดค้าง 3 วินาที
-  const sos = owner.getByRole('button', { name: /SOS ขอความช่วยเหลือ/ });
+  const sos = owner.getByTestId('sos-hold');
   await sos.scrollIntoViewIfNeeded();
   const box = (await sos.boundingBox())!;
   await owner.mouse.move(box.x + box.width / 2, box.y + box.height / 2);

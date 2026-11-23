@@ -144,8 +144,8 @@ export async function enableDevTools(ctx: BrowserContext): Promise<void> {
 
 export async function signIn(page: Page, phone: string, password: string, expectUrl: RegExp): Promise<void> {
   await page.goto('/auth/signin');
-  await page.getByLabel('เบอร์โทรศัพท์').fill(phone);
-  await page.getByLabel('รหัสผ่าน').fill(password);
-  await page.getByRole('button', { name: 'เข้าสู่ระบบ' }).click();
+  await page.getByTestId('signin-phone').fill(phone);
+  await page.getByTestId('password-input').fill(password);
+  await page.getByTestId('signin-submit').click();
   await page.waitForURL(expectUrl);
 }

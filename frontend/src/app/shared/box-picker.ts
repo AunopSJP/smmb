@@ -158,8 +158,6 @@ let nextId = 0;
     .eyebrow {
       font-size: var(--fs-xs);
       font-weight: var(--fw-strong);
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
       color: var(--text-muted);
     }
     .txt strong {

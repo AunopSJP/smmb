@@ -125,7 +125,6 @@ interface Segment {
           <a class="kpi" [class.desk-only]="k.key === 'low' || k.key === 'sos' || k.key === 'requests'" [routerLink]="k.path" [queryParams]="k.query" [attr.title]="i18n.t(k.hint)">
             <span class="kpi-label">{{ i18n.t(k.label) }}</span>
             <span class="kpi-value" [class.danger]="k.tone === 'danger' && k.n > 0" [class.warn]="k.tone === 'warn' && k.n > 0" [class.zero]="k.tone !== '' && k.n === 0">{{ k.text }}</span>
-            <span class="kpi-hint adv-only">{{ i18n.t(k.hint) }}</span>
           </a>
         }
       </section>
@@ -232,51 +231,7 @@ interface Segment {
       </section>
 
       <!-- โหมดละเอียด: ตัวเลขระบบ + เวอร์ชัน/สถานะที่ดึงได้จริง (ตาม AdmAdv) -->
-      <section class="card adv-only" [attr.aria-label]="i18n.t({ th: 'ข้อมูลระบบละเอียด', en: 'Technical overview' })">
-        <header class="adv-head">
-          <h2 class="section-title">{{ i18n.t({ th: 'ข้อมูลระบบ', en: 'System details' }) }}</h2>
-          <span class="muted small">{{ i18n.t({ th: 'ข้อมูล ณ ', en: 'As of ' }) }}{{ asOf() }}</span>
-        </header>
-        <dl class="kv">
-          <dt>{{ i18n.t({ th: 'ออนไลน์ / ทั้งหมด', en: 'Online / total' }) }}</dt><dd class="mono">{{ online() }} / {{ totalBoxes() }}</dd>
-          <dt>{{ i18n.t({ th: 'ไม่ออนไลน์', en: 'Offline' }) }}</dt><dd class="mono">{{ offline() }}</dd>
-          <dt>{{ i18n.t({ th: 'พักอยู่', en: 'Sleeping' }) }}</dt><dd class="mono">{{ sleeping() }}</dd>
-          <dt>{{ i18n.t({ th: 'ปิดบริการ', en: 'Service closed' }) }}</dt><dd class="mono">{{ serviceClosed() }}</dd>
-          <dt>{{ i18n.t({ th: 'ยังไม่ผูกเจ้าของ', en: 'Unbound' }) }}</dt><dd class="mono">{{ unbound() }}</dd>
-          <dt>{{ i18n.t({ th: 'แบตต่ำ', en: 'Low battery' }) }}</dt><dd class="mono">{{ lowCount() }} &lt; {{ lowPct }}%</dd>
-          <dt>{{ i18n.t({ th: 'ปัญหา QR', en: 'QR issues' }) }}</dt><dd class="mono">{{ qrTotal() }}</dd>
-          <dt>{{ i18n.t({ th: 'SOS เปิดอยู่', en: 'Open SOS' }) }}</dt><dd class="mono">{{ overview()?.sos_open ?? 0 }}</dd>
-          <dt>{{ i18n.t({ th: 'คำขอช่างเปิด', en: 'Open technician requests' }) }}</dt><dd class="mono">{{ overview()?.technician_requests_open ?? technicianRequests() }}</dd>
-          <dt>{{ i18n.t({ th: 'เฟิร์มแวร์ล่าสุด', en: 'Latest firmware' }) }}</dt><dd class="mono">{{ fwLatest() ?? '—' }}</dd>
-          <dt>{{ i18n.t({ th: 'อัปเดตอัตโนมัติ', en: 'Auto update' }) }}</dt>
-          <dd>
-            @if (fwAuto(); as v) {
-              {{ i18n.t({ th: 'เปิด → ', en: 'On → ' }) }}<span class="mono">{{ v }}</span>
-            } @else {
-              {{ i18n.t({ th: 'ปิด', en: 'Off' }) }}
-            }
-          </dd>
-          <dt>{{ i18n.t({ th: 'Push เครื่องนี้', en: 'Push on this device' }) }}</dt><dd>{{ pushOn() ? i18n.t({ th: 'พร้อม', en: 'Ready' }) : i18n.t({ th: 'ยังไม่เปิด', en: 'Not enabled' }) }}</dd>
-        </dl>
-      </section>
 
-      <section class="card adv-only">
-        <header class="adv-head">
-          <h2 class="section-title">{{ i18n.t({ th: 'เฟิร์มแวร์ตามรุ่น', en: 'Firmware by version' }) }}</h2>
-          <a [routerLink]="url('D17')">{{ i18n.t({ th: 'จัดการ', en: 'Manage' }) }}</a>
-        </header>
-        @if (fwGroups().length) {
-          @for (g of fwGroups(); track g.version) {
-            <div class="fwrow">
-              <span class="mono">{{ g.version }}</span>
-              <span class="fbar" aria-hidden="true"><i [style.width.%]="g.pct"></i></span>
-              <span class="mono">{{ g.n }} {{ i18n.t({ th: 'ตู้', en: 'boxes' }) }}</span>
-            </div>
-          }
-        } @else {
-          <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีข้อมูลเฟิร์มแวร์จากตู้', en: 'No firmware report from boxes yet' })" />
-        }
-      </section>
 
       <!-- 3) งานที่ต้องทำ -->
       <!-- มีรายการเดียว = การ์ดด้านบนบอกครบแล้ว ไม่ต้องซ้ำเป็นตาราง -->

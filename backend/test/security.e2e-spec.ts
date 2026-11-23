@@ -135,7 +135,7 @@ describe('Route security (e2e)', () => {
 
     // body ที่ผ่านการตรวจรูปแบบ (ไม่งั้นได้ 400 ก่อนถึงการตรวจสิทธิ์ ซึ่งไม่ได้แปลว่ารั่ว)
     const bodyFor = (path: string): object =>
-      path.endsWith('/technician-requests') ? { reason: 'repair' } : path.endsWith('/confirm') ? { result: 'ok' } : path.endsWith('/unbind') ? {} : path.endsWith('/qr/reissue') ? { slots: [1], request_id: '00000000-0000-0000-0000-000000000000' } : { name: 'x' };
+      path.endsWith('/technician-requests') ? { reason: 'repair' } : path.endsWith('/confirm') ? { result: 'ok' } : path.endsWith('/unbind') || path.endsWith('/wifi-reset') ? {} : path.endsWith('/qr/reissue') ? { slots: [1], request_id: '00000000-0000-0000-0000-000000000000' } : { name: 'x' };
     const leaks: string[] = [];
     const mine = allRoutes(app).filter((r) => r.path.startsWith('/api/v1/boxes/:box_id'));
     expect(mine.length).toBeGreaterThan(5);

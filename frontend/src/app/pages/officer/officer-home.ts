@@ -16,8 +16,6 @@ import { liveRefresh } from '../../core/live-refresh';
 
 /** SOS ต้องขึ้นเร็ว — ดึงหน้าสรุปใหม่ทุก 5 วิ (และทันทีเมื่อมีแจ้งเตือนเข้า/กลับมาที่แอป) */
 const REFRESH_MS = 5_000;
-/** โหมดละเอียด: บันทึกสแกนล่าสุดของฉัน (GET /officer/logs) */
-const LOG_REFRESH_MS = 20_000;
 
 /** นาทีของวันเวลาไทย (0–1439) — ใช้วาดแถบเวลาตรวจในโหมดละเอียด */
 const bkkMinutes = (): number => {
@@ -41,10 +39,6 @@ const toMinutes = (hhmm: string): number | null => {
   template: `
     <app-page-header [caption]="caption()" [title]="i18n.t({ th: 'หน้าสรุป', en: 'Summary' })" [bell]="url('O14')" />
 
-    <p class="adv-only adv-strip mono">
-      <span>{{ i18n.t({ th: 'โซน ', en: 'Zone ' }) }}{{ zoneLabel() }}</span>
-      <span>{{ pushOn() ? i18n.t({ th: 'แจ้งเตือนเปิด · เครื่องนี้', en: 'Notifications on · this device' }) : i18n.t({ th: 'แจ้งเตือนยังไม่เปิด', en: 'Notifications off' }) }}</span>
-    </p>
 
     <div class="stack">
       <app-push-status [compact]="true" [required]="true" deviceLabel="officer" />
@@ -99,16 +93,6 @@ const toMinutes = (hhmm: string): number | null => {
               <p class="muted small">{{ i18n.t({ th: 'วันนี้ไม่มีรอบตรวจแล้ว', en: 'No more rounds today' }) }}</p>
             }
           </section>
-          <div class="adv-only card off-adv">
-            <dl class="kv">
-              <dt>{{ i18n.t({ th: 'ตรวจวันนี้', en: 'Checked today' }) }}</dt>
-              <dd>{{ s.houses_checked }} / {{ s.houses_total }}</dd>
-              <dt>SOS</dt>
-              <dd>{{ s.open_sos.length }}</dd>
-              <dt>{{ i18n.t({ th: 'โซน', en: 'Zone' }) }}</dt>
-              <dd>{{ zoneLabel() }}</dd>
-            </dl>
-          </div>
           <button type="button" class="btn big" disabled>{{ i18n.t({ th: 'สแกนได้เมื่อถึงเวลาตรวจ', en: 'Scanning opens at patrol time' }) }}</button>
           <p class="sos-note"><app-icon name="bell" [size]="18" />{{ i18n.t({ th: 'SOS ยังรับได้ตลอด 24 ชม.', en: 'SOS still comes in 24/7' }) }}</p>
         } @else if (s.houses_total > 0 && s.houses_checked === s.houses_total) {
@@ -120,16 +104,6 @@ const toMinutes = (hhmm: string): number | null => {
               <p class="small">{{ s.houses_total }} / {{ s.houses_total }} {{ i18n.t({ th: 'หลัง · รอบ', en: 'houses · round' }) }} {{ windowText() }}</p>
             </div>
           </section>
-          <div class="adv-only card">
-            <dl class="kv">
-              <dt>{{ i18n.t({ th: 'รอบ', en: 'Round' }) }}</dt>
-              <dd>{{ windowText() }}</dd>
-              <dt>{{ i18n.t({ th: 'ผ่าน', en: 'Passed' }) }}</dt>
-              <dd>{{ s.houses_checked }} / {{ s.houses_total }}</dd>
-              <dt>{{ i18n.t({ th: 'โซน', en: 'Zone' }) }}</dt>
-              <dd>{{ zoneLabel() }}</dd>
-            </dl>
-          </div>
           <a class="btn secondary" [routerLink]="url('O02')">{{ i18n.t({ th: 'สแกนตรวจซ้ำ', en: 'Scan again' }) }}</a>
         } @else {
           <!-- O01 -->
@@ -146,24 +120,6 @@ const toMinutes = (hhmm: string): number | null => {
                 }
               </div>
             }
-            <div class="adv-only metrics">
-              <div class="m">
-                <span class="l">{{ i18n.t({ th: 'ตรวจแล้ว', en: 'Checked' }) }}</span>
-                <span class="v">{{ s.houses_checked }} / {{ s.houses_total }}</span>
-              </div>
-              <div class="m">
-                <span class="l">{{ i18n.t({ th: 'ยังไม่ตรวจ', en: 'Remaining' }) }}</span>
-                <span class="v">{{ pending() }}</span>
-              </div>
-              <div class="m">
-                <span class="l">SOS</span>
-                <span class="v">{{ s.open_sos.length }}</span>
-              </div>
-              <div class="m">
-                <span class="l">{{ i18n.t({ th: 'โซน', en: 'Zone' }) }}</span>
-                <span class="v small">{{ zoneLabel() }}</span>
-              </div>
-            </div>
             <span class="chip ok window">{{ i18n.t({ th: 'อยู่ในเวลาตรวจ', en: 'Patrol hours' }) }} {{ windowText() }}</span>
             <p class="count">
               <strong>{{ s.houses_checked }}</strong>
@@ -172,17 +128,6 @@ const toMinutes = (hhmm: string): number | null => {
             <span class="bar" role="progressbar" aria-valuemin="0" [attr.aria-label]="i18n.t({ th: 'บ้านที่ตรวจแล้ว', en: 'Houses checked' })" [attr.aria-valuenow]="s.houses_checked" [attr.aria-valuemax]="s.houses_total">
               <span [style.width.%]="percent()"></span>
             </span>
-            <div class="adv-only timeline">
-              <span class="strip">
-                @for (g of windowSegments(); track $index) {
-                  <i [style.left.%]="g.left" [style.width.%]="g.width"></i>
-                }
-                <s [style.left.%]="nowPct()"></s>
-              </span>
-              <span class="legend muted">
-                <span>00</span><span>06</span><span>12</span><span>18</span><span>24 · {{ windowText() }}</span>
-              </span>
-            </div>
           </section>
           <a class="btn big" [routerLink]="url('O02')">
             <app-icon name="scan" [size]="26" />
@@ -209,12 +154,6 @@ const toMinutes = (hhmm: string): number | null => {
                       {{ area }}
                     } @else {
                       {{ i18n.t({ th: 'ในโซนของคุณ', en: 'In your zone' }) }}
-                    }
-                  </span>
-                  <span class="muted small block mono adv-only">
-                    {{ h.box_id }}
-                    @if (h.checked_at) {
-                      · {{ fullStamp(h.checked_at) }}
                     }
                   </span>
                 </span>

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { OwnerApi, type BoxDetail } from '../../core/owner-api';
+import { apiError } from '../../core/api';
 import { Toast } from '../../core/toast';
 import { DisplaySettings } from '../../core/display-settings';
 import { I18n, type Tr } from '../../core/i18n';
@@ -251,10 +252,15 @@ export class OwnerWifi {
     if (!b || this.busy()) return;
     this.busy.set(true);
     try {
-      await this.api.requestWifiReset(b.id);
+      await this.api.requestWifiReset(b.id, b.status === 'offline');
       this.confirming.set(false);
       await this.refresh(b.id);
-    } catch {
+    } catch (e) {
+      if (apiError(e).code === 'BOX_OFFLINE') {
+        this.toast.show({ th: 'ตู้เพิ่งออฟไลน์ — รีเฟรชหน้าแล้วยืนยันอีกครั้ง', en: 'The mailbox just went offline — refresh and confirm again' });
+        await this.refresh(b.id);
+        return;
+      }
       this.toast.show({ th: 'สั่งไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Could not send the command — check your connection and try again' });
     } finally {
       this.busy.set(false);

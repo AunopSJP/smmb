@@ -70,17 +70,6 @@ const ACCOUNT: Row[] = [
         }
       </nav>
       <!-- โหมดละเอียด: ข้อมูลบัญชี/หน่วยงานจริงจาก Me + /agency (ตาม SetHead_A) -->
-      <section class="card adv-only">
-        <dl class="kv">
-          <dt>{{ i18n.t({ th: 'รหัสกลุ่ม', en: 'Group code' }) }}</dt><dd>{{ code() || '—' }}</dd>
-          <dt>{{ i18n.t({ th: 'หัวหน้าทั้งหมด', en: 'Heads' }) }}</dt><dd>{{ api.agency()?.heads?.length ?? 0 }}</dd>
-          <dt>{{ i18n.t({ th: 'บทบาทของฉัน', en: 'My roles' }) }}</dt><dd>{{ roles() }}</dd>
-          <dt>{{ i18n.t({ th: 'โหมดแสดงผล', en: 'Display mode' }) }}</dt><dd>{{ modeLabel() }}</dd>
-          <dt>{{ i18n.t({ th: 'การแจ้งเตือน', en: 'Notifications' }) }}</dt><dd>{{ session.me()?.push?.subscribed ? i18n.t({ th: 'เปิดแล้ว', en: 'on' }) : i18n.t({ th: 'ยังไม่เปิด', en: 'off' }) }}</dd>
-          <dt>{{ i18n.t({ th: 'เครื่องนี้', en: 'This device' }) }}</dt><dd>{{ device() }}</dd>
-          <dt>{{ i18n.t({ th: 'ข้อตกลง', en: 'Terms' }) }}</dt><dd>{{ session.me()?.terms_update_required ? i18n.t({ th: 'ต้องยอมรับฉบับใหม่', en: 'new version required' }) : i18n.t({ th: 'ยอมรับแล้ว', en: 'accepted' }) }}</dd>
-        </dl>
-      </section>
       <button type="button" class="btn secondary push-end" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
     </div>
   `,

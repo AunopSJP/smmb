@@ -305,12 +305,6 @@ export class HeadSignup {
           </dl>
         </section>
         <!-- โหมดละเอียด: สถานะจริงจาก /agency + /me (ตาม AuthPending_A) -->
-        <section class="card adv-only">
-          <dl class="kv">
-            <dt>{{ i18n.t({ th: 'การแจ้งเตือน', en: 'Notifications' }) }}</dt><dd>{{ realSession.me()?.push?.subscribed ? i18n.t({ th: 'เปิดแล้ว', en: 'on' }) : i18n.t({ th: 'ยังไม่เปิด', en: 'off' }) }}</dd>
-          </dl>
-          <p class="muted small">{{ i18n.t({ th: 'ระหว่างรอ หัวหน้าต้องอนุมัติก่อน จึงจะใช้งานฟังก์ชันเจ้าหน้าที่ได้', en: 'Your head must approve the request before officer features become available.' }) }}</p>
-        </section>
         <div class="easy-only">
           <app-push-status [compact]="true" />
         </div>
@@ -417,11 +411,6 @@ const NEXT_STEPS: Step[] = [
       </section>
       <h2 class="section-title easy-hide">{{ i18n.t({ th: 'ต่อไปต้องทำ', en: 'Next steps' }) }}</h2>
       <div class="easy-hide"><app-steps [steps]="steps" [current]="0" /></div>
-      <section class="card adv-only">
-        <dl class="kv">
-          <dt>{{ i18n.t({ th: 'ช่องทางติดต่อ', en: 'Contact' }) }}</dt><dd>{{ api.agency()?.contact ?? '—' }}</dd>
-        </dl>
-      </section>
     </div>
   `,
   styles: `
