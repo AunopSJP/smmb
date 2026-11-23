@@ -131,7 +131,7 @@ const MOCK_SCREENS = new Set<string>();
       @if (isAdmin) {
         <aside class="side" [class.mini]="mini()" [attr.aria-label]="i18n.t({ th: 'เมนูแอดมิน', en: 'Admin menu' })">
           <div class="brand">
-            <span class="logo" aria-hidden="true">S</span>
+            <img class="logo" src="icons/v2/icon-96x96.png" width="38" height="38" alt="" />
             <span class="name">Smart Mailbox<small>{{ i18n.t({ th: 'ศูนย์ควบคุมแอดมิน', en: 'Admin console' }) }}</small></span>
             <button type="button" class="collapse" (click)="toggleMini()" [attr.aria-expanded]="!mini()"
               [attr.aria-label]="mini() ? i18n.t({ th: 'ขยายเมนู', en: 'Expand menu' }) : i18n.t({ th: 'ย่อเมนู', en: 'Collapse menu' })"
@@ -452,15 +452,8 @@ const MOCK_SCREENS = new Set<string>();
       padding-inline: 0;
     }
     .logo {
-      display: grid;
-      place-items: center;
-      inline-size: 38px;
-      block-size: 38px;
+      flex: none;
       border-radius: var(--radius-sm);
-      background: var(--action-bg);
-      color: var(--action-fg);
-      font-weight: var(--fw-strong);
-      font-size: var(--fs-lg);
     }
     .name {
       display: flex;

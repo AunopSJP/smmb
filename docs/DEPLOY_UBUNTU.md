@@ -144,6 +144,8 @@ docker restart smmb-edge-proxy-1
 
 แก้ `deploy/nginx-hub.conf` (สำรองก่อนทุกครั้ง) โดยใช้บล็อกจาก `deploy/nginx-smmb.conf` · ไฟล์จริงควรถูก commit เข้า repo ด้วย
 
+หลัง deploy ชุดไอคอน PWA ใหม่ ให้ตรวจว่า `/smmb/manifest.webmanifest` ตอบ `Cache-Control: no-cache` และอ้างไอคอนใน `icons/v2/` หาก Cloudflare ยังเสิร์ฟ manifest หรือ `icons/icon-144x144.png` ตัวเก่า ให้ purge เฉพาะ URL ที่ค้าง ตรวจซ้ำจาก URL ปกติโดยไม่เติม query ระบบยังเก็บ URL ไอคอนเดิมไว้สำหรับแอปรุ่นเก่าและ Web Push
+
 จุดที่ห้ามพลาด: `proxy_pass http://127.0.0.1:3000;` **ไม่มี `/` ท้ายและไม่มี path** (ถ้าใส่ nginx จะตัด prefix → ลายเซ็นของตู้ไม่ผ่านทุกตัว) · `proxy_read_timeout 75s` (long-poll ตู้ถือ 50 วิ)
 
 ### Header ความปลอดภัย (CSP/HSTS) — อ่านก่อนแก้

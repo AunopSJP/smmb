@@ -1,6 +1,31 @@
 import { expect, test } from '@playwright/test';
 import { BoxSim, DEMO, adminApi, boxInfo, signIn } from './helpers/stack';
 
+test('หัวเมนูแอดมินบนเดสก์ท็อปแสดงรูปโลโก้', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await signIn(page, DEMO.admin, DEMO.password, /\/admin/);
+  const logo = page.locator('aside .brand img.logo');
+  await expect(logo).toBeVisible();
+  await expect.poll(() => logo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+});
+
+test('ไอคอนติดตั้งใช้ URL ใหม่และโหลดได้ทุกขนาด', async ({ page, request }) => {
+  await page.goto('/');
+  const manifestUrl = await page.locator('link[rel="manifest"]').evaluate((link: HTMLLinkElement) => link.href);
+  const manifestResponse = await request.get(manifestUrl);
+  expect(manifestResponse.ok()).toBe(true);
+  const manifest: { icons: { src: string }[] } = await manifestResponse.json();
+  const touchIcon = await page.locator('link[rel="apple-touch-icon"]').getAttribute('href');
+  expect(touchIcon).toMatch(/^icons\/v\d+\/icon-192x192\.png$/);
+  expect(manifest.icons.map(({ src }) => src)).toContain(touchIcon);
+  for (const { src } of manifest.icons) {
+    expect(src).toMatch(/^icons\/v\d+\//);
+    const response = await request.get(new URL(src, manifestUrl).href);
+    expect(response.ok()).toBe(true);
+    expect(response.headers()['content-type']).toContain('image/png');
+  }
+});
+
 /** เส้น e: แอดมิน ลงทะเบียนตู้ → เห็น QR 3 ใบ → ทดสอบปลุกตู้ผ่านตู้จำลอง */
 test('แอดมินลงทะเบียนตู้ เห็น QR 3 ใบ และทดสอบปลุกตู้ผ่านตู้จำลอง', async ({ page }) => {
   await signIn(page, DEMO.admin, DEMO.password, /\/admin/);

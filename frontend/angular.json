@@ -27,6 +27,11 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "*.png",
+                "input": "public/icons",
+                "output": "icons/v2"
               }
             ],
             "styles": [
