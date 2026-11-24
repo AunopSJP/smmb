@@ -744,11 +744,6 @@ export class OwnerDelivery {
       line-height: 1.55;
       strong { font-size: var(--fs-lg); }
     }
-    .adv-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-    }
     .cell {
       display: flex;
       flex-direction: column;

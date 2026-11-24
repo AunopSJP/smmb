@@ -187,22 +187,6 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       color: var(--sos-fg);
       font-size: var(--fs-lg);
     }
-    .adv-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-      margin-inline: 16px;
-      div {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        padding: 6px 8px;
-        border-radius: var(--radius-sm);
-        background: rgb(255 255 255 / 14%);
-      }
-      span { font-size: var(--fs-xs); opacity: 0.85; }
-      b { font-size: var(--fs-sm); }
-    }
     .adv-line {
       margin: 0 16px;
       font-size: var(--fs-xs);

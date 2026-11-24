@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
@@ -12,6 +12,7 @@ import { TabBar } from '../shared/tab-bar';
 import { ConfirmDialog } from '../shared/confirm-dialog';
 import { screenUrl } from '../screens/registry';
 import { Session } from '../core/session';
+import { SosAlarm } from '../core/sos-alarm';
 import { RouterLinkActive } from '@angular/router';
 
 /** เมนูข้างของแอดมินบนจอคอม — จัดกลุ่มตามงาน · เมนูที่มี `children` กางเป็นเมนูย่อยได้ (ลิงก์ไปหน้าเดียวกันพร้อมตัวกรอง) */
@@ -228,6 +229,11 @@ const MOCK_SCREENS = new Set<string>();
           <span aria-hidden="true">⇄</span>
         </a>
       }
+      @if (alarm?.needsTap()) {
+        <button type="button" class="sos-tap" role="alert" (click)="alarm?.unlock()">
+          {{ i18n.t({ th: 'มี SOS ใหม่ — แตะที่นี่เพื่อเปิดเสียงเตือน', en: 'New SOS — tap here to turn on the alarm' }) }}
+        </button>
+      }
       <main id="main-content" tabindex="-1" [class.full]="fullscreen()">
         <router-outlet />
       </main>
@@ -314,6 +320,19 @@ const MOCK_SCREENS = new Set<string>();
       }
       .admin-layout app-tab-bar {
         display: none;
+      }
+      .sos-tap {
+        position: sticky;
+        inset-block-start: 0;
+        z-index: 50;
+        inline-size: 100%;
+        padding: 12px 16px;
+        border: 0;
+        background: var(--sos);
+        color: var(--sos-fg);
+        font: inherit;
+        font-weight: var(--fw-strong);
+        cursor: pointer;
       }
       .admin-layout app-toast {
         grid-column: 2;
@@ -639,6 +658,12 @@ export class AreaShell {
   protected readonly i18n = inject(I18n);
   private readonly route = inject(ActivatedRoute);
   private readonly area = this.route.snapshot.data['area'] as Area;
+  /** เจ้าหน้าที่/หัวหน้า: ไซเรน+สั่นต่อเนื่องเมื่อมี SOS ที่ยังไม่มีคนรับ (เฉพาะตอนแอปเปิดอยู่) */
+  protected readonly alarm = this.area === 'officer' || this.area === 'head' ? inject(SosAlarm) : null;
+  private readonly alarmLife = (() => {
+    this.alarm?.start();
+    inject(DestroyRef).onDestroy(() => this.alarm?.stop());
+  })();
   /** แอดมิน/หัวหน้ามีตารางและรายการเยอะ → กว้างกว่าบทบาทอื่น */
   protected readonly isAdmin = this.area === 'admin';
   protected readonly adminNav = ADMIN_NAV;

@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { I18n, type Tr } from '../core/i18n';
 import { Session } from '../core/session';
+import { SosAlarm } from '../core/sos-alarm';
 import { DisplaySettings } from '../core/display-settings';
 import { fmtDate } from '../core/time';
 import { screenUrl } from '../screens/registry';
@@ -83,6 +84,22 @@ interface Option {
         <span class="chip ok">{{ i18n.t({ th: 'เปิดเสมอ · ปิดไม่ได้', en: 'Always on · cannot disable' }) }}</span>
       </section>
 
+      @if (hasAlarm()) {
+        <section class="card stack">
+          <h2 class="head"><app-icon name="alert" [size]="20" />{{ i18n.t({ th: 'เสียงเตือน SOS ในแอป', en: 'In-app SOS alarm' }) }}</h2>
+          <p>{{ i18n.t({ th: 'ตอนเปิดแอปค้างไว้ ถ้ามี SOS ที่ยังไม่มีคนรับ แอปจะส่งเสียงไซเรนและสั่น (เฉพาะมือถือที่รองรับ) จนกว่าจะมีคนกดรับเรื่อง · ถ้าปิดแอปจะได้แค่แจ้งเตือน', en: 'While the app is open and an SOS is still unaccepted, it sirens and vibrates (on phones that support it) until someone accepts · with the app closed you get the notification only' }) }}</p>
+          @if (!alarm.supported) {
+            <p class="muted small">{{ i18n.t({ th: 'เบราว์เซอร์นี้เล่นเสียงเตือนไม่ได้ จะได้แค่แจ้งเตือน', en: 'This browser can’t play the alarm — notifications only' }) }}</p>
+          } @else {
+            <button type="button" class="btn secondary" (click)="alarm.test()">{{ i18n.t({ th: 'ทดสอบเสียงเตือน (2–3 วินาที)', en: 'Test the alarm (2–3 s)' }) }}</button>
+            @if (alarm.unlocked()) {
+              <span class="chip ok">{{ i18n.t({ th: 'เปิดเสียงแล้วในเครื่องนี้', en: 'Sound enabled on this device' }) }}</span>
+            }
+          }
+          <p class="muted small">{{ i18n.t({ th: 'เปิดเสียงมือถือไว้ด้วย · iPhone จะมีแค่เสียง ไม่สั่น', en: 'Keep the phone volume up · iPhone has sound only, no vibration' }) }}</p>
+        </section>
+      }
+
       <p class="muted small">{{ i18n.t({ th: 'เปิดไม่ได้ หรือไม่เด้ง? กด "ตรวจแจ้งเตือน (ละเอียด)" ด้านบนเพื่อดูวิธีแก้ทีละขั้น', en: 'Can’t turn it on or nothing shows? Use “Check notifications (detailed)” above for step-by-step fixes.' }) }}</p>
       <a class="btn secondary push-end" [routerLink]="back()">{{ i18n.t({ th: 'กลับไปหน้าตั้งค่า', en: 'Back to settings' }) }}</a>
     </div>
@@ -113,6 +130,8 @@ export class NotifSettings {
   private readonly session = inject(Session);
   private readonly http = inject(HttpClient);
   protected readonly display = inject(DisplaySettings);
+  protected readonly alarm = inject(SosAlarm);
+  protected readonly hasAlarm = computed(() => this.role() === 'officer' || this.role() === 'head');
   protected readonly devices = signal<{ id: string; label: string; current: boolean; first_seen_at: string; last_seen_at: string }[]>([]);
 
   protected readonly devicesLoaded = signal(false);

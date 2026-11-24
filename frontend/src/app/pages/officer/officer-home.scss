@@ -193,43 +193,6 @@ ul {
 }
 
 /* ── โหมดละเอียด (แคนวาส OffAdv) ─────────────────────────────── */
-.adv-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  margin-block-end: -4px;
-  border-radius: var(--radius-sm);
-  background: var(--icon-bg);
-  padding: 6px 10px;
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-}
-.metrics {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-  .m {
-    border-radius: var(--radius-xs);
-    background: var(--bg);
-    padding: 6px 8px;
-    min-inline-size: 0;
-  }
-  .l {
-    display: block;
-    font-size: var(--fs-xs);
-    color: var(--text-muted);
-  }
-  .v {
-    font-size: var(--fs-sm);
-    font-weight: var(--fw-strong);
-    overflow-wrap: break-word;
-  }
-}
-.timeline {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
 .strip {
   position: relative;
   display: block;
@@ -277,9 +240,6 @@ ul {
 .name {
   overflow-wrap: break-word;
 }
-.off-adv .kv {
-  margin: 0;
-}
 .logs {
   display: flex;
   flex-direction: column;
@@ -324,9 +284,5 @@ ul {
   }
   .next-no {
     font-size: var(--fs-base);
-  }
-  .adv-strip {
-    background: none;
-    padding: 0;
   }
 }
