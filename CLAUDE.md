@@ -196,3 +196,17 @@ wireframe 110 หน้า: `SMMB Wireframe.figcraft` (มี `.fig` ด้ว�
 - ทุก error ที่ client ต้องแยกหน้าจอ ต้องมี `code` (รายการใน `api.md` §15)
 - เวลาใน JSON = ISO 8601 UTC · เวลาตรวจของโซน = `"HH:mm"` + `tz: "Asia/Bangkok"`
 - ยังไม่มีตู้จริงให้ทดสอบ → ทำ **ตู้จำลอง** (สคริปต์ที่เซ็น HMAC และเรียก `/v1/box/*`) ไว้ทดสอบเฟส 2–3
+
+## Agent skills
+
+### Issue tracker
+
+Issues อยู่ที่ GitHub Issues ของ repo นี้ (ใช้ `gh` CLI · ต้อง `gh auth login` ก่อน). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+ใช้ label มาตรฐาน 5 ตัว: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+single-context (`GLOSSARY.md` + `docs/adr/` ที่ root). See `docs/agents/domain.md`.
