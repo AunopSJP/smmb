@@ -44,3 +44,36 @@ describe('Health (e2e)', () => {
     expect(typeof res.body.timestamp).toBe('string');
   });
 });
+
+// /api/health เป็น public และไม่จำกัดความถี่ (monitor เรียกบ่อย) → ถูกยิงถี่ ๆ ต้องไม่ไปแตะ Redis/Postgres ทุกคำขอ
+describe('Health under load (e2e)', () => {
+  let app: INestApplication<App>;
+  let pings = 0;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(REDIS)
+      .useValue({
+        status: 'ready',
+        ping: async () => {
+          pings += 1;
+          return 'PONG';
+        },
+        quit: async () => 'OK',
+      })
+      .compile();
+    app = moduleFixture.createNestApplication();
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('answers a burst of requests with 200 while checking dependencies only a few times', async () => {
+    pings = 0;
+    const results = await Promise.all(Array.from({ length: 30 }, () => request(app.getHttpServer()).get('/api/health')));
+    expect(results.every((r) => r.status === 200 && r.body.status === 'ok')).toBe(true);
+    expect(pings).toBeLessThanOrEqual(2);
+  });
+});
