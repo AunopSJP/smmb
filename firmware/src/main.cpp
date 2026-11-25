@@ -684,6 +684,11 @@ static void runCommand(String line)
         "  boot                   send POST /v1/box/boot now\n"
         "  report                 send POST /v1/box/report now\n"
         "  beep [ready|pass|retry|fail|error|wifi]  play a buzzer pattern (default ready)\n"
+        "  siren                  show siren timing (LTE-5061J ticks on its own rhythm)\n"
+        "  siren hold <ms>        power the siren for <ms> — count the ticks: period = ms / ticks\n"
+        "  siren period <ms>      time between ticks (200..3000, saved)\n"
+        "  siren lead <ms>        delay from power-on to the first tick (0..2000, saved)\n"
+        "  siren test <n>         play exactly n ticks with the saved timing\n"
         "  identify               blink the flash LED (find this board)\n"
         "  scan [sec]             open the camera and try to read a QR (no server)\n"
         "  photo                  test the face-photo mode: prints the JPEG size only (nothing is sent or kept)\n"
@@ -919,6 +924,38 @@ static void runCommand(String line)
     name.toLowerCase();
     if (!beepByName(name.c_str()))
       Serial.println("usage: beep [ready|pass|retry|fail|error|wifi]");
+  }
+  else if (cmd == "siren")
+  {
+    // 0.2.45: ปรับจังหวะให้ตรงกับตัวส่งเสียงจริง — ดูวิธีวัดใน docs/HARDWARE_FIRMWARE_GUIDE.md §9
+    int sp2 = arg.indexOf(' ');
+    String what = sp2 < 0 ? arg : arg.substring(0, sp2);
+    const long val = sp2 < 0 ? -1 : arg.substring(sp2 + 1).toInt();
+    if (what == "hold" && val > 0 && val <= 20000)
+    {
+      Serial.printf("siren: power on for %ld ms — count the ticks\n", val);
+      sirenHold((uint32_t)val);
+    }
+    else if (what == "period" && val >= 200 && val <= 3000)
+    {
+      settings.sirenPeriodMs = (uint16_t)val;
+      settingsSave();
+    }
+    else if (what == "lead" && val >= 0 && val <= 2000)
+    {
+      settings.sirenLeadMs = (uint16_t)val;
+      settingsSave();
+    }
+    else if (what == "test" && val >= 1 && val <= 9)
+    {
+      sirenTicks((uint8_t)val);
+    }
+    else if (what.length())
+    {
+      Serial.println("usage: siren · siren hold <ms> · siren period <ms> · siren lead <ms> · siren test <n>");
+    }
+    Serial.printf("siren period %u ms · lead %u ms · 1 tick = %u ms on · 2 ticks = %u ms on\n", settings.sirenPeriodMs, settings.sirenLeadMs,
+                  settings.sirenLeadMs + settings.sirenPeriodMs / 2, settings.sirenLeadMs + settings.sirenPeriodMs + settings.sirenPeriodMs / 2);
   }
   else if (cmd == "identify")
   {

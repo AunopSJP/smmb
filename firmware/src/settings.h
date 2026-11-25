@@ -20,6 +20,9 @@ struct Settings
   int8_t camAe = 0;        // -2..2 ลดค่าลบ = ภาพมืดลง (กันจอมือถือสว่างจนแสงเกิน)
   uint8_t psMode = 0;      // Wi-Fi modem sleep: 0 = อัตโนมัติ (เปิดเมื่อสัญญาณแรง ปิดเองถ้าต่อล้มเหลว) · 1 = เปิดเสมอ · 2 = ปิดเสมอ (ค่าเซิร์ฟเวอร์ wifi_power_save=true บังคับเปิดทุกกรณี)
   bool debugCam = false;   // true = เปิดหน้าเว็บดูภาพกล้อง (ทดสอบเท่านั้น · debugview.h)
+  // 0.2.45 จังหวะของตัวส่งเสียง LTE-5061J (ปรับด้วย `siren period/lead` ทาง serial): ติ๊ดซ้ำทุก period ms · ติ๊ดแรกดังหลังจ่ายไฟ lead ms
+  uint16_t sirenPeriodMs = 800;
+  uint16_t sirenLeadMs = 150;
 };
 
 extern Settings settings;

@@ -265,7 +265,7 @@ String signRequest(const char* secret, const char* method, const String& path,
 ข้อมูลกล้องส่งดังนี้: `camera_test_started` มี `job_id` · `camera_ready` มี `job_id`, `width`, `height` · `camera_scan_result` มี `job_id`, `attempt`, `frames`, `qr_shapes`, `read_ok`, `read_ms` · การส่งสถานะเป็น best-effort และไม่เปลี่ยนผล `/result`
 
 - `wait` 0–55 (ไม่ส่ง = 55) · ใช้ค่า `longpoll_wait_s` จาก config
-- `reset_reason` จาก `esp_reset_reason()` เช่น `power_on`, `deep_sleep`, `brownout`, `panic`
+- `reset_reason` จาก `esp_reset_reason()` เช่น `power_on`, `deep_sleep`, `brownout`, `panic` · `reset_code` (0.2.44 · ไม่บังคับ) = ค่าดิบ ใช้แยก watchdog 3 แบบ: 5 interrupt · 6 task · 7 อื่น
 - ตัวอย่าง body/คำตอบเต็ม: โปรโตคอล §2.1–2.6
 
 ---
@@ -300,7 +300,9 @@ String signRequest(const char* secret, const char* method, const String& path,
 - **Snapface (✅ 2026-11-05)** — งาน `inspect` ที่ได้ `pass`: สลับกล้องเป็นโหมดถ่ายใบหน้า (XGA สี แสงอัตโนมัติ) → รอเวลาสุ่ม 3–4.5 วิ (ตอนเจ้าหน้าที่ลดมือถือลง หน้าจะเข้ากล้อง) → ถ่าย 3 เฟรม เลือกเฟรมที่ชัดสุด ≤ 80 KB → `POST /v1/box/jobs/{id}/photo { "jpeg_b64": "…" }` → ปิดกล้อง
   - **ห้ามมีเสียงหรือไฟบอกตอนถ่าย** (เจ้าหน้าที่ต้องไม่รู้ว่าถ่ายตอนไหน) · ปี๊บ "pass" ดังก่อนถ่ายตามเดิม
   - JPEG ≤ 85 KB (VGA ขาวดำ/สี คุณภาพปานกลางพอ) · ต้องส่งภายใน 2 นาทีหลังผ่าน · 1 รูปต่อการตรวจ · ส่งไม่ได้ (409/เน็ตหลุด) = ทิ้ง ไม่ลองใหม่
-  - ไลบรารี `smmb_link` ทำให้แล้ว — ทีม Hardware ใส่ hook `preparePhoto` + `snapshotJpeg` (ตอนนี้ `main.cpp` ใช้ `cameraPreparePhoto` + `cameraSnapshotJpeg`) · ปรับมุม/ระยะกล้องให้เห็นหน้าคนยืนหน้าตู้ได้
+  - ไลบรารี `smmb_link` ทำให้แล้ว — ทีม Hardware ใส่ hook `preparePhoto` + `snapshotJpeg` (ตั้งแต่ 0.2.41 `main.cpp` ใส่ `preparePhoto = nullptr` → ถ่ายด้วยกล้องโหมดสแกนที่เปิดอยู่ ไม่สลับเป็น XGA · `snapshotJpeg` = `cameraSnapshotJpeg`) · ปรับมุม/ระยะกล้องให้เห็นหน้าคนยืนหน้าตู้ได้
+  - **watchdog (0.2.44)**: ลูปหลักตั้ง task watchdog 180 วิ · งานตรวจต้องป้อน watchdog (`esp_task_wdt_reset`) ที่ต้นทุกขั้นที่มีกำหนดจบของตัวเอง (รับงาน · แต่ละรอบสแกน/ส่งผล · แต่ละเฟรมในลูปสแกน · แต่ละขั้นของ Snapface) — เดิมนับรวมทั้งงาน เกิน 180 วิบน Wi-Fi อ่อน ตู้รีเซ็ตระหว่างส่งรูป
+  - วินิจฉัย: ขั้นของ Snapface (1 เตรียม · 2 รอ · 3 ถ่าย · 4 เข้ารหัส · 5 ส่ง) จดใน RTC เท่านั้น (0.2.44 เลิกส่ง event `photo_step`) · ตู้รีเซ็ตกลางทาง → บูตถัดไปส่ง `photo_crash { step, reset, reset_code }` · จบปกติส่ง `photo_diag { outcome, bytes, http, free_heap, ms }` · boot ส่ง `reset_code` = ค่าดิบของ `esp_reset_reason()` (5 interrupt WDT · 6 task WDT · 7 WDT อื่น)
 
 ---
 
@@ -312,11 +314,16 @@ String signRequest(const char* secret, const char* method, const String& path,
 
 | เหตุการณ์ | เสียง |
 |---|---|
-| boot สำเร็จ / ได้งาน เปิดกล้องพร้อม | ปี๊บสั้น 1 |
-| `pass` | ปี๊บสั้น 2 |
-| `retry` | ปี๊บยาว 1 |
-| `fail` / งานหมดเวลา | ปี๊บยาว 3 |
-| ต่อ Wi-Fi / เซิร์ฟเวอร์ไม่ได้ / 401 | ปี๊บยาว 1 + สั้น 2 |
+| boot สำเร็จ / ได้งาน เปิดกล้องพร้อม | ติ๊ด 1 |
+| `pass` | ติ๊ด 2 |
+| `retry` | ติ๊ด 1 (กล้องพร้อมอ่านอีกครั้ง) |
+| `fail` / งานหมดเวลา | ติ๊ด 4 |
+| ต่อ Wi-Fi / เซิร์ฟเวอร์ไม่ได้ / 401 | ติ๊ด 1 · เว้น · ติ๊ด 2 |
+| รับคำสั่งเปลี่ยน Wi-Fi | ติ๊ด 3 |
+
+**ตัวส่งเสียงจริง = LTE-5061J 12V DC (0.2.45):** จ่ายไฟค้างแล้วมัน "ติ๊ด" ตามจังหวะของมันเองไปเรื่อย ๆ สั่งสั้น/ยาวแบบ buzzer ไม่ได้ (จ่าย 120 ms ยังไม่ทันดัง · เว้น 120 ms ยังไม่ทันดับ) → ทุกรูปแบบนับเป็น "จำนวนติ๊ด": จ่ายไฟ `lead + (n−1)×period + period/2` ms แล้วตัด 700 ms ให้ดับสนิทก่อนกลุ่มถัดไป · ค่าเริ่มต้น period 800 / lead 150
+- ปรับให้ตรงกับตัวจริงทาง serial (เก็บใน NVS ไม่ต้องแฟลชใหม่): `siren hold 8000` → นับติ๊ด → `siren period <8000 ÷ จำนวนติ๊ด>` · ถ้าติ๊ดแรกดังช้าหลังจ่ายไฟ ตั้ง `siren lead <ms>` · ตรวจด้วย `siren test 2` ต้องได้ 2 ติ๊ดพอดี (ได้ 1 = เพิ่ม lead · ได้ 3 = ลด period)
+- ตัวนี้กินกระแสสูงตอนดัง ให้จ่าย 12V แยกจากไฟเลี้ยงบอร์ด (ร่วม GND) · โค้ดดังเสียง "พร้อม" ให้จบก่อนเปิดกล้อง
 
 ---
 

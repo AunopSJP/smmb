@@ -389,6 +389,7 @@ QrRead cameraScanQr(uint32_t timeoutMs) {
   uint32_t lastPreviewAt = start;  // ภาพแรกส่งหลังสแกนไปแล้ว 1 ช่วง
   quirc_decode_error_t lastErr = QUIRC_SUCCESS;
   while (millis() - start < timeoutMs) {
+    esp_task_wdt_reset();  // 0.2.44: รอบนี้มีกำหนดจบ (timeoutMs) อยู่แล้ว · ไม่ให้ watchdog นับเวลาสแกนรวมกับทั้งงานตรวจ
     camera_fb_t* fb = esp_camera_fb_get();
     if (!fb) {
       delay(20);

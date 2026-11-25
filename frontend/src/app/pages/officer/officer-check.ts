@@ -13,11 +13,14 @@ import { CodeKeypad } from '../../shared/code-keypad';
 import { DisplaySettings } from '../../core/display-settings';
 import { Session } from '../../core/session';
 import { cleanCode, formatCode } from '../../core/rider-rules';
+import { ScanChime } from '../../core/scan-chime';
 
 /** ตู้ยังไม่พร้อมภายในกี่วินาที → ถามว่าได้ยินเสียงตู้ไหม (api.md §6.3) */
 const WAKE_TIMEOUT_S = 30;
 /** หน้ารอตู้ / รอผล ถามสถานะทุก 1 วิ (✅) */
 const POLL_MS = 1000;
+/** ตู้อ่าน QR ประจำตัวผ่าน → ค้าง O06 ให้ได้ยินเสียง/เห็นข้อความก่อนไป O08 (✅ ผู้ใช้สั่ง 2026-11-25) */
+const SCANNED_HOLD_MS = 1200;
 
 const go = (router: Router, code: string, query?: Record<string, string | number>) =>
   void router.navigate([screenUrl(code)], { queryParams: query, replaceUrl: code !== 'O02' });
@@ -137,6 +140,8 @@ async function startInspection(api: InspectionApi, router: Router, body: Paramet
 })
 export class OfficerScan implements OnInit {
   protected readonly i18n = inject(I18n);
+  /** สร้างตั้งแต่หน้าสแกน → การแตะในหน้านี้ปลดล็อกเสียง "ตู้อ่านได้แล้ว" ไว้ใช้ที่ O06 */
+  private readonly chime = inject(ScanChime);
   private readonly api = inject(InspectionApi);
   private readonly router = inject(Router);
   private readonly location = inject(Location);
@@ -146,6 +151,7 @@ export class OfficerScan implements OnInit {
   protected readonly message = signal<Tr | null>(null);
 
   async ngOnInit(): Promise<void> {
+    this.chime.unlock(); // เบราว์เซอร์ที่จำการแตะก่อนหน้าได้ = พร้อมเล่นเลย · ไม่ได้ = รอการแตะในหน้านี้
     const perm = await cameraPermission();
     if (perm === 'denied') return go(this.router, 'O02-b', { camera: 'denied' });
     // ครั้งแรก: อธิบายก่อนว่าขอกล้องไปทำอะไร (O02-c) แล้วเบราว์เซอร์ค่อยถาม
@@ -678,6 +684,7 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
 })
 export class OfficerWake implements OnInit {
   protected readonly i18n = inject(I18n);
+  private readonly chime = inject(ScanChime);
   private readonly api = inject(InspectionApi);
   private readonly router = inject(Router);
   protected readonly url = screenUrl;
@@ -721,7 +728,10 @@ export class OfficerWake implements OnInit {
       if (!ins) return;
       this.ins.set(ins);
       if (ins.status === 'ready') return this.leave('O06');
-      if (ins.status === 'passed') return this.leave('O08');
+      if (ins.status === 'passed') {
+        this.chime.play();
+        return this.leave('O08');
+      }
       if (ins.status === 'failed') return this.leave('O06-c');
       if (ins.status === 'box_problem') {
         this.stop();
@@ -775,7 +785,12 @@ interface WakeLockSentinelLike {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pad">
-      @if ((ins()?.attempt ?? 1) > 1) {
+      @if (scanned()) {
+        <p class="scanned" role="status" aria-live="assertive">
+          <app-icon name="check" [size]="26" />
+          <strong>{{ i18n.t({ th: 'ตู้อ่าน QR ได้แล้ว', en: 'The box read your QR' }) }}</strong>
+        </p>
+      } @else if ((ins()?.attempt ?? 1) > 1) {
         <p class="retry" role="alert">
           <strong>{{ i18n.t({ th: 'ตู้อ่านไม่ผ่าน ลองอีกครั้ง', en: 'The box couldn’t read it — try again' }) }}</strong><br />
           <span class="small">{{ i18n.t({ th: 'ลองขยับให้ใกล้ขึ้น หรือเอียงจอเลี่ยงแสงสะท้อน', en: 'Move closer, or tilt to avoid glare' }) }}</span>
@@ -798,6 +813,7 @@ interface WakeLockSentinelLike {
       </div>
 
 
+      @if (!scanned()) {
       <div class="countdown" aria-live="off">
         <span class="sec">{{ left() }}</span>
         <span>
@@ -820,6 +836,7 @@ interface WakeLockSentinelLike {
           <small class="muted">{{ i18n.t({ th: 'ครั้งที่ ', en: 'Try ' }) }}{{ i.attempt }} {{ i18n.t({ th: 'จาก', en: 'of' }) }} {{ i.attempts_max }}</small>
         </div>
       }
+      }
       <p class="muted small center push-end easy-hide">{{ i18n.t({ th: 'เพิ่มความสว่างจอให้สุดจะอ่านง่ายขึ้น', en: 'Turn screen brightness up for an easier read' }) }}</p>
       <a class="btn secondary" [routerLink]="url('O05')" [queryParams]="{ id: id(), problem: 1 }">
         {{ i18n.t({ th: 'ตู้ไม่สแกน · แจ้งปัญหาตู้', en: 'Box won’t scan · report a problem' }) }}
@@ -833,6 +850,17 @@ interface WakeLockSentinelLike {
     }
     .strong {
       font-weight: var(--fw-strong);
+    }
+    .scanned {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      background: var(--success-bg);
+      color: var(--success-fg);
+      font-size: var(--fs-lg);
     }
     .retry {
       background: var(--warn-bg);
@@ -933,10 +961,14 @@ export class OfficerBadge implements OnInit {
   protected readonly devTools = inject(ApiConfig).devTools;
   private readonly api = inject(InspectionApi);
   private readonly router = inject(Router);
+  private readonly chime = inject(ScanChime);
   protected readonly url = screenUrl;
   readonly id = input<string>('');
   protected readonly ins = signal<Inspection | null>(null);
   protected readonly qr = signal<string | null>(null);
+  /** ตู้อ่าน QR ผ่านแล้ว — ขึ้นแถบเขียว + เสียง ก่อนไป O08 */
+  protected readonly scanned = signal(false);
+  private holdTimer: ReturnType<typeof setTimeout> | null = null;
   protected readonly left = signal(15);
   /** เวลาหมดอายุจริงจาก server (โหมดละเอียด) */
   private readonly expiresIso = signal<string | null>(null);
@@ -967,11 +999,13 @@ export class OfficerBadge implements OnInit {
     await this.keepScreenOn();
     await this.refreshBadge();
     this.startClock();
+    this.chime.unlock();
     const tick = async () => {
+      if (this.scanned()) return;
       const ins = await this.api.get(this.id()).catch(() => null);
-      if (!ins) return;
+      if (!ins || this.scanned()) return;
       this.ins.set(ins);
-      if (ins.status === 'passed') this.leave('O08');
+      if (ins.status === 'passed') this.onScanned();
       else if (ins.status === 'failed' || ins.status === 'expired') this.leave('O06-c');
       else if (ins.status === 'box_problem') this.leave('O01');
     };
@@ -1035,6 +1069,16 @@ export class OfficerBadge implements OnInit {
     }
   }
 
+  /** ตู้อ่านผ่าน: หยุด QR/นับถอยหลัง · เสียง + สั่น + แถบเขียว · แล้วค่อยไปหน้า "กำลังบันทึกผล" */
+  private onScanned(): void {
+    this.scanned.set(true);
+    if (this.poll) clearInterval(this.poll);
+    this.poll = null;
+    this.stopClock();
+    this.chime.play();
+    this.holdTimer = setTimeout(() => this.leave('O08'), SCANNED_HOLD_MS);
+  }
+
   private leave(code: string): void {
     this.stop();
     go(this.router, code, { id: this.id() });
@@ -1042,6 +1086,8 @@ export class OfficerBadge implements OnInit {
 
   private stop(): void {
     if (this.poll) clearInterval(this.poll);
+    if (this.holdTimer) clearTimeout(this.holdTimer);
+    this.holdTimer = null;
     this.stopClock();
     this.poll = null;
     void this.wakeLock?.release().catch(() => undefined);

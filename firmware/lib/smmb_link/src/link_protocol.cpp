@@ -3,6 +3,7 @@
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <WiFi.h>
+#include <esp_task_wdt.h>
 #include <mbedtls/base64.h>
 
 #include "link_internal.h"
@@ -313,6 +314,8 @@ bool linkBoot()
   doc["fw"] = linkFw;
   doc["config_ver"] = boxConfig.ver;
   doc["reset_reason"] = linkResetReason();
+  // 0.2.44: รหัสดิบของ esp_reset_reason() — "watchdog" รวม 3 แบบไว้ด้วยกัน: 5 ESP_RST_INT_WDT (ค้างในไดรเวอร์/interrupt) · 6 ESP_RST_TASK_WDT (ลูปไม่ขยับ 180 วิ) · 7 ESP_RST_WDT (อื่น ๆ)
+  doc["reset_code"] = (int)esp_reset_reason();
   doc["rssi"] = WiFi.RSSI();
   doc["wifi_ch"] = WiFi.channel();
   String body;
@@ -335,6 +338,7 @@ bool linkBoot()
     d["type"] = "photo_crash";
     d["step"] = linkRtc.photoStep;
     d["reset"] = linkResetReason();
+    d["reset_code"] = (int)esp_reset_reason();
     linkRtc.photoStep = 0;
     postEvent(d, 1500);
   }
@@ -408,6 +412,7 @@ static void sendInspectionPhoto(const String &jobId)
   if (!linkHooks.snapshotJpeg)
     return;
   // 0.2.41: รายงานผลขึ้น D04 (photo_diag) ทุกครั้ง · ขั้นที่ทำอยู่จดไว้ใน RTC เผื่อตู้รีเซ็ตกลางทาง (บูตถัดไปส่ง photo_crash)
+  const unsigned long startedAt = millis();
   size_t len = 0;
   int httpStatus = 0;
   const char *outcome = "ok";
@@ -421,24 +426,20 @@ static void sendInspectionPhoto(const String &jobId)
     d["bytes"] = (uint32_t)len;
     d["http"] = httpStatus;
     d["free_heap"] = (uint32_t)ESP.getFreeHeap();
+    d["ms"] = (uint32_t)(millis() - startedAt); // 0.2.44: เวลาตั้งแต่ตรวจผ่านจนจบช่วงถ่าย/ส่งรูป
     postEvent(d, 1500);
   };
-  // 0.2.42: บอกเซิร์ฟเวอร์ทันทีที่เข้าแต่ละขั้น (photo_step) → ดูที่ D04 ได้เลยว่าค้างขั้นไหน ไม่ต้องรอตู้รีเซ็ตแล้วค่อยอ่านจาก RTC
+  // 0.2.44: จดขั้นลง RTC อย่างเดียว — เลิกส่ง photo_step ขึ้นเซิร์ฟเวอร์ทุกขั้น (HTTPS เพิ่ม 4 ครั้งทำให้งานตรวจนานจน watchdog รีเซ็ตตู้ รูปจึงไม่ถึง)
+  // ตู้รีเซ็ตกลางทาง → บูตถัดไปยังส่ง photo_crash บอกขั้นได้เหมือนเดิม · แต่ละขั้นมีกำหนดจบของตัวเอง จึงป้อน watchdog ที่ต้นขั้น
   auto stepEvent = [&](uint8_t step)
   {
     linkRtc.photoStep = step;
-    JsonDocument d;
-    d["type"] = "photo_step";
-    d["job_id"] = jobId;
-    d["step"] = step;
-    d["free_heap"] = (uint32_t)ESP.getFreeHeap();
-    postEvent(d, 1500);
+    esp_task_wdt_reset();
   };
-  const unsigned long startedAt = millis();
   // 0.2.42: ปิดไฟแฟลชระหว่างรอจังหวะสุ่ม (LED ร้อน + กินกระแส ~0.3 A) แล้วค่อยวัดแสงใหม่ก่อนถ่ายจริง
   if (linkHooks.cameraAutoFlash)
     linkHooks.cameraAutoFlash(false);
-  linkRtc.photoStep = 1;
+  stepEvent(1);
   if (linkHooks.preparePhoto && !linkHooks.preparePhoto())
     Serial.println("[job] photo: prepare failed - using scan mode");
   stepEvent(2);
@@ -500,7 +501,8 @@ static void sendInspectionPhoto(const String &jobId)
   body += "\"}";
   stepEvent(5);
   const LinkResponse r = linkRequest("POST", "/v1/box/jobs/" + jobId + "/photo", body, PHOTO_UPLOAD_TIMEOUT_MS);
-  Serial.printf("[job] photo %u B -> %d\n", (unsigned)len, r.status);
+  esp_task_wdt_reset();
+  Serial.printf("[job] photo %u B -> %d · %lu ms after pass\n", (unsigned)len, r.status, millis() - startedAt);
   httpStatus = r.status;
   if (r.status != 200)
     outcome = "upload_failed";
@@ -545,6 +547,7 @@ static void runJob(JsonObjectConst job)
     return;
   }
   // 0.2.33: แจ้งเซิร์ฟเวอร์ก่อน แล้วค่อยเปิดไฟแฟลช (LED บนบอร์ดดึงกระแสสูง)
+  esp_task_wdt_reset(); // 0.2.44: เริ่มนับใหม่ตอนรับงาน (long-poll ที่ส่งงานมาอาจรอไปแล้วเกือบ 30 วิ)
   const LinkResponse ready = linkRequest("POST", "/v1/box/jobs/" + jobId + "/ready", "{\"flash\":false}");
   Serial.printf("[job] ready after %lu ms\n", millis() - t0);
   if (ready.status != 200)
@@ -568,6 +571,7 @@ static void runJob(JsonObjectConst job)
 
   for (uint8_t attempt = 1; attempt <= attemptMax; attempt++)
   {
+    esp_task_wdt_reset(); // 0.2.44: สแกน/ส่งผลแต่ละรอบมีกำหนดจบของตัวเอง → นับ watchdog ต่อรอบ ไม่ใช่รวมทั้งงาน (เดิมรวมเกิน 180 วิได้ = ตู้รีเซ็ตกลางงาน)
     const LinkScan q = linkHooks.scanQr((uint32_t)scanTimeoutS * 1000);
     JsonDocument doc;
     doc["attempt"] = attempt;
@@ -589,6 +593,7 @@ static void runJob(JsonObjectConst job)
       delay(1000);
       r = linkRequest("POST", "/v1/box/jobs/" + jobId + "/result", body);
     }
+    esp_task_wdt_reset();
     if (r.status != 200)
     {
       // ส่งผลไม่ได้ → ทิ้ง ไม่เก็บไว้ส่งทีหลัง (ไม่มีโหมดออฟไลน์)

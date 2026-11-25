@@ -147,11 +147,11 @@ export class AdminBoxDiagnostics {
   protected readonly standbyBusy = signal(false);
   /** รูปแบบเสียง (ตรงกับโปรโตคอล §2.5 และข้อความในแอปเจ้าหน้าที่) */
   protected readonly beepPatterns: { v: BeepPattern; label: Tr; sound: Tr }[] = [
-    { v: 'ready', label: { th: 'พร้อม / ได้งาน', en: 'Ready' }, sound: { th: 'สั้น 1 ครั้ง', en: 'short ×1' } },
-    { v: 'pass', label: { th: 'ผ่าน', en: 'Pass' }, sound: { th: 'สั้น 2 ครั้ง', en: 'short ×2' } },
-    { v: 'retry', label: { th: 'ลองอีกครั้ง', en: 'Retry' }, sound: { th: 'ยาว 1 ครั้ง', en: 'long ×1' } },
-    { v: 'fail', label: { th: 'ไม่ผ่าน', en: 'Fail' }, sound: { th: 'ยาว 3 ครั้ง', en: 'long ×3' } },
-    { v: 'error', label: { th: 'ผิดพลาด', en: 'Error' }, sound: { th: 'ยาว 1 + สั้น 2', en: 'long ×1 + short ×2' } },
+    { v: 'ready', label: { th: 'พร้อม / ได้งาน', en: 'Ready' }, sound: { th: 'ติ๊ด 1 ครั้ง', en: '1 tick' } },
+    { v: 'pass', label: { th: 'ผ่าน', en: 'Pass' }, sound: { th: 'ติ๊ด 2 ครั้ง', en: '2 ticks' } },
+    { v: 'retry', label: { th: 'ลองอีกครั้ง', en: 'Retry' }, sound: { th: 'ติ๊ด 1 ครั้ง', en: '1 tick' } },
+    { v: 'fail', label: { th: 'ไม่ผ่าน', en: 'Fail' }, sound: { th: 'ติ๊ด 4 ครั้ง', en: '4 ticks' } },
+    { v: 'error', label: { th: 'ผิดพลาด', en: 'Error' }, sound: { th: 'ติ๊ด 1 · เว้น · ติ๊ด 2', en: '1 tick · pause · 2 ticks' } },
     { v: 'wifi', label: { th: 'รับคำสั่ง Wi-Fi', en: 'Wi-Fi command' }, sound: { th: 'สั้น 3 ถี่ ๆ', en: 'short ×3 fast' } },
   ];
   protected beepName(p: BeepPattern | null): Tr {

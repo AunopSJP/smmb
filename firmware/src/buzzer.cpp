@@ -2,13 +2,19 @@
 
 #include <Arduino.h>
 #include <driver/rtc_io.h>
+#include <esp_task_wdt.h>
 #include <string.h>
 
 #include "board.h"
+#include "settings.h"
 
-// BUZZER_ACTIVE: เปิด/ปิดขา (MOSFET → ไซเรน) · ไม่งั้นใช้ PWM (LEDC) สำหรับ buzzer แบบ passive
+// 0.2.45: ตัวส่งเสียงจริงคือ LTE-5061J 12V DC (ไฟกระพริบ+เสียงในตัว) — จ่ายไฟค้างแล้วมัน "ติ๊ด" ตามจังหวะของมันเองไปเรื่อย ๆ
+// สั่งเสียงสั้น/ยาวแบบ buzzer ไม่ได้ (จ่าย 120 ms วงจรข้างในยังไม่ทันดัง · เว้น 120 ms ยังไม่ทันดับ เสียงกลืนกัน)
+// → ทุกรูปแบบนับเป็น "จำนวนติ๊ด": จ่ายไฟค้างนานพอให้ดังครบ N ครั้งแล้วตัดก่อนครั้งถัดไป · กลุ่มเสียงคั่นด้วยการตัดไฟนานพอให้ดับสนิท
+// ความยาวจังหวะต่างกันตามล็อตของอุปกรณ์ → ตั้งได้ทาง serial (`siren period/lead`) เก็บใน NVS ไม่ต้องแฟลชใหม่
+// BUZZER_ACTIVE 0 (buzzer แบบ passive ต่อตรง) ยังใช้ PWM ได้ — จังหวะเดียวกัน
 static const int CH = 7;
-static const int SHORT_MS = 120, LONG_MS = 600, GAP_MS = 120;
+static const uint16_t GROUP_GAP_MS = 700; // ตัดไฟระหว่างกลุ่มเสียง (เช่น เสียงผิดพลาด 1 · 2) — ให้วงจรในตัวดับและเริ่มนับใหม่
 
 void buzzerInit()
 {
@@ -48,47 +54,67 @@ void buzzerHoldOffForSleep()
   }
 }
 
-static void tone(int ms)
+static void powerOn()
 {
 #if BUZZER_ACTIVE
   digitalWrite(PIN_BUZZER, HIGH);
 #else
   ledcWriteTone(CH, BUZZER_FREQ_HZ);
 #endif
-  delay(ms);
+}
+
+void sirenHold(uint32_t ms)
+{
+  powerOn();
+  const uint32_t start = millis();
+  while (millis() - start < ms)
+  {
+    esp_task_wdt_reset();
+    delay(10);
+  }
   buzzerOff();
-  delay(GAP_MS);
+}
+
+/** จ่ายไฟให้ดังครบ n ติ๊ด: ถึงติ๊ดแรก (lead) + (n−1) จังหวะ + ครึ่งจังหวะ (ตัดก่อนติ๊ดถัดไป) · แล้วตัดไฟให้ดับสนิท */
+void sirenTicks(uint8_t n)
+{
+  if (!n)
+    return;
+  const uint32_t period = settings.sirenPeriodMs;
+  sirenHold(settings.sirenLeadMs + (uint32_t)(n - 1) * period + period / 2);
+  delay(GROUP_GAP_MS);
 }
 
 void beepReady()
 {
-  Serial.println("[beep] short x1");
-  tone(SHORT_MS);
+  Serial.println("[beep] 1 tick (ready)");
+  sirenTicks(1);
 }
 void beepPass()
 {
-  Serial.println("[beep] short x2 (pass)");
-  tone(SHORT_MS);
-  tone(SHORT_MS);
+  Serial.println("[beep] 2 ticks (pass)");
+  sirenTicks(2);
 }
 void beepRetry()
 {
-  Serial.println("[beep] long x1 (retry)");
-  tone(LONG_MS);
+  Serial.println("[beep] 1 tick (retry)");
+  sirenTicks(1);
 }
 void beepFail()
 {
-  Serial.println("[beep] long x3 (fail)");
-  tone(LONG_MS);
-  tone(LONG_MS);
-  tone(LONG_MS);
+  Serial.println("[beep] 4 ticks (fail)");
+  sirenTicks(4);
 }
 void beepWifiReset()
 {
-  Serial.println("[beep] short x3 (wifi reset)");
-  tone(SHORT_MS);
-  tone(SHORT_MS);
-  tone(SHORT_MS);
+  Serial.println("[beep] 3 ticks (wifi reset)");
+  sirenTicks(3);
+}
+void beepError()
+{
+  Serial.println("[beep] 1 tick · pause · 2 ticks (error)");
+  sirenTicks(1);
+  sirenTicks(2);
 }
 
 bool beepByName(const char *name)
@@ -110,12 +136,4 @@ bool beepByName(const char *name)
   else
     return false;
   return true;
-}
-
-void beepError()
-{
-  Serial.println("[beep] long + short x2 (error)");
-  tone(LONG_MS);
-  tone(SHORT_MS);
-  tone(SHORT_MS);
 }

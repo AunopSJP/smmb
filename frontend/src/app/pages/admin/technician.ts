@@ -356,7 +356,7 @@ export class TechChecklist {
         <span>{{ i18n.t({ th: 'รหัส Wi-Fi', en: 'Wi-Fi password' }) }}</span>
         <input type="password" autocomplete="off" [value]="password()" (input)="password.set($any($event.target).value)" />
       </label>
-      <p class="muted small">{{ i18n.t({ th: 'ตู้ลองต่อ → ได้: ปี๊บ 1 ครั้ง ปิดสัญญาณ ' + ap() + ' แล้วติดต่อเซิร์ฟเวอร์ · ไม่ได้: ปี๊บยาว 1 + สั้น 2 แล้วกลับมาหน้านี้', en: 'The box tries → success: 1 beep, ' + ap() + ' disappears, it calls the server · failure: long + 2 short beeps, back to this page' }) }}</p>
+      <p class="muted small">{{ i18n.t({ th: 'ตู้ลองต่อ → ได้: ปี๊บ 1 ครั้ง ปิดสัญญาณ ' + ap() + ' แล้วติดต่อเซิร์ฟเวอร์ · ไม่ได้: ติ๊ด 1 · เว้น · ติ๊ด 2 แล้วกลับมาหน้านี้', en: 'The box tries → success: 1 beep, ' + ap() + ' disappears, it calls the server · failure: 1 tick · pause · 2 ticks, back to this page' }) }}</p>
       <button type="submit" class="btn push-end" [disabled]="!ssid() || !password()">{{ i18n.t({ th: 'เชื่อมต่อ', en: 'Connect' }) }}</button>
     </form>
   `,
@@ -448,13 +448,13 @@ export class TechWifi {
       <div class="result">
         <span class="big-icon info"><app-icon name="wifi" [size]="34" /></span>
         <h1>{{ i18n.t({ th: 'ฟังเสียงตู้', en: 'Listen to the box' }) }}</h1>
-        <p class="muted">{{ i18n.t({ th: 'ตู้ไม่มีไฟสถานะ ใช้เสียงปี๊บบอก', en: 'The box has no status light — it beeps' }) }}</p>
+        <p class="muted">{{ i18n.t({ th: 'ตู้ไม่มีไฟสถานะ ใช้เสียงติ๊ดบอก (นับจำนวนครั้ง)', en: 'The box has no status light — count its ticks' }) }}</p>
       </div>
       <div class="info-box">
-        <p><span class="beep" aria-hidden="true">•</span> {{ i18n.t({ th: 'ปี๊บสั้น 1 ครั้ง = เชื่อมต่ออินเทอร์เน็ตได้ / พร้อมสแกน', en: '1 short beep = online / ready to scan' }) }}</p>
-        <p><span class="beep" aria-hidden="true">• •</span> {{ i18n.t({ th: 'ปี๊บสั้น 2 ครั้ง = อ่าน QR ผ่าน', en: '2 short beeps = QR passed' }) }}</p>
-        <p><span class="beep" aria-hidden="true">—</span> {{ i18n.t({ th: 'ปี๊บยาว 1 ครั้ง = อ่านไม่ผ่าน ให้ลองอีกครั้ง', en: '1 long beep = not read, try again' }) }}</p>
-        <p><span class="beep" aria-hidden="true">— • •</span> {{ i18n.t({ th: 'ปี๊บยาว 1 + สั้น 2 = เชื่อมต่ออินเทอร์เน็ต/เซิร์ฟเวอร์ไม่ได้', en: 'long + 2 short = no network / server' }) }}</p>
+        <p><span class="beep" aria-hidden="true">•</span> {{ i18n.t({ th: 'ติ๊ด 1 ครั้ง = เชื่อมต่ออินเทอร์เน็ตได้ / พร้อมสแกน', en: '1 tick = online / ready to scan' }) }}</p>
+        <p><span class="beep" aria-hidden="true">• •</span> {{ i18n.t({ th: 'ติ๊ด 2 ครั้ง = อ่าน QR ผ่าน', en: '2 ticks = QR passed' }) }}</p>
+        <p><span class="beep" aria-hidden="true">• • • •</span> {{ i18n.t({ th: 'ติ๊ด 4 ครั้ง = อ่านไม่ผ่านครบทุกครั้ง (ไม่ผ่าน)', en: '4 ticks = failed every try' }) }}</p>
+        <p><span class="beep" aria-hidden="true">•&nbsp;&nbsp;• •</span> {{ i18n.t({ th: 'ติ๊ด 1 · เว้น · ติ๊ด 2 = เชื่อมต่ออินเทอร์เน็ต/เซิร์ฟเวอร์ไม่ได้', en: '1 tick · pause · 2 ticks = no network / server' }) }}</p>
       </div>
       <div class="stack push-end">
         <a class="btn" [routerLink]="url('T01')">{{ i18n.t({ th: 'กลับเช็กลิสต์', en: 'Back to checklist' }) }}</a>

@@ -30,6 +30,8 @@ void settingsLoad() {
     settings.camQ = prefs.getUChar("camq", 12);
     settings.camSharp = (int8_t)prefs.getChar("camsh", 2);
   }
+  settings.sirenPeriodMs = constrain(prefs.getUShort("sirper", 800), 200, 3000);
+  settings.sirenLeadMs = constrain(prefs.getUShort("sirlead", 150), 0, 2000);
   String cfg = prefs.getString("cfg", "");
   uint32_t ver = prefs.getUInt("cfgver", 0);
   prefs.end();
@@ -55,6 +57,8 @@ void settingsSave() {
   prefs.putUChar("camq", settings.camQ);
   prefs.putChar("camsh", settings.camSharp);
   prefs.putUChar("camflip2", settings.camFlip);
+  prefs.putUShort("sirper", settings.sirenPeriodMs);
+  prefs.putUShort("sirlead", settings.sirenLeadMs);
   prefs.end();
 }
 

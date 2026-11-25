@@ -240,7 +240,7 @@ export class OwnerWifi {
 
   protected steps(apName: string): { title: Tr; sub: Tr }[] {
     return [
-      { title: { th: 'ตู้ตัด Wi-Fi เดิมแล้ว', en: 'The mailbox dropped the old Wi-Fi' }, sub: { th: 'จะได้ยินเสียงปี๊บสั้น ๆ 3 ครั้ง', en: 'You will hear three short beeps' } },
+      { title: { th: 'ตู้ตัด Wi-Fi เดิมแล้ว', en: 'The mailbox dropped the old Wi-Fi' }, sub: { th: 'จะได้ยินเสียงติ๊ด 3 ครั้ง', en: 'You will hear three ticks' } },
       { title: { th: `มือถือต่อ Wi-Fi ชื่อ ${apName}`, en: `Join Wi-Fi “${apName}”` }, sub: { th: 'อยู่ใกล้ตู้ · ไม่มีรหัสผ่าน', en: 'Stay near the box · no password' } },
       { title: { th: 'เปิดเว็บ 192.168.4.1', en: 'Open 192.168.4.1' }, sub: { th: 'ถ้าหน้าตั้งค่าไม่เปิดขึ้นเอง', en: 'If the setup page does not pop up' } },
       { title: { th: 'เลือก Wi-Fi บ้าน (2.4 GHz) + ใส่รหัส', en: 'Pick home Wi-Fi (2.4 GHz) + password' }, sub: { th: 'ต้องทำภายใน 10 นาที หากไม่ทัน ตู้จะกลับไปใช้ Wi-Fi เดิม', en: 'Within 10 minutes, or it returns to the old Wi-Fi' } },
