@@ -1,4 +1,4 @@
-import { MIN_QR_PX, resetReasonText, scanDiagHint } from './admin-box-reports';
+import { crashTraceText, MIN_QR_PX, resetReasonText, scanDiagHint } from './admin-box-reports';
 
 describe('resetReasonText (D04 รายงานจากตู้)', () => {
   it('flags a brownout as a problem in Thai and English', () => {
@@ -49,5 +49,21 @@ describe('scanDiagHint (scan_diag from a real inspection)', () => {
     const hint = scanDiagHint({ ...base, qr_shapes: 12, widest_px: 160, decode_err: 'ECC failure' });
     expect(hint?.th).toContain('ถอดรหัสไม่ได้');
     expect(hint?.th).toContain('ECC failure');
+  });
+});
+
+describe('crash_trace / reset_code (firmware 0.2.46)', () => {
+  it('names the watchdog kind from reset_code', () => {
+    expect(resetReasonText({ reset_reason: 'watchdog', reset_code: 6 })?.text.th).toContain('180 วิ');
+    expect(resetReasonText({ reset_reason: 'watchdog', reset_code: 5 })?.text.en).toContain('interrupt watchdog');
+    expect(resetReasonText({ reset_reason: 'watchdog' })?.text.th).toBe('เริ่มทำงานใหม่: โปรแกรมค้าง (watchdog)');
+  });
+
+  it('says where the box stopped before it reset', () => {
+    const t = crashTraceText({ type: 'crash_trace', stage: 54, prev_stage: 53, reset: 'watchdog', reset_code: 5 });
+    expect(t?.th).toContain('ปิดกล้องหลังถ่าย');
+    expect(t?.th).toContain('ต่อจาก: Snapface: ถ่ายรูป');
+    expect(crashTraceText({ type: 'crash_trace', stage: 22, prev_stage: 22 })?.en).toContain('try 2');
+    expect(crashTraceText({ type: 'scan_diag' })).toBeNull();
   });
 });

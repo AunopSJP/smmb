@@ -416,6 +416,7 @@ static bool wifiConnect()
   WiFi.setTxPower(WIFI_POWER_19_5dBm);
   txLow = false;
   applyWifiPs(true);
+  linkCrumb(5);
   if (wifiJoin(nullptr))
   {
     Serial.printf("[wifi] connected \"%s\" IP %s RSSI %d ch %d\n", settings.wifiSsid.c_str(), WiFi.localIP().toString().c_str(),
@@ -516,10 +517,15 @@ static void linkSetup()
   linkBegin(h, FW_VERSION);
 }
 
-static bool sendBoot() { return linkBoot(); }
+static bool sendBoot()
+{
+  linkCrumb(6);
+  return linkBoot();
+}
 
 static bool sendReport()
 {
+  linkCrumb(2);
   if (!linkReport())
     return false;
   lastReportDay = localDay(nowUtc());
@@ -541,6 +547,7 @@ static void pollOnce()
   const uint32_t nowS = nowUtc();
   if (scheduleSleepEnabled() && nowS)
     waitS = (uint8_t)constrain((long)secondsLeftToListen(nowS), 1L, (long)waitS);
+  linkCrumb(1);
   const LinkPoll pollRes = linkPollOnce(waitS);
 #if SMMB_TRACE
   tracePollDone((int)pollRes, millis() - pollStartMs);
@@ -620,6 +627,7 @@ static void sleepUntilNextEvent()
   traceAdd('D', sleepS, s, lastPollAgeS(), pollsThisWake);
   traceFlush();
 #endif
+  linkCrumb(4);
   linkEvent("sleeping"); // แจ้งเซิร์ฟเวอร์ว่าตู้หลับแล้ว (ปลุกด้วยสแกนไม่ได้) ก่อนปิด Wi-Fi · 0.2.40
   Serial.flush();
   cameraStop();
@@ -1156,6 +1164,7 @@ void loop()
   {
     syncedThisWake = true;
     Serial.println("[clock] sync with server (once per wake)");
+    linkCrumb(3);
 #if SMMB_TRACE
     const unsigned long syncStartMs = millis();
     linkLastClockDeltaValid = false; // ให้รู้ว่ารอบนี้ได้ค่าเทียบนาฬิกาใหม่จริงไหม

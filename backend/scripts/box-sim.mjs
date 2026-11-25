@@ -91,7 +91,9 @@ if (cmd === 'boot') {
     wake_count: 38, jobs_done: 2, scan_fail: 0, wifi_fail: 0, uptime_s: 86400,
   });
 } else if (cmd === 'event') {
-  await call('POST', '/v1/box/events', { type: String(opt('type', 'camera_error')) });
+  // --json '{"type":"crash_trace",...}' = ส่ง body เองทั้งก้อน (ทดสอบหน้าแสดงผล D04)
+  const raw = opt('json', null);
+  await call('POST', '/v1/box/events', typeof raw === 'string' ? JSON.parse(raw) : { type: String(opt('type', 'camera_error')) });
 } else if (cmd === 'ready') {
   await call('POST', `/v1/box/jobs/${opt('job')}/ready`, { flash: false });
 } else if (cmd === 'result') {

@@ -14,11 +14,73 @@ const RESET_TEXT: Record<string, { text: Tr; bad: boolean }> = {
   panic: { text: { th: 'เริ่มทำงานใหม่: โปรแกรมล่ม (panic)', en: 'Restarted: program crashed (panic)' }, bad: true },
 };
 
+/** reset_code (เฟิร์มแวร์ 0.2.44+) = ค่าดิบของ esp_reset_reason() — แยก watchdog 3 แบบที่ reset_reason รวมไว้ */
+const WATCHDOG_KIND: Record<number, Tr> = {
+  5: { th: 'ค้างในไดรเวอร์/ฮาร์ดแวร์ (interrupt watchdog)', en: 'stuck in a driver/interrupt (interrupt watchdog)' },
+  6: { th: 'ลูปหลักไม่ขยับเกิน 180 วิ (task watchdog)', en: 'main loop stalled over 180 s (task watchdog)' },
+  7: { th: 'watchdog อื่น', en: 'other watchdog' },
+};
+
 /** boot มี reset_reason = ตู้เพิ่งเริ่มทำงานใหม่เพราะอะไร · ไฟตก/ค้าง/โปรแกรมล่ม = ปัญหา (เน้นสีแดง) · ไม่มีค่า = null */
 export function resetReasonText(body: Record<string, unknown>): { text: Tr; bad: boolean } | null {
   const reason = body['reset_reason'];
   if (typeof reason !== 'string') return null;
-  return RESET_TEXT[reason] ?? { text: { th: `เริ่มทำงานใหม่: ${reason}`, en: `Restarted: ${reason}` }, bad: false };
+  const base = RESET_TEXT[reason] ?? { text: { th: `เริ่มทำงานใหม่: ${reason}`, en: `Restarted: ${reason}` }, bad: false };
+  const code = body['reset_code'];
+  const kind = typeof code === 'number' ? WATCHDOG_KIND[code] : undefined;
+  if (reason !== 'watchdog' || !kind) return base;
+  return { bad: base.bad, text: { th: `${base.text.th} · ${kind.th}`, en: `${base.text.en} · ${kind.en}` } };
+}
+
+/** เลข stage ของ linkCrumb ในเฟิร์มแวร์ (SmmbLink.h · 0.2.46) — เพิ่มเลขใหม่ในเฟิร์มแวร์ต้องเพิ่มที่นี่ */
+const CRASH_STAGE: Record<number, Tr> = {
+  0: { th: 'ยังไม่ได้เริ่มงาน', en: 'nothing yet' },
+  1: { th: 'รองาน (long-poll)', en: 'waiting for a job (long-poll)' },
+  2: { th: 'ส่งรายงานรายวัน', en: 'sending the daily report' },
+  3: { th: 'ซิงก์นาฬิกา', en: 'syncing the clock' },
+  4: { th: 'เตรียมหลับลึก', en: 'going to deep sleep' },
+  5: { th: 'ต่อ Wi-Fi', en: 'joining Wi-Fi' },
+  6: { th: 'ส่ง boot', en: 'sending boot' },
+  10: { th: 'เพิ่งได้งาน', en: 'job just received' },
+  11: { th: 'ส่งเสียงพร้อม', en: 'ready sound' },
+  12: { th: 'เปิดกล้อง', en: 'starting the camera' },
+  13: { th: 'แจ้งเซิร์ฟเวอร์ว่ากล้องพร้อม', en: 'telling the server it is ready' },
+  14: { th: 'วัดแสง/เปิดไฟส่อง', en: 'measuring light' },
+  40: { th: 'ส่งเสียงผ่าน', en: 'pass sound' },
+  41: { th: 'ส่งเสียงลองใหม่/ไม่ผ่าน', en: 'retry/fail sound' },
+  51: { th: 'Snapface: เตรียมกล้อง', en: 'Snapface: preparing' },
+  52: { th: 'Snapface: รอจังหวะถ่าย', en: 'Snapface: waiting to shoot' },
+  53: { th: 'Snapface: ถ่ายรูป', en: 'Snapface: taking the photo' },
+  54: { th: 'Snapface: ปิดกล้องหลังถ่าย', en: 'Snapface: stopping the camera after the shot' },
+  55: { th: 'Snapface: เข้ารหัสรูป', en: 'Snapface: encoding' },
+  56: { th: 'Snapface: ส่งรูป', en: 'Snapface: uploading' },
+  57: { th: 'Snapface: ส่งสรุปผล', en: 'Snapface: sending the summary' },
+  60: { th: 'ปิดกล้องตอนจบงาน', en: 'stopping the camera at job end' },
+  61: { th: 'จบงานแล้ว', en: 'job finished' },
+};
+
+function stageText(stage: number): Tr {
+  if (CRASH_STAGE[stage]) return CRASH_STAGE[stage];
+  if (stage > 20 && stage < 30) return { th: `สแกน QR ประจำตัว ครั้งที่ ${stage - 20}`, en: `scanning the badge, try ${stage - 20}` };
+  if (stage > 30 && stage < 40) return { th: `ส่งผลสแกน ครั้งที่ ${stage - 30}`, en: `sending scan result, try ${stage - 30}` };
+  return { th: `ขั้น ${stage}`, en: `stage ${stage}` };
+}
+
+/** event crash_trace (0.2.46): ก่อนรีเซ็ตเพราะค้าง/ล่ม/ไฟตก ตู้กำลังทำอะไร · ไม่ใช่ event นี้ = null */
+export function crashTraceText(body: Record<string, unknown>): Tr | null {
+  if (body['type'] !== 'crash_trace') return null;
+  const stage = num(body['stage']);
+  if (stage === null) return null;
+  const now = stageText(stage);
+  const prev = num(body['prev_stage']);
+  const before = prev !== null && prev !== stage ? stageText(prev) : null;
+  const code = num(body['reset_code']);
+  const kind = code !== null ? WATCHDOG_KIND[code] : undefined;
+  const reason = typeof body['reset'] === 'string' ? body['reset'] : '';
+  return {
+    th: `ก่อนรีเซ็ต ตู้กำลัง: ${now.th}${before ? ` (ต่อจาก: ${before.th})` : ''} · สาเหตุ ${kind?.th ?? reason}`,
+    en: `Before the reset the box was: ${now.en}${before ? ` (after: ${before.en})` : ''} · cause ${kind?.en ?? reason}`,
+  };
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -52,6 +114,8 @@ export function scanDiagHint(body: Record<string, unknown>): Tr | null {
 /** ชนิด event ที่ตู้ส่ง (ไลบรารี smmb_link) */
 const EVENT_TEXT: Record<string, Tr> = {
   camera_error: { th: 'กล้องเปิดไม่ได้', en: 'Camera failed to start' },
+  crash_trace: { th: 'ตู้รีเซ็ตกลางงาน (จุดที่ค้าง)', en: 'Box reset mid-task (where it stopped)' },
+  photo_diag: { th: 'ผลส่งรูป Snapface', en: 'Snapface upload result' },
   scan_diag: { th: 'ตู้อ่าน QR ประจำตัวไม่ได้ (ตรวจจริง)', en: 'Box could not read the badge QR (real inspection)' },
   camera_test_started: { th: 'เริ่มทดสอบกล้อง', en: 'Camera test started' },
   camera_ready: { th: 'กล้องพร้อม (ทดสอบ)', en: 'Camera ready (test)' },
@@ -76,6 +140,9 @@ const EVENT_TEXT: Record<string, Tr> = {
                 <strong>{{ reportTitle(r) }}</strong>
                 @if (resetReason(r.body); as reset) {
                   <span class="small block reset" [class.bad]="reset.bad">{{ i18n.t(reset.text) }}</span>
+                }
+                @if (crashHint(r.body); as hint) {
+                  <span class="small block reset bad">{{ i18n.t(hint) }}</span>
                 }
                 @if (scanHint(r.body); as hint) {
                   <span class="small block reset bad">{{ i18n.t(hint) }}</span>
@@ -142,6 +209,7 @@ export class AdminBoxReports {
 
   protected readonly resetReason = resetReasonText;
   protected readonly scanHint = scanDiagHint;
+  protected readonly crashHint = crashTraceText;
 
   /** awake_trace: บรรทัดบันทึกที่ตู้จดไว้ (เวลาในตู้ · เหตุการณ์ · ค่า) — ไม่ใช่ event นี้ = null */
   protected traceLines(body: Record<string, unknown>): string[] | null {
@@ -170,6 +238,12 @@ export class AdminBoxReports {
       if (typeof px === 'number') parts.push(this.i18n.t({ th: `กว้างสุด ${px} px`, en: `widest ${px} px` }));
       const bright = body['brightness'];
       if (typeof bright === 'number') parts.push(this.i18n.t({ th: `สว่าง ${bright}/255`, en: `brightness ${bright}/255` }));
+    }
+    if (body['type'] === 'photo_diag') {
+      for (const k of ['outcome', 'bytes', 'http', 'ms'] as const) {
+        const v = body[k];
+        if (typeof v === 'string' || typeof v === 'number') parts.push(`${k} ${v}`);
+      }
     }
     return parts.join(' · ');
   }

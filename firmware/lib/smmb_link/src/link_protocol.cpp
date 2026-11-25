@@ -12,6 +12,68 @@ BoxConfig boxConfig;
 int32_t linkLastClockDeltaS = 0;     // ผลต่างนาฬิกาตอนซิงก์ล่าสุด (ดู SmmbLink.h)
 bool linkLastClockDeltaValid = false;
 RTC_DATA_ATTR LinkRtc linkRtc;
+
+// 0.2.46: RTC_NOINIT = bootloader ไม่ล้างตอนรีเซ็ตแบบ watchdog/panic/software (RTC_DATA_ATTR ถูกโหลดค่าเริ่มต้นใหม่ทุกครั้งที่ไม่ใช่การตื่นจากหลับลึก)
+// เปิดเครื่องครั้งแรกค่าเป็นขยะ → ตรวจ magic
+struct LinkCrumbRtc
+{
+  uint32_t magic;
+  uint16_t stage, detail, prevStage, pad;
+  uint32_t atMs;
+};
+static const uint32_t CRUMB_MAGIC = 0x534D4231; // "SMB1"
+RTC_NOINIT_ATTR static LinkCrumbRtc crumb;
+
+void linkCrumb(uint16_t stage, uint16_t detail)
+{
+  if (crumb.magic != CRUMB_MAGIC)
+  {
+    crumb.magic = CRUMB_MAGIC;
+    crumb.stage = 0;
+  }
+  if (crumb.stage != stage)
+    crumb.prevStage = crumb.stage;
+  crumb.stage = stage;
+  crumb.detail = detail;
+  crumb.atMs = millis();
+}
+
+static LinkCrumbRtc prevCrumb = {};      // สำเนาของรอบก่อน ถ่ายไว้ตอน linkBegin ก่อนลำดับเปิดเครื่องเขียนทับ
+static bool prevCrumbPending = false;
+
+/** เรียกใน linkBegin: รอบก่อนรีเซ็ตเพราะค้าง/ล่ม/ไฟตก → เก็บจุดที่ทำอยู่ไว้ส่งหลัง boot · แล้วเริ่มจดใหม่ */
+static void takeCrumb()
+{
+  const esp_reset_reason_t rr = esp_reset_reason();
+  const bool abnormal = rr != ESP_RST_POWERON && rr != ESP_RST_DEEPSLEEP && rr != ESP_RST_SW;
+  prevCrumbPending = crumb.magic == CRUMB_MAGIC && abnormal;
+  if (prevCrumbPending)
+    prevCrumb = crumb;
+  crumb.magic = CRUMB_MAGIC;
+  crumb.stage = crumb.prevStage = crumb.detail = 0;
+  crumb.atMs = 0;
+}
+
+/** หลัง boot สำเร็จ: ส่งจุดที่รอบก่อนค้างขึ้น D04 (ครั้งเดียว) */
+static void reportCrumb()
+{
+  if (!prevCrumbPending)
+    return;
+  JsonDocument d;
+  d["type"] = "crash_trace";
+  d["stage"] = prevCrumb.stage;
+  d["detail"] = prevCrumb.detail;
+  d["prev_stage"] = prevCrumb.prevStage;
+  d["stage_ms"] = prevCrumb.atMs; // millis() ตอนเข้าขั้นนั้น (นับจากเปิดเครื่องรอบก่อน)
+  d["reset"] = linkResetReason();
+  d["reset_code"] = (int)esp_reset_reason();
+  d["fw"] = linkFw;
+  String body;
+  serializeJson(d, body);
+  Serial.printf("[crash] last stage before reset: %s\n", body.c_str());
+  if (linkRequest("POST", "/v1/box/events", body, 3000).status == 200)
+    prevCrumbPending = false;
+}
 LinkHooks linkHooks;
 const char *linkFw = "0.0.0";
 static bool booted = false;
@@ -20,6 +82,7 @@ void linkBegin(const LinkHooks &hooks, const char *fwVersion)
 {
   linkHooks = hooks;
   linkFw = fwVersion;
+  takeCrumb();
 }
 
 LinkCredentials linkCred() { return linkHooks.credentials ? linkHooks.credentials() : LinkCredentials(); }
@@ -331,17 +394,7 @@ bool linkBoot()
   deserializeJson(res, r.body);
   absorbConfig(res);
   booted = true;
-  if (linkRtc.photoStep)
-  {
-    // 0.2.41: รอบก่อนตู้รีเซ็ตระหว่างถ่าย/ส่งรูป Snapface → บอกว่าตายที่ขั้นไหน
-    JsonDocument d;
-    d["type"] = "photo_crash";
-    d["step"] = linkRtc.photoStep;
-    d["reset"] = linkResetReason();
-    d["reset_code"] = (int)esp_reset_reason();
-    linkRtc.photoStep = 0;
-    postEvent(d, 1500);
-  }
+  reportCrumb(); // 0.2.46 แทน photo_crash (ซึ่งไม่เคยส่งได้จริงหลัง watchdog)
   Serial.printf("[boot] ok · awake until +%ds\n", (int)(linkRtc.awakeUntil > nowUtc() ? linkRtc.awakeUntil - nowUtc() : 0));
   linkBeep("ready");
   handleCommand(res["command"]);
@@ -418,7 +471,7 @@ static void sendInspectionPhoto(const String &jobId)
   const char *outcome = "ok";
   auto finish = [&]()
   {
-    linkRtc.photoStep = 0;
+    linkCrumb(57);
     JsonDocument d;
     d["type"] = "photo_diag";
     d["job_id"] = jobId;
@@ -433,7 +486,7 @@ static void sendInspectionPhoto(const String &jobId)
   // ตู้รีเซ็ตกลางทาง → บูตถัดไปยังส่ง photo_crash บอกขั้นได้เหมือนเดิม · แต่ละขั้นมีกำหนดจบของตัวเอง จึงป้อน watchdog ที่ต้นขั้น
   auto stepEvent = [&](uint8_t step)
   {
-    linkRtc.photoStep = step;
+    linkCrumb(50 + step);
     esp_task_wdt_reset();
   };
   // 0.2.42: ปิดไฟแฟลชระหว่างรอจังหวะสุ่ม (LED ร้อน + กินกระแส ~0.3 A) แล้วค่อยวัดแสงใหม่ก่อนถ่ายจริง
@@ -452,6 +505,7 @@ static void sendInspectionPhoto(const String &jobId)
   if (linkHooks.cameraAutoFlash)
     linkHooks.cameraAutoFlash(boxConfig.flashWhenDark);
   const bool captured = linkHooks.snapshotJpeg(&jpeg, &len) && jpeg;
+  linkCrumb(54);
   linkHooks.cameraStop(); // ถ่ายเสร็จปิดกล้องและไฟทันที ไม่ต้องเปิดค้างระหว่างส่งรูป
   if (!captured)
   {
@@ -468,7 +522,7 @@ static void sendInspectionPhoto(const String &jobId)
     finish();
     return;
   }
-  stepEvent(4);
+  stepEvent(5);
   // เข้ารหัส base64 ลง String ทีละช่วงเล็ก ๆ — ไม่ต้องมีบัฟเฟอร์ base64 ก้อนใหญ่ซ้อนกับ body (heap ภายในของ ESP32-CAM น้อย)
   String body;
   if (!body.reserve(((len + 2) / 3) * 4 + 24))
@@ -499,7 +553,7 @@ static void sendInspectionPhoto(const String &jobId)
     return;
   }
   body += "\"}";
-  stepEvent(5);
+  stepEvent(6);
   const LinkResponse r = linkRequest("POST", "/v1/box/jobs/" + jobId + "/photo", body, PHOTO_UPLOAD_TIMEOUT_MS);
   esp_task_wdt_reset();
   Serial.printf("[job] photo %u B -> %d · %lu ms after pass\n", (unsigned)len, r.status, millis() - startedAt);
@@ -526,6 +580,7 @@ static void runJob(JsonObjectConst job)
   if (!jobId.length() || !linkHooks.cameraStart || !linkHooks.cameraStop || !linkHooks.scanQr)
     return;
   const bool cameraTest = type == "test";
+  linkCrumb(10, cameraTest ? 1 : 2);
   Serial.printf("[job] %s %s · %u tries × %us\n", type.c_str(), jobId.c_str(), attemptMax, scanTimeoutS);
   const unsigned long t0 = millis();
 
@@ -537,8 +592,10 @@ static void runJob(JsonObjectConst job)
     linkEvent("camera_test_started", jobId.c_str());
   // 0.2.34: ส่งเสียง "พร้อม" ก่อนเปิดกล้อง — ไซเรนกิน ~0.5 A ถ้าดังพร้อมกล้อง+Wi-Fi บนแหล่งจ่าย 3.7 V / 1 A กระแสเกินลิมิต ไฟตก ตู้รีเซ็ตก่อนส่ง ready
   // เสียงดังจบ (beep บล็อกจนจบ) แล้วค่อยเปิดกล้อง · ได้ยินเสียง = ตู้ตื่นและรับงานแล้วเสมอ
+  linkCrumb(11);
   linkBeep("ready");
   delay(200); // 0.2.33: ให้วิทยุ Wi-Fi/ไซเรนหยุดดึงกระแสก่อน แล้วค่อยเปิดกล้อง ไม่ให้กระแสพุ่งซ้อนกัน
+  linkCrumb(12);
   if (!linkHooks.cameraStart())
   {
     setPreview(false);
@@ -547,6 +604,7 @@ static void runJob(JsonObjectConst job)
     return;
   }
   // 0.2.33: แจ้งเซิร์ฟเวอร์ก่อน แล้วค่อยเปิดไฟแฟลช (LED บนบอร์ดดึงกระแสสูง)
+  linkCrumb(13);
   esp_task_wdt_reset(); // 0.2.44: เริ่มนับใหม่ตอนรับงาน (long-poll ที่ส่งงานมาอาจรอไปแล้วเกือบ 30 วิ)
   const LinkResponse ready = linkRequest("POST", "/v1/box/jobs/" + jobId + "/ready", "{\"flash\":false}");
   Serial.printf("[job] ready after %lu ms\n", millis() - t0);
@@ -558,6 +616,7 @@ static void runJob(JsonObjectConst job)
       onAuthFailed(ready);
     return; // 410 = งานหมดอายุ / 404 = ไม่ใช่งานของตู้นี้ → กลับไปรอ
   }
+  linkCrumb(14);
   const bool flash = linkHooks.cameraAutoFlash ? linkHooks.cameraAutoFlash(boxConfig.flashWhenDark) : false;
   if (cameraTest)
   {
@@ -572,6 +631,7 @@ static void runJob(JsonObjectConst job)
   for (uint8_t attempt = 1; attempt <= attemptMax; attempt++)
   {
     esp_task_wdt_reset(); // 0.2.44: สแกน/ส่งผลแต่ละรอบมีกำหนดจบของตัวเอง → นับ watchdog ต่อรอบ ไม่ใช่รวมทั้งงาน (เดิมรวมเกิน 180 วิได้ = ตู้รีเซ็ตกลางงาน)
+    linkCrumb(20 + attempt);
     const LinkScan q = linkHooks.scanQr((uint32_t)scanTimeoutS * 1000);
     JsonDocument doc;
     doc["attempt"] = attempt;
@@ -584,6 +644,7 @@ static void runJob(JsonObjectConst job)
     doc["flash"] = flash;
     String body;
     serializeJson(doc, body);
+    linkCrumb(30 + attempt);
     LinkResponse r = linkRequest("POST", "/v1/box/jobs/" + jobId + "/result", body);
     // เน็ตสะดุด/เซิร์ฟเวอร์ตอบ 5xx → ส่งซ้ำอีก 2 ครั้ง (backend ตอบผลเดิมถ้า job+attempt ซ้ำ จึงไม่นับซ้ำ)
     // 401/4xx ไม่ลองซ้ำ · ไม่เก็บไว้ส่งทีหลัง (ไม่มีโหมดออฟไลน์) · รอรวม ≤ ~3 วิ ซึ่ง job ถูกขยายอายุหลัง ready แล้ว
@@ -636,6 +697,7 @@ static void runJob(JsonObjectConst job)
     const String status = res["status"] | "";
     if (status == "pass")
     {
+      linkCrumb(40);
       linkBeep("pass");
       linkRtc.jobsDone++;
       if (type == "inspect")
@@ -647,15 +709,19 @@ static void runJob(JsonObjectConst job)
     }
     if (status == "retry")
     {
+      linkCrumb(41);
       linkBeep("retry");
       continue;
     }
+    linkCrumb(41);
     linkBeep("fail");
     linkRtc.scanFail++;
     break;
   }
+  linkCrumb(60);
   linkHooks.cameraStop();
   setPreview(false);
+  linkCrumb(61);
 }
 
 // ── long-poll ──────────────────────────────────────────────────────────
