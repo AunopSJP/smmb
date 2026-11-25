@@ -216,7 +216,7 @@ export class AdminBoxService {
         [boxId],
       ),
       this.pool.query<{ kind: 'boot' | 'report' | 'event'; created_date: Date; body: Record<string, unknown> }>(
-        `SELECT kind, created_date, body FROM app.box_report_tb WHERE box_id = $1 ORDER BY created_date DESC LIMIT 20`,
+        `SELECT kind, created_date, body FROM app.box_report_tb WHERE box_id = $1 ORDER BY created_date DESC LIMIT 50`, // 2026-11-25: 20 → 50 (D04 log ละเอียด)
         [boxId],
       ),
       this.pool.query<{ reason: string; created_date: Date }>(

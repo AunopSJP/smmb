@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { type AdminBoxDetail } from '../../core/admin-api';
 import { I18n, type Tr } from '../../core/i18n';
+import { fmtWhenSec } from '../../core/time';
 import { seenText } from './admin-box-shared';
 
 /** reset_reason ที่ตู้ส่งตอนบูต (linkResetReason ในเฟิร์มแวร์) */
@@ -64,6 +65,39 @@ function stageText(stage: number): Tr {
   if (stage > 20 && stage < 30) return { th: `สแกน QR ประจำตัว ครั้งที่ ${stage - 20}`, en: `scanning the badge, try ${stage - 20}` };
   if (stage > 30 && stage < 40) return { th: `ส่งผลสแกน ครั้งที่ ${stage - 30}`, en: `sending scan result, try ${stage - 30}` };
   return { th: `ขั้น ${stage}`, en: `stage ${stage}` };
+}
+
+/**
+ * crash_trace.trail (เฟิร์มแวร์ 0.2.47): ลำดับขั้นย้อนหลังก่อนตู้รีเซ็ต — แถวละ [ms นับจากเปิดเครื่อง, stage, detail, heap ว่าง KB]
+ * → บรรทัดอ่านง่าย "+เวลาจากแถวแรก (ใช้เวลากี่วิจนขั้นถัดไป) · ขั้น · heap" · แถวสุดท้าย = จุดที่ค้าง · ไม่มี trail = null
+ */
+export function crashTrailLines(body: Record<string, unknown>): Tr[] | null {
+  if (body['type'] !== 'crash_trace' || !Array.isArray(body['trail'])) return null;
+  const rows = (body['trail'] as unknown[])
+    .filter((r): r is number[] => Array.isArray(r) && r.length >= 4 && r.every((x) => typeof x === 'number'))
+    .map(([ms, stage, detail, heap]) => ({ ms, stage, detail, heap }));
+  if (!rows.length) return null;
+  const t0 = rows[0].ms;
+  const sec = (ms: number) => (ms / 1000).toFixed(1);
+  return rows.map((r, i) => {
+    const next = rows[i + 1];
+    const st = stageText(r.stage);
+    const at = `+${sec(r.ms - t0)}s`;
+    const took = next ? ` (${sec(next.ms - r.ms)}s)` : '';
+    const last = !next;
+    const det = r.detail ? ` [${r.detail}]` : '';
+    return {
+      th: `${at}${took} · ${st.th}${det} · heap ${r.heap} KB${last ? ' ← ค้างตรงนี้' : ''}`,
+      en: `${at}${took} · ${st.en}${det} · heap ${r.heap} KB${last ? ' ← stopped here' : ''}`,
+    };
+  });
+}
+
+/** ข้อมูลดิบทุกช่องของรายงาน (ไว้วิเคราะห์ · ซ่อนใน <details>) — trail/trace แยกแสดงแล้ว จึงย่อเป็นจำนวนแถว */
+export function rawFields(body: Record<string, unknown>): string {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(body)) out[k] = (k === 'trail' || k === 'trace') && Array.isArray(v) ? `[${v.length} แถว]` : v;
+  return JSON.stringify(out, null, 2);
 }
 
 /** event crash_trace (0.2.46): ก่อนรีเซ็ตเพราะค้าง/ล่ม/ไฟตก ตู้กำลังทำอะไร · ไม่ใช่ event นี้ = null */
@@ -134,7 +168,7 @@ const EVENT_TEXT: Record<string, Tr> = {
     @let b = box();
         <h2 class="section-title easy-hide">{{ i18n.t({ th: 'รายงานจากตู้ล่าสุด', en: 'Latest box reports' }) }}</h2>
         <div class="list easy-hide">
-          @for (r of b.reports.slice(0, 12); track $index) {
+          @for (r of b.reports; track $index) {
             <div class="row">
               <span class="grow">
                 <strong>{{ reportTitle(r) }}</strong>
@@ -155,8 +189,22 @@ const EVENT_TEXT: Record<string, Tr> = {
                     }
                   </span>
                 }
+                @if (crashTrail(r.body); as lines) {
+                  <span class="mono small block trace">
+                    @for (l of lines; track $index) {
+                      <span class="block" [class.last]="$last">{{ i18n.t(l) }}</span>
+                    }
+                  </span>
+                }
+                <details class="raw">
+                  <summary class="small">{{ i18n.t({ th: 'ข้อมูลทั้งหมด', en: 'All fields' }) }} · {{ r.kind }}</summary>
+                  <pre class="mono small">{{ raw(r.body) }}</pre>
+                </details>
               </span>
-              <span class="muted small">{{ i18n.t(seen(r.at)) }}</span>
+              <span class="muted small when">
+                <span class="block">{{ i18n.t(seen(r.at)) }}</span>
+                <span class="block mono">{{ whenSec(r.at) }}</span>
+              </span>
             </div>
           } @empty {
             <p class="row muted">{{ i18n.t({ th: 'ตู้ยังไม่เคยส่งรายงาน (ยังไม่เปิดเครื่อง / ยังไม่ต่อ Wi-Fi)', en: 'No reports yet (not powered on / no Wi-Fi yet)' }) }}</p>
@@ -190,6 +238,29 @@ const EVENT_TEXT: Record<string, Tr> = {
       line-height: 1.5;
       overflow-wrap: anywhere;
     }
+    .trace .last {
+      color: var(--sos);
+      font-weight: var(--fw-strong);
+    }
+    .raw {
+      margin-block-start: 6px;
+      summary {
+        cursor: pointer;
+        color: var(--text-muted);
+      }
+      pre {
+        margin: 6px 0 0;
+        padding: 8px;
+        border-radius: var(--radius-xs);
+        background: var(--bg);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+    }
+    .when {
+      flex: none;
+      text-align: end;
+    }
   `,
 })
 export class AdminBoxReports {
@@ -210,6 +281,11 @@ export class AdminBoxReports {
   protected readonly resetReason = resetReasonText;
   protected readonly scanHint = scanDiagHint;
   protected readonly crashHint = crashTraceText;
+  protected readonly crashTrail = crashTrailLines;
+  protected readonly raw = rawFields;
+  protected whenSec(at: string): string {
+    return fmtWhenSec(at, this.i18n.lang());
+  }
 
   /** awake_trace: บรรทัดบันทึกที่ตู้จดไว้ (เวลาในตู้ · เหตุการณ์ · ค่า) — ไม่ใช่ event นี้ = null */
   protected traceLines(body: Record<string, unknown>): string[] | null {

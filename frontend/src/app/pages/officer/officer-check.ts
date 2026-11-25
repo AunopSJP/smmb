@@ -799,7 +799,7 @@ interface WakeLockSentinelLike {
         <p class="ok-text small strong"><app-icon name="check" [size]="14" /> {{ i18n.t({ th: 'ตู้บ้านเลขที่ ', en: 'Mailbox at ' }) }}{{ ins()?.box?.house_no }} {{ i18n.t({ th: 'พร้อมแล้ว', en: 'is ready' }) }}</p>
       }
       <h1>{{ i18n.t({ th: 'หันจอนี้เข้าหากล้องตู้', en: 'Point this screen at the box camera' }) }}</h1>
-      <p class="muted small easy-hide">{{ i18n.t({ th: 'ห่างประมาณ 1 ฝ่ามือ ถือนิ่ง ๆ · ตู้ส่งเสียงเมื่ออ่านได้', en: 'About a hand’s width away, hold still · the box beeps when it reads it' }) }}</p>
+      <p class="muted small easy-hide">{{ i18n.t({ th: 'ห่างประมาณ 1 ฝ่ามือ ถือนิ่ง ๆ · มือถือจะส่งเสียงเมื่อตู้อ่านได้', en: 'About a hand’s width away, hold still · your phone chimes when the box reads it' }) }}</p>
 
       <div class="qr">
         @if (qr(); as q) {

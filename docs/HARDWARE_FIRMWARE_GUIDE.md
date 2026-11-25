@@ -276,7 +276,7 @@ String signRequest(const char* secret, const char* method, const String& path,
 
 ```
 ได้ job
- ├─ ปี๊บสั้น 1 ครั้ง · เปิดกล้อง (+ ไฟส่องถ้ามืดและ flash_when_dark)
+ ├─ ติ๊ด 1 (ก่อนเปิดกล้อง) · เปิดกล้อง (+ ไฟส่องถ้ามืดและ flash_when_dark)
  ├─ POST /jobs/{id}/ready  { "flash": <เปิดไฟไหม> }      ← เป้า: ได้งาน → ready ภายใน 1–3 วิ
  │     410 → ปิดกล้อง กลับไป long-poll
  │
@@ -286,10 +286,11 @@ String signRequest(const char* secret, const char* method, const String& path,
           อ่านได้   → read_ok: true,  qr_text: "<ข้อความทั้งหมดใน QR ไม่ตัด ไม่แก้>"
           อ่านไม่ได้ → read_ok: false, qr_text: null
        status:
-          "pass"  → ปี๊บสั้น 2 · (inspect) Snapface ↓ · จบ
-          "retry" → ปี๊บยาว 1 · ลองครั้งถัดไป
-          "fail"  → ปี๊บยาว 3 · จบ
- ปิดกล้อง → กลับไป long-poll ทันที
+          "pass"  → (inspect) Snapface ↓ · จบ
+          "retry" → (inspect) เงียบ / (test) ติ๊ด 1 · ลองครั้งถัดไป
+          "fail"  → จบ
+ ปิดกล้อง → แล้วจึงส่งเสียงผล (pass ติ๊ด 2 · fail ติ๊ด 4 · ส่งผลไม่ได้ = เสียงผิดพลาด) → กลับไป long-poll
+ ⚠️ 0.2.47: ห้ามสั่งไซเรนดังขณะกล้องเปิด — กล้อง+Wi-Fi+ไซเรนพร้อมกันทำไฟเลี้ยงสะดุด CPU ค้าง (interrupt watchdog) / brownout
 ```
 
 - QR ที่ตู้อ่านคือ **QR ประจำตัวบนจอมือถือเจ้าหน้าที่** หน้าตาประมาณ `SMMB-O2.J-8f31c2.U-0071.q5k3b6.Zx9kQ2hT1mA3Vw8e` (ยาว ~47 ตัว · เปลี่ยนทุก ~24 วิ · อายุ 30 วิ (ปรับ 19 พ.ย.) — QR บนจอเปลี่ยนระหว่างอ่านได้ ตู้ต้องอ่านให้ได้ภายใน ~5 วิ ถ้า `read_ms` เกินนี้ให้แจ้ง) — ตู้ไม่ต้องเข้าใจข้างใน ส่งทั้งก้อน
@@ -302,7 +303,7 @@ String signRequest(const char* secret, const char* method, const String& path,
   - JPEG ≤ 85 KB (VGA ขาวดำ/สี คุณภาพปานกลางพอ) · ต้องส่งภายใน 2 นาทีหลังผ่าน · 1 รูปต่อการตรวจ · ส่งไม่ได้ (409/เน็ตหลุด) = ทิ้ง ไม่ลองใหม่
   - ไลบรารี `smmb_link` ทำให้แล้ว — ทีม Hardware ใส่ hook `preparePhoto` + `snapshotJpeg` (ตั้งแต่ 0.2.41 `main.cpp` ใส่ `preparePhoto = nullptr` → ถ่ายด้วยกล้องโหมดสแกนที่เปิดอยู่ ไม่สลับเป็น XGA · `snapshotJpeg` = `cameraSnapshotJpeg`) · ปรับมุม/ระยะกล้องให้เห็นหน้าคนยืนหน้าตู้ได้
   - **watchdog (0.2.44)**: ลูปหลักตั้ง task watchdog 180 วิ · งานตรวจต้องป้อน watchdog (`esp_task_wdt_reset`) ที่ต้นทุกขั้นที่มีกำหนดจบของตัวเอง (รับงาน · แต่ละรอบสแกน/ส่งผล · แต่ละเฟรมในลูปสแกน · แต่ละขั้นของ Snapface) — เดิมนับรวมทั้งงาน เกิน 180 วิบน Wi-Fi อ่อน ตู้รีเซ็ตระหว่างส่งรูป
-  - วินิจฉัย (0.2.46): ไลบรารีจด "จุดที่กำลังทำ" (`linkCrumb(stage)` · ตารางเลขใน `SmmbLink.h`) ตลอดลูปหลัก + งานตรวจ + Snapface ลง **`RTC_NOINIT_ATTR`** (รอด watchdog/panic/ไฟตก) · `linkBegin` ถ่ายสำเนาไว้ก่อนลำดับเปิดเครื่องเขียนทับ → หลัง boot ส่ง `crash_trace { stage, detail, prev_stage, stage_ms, reset, reset_code, fw }` · D04 แปลงเลขเป็นข้อความ (`admin-box-reports.ts` — เพิ่มเลข stage ต้องแก้ทั้งสองที่) · ⚠️ ห้ามเก็บค่าวินิจฉัยหลังรีเซ็ตใน `RTC_DATA_ATTR`: bootloader โหลดค่าเริ่มต้นใหม่ทุกครั้งที่ไม่ใช่การตื่นจากหลับลึก (`photo_crash` 0.2.41–0.2.45 จึงไม่เคยส่งได้) · จบปกติส่ง `photo_diag { outcome, bytes, http, free_heap, ms }` · boot ส่ง `reset_code` = ค่าดิบของ `esp_reset_reason()` (5 interrupt WDT · 6 task WDT · 7 WDT อื่น · D04 แสดงชนิดให้)
+  - วินิจฉัย (0.2.46): ไลบรารีจด "จุดที่กำลังทำ" (`linkCrumb(stage)` · ตารางเลขใน `SmmbLink.h`) ตลอดลูปหลัก + งานตรวจ + Snapface ลง **`RTC_NOINIT_ATTR`** (รอด watchdog/panic/ไฟตก) · `linkBegin` ถ่ายสำเนาไว้ก่อนลำดับเปิดเครื่องเขียนทับ → หลัง boot ส่ง `crash_trace { stage, detail, prev_stage, stage_ms, reset, reset_code, fw, trail }` · `trail` (0.2.47) = 16 ขั้นล่าสุด แถวละ `[ms นับจากเปิดเครื่อง, stage, detail, heap ว่าง KB]` เก่า→ใหม่ (ขั้นซ้ำติดกันรวมเป็นแถวเดียว) · D04 แสดงเป็นบรรทัด "+เวลา (ใช้เวลา) · ขั้น · heap" + "ข้อมูลทั้งหมด" ของทุกรายงาน · D04 แปลงเลขเป็นข้อความ (`admin-box-reports.ts` — เพิ่มเลข stage ต้องแก้ทั้งสองที่) · ⚠️ ห้ามเก็บค่าวินิจฉัยหลังรีเซ็ตใน `RTC_DATA_ATTR`: bootloader โหลดค่าเริ่มต้นใหม่ทุกครั้งที่ไม่ใช่การตื่นจากหลับลึก (`photo_crash` 0.2.41–0.2.45 จึงไม่เคยส่งได้) · จบปกติส่ง `photo_diag { outcome, bytes, http, free_heap, ms }` · boot ส่ง `reset_code` = ค่าดิบของ `esp_reset_reason()` (5 interrupt WDT · 6 task WDT · 7 WDT อื่น · D04 แสดงชนิดให้)
 
 ---
 
@@ -315,8 +316,8 @@ String signRequest(const char* secret, const char* method, const String& path,
 | เหตุการณ์ | เสียง |
 |---|---|
 | boot สำเร็จ / ได้งาน เปิดกล้องพร้อม | ติ๊ด 1 |
-| `pass` | ติ๊ด 2 |
-| `retry` | ติ๊ด 1 (กล้องพร้อมอ่านอีกครั้ง) |
+| `pass` | ติ๊ด 2 (0.2.47: หลัง Snapface + ปิดกล้อง · มือถือเจ้าหน้าที่ดังทันทีแทน) |
+| `retry` | งานตรวจจริง: เงียบ (แอปบอกแทน) · งานทดสอบ: ติ๊ด 1 |
 | `fail` / งานหมดเวลา | ติ๊ด 4 |
 | ต่อ Wi-Fi / เซิร์ฟเวอร์ไม่ได้ / 401 | ติ๊ด 1 · เว้น · ติ๊ด 2 |
 | รับคำสั่งเปลี่ยน Wi-Fi | ติ๊ด 3 |

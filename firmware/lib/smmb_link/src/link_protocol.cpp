@@ -15,62 +15,102 @@ RTC_DATA_ATTR LinkRtc linkRtc;
 
 // 0.2.46: RTC_NOINIT = bootloader ไม่ล้างตอนรีเซ็ตแบบ watchdog/panic/software (RTC_DATA_ATTR ถูกโหลดค่าเริ่มต้นใหม่ทุกครั้งที่ไม่ใช่การตื่นจากหลับลึก)
 // เปิดเครื่องครั้งแรกค่าเป็นขยะ → ตรวจ magic
+// 0.2.47: จดย้อนหลัง 16 ขั้นล่าสุด (เวลา ms นับจากเปิดเครื่อง + heap ว่าง KB) → crash_trace มี trail ให้เห็นลำดับและเวลาที่ใช้แต่ละขั้น
+#define CRUMB_TRAIL 16
+struct LinkCrumbEntry
+{
+  uint32_t ms;
+  uint8_t stage, detail;
+  uint16_t heapKb;
+};
 struct LinkCrumbRtc
 {
   uint32_t magic;
-  uint16_t stage, detail, prevStage, pad;
-  uint32_t atMs;
+  uint16_t head, count;
+  LinkCrumbEntry trail[CRUMB_TRAIL];
 };
-static const uint32_t CRUMB_MAGIC = 0x534D4231; // "SMB1"
+static const uint32_t CRUMB_MAGIC = 0x534D4232; // "SMB2" (0.2.47 เปลี่ยนรูปแบบ)
 RTC_NOINIT_ATTR static LinkCrumbRtc crumb;
+
+static void crumbReset()
+{
+  crumb.magic = CRUMB_MAGIC;
+  crumb.head = crumb.count = 0;
+}
 
 void linkCrumb(uint16_t stage, uint16_t detail)
 {
-  if (crumb.magic != CRUMB_MAGIC)
+  if (crumb.magic != CRUMB_MAGIC || crumb.head >= CRUMB_TRAIL || crumb.count > CRUMB_TRAIL)
+    crumbReset();
+  // ขั้นเดิมซ้ำติดกัน (เช่น long-poll วนรอบ) = อัปเดตเวลาแทนการเพิ่มแถว ไม่ให้ไล่ของสำคัญออก
+  if (crumb.count)
   {
-    crumb.magic = CRUMB_MAGIC;
-    crumb.stage = 0;
+    LinkCrumbEntry &last = crumb.trail[(crumb.head + CRUMB_TRAIL - 1) % CRUMB_TRAIL];
+    if (last.stage == stage && last.detail == detail)
+    {
+      last.ms = millis();
+      last.heapKb = (uint16_t)(ESP.getFreeHeap() / 1024);
+      return;
+    }
   }
-  if (crumb.stage != stage)
-    crumb.prevStage = crumb.stage;
-  crumb.stage = stage;
-  crumb.detail = detail;
-  crumb.atMs = millis();
+  LinkCrumbEntry &e = crumb.trail[crumb.head];
+  e.ms = millis();
+  e.stage = (uint8_t)stage;
+  e.detail = (uint8_t)detail;
+  e.heapKb = (uint16_t)(ESP.getFreeHeap() / 1024);
+  crumb.head = (crumb.head + 1) % CRUMB_TRAIL;
+  if (crumb.count < CRUMB_TRAIL)
+    crumb.count++;
 }
 
-static LinkCrumbRtc prevCrumb = {};      // สำเนาของรอบก่อน ถ่ายไว้ตอน linkBegin ก่อนลำดับเปิดเครื่องเขียนทับ
+static LinkCrumbRtc prevCrumb = {}; // สำเนาของรอบก่อน ถ่ายไว้ตอน linkBegin ก่อนลำดับเปิดเครื่องเขียนทับ
 static bool prevCrumbPending = false;
 
-/** เรียกใน linkBegin: รอบก่อนรีเซ็ตเพราะค้าง/ล่ม/ไฟตก → เก็บจุดที่ทำอยู่ไว้ส่งหลัง boot · แล้วเริ่มจดใหม่ */
+/** เรียกใน linkBegin: รอบก่อนรีเซ็ตเพราะค้าง/ล่ม/ไฟตก → เก็บไว้ส่งหลัง boot · แล้วเริ่มจดใหม่ */
 static void takeCrumb()
 {
   const esp_reset_reason_t rr = esp_reset_reason();
   const bool abnormal = rr != ESP_RST_POWERON && rr != ESP_RST_DEEPSLEEP && rr != ESP_RST_SW;
-  prevCrumbPending = crumb.magic == CRUMB_MAGIC && abnormal;
+  const bool valid = crumb.magic == CRUMB_MAGIC && crumb.head < CRUMB_TRAIL && crumb.count > 0 && crumb.count <= CRUMB_TRAIL;
+  prevCrumbPending = valid && abnormal;
   if (prevCrumbPending)
     prevCrumb = crumb;
-  crumb.magic = CRUMB_MAGIC;
-  crumb.stage = crumb.prevStage = crumb.detail = 0;
-  crumb.atMs = 0;
+  crumbReset();
 }
 
-/** หลัง boot สำเร็จ: ส่งจุดที่รอบก่อนค้างขึ้น D04 (ครั้งเดียว) */
+/** หลัง boot สำเร็จ: ส่งจุดที่รอบก่อนค้าง + ลำดับขั้นย้อนหลังขึ้น D04 (ครั้งเดียว) */
 static void reportCrumb()
 {
   if (!prevCrumbPending)
     return;
+  const LinkCrumbEntry &last = prevCrumb.trail[(prevCrumb.head + CRUMB_TRAIL - 1) % CRUMB_TRAIL];
   JsonDocument d;
   d["type"] = "crash_trace";
-  d["stage"] = prevCrumb.stage;
-  d["detail"] = prevCrumb.detail;
-  d["prev_stage"] = prevCrumb.prevStage;
-  d["stage_ms"] = prevCrumb.atMs; // millis() ตอนเข้าขั้นนั้น (นับจากเปิดเครื่องรอบก่อน)
+  d["stage"] = last.stage;
+  d["detail"] = last.detail;
+  d["stage_ms"] = last.ms; // millis() ตอนเข้าขั้นสุดท้าย (นับจากเปิดเครื่องรอบก่อน)
   d["reset"] = linkResetReason();
   d["reset_code"] = (int)esp_reset_reason();
   d["fw"] = linkFw;
+  // trail: [ms, stage, detail, heap_kb] เก่า → ใหม่
+  JsonArray trail = d["trail"].to<JsonArray>();
+  const uint16_t first = (prevCrumb.head + CRUMB_TRAIL - prevCrumb.count) % CRUMB_TRAIL;
+  uint16_t prev = 0;
+  for (uint16_t i = 0; i < prevCrumb.count; i++)
+  {
+    const LinkCrumbEntry &e = prevCrumb.trail[(first + i) % CRUMB_TRAIL];
+    JsonArray row = trail.add<JsonArray>();
+    row.add(e.ms);
+    row.add(e.stage);
+    row.add(e.detail);
+    row.add(e.heapKb);
+    if (i + 1 == prevCrumb.count && i > 0)
+      prev = prevCrumb.trail[(first + i - 1) % CRUMB_TRAIL].stage;
+  }
+  d["prev_stage"] = prev;
   String body;
   serializeJson(d, body);
-  Serial.printf("[crash] last stage before reset: %s\n", body.c_str());
+  Serial.printf("[crash] before reset: %s\n", body.c_str());
   if (linkRequest("POST", "/v1/box/events", body, 3000).status == 200)
     prevCrumbPending = false;
 }
@@ -628,6 +668,9 @@ static void runJob(JsonObjectConst job)
     postEvent(d, 1500);
   }
 
+  // 0.2.47: เสียงผล (ผ่าน/ไม่ผ่าน/ผิดพลาด) ดังหลังปิดกล้องแล้วเท่านั้น — ไซเรน LTE-5061J ดังพร้อมกล้อง+Wi-Fi ทำไฟเลี้ยงบอร์ดสะดุด
+  // จน CPU ค้าง (D04 2026-11-25: crash_trace = "ส่งเสียงผ่าน" · interrupt watchdog · ก่อนหน้านั้น brownout) · เสียง "พร้อม" ดังก่อนเปิดกล้องอยู่แล้ว (0.2.34)
+  const char *endBeep = nullptr;
   for (uint8_t attempt = 1; attempt <= attemptMax; attempt++)
   {
     esp_task_wdt_reset(); // 0.2.44: สแกน/ส่งผลแต่ละรอบมีกำหนดจบของตัวเอง → นับ watchdog ต่อรอบ ไม่ใช่รวมทั้งงาน (เดิมรวมเกิน 180 วิได้ = ตู้รีเซ็ตกลางงาน)
@@ -662,7 +705,7 @@ static void runJob(JsonObjectConst job)
       if (r.status == 401)
         onAuthFailed(r);
       else
-        linkBeep("error");
+        endBeep = "error";
       break;
     }
     // 0.2.36: อ่านไม่ได้ในงานตรวจจริง → ส่งผลวินิจฉัย (ตัวเลขล้วน ไม่มีภาพ) ขึ้นหน้า D04 เพื่อหาสาเหตุ · best-effort ไม่เปลี่ยนผล /result
@@ -697,8 +740,8 @@ static void runJob(JsonObjectConst job)
     const String status = res["status"] | "";
     if (status == "pass")
     {
-      linkCrumb(40);
-      linkBeep("pass");
+      // มือถือเจ้าหน้าที่ดัง "ติ๊ง-ดิ๊ง" ทันทีที่ผ่าน (แอป O06) · เสียงตู้ตามมาหลัง Snapface + ปิดกล้อง (ไม่ดังตอนถ่าย)
+      endBeep = "pass";
       linkRtc.jobsDone++;
       if (type == "inspect")
       {
@@ -709,18 +752,27 @@ static void runJob(JsonObjectConst job)
     }
     if (status == "retry")
     {
-      linkCrumb(41);
-      linkBeep("retry");
+      // งานตรวจจริง: งดเสียง (กล้องยังเปิดอยู่ · แอปขึ้นแถบ "ตู้อ่านไม่ผ่าน ลองอีกครั้ง" แทน) · งานทดสอบของช่าง/แอดมินยังดังเหมือนเดิม
+      if (cameraTest)
+      {
+        linkCrumb(41);
+        linkBeep("retry");
+      }
       continue;
     }
-    linkCrumb(41);
-    linkBeep("fail");
+    endBeep = "fail";
     linkRtc.scanFail++;
     break;
   }
   linkCrumb(60);
   linkHooks.cameraStop();
   setPreview(false);
+  if (endBeep)
+  {
+    delay(150); // ให้กล้องหยุดดึงกระแสก่อน
+    linkCrumb(strcmp(endBeep, "pass") == 0 ? 40 : 41);
+    linkBeep(endBeep);
+  }
   linkCrumb(61);
 }
 

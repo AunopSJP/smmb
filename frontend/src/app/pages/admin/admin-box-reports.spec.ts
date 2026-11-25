@@ -1,4 +1,4 @@
-import { crashTraceText, MIN_QR_PX, resetReasonText, scanDiagHint } from './admin-box-reports';
+import { crashTraceText, crashTrailLines, MIN_QR_PX, rawFields, resetReasonText, scanDiagHint } from './admin-box-reports';
 
 describe('resetReasonText (D04 รายงานจากตู้)', () => {
   it('flags a brownout as a problem in Thai and English', () => {
@@ -65,5 +65,29 @@ describe('crash_trace / reset_code (firmware 0.2.46)', () => {
     expect(t?.th).toContain('ต่อจาก: Snapface: ถ่ายรูป');
     expect(crashTraceText({ type: 'crash_trace', stage: 22, prev_stage: 22 })?.en).toContain('try 2');
     expect(crashTraceText({ type: 'scan_diag' })).toBeNull();
+  });
+});
+
+describe('crash trail + raw fields (firmware 0.2.47)', () => {
+  it('lists the steps before the reset with timing and marks the last one', () => {
+    const lines = crashTrailLines({
+      type: 'crash_trace',
+      trail: [
+        [10000, 1, 0, 120],
+        [12500, 13, 0, 110],
+        [14000, 31, 0, 105],
+        [14800, 40, 0, 104],
+      ],
+    });
+    expect(lines?.length).toBe(4);
+    expect(lines?.[0].th).toContain('+0.0s (2.5s) · รองาน');
+    expect(lines?.[3].th).toContain('+4.8s · ส่งเสียงผ่าน · heap 104 KB ← ค้างตรงนี้');
+    expect(crashTrailLines({ type: 'crash_trace' })).toBeNull();
+  });
+
+  it('shows every field and shortens long arrays', () => {
+    const raw = rawFields({ type: 'crash_trace', stage: 40, trail: [[1, 1, 0, 1]] });
+    expect(raw).toContain('"stage": 40');
+    expect(raw).toContain('[1 แถว]');
   });
 });
