@@ -147,6 +147,32 @@ class RequestIdParam {
   @IsUUID() id!: string;
 }
 
+class BoxIdParam {
+  @Matches(/^BX-\d{5,10}$/) box_id!: string;
+}
+
+class BoxAgencyParam extends BoxIdParam {
+  @IsUUID() agency_id!: string;
+}
+
+// docs/api.md §4.7 — เจ้าของบ้านดูและเลิกรับการดูแลจากหน่วยงาน
+@Controller('api/v1/boxes/:box_id/agencies')
+export class OwnerBoxAgencyController {
+  constructor(private readonly requests: ZoneRequestService) {}
+
+  @RequireRole('owner')
+  @Get()
+  list(@Auth() auth: AuthContext, @Param() p: BoxIdParam) {
+    return this.requests.listAgencies(auth.userId, p.box_id);
+  }
+
+  @RequireRole('owner')
+  @Delete(':agency_id')
+  leave(@Auth() auth: AuthContext, @Param() p: BoxAgencyParam) {
+    return this.requests.leave(auth.userId, p.box_id, p.agency_id);
+  }
+}
+
 // docs/api.md §4.6 — ✅ 2026-11-04 เจ้าของบ้านยอมรับ/ปฏิเสธคำขอให้หน่วยงานดูแลบ้าน
 @Controller('api/v1/me/zone-requests')
 export class OwnerZoneRequestController {

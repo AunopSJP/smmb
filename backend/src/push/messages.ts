@@ -39,6 +39,7 @@ export const NOTIFICATION_TYPES = [
   'zone_join_request',
   'zone_join_accepted',
   'zone_join_rejected',
+  'zone_left',
   'officer_new_device',
   'test',
 ] as const;
@@ -207,6 +208,10 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
   zone_join_rejected: {
     th: (d) => ({ title: 'เจ้าของบ้านปฏิเสธ', body: `บ้านเลขที่ ${s(d.house_no)} ไม่เข้าโซน ${s(d.zone_name)}` }),
     en: (d) => ({ title: 'Homeowner declined', body: `House ${s(d.house_no)} will not join zone ${s(d.zone_name)}` }),
+  },
+  zone_left: {
+    th: (d) => ({ title: 'เจ้าของบ้านเลิกรับการดูแล', body: `บ้านเลขที่ ${s(d.house_no)} ออกจากโซน ${s(d.zone_name)} แล้ว` }),
+    en: (d) => ({ title: 'Homeowner ended coverage', body: `House ${s(d.house_no)} has left zone ${s(d.zone_name)}` }),
   },
   officer_new_device: {
     th: (d) => ({ title: '📱 เจ้าหน้าที่เข้าสู่ระบบจากเครื่องใหม่', body: `${s(d.officer_name)} · ${s(d.device)}` }),

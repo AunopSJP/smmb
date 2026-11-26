@@ -6,12 +6,12 @@ import { AgencyController, AgencyMapController } from './agency.controller.js';
 import { AgencyService } from './agency.service.js';
 import { AgencyTodayService } from './agency-today.service.js';
 import { ZoneRequestService } from './zone-request.service.js';
-import { HouseController, OwnerZoneRequestController, ZoneController } from './zone.controller.js';
+import { HouseController, OwnerBoxAgencyController, OwnerZoneRequestController, ZoneController } from './zone.controller.js';
 import { ZoneService } from './zone.service.js';
 
 @Module({
   imports: [AuthModule, PushModule, BoxModule],
-  controllers: [AgencyMapController, AgencyController, ZoneController, HouseController, OwnerZoneRequestController],
+  controllers: [AgencyMapController, AgencyController, ZoneController, HouseController, OwnerZoneRequestController, OwnerBoxAgencyController],
   providers: [AgencyService, ZoneService, AgencyTodayService, ZoneRequestService],
 })
 export class AgencyModule {}

@@ -49,6 +49,16 @@ export interface BoxEvent {
 }
 
 /** api.md §4.6 คำขอให้หน่วยงานดูแลบ้าน (รอเจ้าของบ้านยอมรับ) */
+/** หน่วยงานที่ดูแลบ้าน (api.md §4.7) */
+export interface BoxAgency {
+  id: string;
+  name: string;
+  type: string;
+  zone_names: string[];
+  /** หน่วยงานสุดท้าย — เลิกแล้วไม่มีใครรับ SOS */
+  last: boolean;
+}
+
 export interface ZoneRequest {
   id: string;
   box: { id: string; name: string; house_no: string };
@@ -176,6 +186,14 @@ export class OwnerApi {
 
   decideZoneRequest(id: string, accept: boolean): Promise<unknown> {
     return firstValueFrom(this.http.post(`/api/v1/me/zone-requests/${encodeURIComponent(id)}/${accept ? 'accept' : 'reject'}`, {}));
+  }
+
+  boxAgencies(boxId: string): Promise<BoxAgency[]> {
+    return firstValueFrom(this.http.get<BoxAgency[]>(`/api/v1/boxes/${encodeURIComponent(boxId)}/agencies`));
+  }
+
+  leaveAgency(boxId: string, agencyId: string): Promise<unknown> {
+    return firstValueFrom(this.http.delete(`/api/v1/boxes/${encodeURIComponent(boxId)}/agencies/${encodeURIComponent(agencyId)}`));
   }
 
   setArea(id: string, area: string): Promise<unknown> {

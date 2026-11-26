@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { OwnerApi, type BoxAddress, type BoxDetail, type BoxSummary, type PlanInfo, type ZoneRequest } from '../../core/owner-api';
+import { OwnerApi, type BoxAddress, type BoxAgency, type BoxDetail, type BoxSummary, type PlanInfo, type ZoneRequest } from '../../core/owner-api';
 import { apiError } from '../../core/api';
 import { Confirm } from '../../shared/confirm-dialog';
 import { Session } from '../../core/session';
@@ -273,6 +273,22 @@ import { bkkClock, fmtDate } from '../../core/time';
       <!-- 5) บัญชี -->
       <app-account-actions class="easy-hide" current="owner" from="H13" />
 
+      <!-- หน่วยงานที่ดูแลบ้าน: ถอนความยินยอมได้เอง (ทุกโหมด) -->
+      @if (box(); as b) {
+        @if (agencies().length) {
+          <h2 class="group">{{ i18n.t({ th: 'หน่วยงานที่ดูแลบ้าน', en: 'Agencies covering your house' }) }}</h2>
+          @for (a of agencies(); track a.id) {
+            <section class="card stack">
+              <strong>{{ a.name }}</strong>
+              <span class="muted small easy-hide">{{ i18n.t({ th: 'โซน ', en: 'Zone ' }) }}{{ a.zone_names.join(', ') }}</span>
+              <button type="button" class="btn secondary" [disabled]="leaving() !== null" (click)="leave(b, a)">
+                {{ i18n.t({ th: 'เลิกรับการดูแล', en: 'End coverage' }) }}
+              </button>
+            </section>
+          }
+        }
+      }
+
       <!-- C2: การกระทำที่ย้อนกลับไม่ได้อยู่ท้ายหน้า แยกกลุ่มชัดเจน + ยังมีขั้นยืนยัน -->
       @if (box(); as b) {
         <h2 class="group easy-hide">{{ i18n.t({ th: 'การกระทำที่ย้อนกลับไม่ได้', en: 'Irreversible actions' }) }}</h2>
@@ -472,6 +488,8 @@ export class OwnerSettings {
   protected readonly editingAddr = signal(false);
   protected readonly zoneRequests = signal<ZoneRequest[]>([]);
   protected readonly deciding = signal<string | null>(null);
+  protected readonly agencies = signal<BoxAgency[]>([]);
+  protected readonly leaving = signal<string | null>(null);
   protected readonly savingAddr = signal(false);
   protected readonly addr = signal<BoxAddress>({ line: '', subdistrict: '', district: '', province: '' });
   protected readonly pin = signal<LatLng | null>(null);
@@ -567,9 +585,10 @@ export class OwnerSettings {
   protected async open(id: string): Promise<void> {
     const seq = ++this.openSeq;
     try {
-      const detail = await this.api.box(id);
+      const [detail, agencies] = await Promise.all([this.api.box(id), this.api.boxAgencies(id).catch(() => [])]);
       if (seq !== this.openSeq) return;
       this.box.set(detail);
+      this.agencies.set(agencies);
       this.remembered.id.set(detail.id);
       this.failed.set(false);
     } catch {
@@ -647,6 +666,43 @@ export class OwnerSettings {
       this.toast.show({ th: 'ทำรายการไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t do that — check your connection and try again' });
     } finally {
       this.deciding.set(null);
+      await this.loadRequests();
+    }
+  }
+
+  /** DELETE /boxes/:box_id/agencies/:agency_id — เลิกรับการดูแลจากหน่วยงาน (api.md §4.7) */
+  protected async leave(b: BoxDetail, a: BoxAgency): Promise<void> {
+    if (this.leaving()) return;
+    const ok = await this.confirm.ask({
+      title: { th: `เลิกรับการดูแลจาก “${a.name}”?`, en: `End coverage by “${a.name}”?` },
+      body: a.last
+        ? {
+            th: 'นี่คือหน่วยงานสุดท้ายของบ้านนี้ — เลิกแล้วจะไม่มีใครรับ SOS และไม่มีใครมาตรวจ (กรณีฉุกเฉินโทร 191 / 1669) · อยากกลับมาใช้ หน่วยงานต้องส่งคำขอใหม่',
+            en: 'This is the last agency for this house — nobody will receive your SOS or inspect it (in an emergency call 191 / 1669) · to resume, the agency must send a new request',
+          }
+        : {
+            th: 'เจ้าหน้าที่ของหน่วยงานนี้จะไม่ได้ตรวจและไม่ได้รับ SOS ของบ้านนี้อีก · คำขอที่ค้างของหน่วยงานนี้ถูกยกเลิก · อยากกลับมาใช้ หน่วยงานต้องส่งคำขอใหม่',
+            en: 'Its officers will no longer inspect this house or receive its SOS · its pending requests are cancelled · to resume, the agency must send a new request',
+          },
+      confirm: { th: 'เลิกรับการดูแล', en: 'End coverage' },
+      danger: true,
+    });
+    if (!ok) return;
+    this.leaving.set(a.id);
+    try {
+      await this.api.leaveAgency(b.id, a.id);
+      this.toast.show({ th: 'เลิกรับการดูแลแล้ว', en: 'Coverage ended' });
+    } catch (err) {
+      this.toast.show(
+        apiError(err).code === 'SOS_OPEN'
+          ? { th: 'ตอนนี้มี SOS ที่ยังเปิดอยู่ — รอให้ปิดเรื่องก่อนจึงจะเลิกรับการดูแลได้', en: 'An SOS is still open — you can end coverage after it closes' }
+          : { th: 'ทำรายการไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t do that — check your connection and try again' },
+      );
+    } finally {
+      this.leaving.set(null);
+      // โหลดตู้ที่กำลังดูอยู่ใหม่ (อาจสลับตู้ระหว่างรอ)
+      const current = this.box();
+      if (current) await this.open(current.id);
       await this.loadRequests();
     }
   }
