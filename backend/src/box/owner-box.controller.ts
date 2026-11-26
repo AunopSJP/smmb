@@ -149,6 +149,14 @@ export class OwnerBoxController {
     return this.technicianRequests.confirm(auth.userId, p.box_id, p.id, body.result);
   }
 
+  /** เจ้าของยกเลิกคำขอช่างที่ยังไม่ปิด — ปิด/ยกเลิกไปแล้ว → 409 TECHNICIAN_REQUEST_CLOSED */
+  @RateLimit({ limit: 5, windowSec: 60 })
+  @Post(':box_id/technician-requests/:id/cancel')
+  @HttpCode(HttpStatus.OK)
+  cancelTechnician(@Auth() auth: AuthContext, @Param() p: TechnicianRequestIdParam) {
+    return this.technicianRequests.cancel(auth.userId, p.box_id, p.id);
+  }
+
   @Post(':box_id/qr-backup-placed')
   confirmQrBackupPlaced(@Auth() auth: AuthContext, @Param() p: BoxIdParam) {
     return this.qrIssues.ownerPlacedBackup(auth.userId, p.box_id);

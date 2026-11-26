@@ -1,11 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { apiError } from '../../core/api';
 import { OwnerApi, type TechnicianRequest } from '../../core/owner-api';
 import { Session } from '../../core/session';
 import { Toast } from '../../core/toast';
 import { I18n } from '../../core/i18n';
 import { screenUrl } from '../../screens/registry';
 import { BoxPicker } from '../../shared/box-picker';
+import { Confirm } from '../../shared/confirm-dialog';
 import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { bkkClock, fmtWhen } from '../../core/time';
@@ -61,6 +63,11 @@ import { bkkClock, fmtWhen } from '../../core/time';
             <li [class.done]="request.status === 'done'"><span class="d">{{ request.status === 'done' ? '✓' : '5' }}</span><span><b>{{ i18n.t({ th: 'เสร็จงาน', en: 'Work complete' }) }}</b><small>{{ request.status === 'done' ? i18n.t({ th: 'ปิดงานแล้ว', en: 'Closed' }) : i18n.t({ th: 'แล้วให้คุณยืนยันว่าใช้ได้ปกติ', en: 'Then you confirm it works' }) }}</small></span></li>
           </ol>
         </section>
+        @if (request.status !== 'done') {
+          <button type="button" class="btn secondary" [disabled]="cancelling()" (click)="cancel(request)">
+            {{ cancelling() ? i18n.t({ th: 'กำลังยกเลิก…', en: 'Cancelling…' }) : i18n.t({ th: 'ยกเลิกคำขอช่าง', en: 'Cancel this request' }) }}
+          </button>
+        }
       } @else {
         <p class="muted">{{ i18n.t({ th: 'ช่างจะนัดวันเวลามาตั้งค่าหรือซ่อมตู้ให้ ไม่มีค่าใช้จ่ายในช่วงทดลอง', en: 'A technician will book a time to set up or repair the box — free during the trial.' }) }}</p>
         <h2 class="section-title">{{ i18n.t({ th: 'ต้องการให้ช่างทำอะไร', en: 'What do you need?' }) }}</h2>
@@ -263,6 +270,7 @@ export class OwnerTechnician {
   private readonly api = inject(OwnerApi);
   private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(Toast);
+  private readonly confirm = inject(Confirm);
   protected readonly phone = inject(Session).me()?.phone ?? '';
   protected readonly boxes = signal<{ id: string; name: string; house_no: string }[]>([]);
   protected readonly boxId = signal('');
@@ -271,10 +279,11 @@ export class OwnerTechnician {
   protected readonly note = signal('');
   protected readonly sending = signal(false);
   protected readonly error = signal(false);
-  protected readonly activeRequest = computed(() => this.requests().find((request) => request.status !== 'done') ?? null);
+  protected readonly activeRequest = computed(() => this.requests().find((request) => request.status === 'open' || request.status === 'scheduled') ?? null);
   /** คำขอล่าสุดที่ปิดงานแล้ว — แสดงสรุปเหนือฟอร์มเมื่อไม่มีคำขอเปิดอยู่ */
   protected readonly lastDone = computed(() => this.requests().find((request) => request.status === 'done') ?? null);
   protected readonly confirming = signal<string | null>(null);
+  protected readonly cancelling = signal(false);
   protected readonly reasons = [
     { value: 'repair' as const, label: { th: 'ตู้ไม่ออนไลน์ / ต่อ Wi-Fi ไม่ได้', en: 'Mailbox offline / cannot connect to Wi-Fi' } },
     { value: 'wifi_change' as const, label: { th: 'ย้ายตู้ / เปลี่ยน Wi-Fi บ้าน', en: 'Move the box / change home Wi-Fi' } },
@@ -330,6 +339,41 @@ export class OwnerTechnician {
       this.error.set(true);
     } finally {
       this.sending.set(false);
+    }
+  }
+
+  /** ยกเลิกคำขอที่ยังไม่ปิด — ถามยืนยันก่อน */
+  protected async cancel(request: TechnicianRequest): Promise<void> {
+    const boxId = this.boxId();
+    if (!boxId || this.cancelling()) return;
+    const at = request.scheduled_at;
+    const ok = await this.confirm.ask({
+      title: { th: 'ยกเลิกคำขอช่าง?', en: 'Cancel this technician request?' },
+      body: at
+        ? {
+            th: `นัด ${fmtWhen(at, 'th')} จะถูกยกเลิก และทีมงานจะได้รับแจ้ง · ส่งคำขอใหม่ได้ภายหลัง`,
+            en: `The visit (${fmtWhen(at, 'en')}) will be cancelled and the team will be told. You can send a new request later.`,
+          }
+        : { th: 'ทีมงานจะได้รับแจ้งว่าคุณยกเลิก · ส่งคำขอใหม่ได้ภายหลัง', en: 'The team will be told. You can send a new request later.' },
+      confirm: { th: 'ยกเลิกคำขอ', en: 'Cancel request' },
+      cancel: { th: 'ไม่ยกเลิก', en: 'Keep it' },
+      danger: true,
+    });
+    if (!ok) return;
+    this.cancelling.set(true);
+    try {
+      await this.api.cancelTechnician(boxId, request.id);
+      await this.loadRequests(boxId);
+      this.toast.show({ th: 'ยกเลิกคำขอช่างแล้ว', en: 'Technician request cancelled' });
+    } catch (err) {
+      if (apiError(err).code === 'TECHNICIAN_REQUEST_CLOSED') {
+        await this.loadRequests(boxId);
+        this.toast.show({ th: 'คำขอนี้ปิดไปแล้ว ยกเลิกไม่ได้', en: 'This request is already closed' });
+      } else {
+        this.toast.show({ th: 'ยกเลิกไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Could not cancel — check your connection and try again' });
+      }
+    } finally {
+      this.cancelling.set(false);
     }
   }
 

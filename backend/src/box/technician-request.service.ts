@@ -4,7 +4,7 @@ import { PG_POOL } from '../db/db.module.js';
 import { NotificationService } from '../push/notification.service.js';
 
 export type TechnicianRequestReason = 'wifi_change' | 'repair' | 'other';
-export type TechnicianRequestStatus = 'open' | 'scheduled' | 'done';
+export type TechnicianRequestStatus = 'open' | 'scheduled' | 'done' | 'cancelled';
 export type TechnicianOwnerResult = 'ok' | 'still_broken';
 
 export interface TechnicianRequestDto {
@@ -21,6 +21,7 @@ export interface TechnicianRequestDto {
   admin_note: string | null;
   owner_result: TechnicianOwnerResult | null;
   owner_confirmed_at: string | null;
+  cancelled_at: string | null;
 }
 
 type RequestRow = {
@@ -37,6 +38,7 @@ type RequestRow = {
   admin_note: string | null;
   owner_result: TechnicianOwnerResult | null;
   owner_confirmed_date: Date | null;
+  cancelled_date: Date | null;
 };
 
 @Injectable()
@@ -56,15 +58,7 @@ export class TechnicianRequestService {
         [boxId, ownerId, input.reason, input.note ?? null],
       );
       if (!rows[0]) throw new NotFoundException();
-      const { rows: admins } = await this.pool.query<{ user_id: string }>(
-        `SELECT r.user_id FROM app.user_role_tb r JOIN app.user_tb u ON u.user_id = r.user_id
-         WHERE r.role = 'admin' AND r.status = 'active' AND u.status = 'active' AND u.deleted_date IS NULL`,
-      );
-      await this.notifications.notify(admins.map((admin) => admin.user_id), {
-        type: 'technician_request',
-        data: { box_id: boxId, reason: input.reason },
-        link: '/admin/technician-requests',
-      }).catch(() => undefined);
+      await this.notifyAdmins('technician_request', { box_id: boxId, reason: input.reason });
       const { rows: detail } = await this.pool.query<RequestRow>(
         `${this.selectSql()} WHERE tr.technician_request_id = $1 AND tr.owner_user_id = $2`,
         [rows[0].id, ownerId],
@@ -104,11 +98,17 @@ export class TechnicianRequestService {
       `UPDATE app.technician_request_tb tr SET status = $2,
          scheduled_date = CASE WHEN $2 = 'scheduled' THEN $3::timestamptz WHEN $2 = 'open' THEN NULL ELSE tr.scheduled_date END,
          admin_note = $4
-       WHERE tr.technician_request_id = $1 AND tr.status <> 'done'
+       WHERE tr.technician_request_id = $1 AND tr.status IN ('open','scheduled')
        RETURNING tr.technician_request_id::text AS id`,
       [id, input.status, input.scheduled_at ?? null, input.note ?? null],
     );
-    if (!rows[0]) throw new NotFoundException();
+    if (!rows[0]) {
+      const { rowCount } = await this.pool.query(
+        `SELECT 1 FROM app.technician_request_tb WHERE technician_request_id = $1 AND status = 'cancelled'`, [id],
+      );
+      if (rowCount) throw new ConflictException({ code: 'TECHNICIAN_REQUEST_CANCELLED' });
+      throw new NotFoundException();
+    }
     const { rows: detail } = await this.pool.query<RequestRow>(`${this.selectSql()} WHERE tr.technician_request_id = $1`, [id]);
     const result = this.toDto(detail[0]);
     await this.notifications.notify([await this.ownerId(id)], {
@@ -135,17 +135,38 @@ export class TechnicianRequestService {
     if (!rows[0]) throw new NotFoundException();
     const { rows: detail } = await this.pool.query<RequestRow>(`${this.selectSql()} WHERE tr.technician_request_id = $1`, [id]);
     if (result === 'still_broken') {
-      const { rows: admins } = await this.pool.query<{ user_id: string }>(
-        `SELECT r.user_id FROM app.user_role_tb r JOIN app.user_tb u ON u.user_id = r.user_id
-         WHERE r.role = 'admin' AND r.status = 'active' AND u.status = 'active' AND u.deleted_date IS NULL`,
-      );
-      await this.notifications.notify(admins.map((admin) => admin.user_id), {
-        type: 'technician_request',
-        data: { box_id: boxId, reason: detail[0]?.reason ?? 'other' },
-        link: '/admin/technician-requests',
-      }).catch(() => undefined);
+      await this.notifyAdmins('technician_request', { box_id: boxId, reason: detail[0]?.reason ?? 'other' });
     }
     return this.toDto(detail[0]);
+  }
+
+  /** เจ้าของยกเลิกคำขอที่ยังไม่ปิด — ไม่ใช่การปิดงาน (ไม่ต้องยืนยันผลงาน) · แจ้งแอดมินพร้อมวันนัดถ้านัดแล้ว */
+  async cancel(ownerId: string, boxId: string, id: string): Promise<TechnicianRequestDto> {
+    const scope = `tr.technician_request_id = $1 AND tr.box_id = $2 AND tr.owner_user_id = $3
+      AND EXISTS (SELECT 1 FROM app.box_tb own WHERE own.box_id = tr.box_id AND own.owner_user_id = $3)`;
+    const params = [id, boxId, ownerId];
+    // UPDATE เดียว: ถ้าแอดมินปิดงาน/เลื่อนนัดพร้อมกัน จะได้สถานะและวันนัดล่าสุด
+    const { rowCount } = await this.pool.query(
+      `UPDATE app.technician_request_tb tr SET status = 'cancelled', cancelled_date = now()
+       WHERE ${scope} AND tr.status IN ('open','scheduled')`,
+      params,
+    );
+    const { rows } = await this.pool.query<RequestRow>(`${this.selectSql()} WHERE ${scope}`, params);
+    if (!rows[0]) throw new NotFoundException();
+    if (!rowCount) throw new ConflictException({ code: 'TECHNICIAN_REQUEST_CLOSED' });
+    const result = this.toDto(rows[0]);
+    await this.notifyAdmins('technician_request_cancelled', { box_id: boxId, scheduled_at: result.scheduled_at ?? '' });
+    return result;
+  }
+
+  private async notifyAdmins(type: 'technician_request' | 'technician_request_cancelled', data: Record<string, string>): Promise<void> {
+    const { rows } = await this.pool.query<{ user_id: string }>(
+      `SELECT r.user_id FROM app.user_role_tb r JOIN app.user_tb u ON u.user_id = r.user_id
+       WHERE r.role = 'admin' AND r.status = 'active' AND u.status = 'active' AND u.deleted_date IS NULL`,
+    );
+    await this.notifications
+      .notify(rows.map((admin) => admin.user_id), { type, data, link: '/admin/technician-requests' })
+      .catch(() => undefined);
   }
 
   private async ownerId(id: string): Promise<string> {
@@ -159,7 +180,7 @@ export class TechnicianRequestService {
   private selectSql(): string {
     return `SELECT tr.technician_request_id::text AS id, tr.box_id, b.house_no,
                    u.display_name AS owner_name, u.phone AS owner_phone, tr.reason, tr.note, tr.status,
-                   tr.created_date, tr.scheduled_date, tr.admin_note, tr.owner_result, tr.owner_confirmed_date
+                   tr.created_date, tr.scheduled_date, tr.admin_note, tr.owner_result, tr.owner_confirmed_date, tr.cancelled_date
             FROM app.technician_request_tb tr
             JOIN app.box_tb b ON b.box_id = tr.box_id
             JOIN app.user_tb u ON u.user_id = tr.owner_user_id`;
@@ -180,6 +201,7 @@ export class TechnicianRequestService {
       admin_note: row.admin_note,
       owner_result: row.owner_result,
       owner_confirmed_at: row.owner_confirmed_date?.toISOString() ?? null,
+      cancelled_at: row.cancelled_date?.toISOString() ?? null,
     };
   }
 }

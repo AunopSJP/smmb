@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal, type OnInit } from '@angular/core';
 import { AdminApi, type AdminTechnicianRequest } from '../../core/admin-api';
+import { apiError } from '../../core/api';
 import { DisplaySettings } from '../../core/display-settings';
 import { I18n } from '../../core/i18n';
 import { fmtWhen } from '../../core/time';
@@ -41,7 +42,13 @@ import { screenUrl } from '../../screens/registry';
               <span class="small block">{{ reasonLabel(request.reason) }}</span>
               <span class="muted small block">{{ dateTime(request.created_at) }}</span>
               @if (request.note) { <p class="request-note">{{ request.note }}</p> }
-              @if (request.status === 'open') {
+              @if (request.status === 'cancelled') {
+                <p class="small">{{ i18n.t({ th: 'เจ้าของบ้านยกเลิกเมื่อ ', en: 'Cancelled by the owner ' }) }}{{ dateTime(request.cancelled_at) }}</p>
+                @if (request.scheduled_at) {
+                  <p class="small">{{ i18n.t({ th: 'นัดที่ถูกยกเลิก ', en: 'Cancelled visit ' }) }}{{ dateTime(request.scheduled_at) }}</p>
+                }
+                @if (request.admin_note) { <p class="muted small">{{ request.admin_note }}</p> }
+              } @else if (request.status === 'open') {
                 <label class="field">
                   <span>{{ i18n.t({ th: 'เวลานัดหมาย (เวลาไทย)', en: 'Appointment time (Thailand time)' }) }}</span>
                   <input type="datetime-local" [value]="scheduleValue(request.id)" (input)="setSchedule(request.id, $event)" />
@@ -109,17 +116,18 @@ export class AdminTechnicianRequests implements OnInit {
     return fmtWhen(iso, this.i18n.lang());
   }
   protected readonly rows = signal<AdminTechnicianRequest[]>([]);
-  protected readonly filter = signal<'open' | 'scheduled' | 'done'>('open');
+  protected readonly filter = signal<AdminTechnicianRequest['status']>('open');
   protected readonly schedules = signal<Record<string, string>>({});
   protected readonly notes = signal<Record<string, string>>({});
   protected readonly saving = signal<string | null>(null);
   protected readonly error = signal(false);
   /** โหมดง่าย: ไม่แสดงงานที่ปิดแล้ว เพื่อให้เห็นเฉพาะงานที่ต้องทำ */
-  protected readonly visible = computed(() => (this.display.easyMode() ? this.rows().filter((r) => r.status !== 'done') : this.rows()));
+  protected readonly visible = computed(() => (this.display.easyMode() ? this.rows().filter((r) => r.status === 'open' || r.status === 'scheduled') : this.rows()));
   protected readonly filters = [
     { value: 'open' as const, label: { th: 'รอจัดการ', en: 'Open' } },
     { value: 'scheduled' as const, label: { th: 'นัดแล้ว', en: 'Scheduled' } },
     { value: 'done' as const, label: { th: 'เสร็จแล้ว', en: 'Done' } },
+    { value: 'cancelled' as const, label: { th: 'ยกเลิกแล้ว', en: 'Cancelled' } },
   ];
 
   ngOnInit(): void { void this.load(); }
@@ -141,7 +149,7 @@ export class AdminTechnicianRequests implements OnInit {
   }
 
   protected statusLabel(status: AdminTechnicianRequest['status']) {
-    return { open: { th: 'รอจัดการ', en: 'Open' }, scheduled: { th: 'นัดแล้ว', en: 'Scheduled' }, done: { th: 'เสร็จแล้ว', en: 'Done' } }[status];
+    return { open: { th: 'รอจัดการ', en: 'Open' }, scheduled: { th: 'นัดแล้ว', en: 'Scheduled' }, done: { th: 'เสร็จแล้ว', en: 'Done' }, cancelled: { th: 'ยกเลิกแล้ว', en: 'Cancelled' } }[status];
   }
 
   protected scheduleValue(id: string): string { return this.schedules()[id] ?? ''; }
@@ -186,7 +194,12 @@ export class AdminTechnicianRequests implements OnInit {
       await this.api.updateTechnicianRequest(request.id, input);
       await this.load();
       this.toast.show({ th: 'อัปเดตคำขอแล้ว และแจ้งเจ้าของบ้านแล้ว', en: 'Request updated and owner notified' });
-    } catch { this.error.set(true); }
+    } catch (err) {
+      if (apiError(err).code === 'TECHNICIAN_REQUEST_CANCELLED') {
+        await this.load();
+        this.toast.show({ th: 'เจ้าของบ้านยกเลิกคำขอนี้แล้ว', en: 'The owner has cancelled this request' });
+      } else this.error.set(true);
+    }
     finally { this.saving.set(null); }
   }
 }

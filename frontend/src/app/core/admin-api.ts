@@ -204,10 +204,11 @@ export interface AdminTechnicianRequest {
   owner_phone: string;
   reason: 'wifi_change' | 'repair' | 'other';
   note: string | null;
-  status: 'open' | 'scheduled' | 'done';
+  status: 'open' | 'scheduled' | 'done' | 'cancelled';
   created_at: string;
   scheduled_at: string | null;
   admin_note: string | null;
+  cancelled_at: string | null;
 }
 
 export type AdminQrHealth = 'damaged' | 'suspicious' | 'maybe_fake' | 'expiring';
