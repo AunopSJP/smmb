@@ -32,7 +32,7 @@ describe('Inspections (e2e)', () => {
   let terms: string;
   const run = String(Date.now()).slice(-6);
   let seq = 0;
-  const phone = () => `05${run}${String(seq++).padStart(2, '0')}`;
+  const phone = () => `05${run.slice(-5)}${String(seq++).padStart(3, '0')}`;
   const PW = 'password123';
   const nowS = () => Math.floor(Date.now() / 1000);
 
@@ -458,5 +458,127 @@ describe('Inspections (e2e)', () => {
     expect(boot.body.awake_s).toBe(300);
     const report = await box(b, 'POST', '/v1/box/report', { fw: 't', config_ver: boot.body.config_ver }).expect(200);
     expect(report.body.awake_s).toBeUndefined();
+  });
+
+  // AunopSJP/smmb#13 — เจ้าของบ้านเลิกรับการดูแลจากหน่วยงาน (api.md §4.7)
+  describe('owner ends agency coverage', () => {
+    type Ag = Awaited<ReturnType<typeof agency>>;
+    const newZone = async (ag: Ag, boxId: string) => {
+      const z = (await as(ag.head).post('/api/v1/agency/zones', { name: `โซน ${seq++}`, windows: SHORT_WINDOW }).expect(201)).body;
+      await allDayWindows(pool, z.id);
+      await as(ag.head).put(`/api/v1/agency/zones/${z.id}/houses`, { box_ids: [boxId] }).expect(200);
+      await as(ag.head).put(`/api/v1/agency/zones/${z.id}/officers`, { user_ids: [ag.officer.id] }).expect(200);
+      return z.id as string;
+    };
+    const leave = (cookie: string, boxId: string, agencyId: string) =>
+      http().delete(`/api/v1/boxes/${boxId}/agencies/${agencyId}`).set('Cookie', cookie);
+    const agenciesOf = async (cookie: string, boxId: string) =>
+      (await as(cookie).get(`/api/v1/boxes/${boxId}/agencies`).expect(200)).body as {
+        id: string; name: string; zone_names: string[]; last: boolean;
+      }[];
+
+    it('removes the house from every zone of that agency, cancels pending requests and cuts its officers off', async () => {
+      const first = await setup();
+      const { b, owner } = first;
+      await newZone(first, b.box_id); // โซนที่ 2 ของหน่วยงานเดียวกัน
+      await acceptPendingHouses(pool);
+      const other = await agency();
+      await newZone(other, b.box_id);
+      await acceptPendingHouses(pool);
+      const waiting = await newZone(first, b.box_id); // โซนที่ 3 ยังรอเจ้าของยืนยัน
+
+      const list = await agenciesOf(owner.cookie, b.box_id);
+      expect(list).toHaveLength(2);
+      expect(list.every((a) => !a.last)).toBe(true);
+      const mine = list.find((a) => a.name === first.name)!;
+      expect(mine.zone_names).toHaveLength(2);
+      await as(first.officer.cookie).get(`/api/v1/officer/boxes/${b.box_id}`).expect(200);
+
+      await leave(owner.cookie, b.box_id, mine.id).expect(200, { ok: true });
+
+      expect(await agenciesOf(owner.cookie, b.box_id)).toMatchObject([{ name: other.name, last: true }]);
+      expect(await as(owner.cookie).get('/api/v1/me/zone-requests').expect(200).then((r) => r.body)).toEqual([]);
+      const req = await pool.query(`SELECT status FROM app.zone_box_request_tb WHERE zone_id = $1 AND box_id = $2`, [waiting, b.box_id]);
+      expect(req.rows).toEqual([{ status: 'cancelled' }]);
+
+      const n = await pool.query(`SELECT data FROM app.notification_tb WHERE user_id IN (SELECT user_id FROM app.agency_member_tb WHERE agency_id = $1 AND is_head) AND type = 'zone_left'`, [mine.id]);
+      expect(n.rowCount).toBe(1);
+      expect(n.rows[0].data).toMatchObject({ box_id: b.box_id });
+
+      // เจ้าหน้าที่ของหน่วยงานที่ถูกเลิกเข้าถึงข้อมูลบ้านไม่ได้
+      await as(first.officer.cookie).get(`/api/v1/officer/boxes/${b.box_id}`).expect(404);
+      await as(first.officer.cookie).get(`/api/v1/officer/boxes/${b.box_id}/location`).expect(404);
+      expect((await as(first.officer.cookie).post('/api/v1/inspections', { qr_text: b.qr[0].url }).expect(403)).body.code).toBe('NOT_IN_ZONE');
+      expect(JSON.stringify((await as(first.officer.cookie).get('/api/v1/officer/summary').expect(200)).body)).not.toContain(b.box_id);
+      // อีกหน่วยงานยังดูแลต่อ
+      await as(other.officer.cookie).get(`/api/v1/officer/boxes/${b.box_id}`).expect(200);
+
+      const sos = (await as(owner.cookie).post('/api/v1/sos', { box_id: b.box_id }).expect(201)).body;
+      await as(first.officer.cookie).get(`/api/v1/sos/${sos.id}/card`).expect(404);
+      await as(other.officer.cookie).get(`/api/v1/sos/${sos.id}/card`).expect(200);
+    });
+
+    it('after the last agency leaves there is no coverage, and coming back needs a new request', async () => {
+      const ag = await setup();
+      const { b, owner, head } = ag;
+      const [only] = await agenciesOf(owner.cookie, b.box_id);
+      expect(only.last).toBe(true);
+      // ตู้ถือ long-poll อยู่ → ได้เวลาตรวจใหม่ (ว่าง) ทันที ไม่รอครบ wait 10 วิ
+      const ver = (await box(b, 'POST', '/v1/box/boot', { config_ver: 0 }).expect(200)).body.config_ver as number;
+      const poll = box(b, 'GET', `/v1/box/jobs?wait=10&config_ver=${ver}`).then((r) => r);
+      await new Promise((r) => setTimeout(r, 300));
+      const started = Date.now();
+      await leave(owner.cookie, b.box_id, only.id).expect(200, { ok: true });
+      const polled = await poll;
+      expect(Date.now() - started).toBeLessThan(4000);
+      expect(polled.body.config_ver).not.toBe(ver);
+
+      const detail = (await as(owner.cookie).get(`/api/v1/boxes/${b.box_id}`).expect(200)).body;
+      expect(detail.coverage).toEqual({ has_officer: false, agency_names: [] });
+      expect(detail.patrol.windows).toEqual([]);
+      expect((await as(owner.cookie).post('/api/v1/sos', { box_id: b.box_id }).expect(200)).body.code).toBe('SOS_NO_COVERAGE');
+
+      const zone = await pool.query(`SELECT zone_id FROM app.zone_tb WHERE agency_id = $1`, [only.id]);
+      const houses = await as(head).put(`/api/v1/agency/zones/${zone.rows[0].zone_id}/houses`, { box_ids: [b.box_id] }).expect(200);
+      expect(houses.body).toMatchObject([{ pending: true }]);
+      expect(await agenciesOf(owner.cookie, b.box_id)).toEqual([]);
+      expect((await as(owner.cookie).get('/api/v1/me/zone-requests').expect(200)).body).toHaveLength(1);
+    });
+
+    it('is refused with SOS_OPEN while an SOS of the box is open or accepted', async () => {
+      const { b, owner, officer } = await setup();
+      const [a] = await agenciesOf(owner.cookie, b.box_id);
+      const sos = (await as(owner.cookie).post('/api/v1/sos', { box_id: b.box_id }).expect(201)).body;
+      expect((await leave(owner.cookie, b.box_id, a.id).expect(409)).body.code).toBe('SOS_OPEN');
+      await as(officer.cookie).post(`/api/v1/sos/${sos.id}/accept`).expect(200);
+      expect((await leave(owner.cookie, b.box_id, a.id).expect(409)).body.code).toBe('SOS_OPEN');
+      expect(await agenciesOf(owner.cookie, b.box_id)).toHaveLength(1);
+      await as(owner.cookie).post(`/api/v1/sos/${sos.id}/cancel`, { reason: 'safe' }).expect(200);
+      await leave(owner.cookie, b.box_id, a.id).expect(200);
+    });
+
+    it('ends an inspection that agency still has running', async () => {
+      const { b, owner, officer } = await setup();
+      const [a] = await agenciesOf(owner.cookie, b.box_id);
+      const { out } = await pollWhile(b, () => as(officer.cookie).post('/api/v1/inspections', { qr_text: b.qr[0].url }).expect(201).then((r) => r));
+      const ins = (out as request.Response).body;
+      await leave(owner.cookie, b.box_id, a.id).expect(200);
+      expect((await as(officer.cookie).get(`/api/v1/inspections/${ins.id}`).expect(200)).body.status).toBe('expired');
+      const res = await box(b, 'POST', `/v1/box/jobs/${ins.job_id}/result`, { attempt: 1, read_ok: false, qr_text: null, read_ms: null, flash: false }).expect(410);
+      expect(res.body.code).toBe('JOB_EXPIRED');
+    });
+
+    it('someone else’s box, or an agency that does not cover it, is 404', async () => {
+      const mine = await setup();
+      const theirs = await setup();
+      const [a] = await agenciesOf(mine.owner.cookie, mine.b.box_id);
+      const [t] = await agenciesOf(theirs.owner.cookie, theirs.b.box_id);
+      await as(theirs.owner.cookie).get(`/api/v1/boxes/${mine.b.box_id}/agencies`).expect(404);
+      await leave(theirs.owner.cookie, mine.b.box_id, a.id).expect(404);
+      await leave(mine.owner.cookie, mine.b.box_id, t.id).expect(404);
+      await leave(mine.officer.cookie, mine.b.box_id, a.id).expect(404);
+      await leave(mine.owner.cookie, mine.b.box_id, 'not-a-uuid').expect(400);
+      expect(await agenciesOf(mine.owner.cookie, mine.b.box_id)).toHaveLength(1);
+    });
   });
 });

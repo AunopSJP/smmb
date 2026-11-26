@@ -220,6 +220,9 @@ export class InspectionService implements OnModuleInit {
         [qr.box_id, userId],
       );
       if (open.rows[0]) return open.rows[0].inspection_id;
+      // เจ้าของบ้านอาจเลิกรับการดูแลระหว่างตรวจเงื่อนไข (เช็กซ้ำหลังได้ล็อกตู้)
+      const still = await db.query(`SELECT 1 FROM app.zone_box_tb WHERE zone_id = $1 AND box_id = $2`, [zone.zone_id, qr.box_id]);
+      if (!still.rowCount) throw new AppError(HttpStatus.FORBIDDEN, 'NOT_IN_ZONE', 'this house is not in your zones');
       const jobId = await this.jobs.create(qr.box_id, 'inspect', userId, { wake: false, db });
       const { rows } = await db.query<{ inspection_id: string }>(
         `INSERT INTO app.inspection_tb (box_job_id, box_id, officer_user_id, agency_id, zone_id, box_qr_code_id, method, scan_ms)

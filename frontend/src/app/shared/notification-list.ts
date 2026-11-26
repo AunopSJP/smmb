@@ -51,6 +51,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
   zone_join_request: { icon: 'user', tone: 'warn' },
   zone_join_accepted: { icon: 'check', tone: 'ok' },
   zone_join_rejected: { icon: 'info', tone: '' },
+  zone_left: { icon: 'info', tone: 'warn' },
   officer_new_device: { icon: 'alert', tone: 'warn' },
 };
 
