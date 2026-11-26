@@ -88,10 +88,10 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
             </span>
             <span class="txt">
               <span class="top">
-                <strong class="clamp-2" [attr.title]="plain(n.title)">{{ plain(n.title) }}</strong>
+                <strong>{{ plain(n.title) }}</strong>
                 <time class="easy-hide" [attr.datetime]="n.created_at">{{ when(n.created_at) }}</time>
               </span>
-              <span class="body easy-hide" [attr.title]="n.body">{{ n.body || '—' }}</span>
+              <span class="body easy-hide">{{ n.body || '—' }}</span>
               @if (n.link) {
                 <span class="more easy-hide">{{ moreLabel(n.type) }} ›</span>
               }
@@ -265,10 +265,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
       font-size: var(--fs-sm);
       color: var(--text-muted);
       line-height: 1.45;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
+      overflow-wrap: anywhere;
     }
     .new {
       position: absolute;

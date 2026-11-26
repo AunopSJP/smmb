@@ -12,8 +12,8 @@ import { EmptyState, LoadingRows } from '../../shared/state-view';
 const OK = new Set(['ok', 'pass', 'passed']);
 
 const RESULT: Record<string, Tr> = {
-  /* ok = รับการสแกนแล้วแต่ยังไม่จบ → แสดงตามจริง ไม่ใช่ "ผ่าน" */
-  ok: { th: 'ยังไม่จบ', en: 'In progress' },
+  /* ok = เซิร์ฟเวอร์รับการสแกนแล้ว (ขั้นแรก) — ไม่ได้บอกผลการตรวจ จึงไม่เขียนว่า "ผ่าน" หรือ "ยังไม่จบ" */
+  ok: { th: 'รับการสแกนแล้ว', en: 'Scan received' },
   pass: { th: 'ผ่าน', en: 'Passed' },
   retry: { th: 'อ่านไม่ผ่าน', en: 'Not read' },
   fail: { th: 'ไม่ผ่าน', en: 'Failed' },
@@ -162,11 +162,12 @@ export class OfficerHistory {
     return l.house_no ? this.i18n.t({ th: 'บ้าน ', en: 'House ' }) + l.house_no : this.i18n.t({ th: 'ไม่ทราบตู้', en: 'Unknown box' });
   }
 
-  /** สีป้ายตามผลจริง (A9): เขียว = ผ่าน · ส้ม = ยังไม่จบ/อ่านไม่ผ่าน · แดง = ไม่ผ่าน */
+  /** สีป้ายตามผลจริง (A9): เขียว = ผ่าน · กลาง = รับการสแกน · ส้ม = อ่านไม่ผ่าน · แดง = ไม่ผ่าน */
   protected chipTone(l: MyLog): '' | 'ok' | 'warn' | 'danger' {
     if (l.qr_kind === 'badge' && l.result === 'ok') return 'ok';
     if (l.result === 'pass' || l.result === 'passed') return 'ok';
-    if (l.result === 'ok' || l.result === 'retry' || l.result === 'unreadable') return 'warn';
+    if (l.result === 'ok') return ''; // แถวสแกนหน้าตู้ไม่ถูกแก้ภายหลัง (log เพิ่มอย่างเดียว) จึงเป็นสีกลาง
+    if (l.result === 'retry' || l.result === 'unreadable') return 'warn';
     return 'danger';
   }
 

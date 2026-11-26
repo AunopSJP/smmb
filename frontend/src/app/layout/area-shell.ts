@@ -230,9 +230,11 @@ const MOCK_SCREENS = new Set<string>();
         </a>
       }
       @if (alarm?.needsTap()) {
-        <button type="button" class="sos-tap" role="alert" (click)="alarm?.unlock()">
-          {{ i18n.t({ th: 'มี SOS ใหม่ — แตะที่นี่เพื่อเปิดเสียงเตือน', en: 'New SOS — tap here to turn on the alarm' }) }}
-        </button>
+        <div class="sos-tap" role="alert">
+          <button type="button" (click)="alarm?.unlock()">
+            {{ i18n.t({ th: 'มี SOS ใหม่ — แตะที่นี่เพื่อเปิดเสียงเตือน', en: 'New SOS — tap here to turn on the alarm' }) }}
+          </button>
+        </div>
       }
       <main id="main-content" tabindex="-1" [class.full]="fullscreen()">
         <router-outlet />
@@ -321,22 +323,26 @@ const MOCK_SCREENS = new Set<string>();
       .admin-layout app-tab-bar {
         display: none;
       }
-      .sos-tap {
-        position: sticky;
-        inset-block-start: 0;
-        z-index: 50;
-        inline-size: 100%;
-        padding: 12px 16px;
-        border: 0;
-        background: var(--sos);
-        color: var(--sos-fg);
-        font: inherit;
-        font-weight: var(--fw-strong);
-        cursor: pointer;
-      }
       .admin-layout app-toast {
         grid-column: 2;
       }
+    }
+    /* ต้องอยู่นอก @media — เจ้าหน้าที่ใช้มือถือเป็นหลัก */
+    .sos-tap {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 50;
+    }
+    .sos-tap button {
+      inline-size: 100%;
+      min-block-size: 48px;
+      padding: 12px 16px;
+      border: 0;
+      background: var(--sos-bg);
+      color: var(--sos-fg);
+      font: inherit;
+      font-weight: var(--fw-strong);
+      cursor: pointer;
     }
     .brand {
       display: flex;

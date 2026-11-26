@@ -352,7 +352,6 @@ export class SosNoOfficer {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="sheet-backdrop sos-dim">
-      <p class="behind">{{ i18n.t({ th: 'กำลังหาเจ้าหน้าที่…', en: 'Finding an officer…' }) }}</p>
       <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="cancel-title">
         <h2 id="cancel-title">{{ i18n.t({ th: 'ยกเลิก SOS ใช่ไหม?', en: 'Cancel your SOS?' }) }}</h2>
         <p class="muted small easy-hide">{{ i18n.t({ th: 'เลือกเหตุผล ระบบจะแจ้งเจ้าหน้าที่ให้ทราบว่ายกเลิกแล้ว', en: 'Pick a reason — officers will be told it is cancelled' }) }}</p>
@@ -372,13 +371,6 @@ export class SosNoOfficer {
   styles: `
     .sos-dim {
       background: var(--sos-dim);
-    }
-    .behind {
-      flex: 1;
-      display: grid;
-      place-items: center;
-      color: rgb(255 255 255 / 45%);
-      font-weight: var(--fw-strong);
     }
     .option {
       justify-content: flex-start;
