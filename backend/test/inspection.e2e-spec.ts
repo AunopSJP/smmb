@@ -315,6 +315,7 @@ describe('Inspections (e2e)', () => {
 
     const confirmed = await as(owner.cookie).post(`/api/v1/boxes/${b.box_id}/qr-backup-placed`).expect(201);
     expect(confirmed.body.status).toBe('owner_confirmed');
+    expect((await as(admin.cookie).get(`/api/v1/admin/qr/${frontQrId}`).expect(200)).body).toMatchObject({ confirmed_by: 'owner', confirmed_at: expect.any(String) });
     const replacement = (await as(admin.cookie)
       .post(`/api/v1/admin/boxes/${b.box_id}/qr/reissue`, { slots: [2], request_id: randomUUID() })
       .expect(201)).body.qr as { id: string; slot: number; version: number }[];
@@ -334,6 +335,71 @@ describe('Inspections (e2e)', () => {
     expect(finalQr.rows.find((qr) => qr.box_qr_code_id === backupQrId)).toMatchObject({ slot: '1', status: 'active' });
     expect(finalQr.rows.find((qr) => qr.box_qr_code_id === replacement[0].id)).toMatchObject({ slot: '2', status: 'active' });
     expect((await as(owner.cookie).get(`/api/v1/boxes/${b.box_id}`).expect(200)).body.qr_task).toBeNull();
+  });
+
+  it('passing with the backup QR while a swap case waits counts as the owner confirming; a failed scan does not', async () => {
+    const { b, owner, officer } = await setup();
+    const qr = async () =>
+      (
+        await pool.query<{ box_qr_code_id: string; slot: string; status: string }>(
+          `SELECT box_qr_code_id, slot, status FROM app.box_qr_code_tb WHERE box_id = $1 AND slot IN ('1','2') ORDER BY slot, version`,
+          [b.box_id],
+        )
+      ).rows;
+    const [front, backup] = await qr();
+    await pool.query(`UPDATE app.box_qr_code_tb SET health = 'damaged' WHERE box_qr_code_id = $1`, [front.box_qr_code_id]);
+    await as(admin.cookie).post(`/api/v1/admin/qr/${front.box_qr_code_id}/request-backup-swap`).expect(201);
+    const issue = async () => (await as(admin.cookie).get(`/api/v1/admin/qr/${front.box_qr_code_id}`).expect(200)).body;
+    const inspect = async (qrUrl: string, pass: boolean) => {
+      const { out } = await pollWhile(b, () => as(officer.cookie).post('/api/v1/inspections', { qr_text: qrUrl }).expect(201));
+      const ins = (out as request.Response).body;
+      await box(b, 'POST', `/v1/box/jobs/${ins.job_id}/ready`, {}).expect(200);
+      const text = pass ? ((await as(officer.cookie).get(`/api/v1/inspections/${ins.id}/badge`).expect(200)).body.qr as string) : 'hello';
+      for (let attempt = 1; attempt <= (pass ? 1 : 3); attempt++) {
+        await box(b, 'POST', `/v1/box/jobs/${ins.job_id}/result`, { attempt, read_ok: true, qr_text: text, read_ms: 900 }).expect(200);
+      }
+      return ins.id as string;
+    };
+
+    // ใบสำรองแต่ตรวจไม่ผ่าน / ผ่านด้วยใบหน้าตู้ → เคสยังรอเจ้าของ
+    await inspect(b.qr[1].url, false);
+    await inspect(b.qr[0].url, true);
+    expect(await issue()).toMatchObject({ status: 'owner_notified', confirmed_by: null, confirmed_at: null });
+    expect((await qr()).map((q) => q.status)).toEqual(['active', 'active']);
+
+    const passed = await inspect(b.qr[1].url, true);
+    expect(await issue()).toMatchObject({ status: 'owner_confirmed', confirmed_by: 'inspection', confirmed_at: expect.any(String) });
+    const after = await qr();
+    expect(after.find((q) => q.box_qr_code_id === front.box_qr_code_id)).toMatchObject({ status: 'revoked' });
+    expect(after.find((q) => q.box_qr_code_id === backup.box_qr_code_id)).toMatchObject({ slot: '1', status: 'active' });
+    expect((await as(owner.cookie).get(`/api/v1/boxes/${b.box_id}`).expect(200)).body.qr_task).toBeNull();
+    const source = await pool.query(`SELECT confirmed_inspection_id FROM app.qr_issue_case_tb WHERE box_qr_code_id = $1`, [front.box_qr_code_id]);
+    expect(source.rows[0].confirmed_inspection_id).toBe(passed);
+    // เจ้าของกดซ้ำภายหลัง = ไม่เปลี่ยนที่มา
+    expect((await as(owner.cookie).post(`/api/v1/boxes/${b.box_id}/qr-backup-placed`).expect(201)).body.status).toBe('owner_confirmed');
+    expect((await issue()).confirmed_by).toBe('inspection');
+    // แอดมินเดินเคสต่อได้เหมือนเจ้าของกดเอง
+    await as(admin.cookie).post(`/api/v1/admin/boxes/${b.box_id}/qr/reissue`, { slots: [2], request_id: randomUUID() }).expect(201);
+    await as(admin.cookie).post(`/api/v1/admin/qr/${front.box_qr_code_id}/reissue`, { slots: [2] }).expect(201);
+    await as(admin.cookie).post(`/api/v1/admin/qr/${front.box_qr_code_id}/resolve`).expect(201);
+  });
+
+  it('passing with the backup QR without a pending swap case changes nothing', async () => {
+    const { b, officer } = await setup();
+    const { out } = await pollWhile(b, () => as(officer.cookie).post('/api/v1/inspections', { qr_text: b.qr[1].url }).expect(201));
+    const ins = (out as request.Response).body;
+    await box(b, 'POST', `/v1/box/jobs/${ins.job_id}/ready`, {}).expect(200);
+    const badge = (await as(officer.cookie).get(`/api/v1/inspections/${ins.id}/badge`).expect(200)).body.qr;
+    const result = await box(b, 'POST', `/v1/box/jobs/${ins.job_id}/result`, { attempt: 1, read_ok: true, qr_text: badge, read_ms: 900 }).expect(200);
+    expect(result.body.status).toBe('pass');
+    const { rows } = await pool.query(
+      `SELECT slot, status, health FROM app.box_qr_code_tb WHERE box_id = $1 AND slot IN ('1','2') ORDER BY slot`,
+      [b.box_id],
+    );
+    expect(rows).toEqual([
+      { slot: '1', status: 'active', health: 'ok' },
+      { slot: '2', status: 'active', health: 'backup_in_use' },
+    ]);
   });
 
   it('scanning twice while the first job is open reuses the inspection (no second wake job) — both scans are logged', async () => {
