@@ -112,6 +112,18 @@ function houseDetails(p: Record<string, unknown> | null | undefined): NonNullabl
 const live = (s: SosStatus) => s === 'open' || s === 'accepted';
 
 /**
+ * เงื่อนไข "ยังมีสิทธิ์รับเรื่อง": บัญชี · บทบาทเจ้าหน้าที่ · สมาชิกของหน่วยงานนั้น · หน่วยงาน ยังใช้งานอยู่
+ * ย้ายออกจากโซนไม่นับ · ใช้ทั้งตอนเลือกผู้รับแจ้งเตือนและตอนคืนเรื่องอัตโนมัติ — เพิ่มเหตุหมดสิทธิ์ใหม่ที่นี่ที่เดียว
+ * (รับได้เฉพาะชื่อคอลัมน์ที่เขียนในโค้ด ห้ามส่งค่าจากผู้ใช้)
+ */
+const eligibleSql = (userCol: string, agencyCol: string) => `EXISTS (
+  SELECT 1 FROM app.user_tb eu
+  JOIN app.user_role_tb er ON er.user_id = eu.user_id AND er.role = 'officer' AND er.status = 'active'
+  JOIN app.agency_member_tb em ON em.user_id = eu.user_id AND em.status = 'active'
+  JOIN app.agency_tb ea ON ea.agency_id = em.agency_id AND ea.status = 'approved'
+  WHERE eu.user_id = ${userCol} AND em.agency_id = ${agencyCol} AND eu.status = 'active' AND eu.deleted_date IS NULL)`;
+
+/**
  * SOS (api.md §7 · design §7)
  * - บ้านหลังเดียวอยู่ในโซนของหลายหน่วยงานได้ (✅ 2026-10-28) → ทุกขั้นส่งถึงทุกหน่วยงานที่ดูแลบ้านนี้
  * - ไม่ส่งถึงเจ้าของบ้านเอง (แม้เป็นเจ้าหน้าที่ในโซนนั้น) · คนแรกที่กดรับได้เรื่อง
@@ -328,7 +340,7 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * ตรรกะคืนเรื่อง ใช้ร่วมกันระหว่างกดคืนเองกับระบบคืนให้ (issue #12):
+   * ตรรกะคืนเรื่อง ใช้ร่วมกันระหว่างกดคืนเองกับระบบคืนให้ (releaseIneligible):
    * กลับเป็นรอคนรับ + เริ่มรอบส่งซ้ำและนับขั้นใหม่ + บันทึกประวัติ + แจ้งผู้รับกับเจ้าของบ้าน
    * คืน false เมื่อ officerId ไม่ได้ถือเรื่องนี้อยู่ (ยกเลิก/ปิด/คืนไปแล้ว) — ไม่ทำอะไร
    */
@@ -369,6 +381,21 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
     return true;
   }
 
+  /**
+   * ผู้รับหมดสิทธิ์ระหว่าง SOS ยังเปิด → ระบบคืนเรื่องให้ · คืนจำนวนเรื่องที่คืน
+   * ตรวจจากสถานะในฐานข้อมูล จึงครอบคลุมทุกทางที่ทำให้หมดสิทธิ์ (และ restart แล้วยังตามเก็บได้)
+   * ตัวจับเวลาเรียกทุกรอบ — งานที่อยากให้คืนทันที (เช่นระงับหน่วยงาน) เรียกซ้ำเองได้หลัง commit
+   */
+  async releaseIneligible(): Promise<number> {
+    const { rows } = await this.pool.query<{ sos_case_id: string; accepted_by: string }>(
+      `SELECT c.sos_case_id, c.accepted_by FROM app.sos_case_tb c
+       WHERE c.status = 'accepted' AND NOT ${eligibleSql('c.accepted_by', 'c.accepted_agency_id')}`,
+    );
+    let released = 0;
+    for (const r of rows) if (await this.release(r.sos_case_id, r.accepted_by, 'system')) released++;
+    return released;
+  }
+
   /** SOS ที่ยังต้องสนใจ (หน้าสรุปเจ้าหน้าที่ O01-b / O01-c) */
   async activeFor(userId: string): Promise<SosCardDto[]> {
     return this.list(userId, 'open');
@@ -378,6 +405,7 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
 
   /** ส่งซ้ำก่อนเลื่อนขั้น — คนที่เพิ่งถูกเพิ่มตอนเลื่อนขั้นจะไม่ได้สองข้อความในรอบเดียว (เช่นหลัง restart) */
   private async tick(): Promise<void> {
+    await this.releaseIneligible();
     await this.repeatAll();
     await this.escalateAll();
   }
@@ -491,15 +519,11 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
     return rows.map((r) => r.user_id);
   }
 
-  /** ผู้รับที่ยังมีสิทธิ์: บัญชี · บทบาทเจ้าหน้าที่ · สมาชิกของหน่วยงานที่ถูกส่งถึง · หน่วยงาน ยังใช้งานอยู่ (ย้ายออกจากโซนไม่นับ) · ไม่รวมคนที่คืนเรื่องนี้แล้ว */
+  /** ผู้รับที่ยังมีสิทธิ์ (eligibleSql) · ไม่รวมคนที่คืนเรื่องนี้แล้ว */
   private async eligibleRecipients(id: string): Promise<string[]> {
     const { rows } = await this.pool.query<{ user_id: string }>(
       `SELECT r.user_id FROM app.sos_recipient_tb r
-       JOIN app.user_tb u ON u.user_id = r.user_id AND u.status = 'active' AND u.deleted_date IS NULL
-       JOIN app.user_role_tb ur ON ur.user_id = r.user_id AND ur.role = 'officer' AND ur.status = 'active'
-       JOIN app.agency_member_tb m ON m.user_id = r.user_id AND m.agency_id = r.agency_id AND m.status = 'active'
-       JOIN app.agency_tb a ON a.agency_id = r.agency_id AND a.status = 'approved'
-       WHERE r.sos_case_id = $1
+       WHERE r.sos_case_id = $1 AND ${eligibleSql('r.user_id', 'r.agency_id')}
          AND NOT EXISTS (SELECT 1 FROM app.sos_return_tb x WHERE x.sos_case_id = r.sos_case_id AND x.officer_user_id = r.user_id)`,
       [id],
     );

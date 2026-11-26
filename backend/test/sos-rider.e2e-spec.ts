@@ -420,6 +420,65 @@ describe('Rider + SOS + owner home (e2e)', () => {
         expect(await sent(o.id, 'sos_returned', id)).toHaveLength(1);
       });
 
+      describe('automatically when the accepting officer loses access', () => {
+        type Case = Awaited<ReturnType<typeof acceptedSos>>;
+        const lose: [string, (x: Case) => PromiseLike<unknown>][] = [
+          ['membership disabled by the head', (x) => http().patch(`/api/v1/agency/members/${x.a.officer.id}/status`).set('Cookie', x.a.head.cookie).send({ is_active: false }).expect(200)],
+          ['officer role disabled by an admin', (x) => as(admin.cookie).put(`/api/v1/admin/users/${x.a.officer.id}/roles/officer`, { status: 'disabled' }).expect(200)],
+          ['officer role removed by an admin', (x) => http().delete(`/api/v1/admin/users/${x.a.officer.id}/roles/officer`).set('Cookie', admin.cookie).expect(200)],
+          ['account disabled by an admin', (x) => http().patch(`/api/v1/admin/users/${x.a.officer.id}`).set('Cookie', admin.cookie).send({ status: 'disabled' }).expect(200)],
+          // DELETE /me ถูกกันด้วย SOS_OPEN — แถวนี้แทนกรณีลบบัญชีชนกับการกดรับ
+          ['account marked deleted', (x) => pool.query(`UPDATE app.user_tb SET deleted_date = now() WHERE user_id = $1`, [x.a.officer.id])],
+          // issue #14 (ระงับหน่วยงาน) ยังไม่มี endpoint
+          ['agency no longer approved', (x) => pool.query(`UPDATE app.agency_tb SET status = 'rejected' WHERE agency_id = (SELECT accepted_agency_id FROM app.sos_case_tb WHERE sos_case_id = $1)`, [x.id])],
+        ];
+
+        it.each(lose)('%s', async (_name, revoke) => {
+          const x = await acceptedSos();
+          await ageStage(x.id);
+          await revoke(x);
+          await app.get(SosService).releaseIneligible();
+          await app.get(SosService).releaseIneligible(); // เรียกซ้ำไม่บันทึกซ้ำ
+
+          expect(await returned(x.id)).toEqual([expect.objectContaining({ officer_user_id: x.a.officer.id, source: 'system' })]);
+          expect((await as(x.o.cookie).get(`/api/v1/sos/${x.id}`).expect(200)).body).toMatchObject({
+            status: 'open',
+            stage: 'zone',
+            accepted_by: null,
+            returned_at: expect.any(String),
+          });
+          expect(await sent(x.o.id, 'sos_returned', x.id)).toHaveLength(1);
+          expect((await sent(x.c.officer.id, 'sos_new', x.id)).filter((n) => n.data.returned)).toHaveLength(1);
+          expect(await sent(x.a.officer.id, 'sos_new', x.id)).toHaveLength(1); // มีแค่ครั้งแรก
+          expect(await sent(x.a.officer.id, 'sos_returned', x.id)).toHaveLength(0);
+          await as(x.c.officer.cookie).post(`/api/v1/sos/${x.id}/accept`).expect(200);
+          await app.get(SosService).releaseIneligible(); // คนรับใหม่ยังมีสิทธิ์ → ไม่ถูกดึง
+          expect(await returned(x.id)).toHaveLength(1);
+        });
+
+        it('happens on the timer without anyone calling it', async () => {
+          const x = await acceptedSos();
+          await as(admin.cookie).put(`/api/v1/admin/users/${x.a.officer.id}/roles/officer`, { status: 'disabled' }).expect(200);
+          await expect.poll(() => returned(x.id), { timeout: 12_000, interval: 500 }).toHaveLength(1);
+        }, 20_000);
+
+        it('not when they only leave the zone or stay silent', async () => {
+          const x = await acceptedSos();
+          const { rows } = await pool.query<{ zone_id: string }>(`SELECT zone_id FROM app.zone_officer_tb WHERE user_id = $1`, [x.a.officer.id]);
+          await as(x.a.head.cookie).put(`/api/v1/agency/zones/${rows[0].zone_id}/officers`, { user_ids: [] }).expect(200);
+          await pool.query(`UPDATE app.sos_case_tb SET accepted_date = now() - interval '1 day', stage_changed_date = now() - interval '1 day' WHERE sos_case_id = $1`, [x.id]);
+          await app.get(SosService).releaseIneligible();
+          expect(await returned(x.id)).toHaveLength(0);
+          expect((await as(x.o.cookie).get(`/api/v1/sos/${x.id}`).expect(200)).body.status).toBe('accepted');
+        });
+
+        it('self-delete stays blocked while holding a case', async () => {
+          const x = await acceptedSos();
+          const res = await http().delete('/api/v1/me').set('Cookie', x.a.officer.cookie).send({ password: PW, confirm: 'DELETE' }).expect(409);
+          expect(res.body.code).toBe('SOS_OPEN');
+        });
+      });
+
       it('after cancel or close there is nothing to return', async () => {
         const x = await acceptedSos();
         await as(x.o.cookie).post(`/api/v1/sos/${x.id}/cancel`, { reason: 'safe' }).expect(200);
