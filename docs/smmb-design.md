@@ -425,6 +425,7 @@ CREATE TABLE app.technician_request_tb (
   ```
 - ตัวจับเวลา 30/60 วิ: 💡 delayed job ใน Redis (BullMQ) หรือ scheduler ตรวจทุก 5 วิ — **ต้องรอดตอน restart** (เก็บ `stage_changed_at` ใน DB แล้วคำนวณใหม่ได้เสมอ)
 - ขั้นเลื่อนเฉพาะตอน `status = 'open'` — รับแล้วหยุดส่งต่อ
+- ✅ 2026-11-26 **ส่งซ้ำ** (issue #10): ระหว่าง `open` ส่ง `sos_new` ซ้ำทุก 1 นาที ถึงนาทีที่ 10 ให้ผู้รับที่ยังมีสิทธิ์ · นับจาก `sos_case_tb.repeat_start_date` และจองนาทีใน `repeat_count` ก่อนส่ง (restart แล้วเดินต่อ ไม่ส่งซ้อน) · เริ่มรอบใหม่ = ตั้ง `repeat_start_date = now()`, `repeat_count = 0` (migration `0047`)
 - ✅ (2026-10-28) บ้านหลังเดียวอยู่ในโซนของหลายหน่วยงานได้ → ขั้น `zone` = เจ้าหน้าที่ในทุกโซนที่มีบ้านนี้ · ขั้น `agency` = ทุกคน + หัวหน้าของ**ทุกหน่วยงาน**ที่ดูแลบ้านนี้ · คนแรกที่กดรับได้เรื่อง
 - ✅ บ้านมีโซนแต่ไม่มีเจ้าหน้าที่ในโซนเลย → ข้ามไป stage `agency` ทันที 💡
 - เบอร์โทรใน `accepted_by.phone` / `SosCard.owner.phone` ส่งเฉพาะ `status IN ('open','accepted')` (✅) — ทุกครั้งที่ส่งเบอร์ลง `data_access_logs`

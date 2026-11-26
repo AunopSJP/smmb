@@ -108,8 +108,15 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
   },
   sos_new: {
     // ไม่ใส่เบอร์เจ้าของบ้านในข้อความ: push ถูกส่งถึงหลายคนและค้างอยู่ในประวัติแจ้งเตือน — เบอร์เห็นในแอปเฉพาะตอน SOS เปิดอยู่ (และมีบันทึกการเปิดดู)
-    th: (d) => ({ title: '🆘 SOS', body: `บ้าน ${s(d.house_no)} ต้องการความช่วยเหลือ · แตะเพื่อดูรายละเอียดและรับเรื่อง` }),
-    en: (d) => ({ title: '🆘 SOS', body: `House ${s(d.house_no)} needs help · tap to see details and accept` }),
+    // repeat = ส่งซ้ำเพราะยังไม่มีคนรับ (type เดิม → เด้งค้าง และปิดรับไม่ได้เหมือนครั้งแรก)
+    th: (d) => ({
+      title: d.repeat ? '🆘 SOS ยังไม่มีคนรับ' : '🆘 SOS',
+      body: `บ้าน ${s(d.house_no)} ต้องการความช่วยเหลือ · แตะเพื่อดูรายละเอียดและรับเรื่อง`,
+    }),
+    en: (d) => ({
+      title: d.repeat ? '🆘 SOS still unanswered' : '🆘 SOS',
+      body: `House ${s(d.house_no)} needs help · tap to see details and accept`,
+    }),
   },
   sos_taken: {
     th: (d) => ({ title: 'SOS มีคนรับแล้ว', body: `รับแล้วโดย ${s(d.officer_name)}` }),
