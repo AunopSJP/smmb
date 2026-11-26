@@ -33,6 +33,12 @@ describe('messages', () => {
     }
   });
 
+  it('a repeated SOS says nobody has accepted yet, in both languages', () => {
+    expect(renderMessage('sos_new', { house_no: '9', repeat: true }, 'th').title).toBe('🆘 SOS ยังไม่มีคนรับ');
+    expect(renderMessage('sos_new', { house_no: '9', repeat: true }, 'en').title).toBe('🆘 SOS still unanswered');
+    expect(renderMessage('sos_new', { house_no: '9' }, 'en').title).toBe('🆘 SOS');
+  });
+
   it('shows Bangkok time', () => {
     const m = renderMessage('inspected', { agency_name: 'สภ.X', officer_name: 'ส.ต.ต. สมชาย', at: '2026-10-27T15:15:00Z' }, 'th');
     expect(m.body).toBe('สภ.X · ส.ต.ต. สมชาย มาตรวจ 22:15');

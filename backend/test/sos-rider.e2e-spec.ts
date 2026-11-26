@@ -9,6 +9,7 @@ import { configureApp } from '../src/app-setup.js';
 import { AppModule } from '../src/app.module.js';
 import { PG_POOL } from '../src/db/db.module.js';
 import { PUSH_SENDER, type PushSender } from '../src/push/push.sender.js';
+import { SosService } from '../src/sos/sos.service.js';
 import { COUNTER_STORE, MemoryCounterStore } from '../src/rate-limit/rate-limit.store.js';
 
 class SilentSender implements PushSender {
@@ -260,6 +261,88 @@ describe('Rider + SOS + owner home (e2e)', () => {
       expect(await notified(o.id, 'sos_new')).toHaveLength(0);
       expect(await notified(ag.officer.id, 'sos_new')).toHaveLength(1);
       expect(await notified(ag.head.id, 'sos_new')).toHaveLength(1);
+    });
+
+    describe('repeat while nobody has accepted', () => {
+      /** เวลา = จุดเริ่มรอบในฐานข้อมูล + กี่วินาที */
+      const repeatAt = async (id: string, seconds: number) => {
+        const { rows } = await pool.query<{ repeat_start_date: Date }>(`SELECT repeat_start_date FROM app.sos_case_tb WHERE sos_case_id = $1`, [id]);
+        await app.get(SosService).repeatAll(new Date(rows[0].repeat_start_date.getTime() + seconds * 1000));
+      };
+      const sent = async (userId: string, sosId: string) => (await notified(userId, 'sos_new')).filter((n) => n.data.sos_id === sosId);
+      const openSos = async () => {
+        const { b, owner: o } = await boundBox();
+        const ag = await agencyCovering(b.box_id);
+        const sos = (await as(o.cookie).post('/api/v1/sos', { box_id: b.box_id }).expect(201)).body;
+        return { o, ag, id: sos.id as string };
+      };
+
+      it('every minute from creation up to 10 minutes, once per minute, and escalation is unchanged', async () => {
+        const { o, ag, id } = await openSos();
+        await repeatAt(id, 59);
+        expect(await sent(ag.officer.id, id)).toHaveLength(1);
+        await repeatAt(id, 61);
+        await repeatAt(id, 62); // เรียกซ้ำ (เช่นหลัง restart) ไม่ส่งซ้อน
+        const first = await sent(ag.officer.id, id);
+        expect(first).toHaveLength(2);
+        expect(first[1].data).toMatchObject({ repeat: true });
+        expect(JSON.stringify(first[1].data)).not.toContain(o.phone);
+        expect(await sent(ag.head.id, id)).toHaveLength(0); // ยังไม่เลื่อนขั้น = ยังไม่อยู่ในรายชื่อผู้รับ
+        expect((await as(o.cookie).get(`/api/v1/sos/${id}`).expect(200)).body.stage).toBe('zone');
+
+        await ageStage(id);
+        await as(o.cookie).get(`/api/v1/sos/${id}`).expect(200); // เลื่อนเป็นขั้นหน่วยงาน → หัวหน้าได้ครั้งแรก 1
+        for (let m = 2; m <= 10; m++) await repeatAt(id, m * 60 + 1);
+        expect(await sent(ag.officer.id, id)).toHaveLength(11);
+        expect(await sent(ag.head.id, id)).toHaveLength(10);
+        await repeatAt(id, 11 * 60 + 1);
+        expect(await sent(ag.officer.id, id)).toHaveLength(11);
+      });
+
+      it('minutes missed while the server was down are not sent in a burst; nothing after the window', async () => {
+        const a = await openSos();
+        await repeatAt(a.id, 5 * 60 + 1);
+        await repeatAt(a.id, 5 * 60 + 6);
+        expect(await sent(a.ag.officer.id, a.id)).toHaveLength(2);
+        const b = await openSos();
+        await repeatAt(b.id, 15 * 60);
+        expect(await sent(b.ag.officer.id, b.id)).toHaveLength(1);
+      });
+
+      it('stops once accepted, closed or cancelled', async () => {
+        const a = await openSos();
+        await as(a.ag.officer.cookie).post(`/api/v1/sos/${a.id}/accept`).expect(200);
+        await repeatAt(a.id, 61);
+        await as(a.ag.officer.cookie).post(`/api/v1/sos/${a.id}/close`, { note: 'ok' }).expect(200);
+        await repeatAt(a.id, 121);
+        expect(await sent(a.ag.officer.id, a.id)).toHaveLength(1);
+
+        const c = await openSos();
+        await as(c.o.cookie).post(`/api/v1/sos/${c.id}/cancel`, { reason: 'safe' }).expect(200);
+        await repeatAt(c.id, 61);
+        expect(await sent(c.ag.officer.id, c.id)).toHaveLength(1);
+      });
+
+      it('only recipients who still have access get it (leaving the zone does not remove it)', async () => {
+        const { b, owner: o } = await boundBox();
+        const left = await agencyCovering(b.box_id);
+        const off = await agencyCovering(b.box_id);
+        const sos = (await as(o.cookie).post('/api/v1/sos', { box_id: b.box_id }).expect(201)).body;
+        await pool.query(`DELETE FROM app.zone_officer_tb WHERE user_id = $1`, [left.officer.id]);
+        await pool.query(`UPDATE app.agency_member_tb SET status = 'disabled' WHERE user_id = $1`, [off.officer.id]);
+        await repeatAt(sos.id, 61);
+        expect(await sent(left.officer.id, sos.id)).toHaveLength(2);
+        expect(await sent(off.officer.id, sos.id)).toHaveLength(1);
+
+        await pool.query(`UPDATE app.user_role_tb SET status = 'disabled' WHERE user_id = $1 AND role = 'officer'`, [left.officer.id]);
+        await repeatAt(sos.id, 121);
+        expect(await sent(left.officer.id, sos.id)).toHaveLength(2);
+
+        await pool.query(`UPDATE app.user_role_tb SET status = 'active' WHERE user_id = $1 AND role = 'officer'`, [left.officer.id]);
+        await pool.query(`UPDATE app.user_tb SET status = 'disabled' WHERE user_id = $1`, [left.officer.id]);
+        await repeatAt(sos.id, 181);
+        expect(await sent(left.officer.id, sos.id)).toHaveLength(2);
+      });
     });
 
     it('the officer summary shows open SOS; the owner home shows it too', async () => {

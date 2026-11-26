@@ -9,6 +9,11 @@ import { NotificationService } from '../push/notification.service.js';
 export const STAGE_SECONDS = 30;
 /** ตรวจเลื่อนขั้นทุกกี่วินาที (คิดจาก stage_changed_date ในฐานข้อมูล — restart แล้วยังเดินต่อถูก) */
 export const ESCALATE_EVERY_MS = 5_000;
+/** ยังไม่มีคนรับ → ส่งแจ้งเตือนซ้ำทุก 1 นาที ถึงนาทีที่ 10 ของรอบ (รอบเริ่มที่ repeat_start_date) */
+export const REPEAT_SECONDS = 60;
+export const REPEAT_LIMIT = 10;
+/** นาทีสุดท้ายยังส่งได้ถ้าตัวจับเวลามาช้าไม่เกินเท่านี้ — เลยกว่านี้ถือว่าจบรอบ */
+const REPEAT_GRACE_SECONDS = 30;
 
 export type SosStage = 'zone' | 'agency' | 'call_yourself';
 export type SosStatus = 'open' | 'accepted' | 'closed' | 'cancelled';
@@ -115,7 +120,7 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit(): void {
-    this.timer = setInterval(() => void this.escalateAll().catch((err: Error) => this.logger.error(`escalate failed: ${err.message}`)), ESCALATE_EVERY_MS);
+    this.timer = setInterval(() => void this.tick().catch((err: Error) => this.logger.error(`sos tick failed: ${err.message}`)), ESCALATE_EVERY_MS);
     this.timer.unref?.();
   }
 
@@ -300,7 +305,32 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
     return this.list(userId, 'open');
   }
 
-  // ── เลื่อนขั้น ────────────────────────────────────────────────────────
+  // ── ส่งซ้ำ + เลื่อนขั้น ────────────────────────────────────────────────
+
+  /** ส่งซ้ำก่อนเลื่อนขั้น — คนที่เพิ่งถูกเพิ่มตอนเลื่อนขั้นจะไม่ได้สองข้อความในรอบเดียว (เช่นหลัง restart) */
+  private async tick(): Promise<void> {
+    await this.repeatAll();
+    await this.escalateAll();
+  }
+
+  /**
+   * SOS ที่ยังไม่มีคนรับและถึงนาทีใหม่ของรอบ → แจ้งผู้รับที่ยังมีสิทธิ์อีกครั้ง · คืนจำนวน SOS ที่ส่งซ้ำ
+   * จองนาทีในฐานข้อมูลก่อนส่ง (UPDATE เดียว) → restart/เรียกซ้อนไม่ส่งซ้ำ · นาทีที่พลาดไปตอนระบบหยุดไม่ส่งย้อนหลัง
+   * `now` ใช้กำหนดเวลาในเทสต์ — ปกติใช้เวลาของฐานข้อมูล
+   */
+  async repeatAll(now?: Date): Promise<number> {
+    const { rows } = await this.pool.query<{ sos_case_id: string }>(
+      `UPDATE app.sos_case_tb c
+       SET repeat_count = floor(extract(epoch FROM (coalesce($1::timestamptz, now()) - c.repeat_start_date)) / $2::int)::int
+       WHERE c.status = 'open'
+         AND coalesce($1::timestamptz, now()) >= c.repeat_start_date + make_interval(secs => (c.repeat_count + 1) * $2::int)
+         AND coalesce($1::timestamptz, now()) < c.repeat_start_date + make_interval(secs => $3::int)
+       RETURNING c.sos_case_id`,
+      [now ?? null, REPEAT_SECONDS, REPEAT_LIMIT * REPEAT_SECONDS + REPEAT_GRACE_SECONDS],
+    );
+    for (const r of rows) await this.notifyNew(r.sos_case_id, await this.eligibleRecipients(r.sos_case_id), true);
+    return rows.length;
+  }
 
   async escalateAll(): Promise<void> {
     const { rows } = await this.pool.query<{ sos_case_id: string }>(
@@ -392,6 +422,20 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
     return rows.map((r) => r.user_id);
   }
 
+  /** ผู้รับที่ยังมีสิทธิ์: บัญชี · บทบาทเจ้าหน้าที่ · สมาชิกของหน่วยงานที่ถูกส่งถึง · หน่วยงาน ยังใช้งานอยู่ (ย้ายออกจากโซนไม่นับ) */
+  private async eligibleRecipients(id: string): Promise<string[]> {
+    const { rows } = await this.pool.query<{ user_id: string }>(
+      `SELECT r.user_id FROM app.sos_recipient_tb r
+       JOIN app.user_tb u ON u.user_id = r.user_id AND u.status = 'active' AND u.deleted_date IS NULL
+       JOIN app.user_role_tb ur ON ur.user_id = r.user_id AND ur.role = 'officer' AND ur.status = 'active'
+       JOIN app.agency_member_tb m ON m.user_id = r.user_id AND m.agency_id = r.agency_id AND m.status = 'active'
+       JOIN app.agency_tb a ON a.agency_id = r.agency_id AND a.status = 'approved'
+       WHERE r.sos_case_id = $1`,
+      [id],
+    );
+    return rows.map((r) => r.user_id);
+  }
+
   private async isRecipient(id: string, userId: string): Promise<boolean> {
     const { rows } = await this.pool.query(`SELECT 1 FROM app.sos_recipient_tb WHERE sos_case_id = $1 AND user_id = $2`, [id, userId]);
     return rows.length > 0;
@@ -450,14 +494,15 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  private async notifyNew(id: string, userIds: string[]): Promise<void> {
+  /** อ่านสถานะอีกครั้งก่อนส่ง — มีคนรับ/ยกเลิกไปแล้วไม่ส่ง */
+  private async notifyNew(id: string, userIds: string[], repeat = false): Promise<void> {
     if (!userIds.length) return;
     const c = await this.load(this.pool, id);
     if (!c || c.status !== 'open') return;
     await this.safeNotify(() =>
       this.notifications.notify(userIds, {
         type: 'sos_new',
-        data: { sos_id: id, house_no: c.house_no },
+        data: { sos_id: id, house_no: c.house_no, ...(repeat ? { repeat: true } : {}) },
         link: `/officer/sos/case?id=${id}`,
         tag: `sos-${id}`,
       }),
