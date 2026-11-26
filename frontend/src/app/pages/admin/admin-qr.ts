@@ -57,7 +57,13 @@ export function progressOf(c: AdminQrIssue): { label: Tr; who: 'admin' | 'owner'
   if (!c.fix) return { label: { th: 'ยังไม่เลือกวิธีแก้', en: 'No fix chosen yet' }, who: 'admin' };
   if (c.fix === 'swap') {
     if (c.status === 'owner_notified') return { label: { th: 'รอเจ้าของบ้านติดใบสำรอง', en: 'Waiting for the owner' }, who: 'owner' };
-    if (c.status === 'owner_confirmed') return { label: { th: 'เจ้าของติดแล้ว · ออกใบสำรองใหม่', en: 'Owner done · issue a new backup' }, who: 'admin' };
+    if (c.status === 'owner_confirmed') {
+      const label =
+        c.confirmed_by === 'inspection'
+          ? { th: 'ตรวจผ่านด้วยใบสำรอง · ออกใบสำรองใหม่', en: 'Backup passed inspection · issue a new backup' }
+          : { th: 'เจ้าของติดแล้ว · ออกใบสำรองใหม่', en: 'Owner done · issue a new backup' };
+      return { label, who: 'admin' };
+    }
     return { label: { th: 'ออกใบสำรองใหม่แล้ว · ปิดเคส', en: 'New backup issued · close the case' }, who: 'admin' };
   }
   if (c.status === 'open') return { label: { th: 'ยังไม่ได้ออก QR ใหม่', en: 'New QRs not issued yet' }, who: 'admin' };
@@ -378,7 +384,7 @@ interface FlowStep {
 
 const SWAP_STEPS: FlowStep[] = [
   { title: { th: 'แจ้งเจ้าของบ้าน', en: 'Notify the owner' }, hint: { th: 'ขอให้นำ QR สำรองไปติดแทน', en: 'Ask them to put the backup QR up' } },
-  { title: { th: 'เจ้าของบ้านติดใบสำรอง', en: 'Owner puts the backup up' }, hint: { th: 'รอเจ้าของกด "ติดแล้ว" · ใบเก่าถูกปิดรหัสอัตโนมัติ', en: 'Waiting for “Done” · the old QR is cancelled automatically' } },
+  { title: { th: 'เจ้าของบ้านติดใบสำรอง', en: 'Owner puts the backup up' }, hint: { th: 'รอเจ้าของกด "ติดแล้ว" หรือตรวจผ่านด้วยใบสำรอง · ใบเก่าถูกปิดรหัสอัตโนมัติ', en: 'Waiting for “Done” or a passed inspection with the backup · the old QR is cancelled automatically' } },
   { title: { th: 'ออก QR สำรองใบใหม่', en: 'Issue a new backup QR' }, hint: { th: 'ส่งให้เจ้าของทางไปรษณีย์หรือช่างนำไป', en: 'By post or via a technician' } },
   { title: { th: 'ปิดเคส', en: 'Close the case' }, hint: { th: 'เก็บประวัติการเปลี่ยน', en: 'Keeps a change history' } },
 ];
@@ -460,10 +466,10 @@ const REISSUE_STEPS: FlowStep[] = [
               @switch (c.status) {
                 @case ('owner_notified') {
                   <h2>{{ i18n.t({ th: 'รอเจ้าของบ้านนำ QR สำรองไปติด', en: 'Waiting for the owner to put the backup up' }) }}</h2>
-                  <p class="muted">{{ i18n.t({ th: 'ส่งแจ้งเตือนให้เจ้าของแล้ว · หน้านี้รีเฟรชเองทุก 3 วินาทีและจะขึ้นขั้นต่อไปเมื่อเจ้าของกด "ติดแล้ว"', en: 'The owner was notified · this page refreshes every 3 s and moves on once they tap “Done”' }) }}</p>
+                  <p class="muted">{{ i18n.t({ th: 'ส่งแจ้งเตือนให้เจ้าของแล้ว · หน้านี้รีเฟรชเองทุก 3 วินาทีและจะขึ้นขั้นต่อไปเมื่อเจ้าของกด "ติดแล้ว" หรือมีการตรวจผ่านด้วยใบสำรอง', en: 'The owner was notified · this page refreshes every 3 s and moves on once they tap “Done” or an inspection passes with the backup' }) }}</p>
                 }
                 @case ('owner_confirmed') {
-                  <h2>{{ i18n.t({ th: 'เจ้าของติดใบสำรองแล้ว — ออก QR สำรองใบใหม่', en: 'Backup is up — issue a new backup QR' }) }}</h2>
+                  <h2>{{ i18n.t(c.confirmed_by === 'inspection' ? { th: 'ตรวจผ่านด้วย QR สำรองแล้ว — ออก QR สำรองใบใหม่', en: 'Backup passed inspection — issue a new backup QR' } : { th: 'เจ้าของติดใบสำรองแล้ว — ออก QR สำรองใบใหม่', en: 'Backup is up — issue a new backup QR' }) }}</h2>
                   <fieldset class="options">
                     <legend>{{ i18n.t({ th: 'ส่งใบสำรองใหม่ให้เจ้าของบ้านทาง', en: 'Send the new backup by' }) }}</legend>
                     <label><input type="radio" name="delivery" [checked]="delivery() === 'post'" (change)="delivery.set('post')" /> <span>{{ i18n.t({ th: 'ไปรษณีย์', en: 'Post' }) }}</span></label>
@@ -542,6 +548,15 @@ const REISSUE_STEPS: FlowStep[] = [
             <dd>{{ date(c.created_at) }}</dd>
             <dt>{{ i18n.t({ th: 'QR สำรอง', en: 'Backup QR' }) }}</dt>
             <dd [class.danger-text]="c.backup_used">{{ c.backup_used ? i18n.t({ th: 'ถูกสแกนไปแล้ว', en: 'Already scanned' }) : i18n.t({ th: 'ยังไม่เคยใช้', en: 'Never used' }) }}</dd>
+            @if (c.confirmed_by) {
+              <dt>{{ i18n.t({ th: 'ยืนยันสลับใบโดย', en: 'Swap confirmed by' }) }}</dt>
+              <dd>
+                {{ i18n.t(c.confirmed_by === 'inspection' ? { th: 'การตรวจที่ผ่านด้วย QR สำรอง', en: 'An inspection passed with the backup QR' } : { th: 'เจ้าของบ้านกดยืนยัน', en: 'The owner' }) }}
+                @if (c.confirmed_at) {
+                  <span class="muted small">· {{ date(c.confirmed_at) }}</span>
+                }
+              </dd>
+            }
             <dt>{{ i18n.t({ th: 'สถานะ', en: 'Status' }) }}</dt>
             <dd>{{ i18n.t(progressOf(c).label) }}</dd>
           </dl>

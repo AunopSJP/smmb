@@ -1,12 +1,14 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import pg from 'pg';
 import { PG_POOL } from '../db/db.module.js';
-import { withTx } from '../db/tx.js';
+import { withTx, type Db } from '../db/tx.js';
 import { NotificationService } from '../push/notification.service.js';
 
 export type QrIssueFix = 'swap' | 'reissue' | 'fake';
 export type QrIssueStatus = 'open' | 'owner_notified' | 'owner_confirmed' | 'qr_reissued' | 'technician_dispatched' | 'resolved';
 export type QrIssueDelivery = 'post' | 'technician';
+/** ใครยืนยันว่าใบสำรองขึ้นหน้าตู้แล้ว: เจ้าของบ้านกดเอง / การตรวจที่ผ่านด้วยใบสำรอง */
+export type QrSwapConfirmSource = 'owner' | 'inspection';
 const QR_ISSUE_HEALTHS = ['damaged', 'suspicious', 'maybe_fake', 'expiring'] as const satisfies readonly QrIssueDto['health'][];
 const QR_ACTIVE_STATUS = 'active';
 const QR_HEALTHY_STATUS = 'ok';
@@ -28,6 +30,8 @@ export interface QrIssueDto {
   created_at: string;
   updated_at: string;
   delivery_method: QrIssueDelivery | null;
+  confirmed_by: QrSwapConfirmSource | null;
+  confirmed_at: string | null;
 }
 
 export interface QrIssueSummary {
@@ -50,6 +54,8 @@ interface QrIssueRow {
   updated_date: Date | null;
   qr_updated_date: Date;
   delivery_method: QrIssueDelivery | null;
+  confirmed_source: QrSwapConfirmSource | null;
+  confirmed_date: Date | null;
 }
 
 @Injectable()
@@ -175,14 +181,50 @@ export class QrIssueService {
         `SELECT box_qr_code_id FROM app.box_qr_code_tb WHERE box_id = $1 AND slot = '2' AND status = 'active' FOR UPDATE`, [boxId],
       );
       if (!backup[0]) throw new ConflictException({ code: 'BACKUP_QR_MISSING' });
-      await db.query(`UPDATE app.box_qr_code_tb SET status = 'revoked', revoked_date = now() WHERE box_qr_code_id = $1`, [issue.box_qr_code_id]);
-      await db.query(
-        `UPDATE app.box_qr_code_tb SET slot = '1', health = 'ok', health_reasons = '{}'
-         WHERE box_qr_code_id = $1`, [backup[0].box_qr_code_id],
-      );
-      await db.query(`UPDATE app.qr_issue_case_tb SET status = 'owner_confirmed' WHERE qr_issue_case_id = $1`, [issue.qr_issue_case_id]);
+      await this.promoteBackup(db, issue, backup[0].box_qr_code_id, 'owner', null);
     });
     return { box_id: boxId, status: resultStatus };
+  }
+
+  /**
+   * การตรวจผ่านด้วย QR สำรองขณะมีเคสสลับใบรอเจ้าของบ้าน = เจ้าของบ้านกดยืนยัน (issue #18)
+   * เรียกใน transaction เดียวกับการตัดสินผลตรวจ — ใช้ `db` เท่านั้น · ไม่เข้าเงื่อนไข = ไม่ทำอะไร (ห้ามทำให้ผลตรวจล้ม)
+   * เงื่อนไข: ใบที่สแกนยังเป็นใบสำรองที่ใช้งานอยู่ และใบหน้าตู้ของเคสยังไม่ถูกเปลี่ยน
+   */
+  async confirmBackupByInspection(db: Db, inspectionId: string): Promise<void> {
+    const { rows } = await db.query<{ qr_issue_case_id: string; box_qr_code_id: string; backup_id: string }>(
+      `SELECT c.qr_issue_case_id, c.box_qr_code_id, backup.box_qr_code_id AS backup_id
+       FROM app.inspection_tb i
+       JOIN app.box_qr_code_tb backup ON backup.box_qr_code_id = i.box_qr_code_id AND backup.slot = '2' AND backup.status = 'active'
+       JOIN app.box_qr_code_tb front ON front.box_id = backup.box_id AND front.slot = '1' AND front.status = 'active'
+       JOIN app.qr_issue_case_tb c ON c.box_qr_code_id = front.box_qr_code_id AND c.fix = 'swap' AND c.status = 'owner_notified'
+       WHERE i.inspection_id = $1
+       FOR UPDATE OF c, backup`,
+      [inspectionId],
+    );
+    if (rows[0]) await this.promoteBackup(db, rows[0], rows[0].backup_id, 'inspection', inspectionId);
+  }
+
+  /** ปิดรหัสใบหน้าตู้เดิม → เลื่อนใบสำรองขึ้นหน้า → เคสรอแอดมินออกใบสำรองใหม่ */
+  private async promoteBackup(
+    db: Db,
+    issue: { qr_issue_case_id: string; box_qr_code_id: string },
+    backupId: string,
+    source: QrSwapConfirmSource,
+    inspectionId: string | null,
+  ): Promise<void> {
+    await db.query(`UPDATE app.box_qr_code_tb SET status = 'revoked', revoked_date = now() WHERE box_qr_code_id = $1`, [issue.box_qr_code_id]);
+    await db.query(
+      `UPDATE app.box_qr_code_tb SET slot = '1', health = 'ok', health_reasons = '{}'
+       WHERE box_qr_code_id = $1`,
+      [backupId],
+    );
+    await db.query(
+      `UPDATE app.qr_issue_case_tb
+       SET status = 'owner_confirmed', confirmed_source = $2, confirmed_date = now(), confirmed_inspection_id = $3
+       WHERE qr_issue_case_id = $1`,
+      [issue.qr_issue_case_id, source, inspectionId],
+    );
   }
 
   async recordReissue(qrId: string, slots: (1 | 2)[], deliveryMethod: QrIssueDelivery | null): Promise<QrIssueDto> {
@@ -288,7 +330,8 @@ export class QrIssueService {
                    q.health_reasons, q.last_scanned_date, q.updated_date AS qr_updated_date,
                    EXISTS (SELECT 1 FROM app.box_qr_code_tb backup WHERE backup.box_id = q.box_id AND backup.slot = '2'
                            AND 'backup_used' = ANY(backup.health_reasons)) AS backup_used,
-                   c.fix, c.status, c.created_date, c.updated_date, c.delivery_method
+                   c.fix, c.status, c.created_date, c.updated_date, c.delivery_method,
+                   c.confirmed_source, c.confirmed_date
             FROM app.box_qr_code_tb q
             JOIN app.box_tb b ON b.box_id = q.box_id
             LEFT JOIN LATERAL (
@@ -319,6 +362,8 @@ export class QrIssueService {
       created_at: row.created_date?.toISOString() ?? row.last_scanned_date?.toISOString() ?? row.qr_updated_date.toISOString(),
       updated_at: row.updated_date?.toISOString() ?? row.last_scanned_date?.toISOString() ?? row.qr_updated_date.toISOString(),
       delivery_method: row.delivery_method,
+      confirmed_by: row.confirmed_source,
+      confirmed_at: row.confirmed_date?.toISOString() ?? null,
     };
   }
 }

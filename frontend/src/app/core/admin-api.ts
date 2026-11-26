@@ -229,6 +229,9 @@ export interface AdminQrIssue {
   created_at: string;
   updated_at: string;
   delivery_method: 'post' | 'technician' | null;
+  /** ใครยืนยันว่าใบสำรองขึ้นหน้าตู้แล้ว (เฉพาะเคส swap) */
+  confirmed_by: 'owner' | 'inspection' | null;
+  confirmed_at: string | null;
 }
 
 export interface AdminPlan {

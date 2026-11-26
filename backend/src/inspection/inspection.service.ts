@@ -11,6 +11,7 @@ import { BOX_TZ, boxStatus, type BoxStatus, localMinutes, mergeWindows, minutesI
 import { BoxConfigService } from '../box/box-config.service.js';
 import { badgeToken, readBadge } from '../box/box-crypto.js';
 import { BoxJobService, type AttemptBody, type Verdict } from '../box/box-job.service.js';
+import { QrIssueService } from '../box/qr-issue.service.js';
 import { SosService, type SosCardDto } from '../sos/sos.service.js';
 
 /** QR ประจำตัวอายุ 30 วิ (✅ ผู้ใช้สั่ง 2026-11-19 เพิ่มจาก 15 วิ เพื่อให้กล้องตู้จับทัน · เดิม 15 วิ ตาม 2026-11-06 "ไม่เร็วเกินไปจนตู้อ่านไม่ทัน") */
@@ -126,6 +127,7 @@ export class InspectionService implements OnModuleInit {
     private readonly codes: CodeAttempts,
     private readonly notifications: NotificationService,
     private readonly sos: SosService,
+    private readonly qrIssues: QrIssueService,
   ) {}
 
   onModuleInit(): void {
@@ -531,6 +533,8 @@ export class InspectionService implements OnModuleInit {
     let after: (() => Promise<void>) | undefined;
     if (ins && status === 'pass') {
       await db.query(`UPDATE app.inspection_tb SET status = 'passed', checked_date = now() WHERE inspection_id = $1`, [ins.inspection_id]);
+      // ผ่านด้วย QR สำรองขณะรอเจ้าของสลับใบ → นับว่าสลับแล้ว (ตรวจเงื่อนไขในนั้น)
+      await this.qrIssues.confirmBackupByInspection(db, ins.inspection_id);
       after = () => this.notifyInspected(job.box_id, ins.agency_name, ins.display_name, ins.inspection_id);
     } else if (ins && status === 'fail') {
       await db.query(`UPDATE app.inspection_tb SET status = 'failed' WHERE inspection_id = $1`, [ins.inspection_id]);
