@@ -172,6 +172,7 @@ const LOG_TYPE: Record<AdminLogType, { label: Tr; icon: IconName; tone: '' | 'wa
   inspection: { label: { th: 'ตรวจ', en: 'Inspections' }, icon: 'shield', tone: '' },
   delivery: { label: { th: 'ส่งของ', en: 'Deliveries' }, icon: 'box', tone: 'warn' },
   sos: { label: { th: 'SOS', en: 'SOS' }, icon: 'alert', tone: 'danger' },
+  sos_return: { label: { th: 'คืนเรื่อง SOS', en: 'SOS returns' }, icon: 'alert', tone: 'warn' },
   box_problem: { label: { th: 'ตู้มีปัญหา', en: 'Box problems' }, icon: 'info', tone: '' },
   scan: { label: { th: 'สแกน', en: 'Scans' }, icon: 'scan', tone: '' },
   data_access: { label: { th: 'เปิดดูข้อมูล', en: 'Data views' }, icon: 'user', tone: '' },
@@ -189,6 +190,8 @@ const FRIENDLY: Record<string, Tr> = {
   delivered: { th: 'ส่งของแล้ว', en: 'delivered' },
   closed: { th: 'ปิดงานแล้ว', en: 'closed' },
   box: { th: 'ตู้', en: 'box' },
+  self: { th: 'คืนเอง', en: 'returned by the officer' },
+  system: { th: 'ระบบคืนอัตโนมัติ', en: 'returned by the system' },
   qr_reissue_1: { th: 'QR หน้าตู้ใหม่', en: 'new front QR' },
   qr_reissue_2: { th: 'QR สำรองใหม่', en: 'new backup QR' },
 };

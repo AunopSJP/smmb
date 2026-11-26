@@ -113,7 +113,8 @@ export class SosAlarm {
     this.busy = true;
     try {
       const cases = await this.api.list('open');
-      this.setRinging(cases.some((c) => c.status === 'open'));
+      // เรื่องที่ฉันคืนเองแล้วไม่ดังใส่ฉันอีก (คนอื่นยังได้ยินตามปกติ)
+      this.setRinging(cases.some((c) => c.status === 'open' && !c.returned_by_me));
     } catch {
       // ถามไม่สำเร็จ (เน็ตหลุด) — คงสถานะเดิมไว้ ไม่ปิดเสียงเอง
     } finally {

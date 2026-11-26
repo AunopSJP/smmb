@@ -14,6 +14,7 @@ import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { EmptyState, LoadError } from '../../shared/state-view';
 import { Toast } from '../../core/toast';
+import { Confirm } from '../../shared/confirm-dialog';
 import { liveRefresh } from '../../core/live-refresh';
 
 /** หน้ารับเรื่อง / รายการ SOS ถามสถานะทุกกี่วินาที */
@@ -52,13 +53,13 @@ const go = (router: Router, code: string, id?: string) =>
             <span class="chip danger">{{ i18n.t({ th: 'รับแล้วโดยคุณ', en: 'Yours' }) }}</span>
           </a>
         } @else {
-          <h2 class="section-title danger-text">{{ i18n.t({ th: 'SOS ใหม่ รอรับเรื่อง', en: 'New SOS — waiting' }) }}</h2>
+          <h2 class="section-title danger-text">{{ i18n.t(c.returned_at ? { th: 'SOS ถูกคืน รอคนรับ', en: 'Returned SOS, waiting' } : { th: 'SOS ใหม่ รอรับเรื่อง', en: 'New SOS — waiting' }) }}</h2>
           <a class="card current" [routerLink]="url('O09')" [queryParams]="{ id: c.id }">
             <span class="grow">
               <strong class="big">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ c.house_no }}</strong>
               <span class="muted small block">{{ time(c.created_at) }} · {{ c.owner?.name }}</span>
             </span>
-            <span class="chip danger">{{ i18n.t({ th: 'ยังไม่มีคนรับ', en: 'Not accepted' }) }}</span>
+            <span class="chip danger">{{ i18n.t(c.returned_by_me ? { th: 'คุณคืนแล้ว', en: 'You returned it' } : { th: 'ยังไม่มีคนรับ', en: 'Not accepted' }) }}</span>
           </a>
         }
       }
@@ -210,11 +211,14 @@ export class OfficerSosList {
     } @else if (c) {
       <div class="pad incoming" role="alert">
         <div class="toprow">
-          <span class="pill">{{ i18n.t({ th: 'SOS ใหม่', en: 'New SOS' }) }}</span>
+          <span class="pill">{{ i18n.t(c.returned_at ? { th: 'SOS ถูกคืน', en: 'Returned SOS' } : { th: 'SOS ใหม่', en: 'New SOS' }) }}</span>
           <span class="small">{{ ago() }} {{ i18n.t({ th: 'วินาทีที่แล้ว', en: 's ago' }) }}</span>
         </div>
         <p>{{ i18n.t({ th: 'ขอความช่วยเหลือที่', en: 'Help needed at' }) }}</p>
         <h1>{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ c.house_no }}</h1>
+        @if (c.returned_by_me) {
+          <p class="card on-red" role="status">{{ i18n.t({ th: 'คุณคืนเรื่องนี้แล้ว กำลังรอคนอื่นรับ ถ้าไปได้แล้วกดรับใหม่ได้', en: 'You returned this case and it is waiting for someone else. Accept again if you can go.' }) }}</p>
+        }
         <section class="card on-red">
           <dl class="kv">
             <dt>{{ i18n.t({ th: 'เจ้าของบ้าน', en: 'Owner' }) }}</dt><dd>{{ c.owner?.name }}</dd>
@@ -372,7 +376,13 @@ export class OfficerSosCase implements OnInit {
         @if (c?.owner?.phone; as p) {
           <a class="btn big" [href]="'tel:' + p">{{ i18n.t({ th: 'โทรหาเจ้าของบ้าน ', en: 'Call the owner ' }) }}{{ p }}</a>
         }
-        <a class="btn green big push-end" [routerLink]="url('O11')" [queryParams]="{ id: id() }">{{ i18n.t({ th: 'ถึงแล้ว ปิดเรื่อง', en: 'Arrived — close the case' }) }}</a>
+        @if (failed()) {
+          <p class="danger-text small" role="alert">{{ i18n.t({ th: 'คืนเรื่องไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t return the case. Try again.' }) }}</p>
+        }
+        <div class="stack push-end">
+          <a class="btn green big" [routerLink]="url('O11')" [queryParams]="{ id: id() }">{{ i18n.t({ th: 'ถึงแล้ว ปิดเรื่อง', en: 'Arrived — close the case' }) }}</a>
+          <button type="button" class="btn secondary" [disabled]="busy() || !c" (click)="giveBack()">{{ i18n.t({ th: 'ไปไม่ได้ คืนเรื่อง', en: 'Can’t go, return the case' }) }}</button>
+        </div>
       }
     </div>
   `,
@@ -401,6 +411,9 @@ export class OfficerSosCase implements OnInit {
       opacity: 0.85;
       overflow-wrap: break-word;
     }
+    .danger-text {
+      color: var(--sos);
+    }
     .tech-muted {
       margin: 0;
       font-size: var(--fs-xs);
@@ -416,13 +429,50 @@ export class OfficerSosHandling implements OnInit {
   readonly id = input<string>('');
   protected readonly card = signal<SosCard | null>(null);
   private readonly router = inject(Router);
+  private readonly confirm = inject(Confirm);
+  private readonly toast = inject(Toast);
+  protected readonly busy = signal(false);
+  protected readonly failed = signal(false);
+
+  /** POST /sos/:id/return — ถามยืนยันก่อน · เรื่องไม่ใช่ของเราแล้ว (ปิด/ยกเลิก/มีคนรับต่อ) → หน้า O09 บอกสถานะจริง */
+  protected async giveBack(): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: { th: 'คืนเรื่อง SOS นี้ใช่ไหม?', en: 'Return this SOS?' },
+      body: {
+        th: 'เรื่องจะกลับไปรอคนรับ ระบบแจ้งเจ้าหน้าที่คนอื่นและเจ้าของบ้านทันที',
+        en: 'It goes back to waiting. Other officers and the owner are told right away.',
+      },
+      confirm: { th: 'คืนเรื่อง', en: 'Return the case' },
+      cancel: { th: 'ไม่คืน ดูแลต่อ', en: 'Keep handling it' },
+      danger: true,
+    });
+    if (!ok) return;
+    this.busy.set(true);
+    this.failed.set(false);
+    try {
+      await this.api.giveBack(this.id());
+      this.leaving = true;
+      this.toast.show({ th: 'คืนเรื่องแล้ว · กำลังหาคนรับใหม่', en: 'Returned · finding someone else' }, 'ok');
+      void this.router.navigateByUrl(screenUrl('O12'), { replaceUrl: true });
+    } catch (err) {
+      const code = apiError(err).code;
+      if (code === 'SOS_NOT_YOURS' || code === 'SOS_CLOSED' || code === 'SOS_CANCELLED') go(this.router, 'O09', this.id());
+      else this.failed.set(true);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** คืนเรื่องเองสำเร็จแล้ว — poll ที่ค้างอยู่ห้ามพาไปหน้าอื่นแทน O12 */
+  private leaving = false;
 
   ngOnInit(): void {
     const tick = async () => {
       const c = await this.api.card(this.id()).catch(() => null);
       if (c) this.card.set(c);
       // ปิดเรื่องแล้ว (เปิดจากลิงก์/แจ้งเตือนเก่า) → หน้าสรุปเรื่องที่ปิดแล้ว ไม่ให้กดปิดซ้ำ
-      if (c?.status === 'closed') go(this.router, 'O09', c.id);
+      // ถูกคืน (จากเครื่องอื่นหรือโดยระบบ) → ไม่ได้ดูแลแล้ว กลับไปหน้ารับเรื่อง
+      if (c && !this.leaving && !this.busy() && (c.status === 'closed' || (c.status !== 'cancelled' && !c.mine))) go(this.router, 'O09', c.id);
     };
     void tick();
     const t = setInterval(() => void tick(), POLL_MS * 2);

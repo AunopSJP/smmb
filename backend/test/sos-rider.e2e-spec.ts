@@ -32,7 +32,7 @@ describe('Rider + SOS + owner home (e2e)', () => {
   let terms: string;
   const run = String(Date.now()).slice(-6);
   let seq = 0;
-  const phone = () => `04${run}${String(seq++).padStart(2, '0')}`;
+  const phone = () => `04${run.slice(-5)}${String(seq++).padStart(3, '0')}`;
   const PW = 'password123';
 
   const http = () => request(app.getHttpServer());
@@ -342,6 +342,115 @@ describe('Rider + SOS + owner home (e2e)', () => {
         await pool.query(`UPDATE app.user_tb SET status = 'disabled' WHERE user_id = $1`, [left.officer.id]);
         await repeatAt(sos.id, 181);
         expect(await sent(left.officer.id, sos.id)).toHaveLength(2);
+      });
+    });
+
+    describe('returning an accepted case', () => {
+      const returned = async (sosId: string) =>
+        (await pool.query(`SELECT officer_user_id, source, created_date FROM app.sos_return_tb WHERE sos_case_id = $1 ORDER BY created_date`, [sosId])).rows;
+      const sent = async (userId: string, type: string, sosId: string) => (await notified(userId, type)).filter((n) => n.data.sos_id === sosId);
+      const acceptedSos = async () => {
+        const { b, owner: o } = await boundBox('31/1');
+        const a = await agencyCovering(b.box_id);
+        const c = await agencyCovering(b.box_id);
+        const id = (await as(o.cookie).post('/api/v1/sos', { box_id: b.box_id }).expect(201)).body.id as string;
+        await as(a.officer.cookie).post(`/api/v1/sos/${id}/accept`).expect(200);
+        return { o, a, c, id };
+      };
+
+      it('only the accepting officer can return it; it reopens, tells everyone else and the owner, and is logged', async () => {
+        const { o, a, c, id } = await acceptedSos();
+        const stranger = await agencyCovering(null);
+        await as(stranger.officer.cookie).post(`/api/v1/sos/${id}/return`).expect(404);
+        await as(o.cookie).post(`/api/v1/sos/${id}/return`).expect(404);
+        expect((await as(c.officer.cookie).post(`/api/v1/sos/${id}/return`).expect(409)).body.code).toBe('SOS_NOT_YOURS');
+        expect(await returned(id)).toHaveLength(0);
+        // อายุขั้นเก่า: คืนแล้วต้องไม่กระโดดไปขั้นถัดไปทันที
+        await ageStage(id);
+
+        const card = (await as(a.officer.cookie).post(`/api/v1/sos/${id}/return`).expect(200)).body;
+        expect(card).toMatchObject({ status: 'open', mine: false, accepted_by: null, returned_by_me: true, returned_at: expect.any(String), owner: { phone: o.phone } });
+        await as(a.officer.cookie).post(`/api/v1/sos/${id}/return`).expect(200); // กดซ้ำ ไม่บันทึกซ้ำ
+        expect(await returned(id)).toEqual([expect.objectContaining({ officer_user_id: a.officer.id, source: 'self' })]);
+
+        const view = (await as(o.cookie).get(`/api/v1/sos/${id}`).expect(200)).body;
+        expect(view).toMatchObject({ status: 'open', stage: 'zone', accepted_by: null, returned_at: expect.any(String) });
+
+        expect(await sent(o.id, 'sos_returned', id)).toHaveLength(1);
+        const again = (await sent(c.officer.id, 'sos_new', id)).filter((n) => n.data.returned);
+        expect(again).toHaveLength(1);
+        expect(JSON.stringify(again[0].data)).not.toContain(o.phone);
+        expect(await sent(a.officer.id, 'sos_new', id)).toHaveLength(1); // ผู้คืนมีแค่ครั้งแรก
+
+        // รอบส่งซ้ำ 10 นาทีเริ่มใหม่จากตอนคืน และไม่ส่งถึงผู้คืน
+        const { rows } = await pool.query(`SELECT repeat_count, repeat_start_date FROM app.sos_case_tb WHERE sos_case_id = $1`, [id]);
+        expect(rows[0].repeat_count).toBe(0);
+        const start = rows[0].repeat_start_date as Date;
+        expect(Math.abs(start.getTime() - (await returned(id))[0].created_date.getTime())).toBeLessThan(1000);
+        for (let m = 1; m <= 11; m++) await app.get(SosService).repeatAll(new Date(start.getTime() + (m * 60 + 1) * 1000));
+        expect(await sent(c.officer.id, 'sos_new', id)).toHaveLength(12); // แรก + คืน + ซ้ำ 10
+        expect(await sent(a.officer.id, 'sos_new', id)).toHaveLength(1);
+
+        // คนอื่นรับต่อได้ · ผู้คืนไม่เห็นเบอร์ของคนที่รับต่อ แต่เจ้าของเห็น
+        await as(c.officer.cookie).post(`/api/v1/sos/${id}/accept`).expect(200);
+        expect((await as(a.officer.cookie).get(`/api/v1/sos/${id}`).expect(200)).body.accepted_by.phone).toBeNull();
+        expect((await as(o.cookie).get(`/api/v1/sos/${id}`).expect(200)).body).toMatchObject({
+          returned_at: null,
+          accepted_by: { phone: expect.stringMatching(/^0\d{9}$/) },
+        });
+        expect((await as(a.officer.cookie).post(`/api/v1/sos/${id}/return`).expect(409)).body.code).toBe('SOS_NOT_YOURS');
+        await as(a.officer.cookie).post(`/api/v1/sos/${id}/close`, { note: 'x' }).expect(409);
+
+        // แอดมินดูประวัติได้ (ใคร เมื่อไร คืนเองหรือระบบ)
+        const logs = (await as(admin.cookie).get('/api/v1/admin/logs?type=sos_return').expect(200)).body;
+        expect(logs.data[0]).toMatchObject({ type: 'sos_return', house_no: '31/1', result: 'self', actor_name: expect.any(String), created_at: expect.any(String) });
+        await as(c.officer.cookie).get('/api/v1/admin/logs?type=sos_return').expect(404);
+
+        // เพิ่มอย่างเดียว
+        await expect(pool.query(`DELETE FROM app.sos_return_tb WHERE sos_case_id = $1`, [id])).rejects.toThrow();
+        await expect(pool.query(`UPDATE app.sos_return_tb SET source = 'system' WHERE sos_case_id = $1`, [id])).rejects.toThrow();
+      });
+
+      it('the system can return it with the same rules; a second call does nothing', async () => {
+        const { o, a, id } = await acceptedSos();
+        const sos = app.get(SosService);
+        expect(await sos.release(id, a.officer.id, 'system')).toBe(true);
+        expect(await sos.release(id, a.officer.id, 'system')).toBe(false);
+        expect(await returned(id)).toEqual([expect.objectContaining({ source: 'system' })]);
+        expect(await sent(o.id, 'sos_returned', id)).toHaveLength(1);
+      });
+
+      it('after cancel or close there is nothing to return', async () => {
+        const x = await acceptedSos();
+        await as(x.o.cookie).post(`/api/v1/sos/${x.id}/cancel`, { reason: 'safe' }).expect(200);
+        expect((await as(x.a.officer.cookie).post(`/api/v1/sos/${x.id}/return`).expect(410)).body.code).toBe('SOS_CANCELLED');
+        const y = await acceptedSos();
+        await as(y.a.officer.cookie).post(`/api/v1/sos/${y.id}/close`, { note: 'ok' }).expect(200);
+        expect((await as(y.a.officer.cookie).post(`/api/v1/sos/${y.id}/return`).expect(409)).body.code).toBe('SOS_CLOSED');
+        expect([...(await returned(x.id)), ...(await returned(y.id))]).toHaveLength(0);
+      });
+
+      it('return racing the owner cancel always ends cancelled, with a consistent history', async () => {
+        for (let i = 0; i < 4; i++) {
+          counters.clear();
+          const { o, a, id } = await acceptedSos();
+          const ret = () => as(a.officer.cookie).post(`/api/v1/sos/${id}/return`).then((r) => r);
+          const cancel = () => as(o.cookie).post(`/api/v1/sos/${id}/cancel`, { reason: 'safe' }).then((r) => r);
+          // สลับลำดับการยิง ให้มีโอกาสชนกันทั้งสองทาง
+          let r: request.Response;
+          let c: request.Response;
+          if (i % 2) [r, c] = await Promise.all([ret(), cancel()]);
+          else [c, r] = await Promise.all([cancel(), ret()]);
+          expect(c.status).toBe(200);
+          expect([200, 410]).toContain(r.status);
+          const row = (await pool.query(`SELECT status, accepted_by FROM app.sos_case_tb WHERE sos_case_id = $1`, [id])).rows[0];
+          expect(row.status).toBe('cancelled');
+          const history = await returned(id);
+          // คืนสำเร็จก่อน = มีประวัติและไม่มีผู้รับ · ยกเลิกก่อน = ไม่มีประวัติและผู้รับเดิมยังอยู่
+          expect(history.length).toBeLessThanOrEqual(1);
+          expect(row.accepted_by).toBe(history.length ? null : a.officer.id);
+          if (r.status === 200) expect(history).toHaveLength(1);
+        }
       });
     });
 

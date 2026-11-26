@@ -14,6 +14,8 @@ const card = (status: SosCard['status'], mine = false): SosCard => ({
   house: null,
   accepted_by: null,
   mine,
+  returned_at: null,
+  returned_by_me: false,
 });
 
 function setup(cases: SosCard[]) {
@@ -39,6 +41,14 @@ describe('SosAlarm', () => {
 
   it('stays quiet when every open SOS has been accepted', async () => {
     const { alarm, list } = setup([card('accepted', true)]);
+    alarm.start();
+    await vi.waitFor(() => expect(list).toHaveBeenCalled());
+    expect(alarm.ringing()).toBe(false);
+    alarm.stop();
+  });
+
+  it('stays quiet for a case this officer returned', async () => {
+    const { alarm, list } = setup([{ ...card('open'), returned_by_me: true }]);
     alarm.start();
     await vi.waitFor(() => expect(list).toHaveBeenCalled());
     expect(alarm.ringing()).toBe(false);

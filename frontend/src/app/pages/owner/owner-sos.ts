@@ -8,8 +8,8 @@ import { screenUrl } from '../../screens/registry';
 import { Icon } from '../../shared/icon';
 import { CallButtons } from './call-buttons';
 
-/** ขั้นที่ 3 (ให้โทรเอง) ที่วินาทีนี้ (✅ design §7) */
-const STAGE_CALL_AT = 60;
+/** ขั้นละกี่วินาที — ขั้นให้โทรเองมาหลังเข้าขั้นหน่วยงานเท่านี้ (✅ design §7) */
+const STAGE_SECONDS = 30;
 /** หน้ารอ SOS ถามสถานะทุก 1 วิ (✅) */
 const POLL_MS = 1000;
 
@@ -47,6 +47,11 @@ function pollSos(api: OwnerApi, id: () => string, onData: (s: Sos) => void, onLi
       @if (!linkOk()) {
         <p class="link-lost" role="alert">
           {{ i18n.t({ th: 'ติดต่อเซิร์ฟเวอร์ไม่ได้ — โทรแจ้งเหตุเองทันที: 191 / 1669', en: 'Cannot reach the server — call for help yourself now: 191 / 1669' }) }}
+        </p>
+      }
+      @if (sos()?.returned_at) {
+        <p class="link-lost" role="alert">
+          {{ i18n.t({ th: 'เจ้าหน้าที่คืนเรื่อง กำลังหาคนรับใหม่ ถ้าฉุกเฉินโทร 191 / 1669 ทันที', en: 'The officer returned your SOS. Finding someone else. In an emergency call 191 / 1669 now.' }) }}
         </p>
       }
       @if (display.easyMode()) {
@@ -270,7 +275,8 @@ export class SosWaiting {
   private readonly now = signal(Date.now());
   private readonly elapsed = computed(() => (this.now(), this.sos() ? secondsSince(this.sos()!.created_at) : 0));
   protected readonly time = computed(() => mmss(this.elapsed()));
-  protected readonly toCall = computed(() => Math.max(0, STAGE_CALL_AT - this.elapsed()));
+  /** นับจากตอนเข้าขั้นล่าสุด — หลังคืนเรื่อง server เริ่มนับขั้นใหม่ */
+  protected readonly toCall = computed(() => (this.now(), this.sos() ? Math.max(0, STAGE_SECONDS - secondsSince(this.sos()!.stage_changed_at)) : STAGE_SECONDS));
 
   protected exact(iso: string): string {
     return bkkClock(iso);
@@ -515,7 +521,8 @@ export class SosAccepted {
   constructor() {
     pollSos(this.api, () => this.id(), (s) => {
       this.sos.set(s);
-      if (s.status === 'closed') void this.router.navigate([screenUrl('H11-b')], { queryParams: { id: s.id }, replaceUrl: true });
+      if (s.status === 'open') void this.router.navigate([screenUrl('H09')], { queryParams: { id: s.id }, replaceUrl: true }); // ถูกคืนเรื่อง
+      else if (s.status === 'closed') void this.router.navigate([screenUrl('H11-b')], { queryParams: { id: s.id }, replaceUrl: true });
       else if (s.status === 'cancelled') void this.router.navigateByUrl(screenUrl('H03'), { replaceUrl: true });
     }, (ok) => this.linkOk.set(ok));
   }

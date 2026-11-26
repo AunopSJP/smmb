@@ -65,7 +65,7 @@ const toMinutes = (hhmm: string): number | null => {
             <section class="sos-card" role="alert">
               <p class="sos-title"><app-icon name="alert" [size]="20" />{{ i18n.t({ th: 'SOS ขอความช่วยเหลือ', en: 'SOS — help needed' }) }}</p>
               <h2>{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ c.house_no }}</h2>
-              <p class="small">{{ time(c.created_at) }} · {{ i18n.t({ th: 'ยังไม่มีคนรับ', en: 'not accepted yet' }) }}</p>
+              <p class="small">{{ time(c.created_at) }} · {{ i18n.t(c.returned_by_me ? { th: 'คุณคืนแล้ว รอคนอื่นรับ', en: 'you returned it, waiting' } : { th: 'ยังไม่มีคนรับ', en: 'not accepted yet' }) }}</p>
               <a class="btn on-color" [routerLink]="url('O09')" [queryParams]="{ id: c.id }">{{ i18n.t({ th: 'ดูและรับเรื่อง', en: 'View and accept' }) }}</a>
             </section>
           }
