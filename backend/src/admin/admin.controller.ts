@@ -94,7 +94,7 @@ class ListLogsQuery {
 }
 
 class TechnicianRequestsQuery {
-  @IsOptional() @IsIn(['open', 'scheduled', 'done']) status?: TechnicianRequestStatus;
+  @IsOptional() @IsIn(['open', 'scheduled', 'done', 'cancelled']) status?: TechnicianRequestStatus;
 }
 
 class UpdateTechnicianRequestDto {

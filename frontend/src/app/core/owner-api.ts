@@ -75,12 +75,13 @@ export interface TechnicianRequest {
   owner_phone: string;
   reason: 'wifi_change' | 'repair' | 'other';
   note: string | null;
-  status: 'open' | 'scheduled' | 'done';
+  status: 'open' | 'scheduled' | 'done' | 'cancelled';
   created_at: string;
   scheduled_at: string | null;
   admin_note: string | null;
   owner_result: 'ok' | 'still_broken' | null;
   owner_confirmed_at: string | null;
+  cancelled_at: string | null;
 }
 
 /** api.md §4.4 — คำสั่ง "เปลี่ยน Wi-Fi" ที่สั่งผ่านเว็บ */
@@ -211,6 +212,10 @@ export class OwnerApi {
   }
   requestTechnician(id: string, reason: TechnicianRequest['reason'], note: string): Promise<TechnicianRequest> {
     return firstValueFrom(this.http.post<TechnicianRequest>(`/api/v1/boxes/${encodeURIComponent(id)}/technician-requests`, { reason, ...(note ? { note } : {}) }));
+  }
+
+  cancelTechnician(id: string, requestId: string): Promise<TechnicianRequest> {
+    return firstValueFrom(this.http.post<TechnicianRequest>(`/api/v1/boxes/${encodeURIComponent(id)}/technician-requests/${encodeURIComponent(requestId)}/cancel`, {}));
   }
 
   confirmTechnician(id: string, requestId: string, result: 'ok' | 'still_broken'): Promise<TechnicianRequest> {
