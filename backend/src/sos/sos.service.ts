@@ -28,6 +28,8 @@ export interface SosDto {
   stage_changed_at: string;
   accepted_by: { display_name: string; agency_name: string; phone: string | null; at: string } | null;
   close_note: string | null;
+  /** คืนเรื่องครั้งล่าสุด — มีเฉพาะตอนกลับมารอคนรับ (status = open) */
+  returned_at: string | null;
 }
 
 /** api.md §7.2 */
@@ -50,6 +52,10 @@ export interface SosCardDto {
   accepted_by: { display_name: string; agency_name: string } | null;
   /** ฉันเป็นคนรับเรื่องนี้ */
   mine: boolean;
+  /** เรื่องกลับมารอคนรับหลังมีการคืน (null = ไม่เคยคืน หรือมีคนรับ/จบแล้ว) */
+  returned_at: string | null;
+  /** ฉันเคยคืนเรื่องนี้ — ยังรับใหม่ได้ แต่ไม่เตือนฉันซ้ำ (ไซเรนในแอปไม่ดัง) */
+  returned_by_me: boolean;
 }
 
 interface CaseRow {
@@ -74,13 +80,15 @@ interface CaseRow {
   accepted_agency: string | null;
   accepted_date: Date | null;
   close_note: string | null;
+  returned_date: Date | null;
 }
 
 const CASE_SQL = `
   SELECT c.sos_case_id, c.box_id, b.house_no, b.area,
          concat_ws(' ', b.address_line, b.subdistrict, b.district, b.province) AS address, b.lat, b.lng, c.owner_user_id, o.name AS owner_name, o.phone AS owner_phone, o.profile AS owner_profile,
          c.status, c.stage, c.stage_changed_date, c.created_date, c.accepted_by,
-         a.display_name AS accepted_name, a.phone AS accepted_phone, ag.name AS accepted_agency, c.accepted_date, c.close_note
+         a.display_name AS accepted_name, a.phone AS accepted_phone, ag.name AS accepted_agency, c.accepted_date, c.close_note,
+         (SELECT max(r.created_date) FROM app.sos_return_tb r WHERE r.sos_case_id = c.sos_case_id) AS returned_date
   FROM app.sos_case_tb c
   JOIN app.box_tb b ON b.box_id = c.box_id
   JOIN app.user_tb o ON o.user_id = c.owner_user_id
@@ -179,7 +187,9 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
     await this.escalate(id);
     const c = await this.load(this.pool, id);
     if (!c || (c.owner_user_id !== userId && !(await this.isRecipient(id, userId)))) throw new NotFoundException();
-    const showPhone = live(c.status) && c.accepted_by !== null && c.accepted_by !== userId;
+    // ผู้ที่คืนเรื่องแล้วไม่เห็นเบอร์ของเจ้าหน้าที่ที่รับต่อ (เจ้าของบ้านเห็นตามกฎเดิม)
+    const showPhone =
+      live(c.status) && c.accepted_by !== null && c.accepted_by !== userId && (c.owner_user_id === userId || !(await this.hasReturned(id, userId)));
     if (showPhone) await this.logAccess(userId, c.accepted_by!, id);
     return this.dto(c, showPhone);
   }
@@ -235,11 +245,12 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
        ORDER BY c.created_date DESC LIMIT 50`,
       [userId],
     );
+    const returned = await this.returnedCases(userId);
     const cards: SosCardDto[] = [];
     for (const c of rows) {
       const showOwner = live(c.status);
       if (showOwner) await this.logAccess(userId, c.owner_user_id, c.sos_case_id);
-      cards.push(this.card(c, userId, showOwner));
+      cards.push(this.card(c, userId, showOwner, returned.has(c.sos_case_id)));
     }
     return cards;
   }
@@ -251,7 +262,7 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
     const c = (await this.load(this.pool, id))!;
     const showOwner = live(c.status);
     if (showOwner) await this.logAccess(userId, c.owner_user_id, id);
-    return this.card(c, userId, showOwner);
+    return this.card(c, userId, showOwner, await this.hasReturned(id, userId));
   }
 
   /** รับเรื่อง — กดพร้อมกันหลายคน คนแรกได้ (UPDATE … WHERE status = 'open') */
@@ -269,7 +280,7 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
     const c = (await this.load(this.pool, id))!;
     if (!rows[0]) {
       if (c.status === 'cancelled') throw new AppError(HttpStatus.GONE, 'SOS_CANCELLED', 'the owner cancelled this SOS');
-      if (c.accepted_by === userId) return this.card(c, userId, live(c.status));
+      if (c.accepted_by === userId) return this.card(c, userId, live(c.status), await this.hasReturned(id, userId));
       throw new AppError(HttpStatus.CONFLICT, 'SOS_ALREADY_TAKEN', 'someone else took this SOS', {
         accepted_by: c.accepted_name ? { display_name: c.accepted_name, agency_name: c.accepted_agency ?? '' } : null,
       });
@@ -281,7 +292,7 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
       await this.notifications.notify(others, { type: 'sos_taken', data, link: `/officer/sos/case?id=${id}`, tag: `sos-${id}` });
     });
     await this.logAccess(userId, c.owner_user_id, id);
-    return this.card(c, userId, true);
+    return this.card(c, userId, true, await this.hasReturned(id, userId));
   }
 
   /** ปิดเรื่อง + หมายเหตุ (คนที่รับเท่านั้น) → เจ้าของบ้านเห็นหมายเหตุ */
@@ -297,7 +308,65 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
     await this.safeNotify(() =>
       this.notifications.notify([c.owner_user_id], { type: 'sos_closed', data: { sos_id: id }, link: `/home/sos/closed?id=${id}`, tag: `sos-${id}` }),
     );
-    return this.card(c, userId, false);
+    return this.card(c, userId, false, await this.hasReturned(id, userId));
+  }
+
+  /** คืนเรื่อง (ผู้ที่รับเท่านั้น · ยืนยันแล้วในแอป) — กดซ้ำหลังคืนสำเร็จได้คำตอบเดิม */
+  async giveBack(userId: string, id: string): Promise<SosCardDto> {
+    if (!(await this.isRecipient(id, userId))) throw new NotFoundException();
+    const done = await this.release(id, userId, 'self');
+    const c = (await this.load(this.pool, id))!;
+    const returned = done || (await this.hasReturned(id, userId));
+    if (!done && !(c.status === 'open' && returned)) {
+      if (c.status === 'cancelled') throw new AppError(HttpStatus.GONE, 'SOS_CANCELLED', 'the owner cancelled this SOS');
+      if (c.status === 'closed') throw new AppError(HttpStatus.CONFLICT, 'SOS_CLOSED', 'this SOS has already ended');
+      throw new AppError(HttpStatus.CONFLICT, 'SOS_NOT_YOURS', 'only the officer who accepted it can return this SOS');
+    }
+    const showOwner = live(c.status);
+    if (showOwner) await this.logAccess(userId, c.owner_user_id, id);
+    return this.card(c, userId, showOwner, returned);
+  }
+
+  /**
+   * ตรรกะคืนเรื่อง ใช้ร่วมกันระหว่างกดคืนเองกับระบบคืนให้ (issue #12):
+   * กลับเป็นรอคนรับ + เริ่มรอบส่งซ้ำและนับขั้นใหม่ + บันทึกประวัติ + แจ้งผู้รับกับเจ้าของบ้าน
+   * คืน false เมื่อ officerId ไม่ได้ถือเรื่องนี้อยู่ (ยกเลิก/ปิด/คืนไปแล้ว) — ไม่ทำอะไร
+   */
+  async release(id: string, officerId: string, source: 'self' | 'system'): Promise<boolean> {
+    const done = await withTx(this.pool, async (db) => {
+      // ล็อกแถวก่อน → เจ้าของยกเลิกพร้อมกันจะรอจนจบ transaction แล้วค่อยยกเลิก (หรือเราเห็นว่ายกเลิกแล้ว)
+      const { rows } = await db.query<{ accepted_agency_id: string; accepted_date: Date }>(
+        `SELECT accepted_agency_id, accepted_date FROM app.sos_case_tb
+         WHERE sos_case_id = $1 AND accepted_by = $2 AND status = 'accepted' FOR UPDATE`,
+        [id, officerId],
+      );
+      if (!rows[0]) return false;
+      await db.query(
+        `UPDATE app.sos_case_tb SET status = 'open', accepted_by = NULL, accepted_agency_id = NULL, accepted_date = NULL,
+           stage_changed_date = now(), repeat_start_date = now(), repeat_count = 0
+         WHERE sos_case_id = $1`,
+        [id],
+      );
+      await db.query(
+        `INSERT INTO app.sos_return_tb (sos_case_id, officer_user_id, agency_id, source, accepted_date) VALUES ($1, $2, $3, $4, $5)`,
+        [id, officerId, rows[0].accepted_agency_id, source, rows[0].accepted_date],
+      );
+      return true;
+    });
+    if (!done) return false;
+
+    await this.safeNotify(async () => {
+      const c = await this.load(this.pool, id);
+      if (!c || c.status !== 'open') return; // ยกเลิกหรือมีคนรับต่อไปแล้ว
+      await this.notifications.notify([c.owner_user_id], {
+        type: 'sos_returned',
+        data: { sos_id: id, house_no: c.house_no },
+        link: `/home/sos?id=${id}`,
+        tag: `sos-${id}`,
+      });
+    });
+    await this.notifyNew(id, await this.eligibleRecipients(id), { returned: true });
+    return true;
   }
 
   /** SOS ที่ยังต้องสนใจ (หน้าสรุปเจ้าหน้าที่ O01-b / O01-c) */
@@ -328,7 +397,7 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
        RETURNING c.sos_case_id`,
       [now ?? null, REPEAT_SECONDS, REPEAT_LIMIT * REPEAT_SECONDS + REPEAT_GRACE_SECONDS],
     );
-    for (const r of rows) await this.notifyNew(r.sos_case_id, await this.eligibleRecipients(r.sos_case_id), true);
+    for (const r of rows) await this.notifyNew(r.sos_case_id, await this.eligibleRecipients(r.sos_case_id), { repeat: true });
     return rows.length;
   }
 
@@ -422,7 +491,7 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
     return rows.map((r) => r.user_id);
   }
 
-  /** ผู้รับที่ยังมีสิทธิ์: บัญชี · บทบาทเจ้าหน้าที่ · สมาชิกของหน่วยงานที่ถูกส่งถึง · หน่วยงาน ยังใช้งานอยู่ (ย้ายออกจากโซนไม่นับ) */
+  /** ผู้รับที่ยังมีสิทธิ์: บัญชี · บทบาทเจ้าหน้าที่ · สมาชิกของหน่วยงานที่ถูกส่งถึง · หน่วยงาน ยังใช้งานอยู่ (ย้ายออกจากโซนไม่นับ) · ไม่รวมคนที่คืนเรื่องนี้แล้ว */
   private async eligibleRecipients(id: string): Promise<string[]> {
     const { rows } = await this.pool.query<{ user_id: string }>(
       `SELECT r.user_id FROM app.sos_recipient_tb r
@@ -430,7 +499,8 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
        JOIN app.user_role_tb ur ON ur.user_id = r.user_id AND ur.role = 'officer' AND ur.status = 'active'
        JOIN app.agency_member_tb m ON m.user_id = r.user_id AND m.agency_id = r.agency_id AND m.status = 'active'
        JOIN app.agency_tb a ON a.agency_id = r.agency_id AND a.status = 'approved'
-       WHERE r.sos_case_id = $1`,
+       WHERE r.sos_case_id = $1
+         AND NOT EXISTS (SELECT 1 FROM app.sos_return_tb x WHERE x.sos_case_id = r.sos_case_id AND x.officer_user_id = r.user_id)`,
       [id],
     );
     return rows.map((r) => r.user_id);
@@ -439,6 +509,18 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
   private async isRecipient(id: string, userId: string): Promise<boolean> {
     const { rows } = await this.pool.query(`SELECT 1 FROM app.sos_recipient_tb WHERE sos_case_id = $1 AND user_id = $2`, [id, userId]);
     return rows.length > 0;
+  }
+
+  private async hasReturned(id: string, userId: string): Promise<boolean> {
+    return (await this.returnedCases(userId, id)).size > 0;
+  }
+
+  private async returnedCases(userId: string, id: string | null = null): Promise<Set<string>> {
+    const { rows } = await this.pool.query<{ sos_case_id: string }>(
+      `SELECT DISTINCT sos_case_id FROM app.sos_return_tb WHERE officer_user_id = $1 AND ($2::uuid IS NULL OR sos_case_id = $2::uuid)`,
+      [userId, id],
+    );
+    return new Set(rows.map((r) => r.sos_case_id));
   }
 
   private async load(db: Db, id: string): Promise<CaseRow | null> {
@@ -459,10 +541,11 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
           ? { display_name: c.accepted_name ?? '', agency_name: c.accepted_agency ?? '', phone: showPhone ? c.accepted_phone : null, at: c.accepted_date.toISOString() }
           : null,
       close_note: c.close_note,
+      returned_at: c.status === 'open' ? (c.returned_date?.toISOString() ?? null) : null,
     };
   }
 
-  private card(c: CaseRow, userId: string, showOwner: boolean): SosCardDto {
+  private card(c: CaseRow, userId: string, showOwner: boolean, returnedByMe: boolean): SosCardDto {
     return {
       id: c.sos_case_id,
       status: c.status,
@@ -480,6 +563,8 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
         : null,
       accepted_by: c.accepted_by ? { display_name: c.accepted_name ?? '', agency_name: c.accepted_agency ?? '' } : null,
       mine: c.accepted_by === userId,
+      returned_at: c.status === 'open' ? (c.returned_date?.toISOString() ?? null) : null,
+      returned_by_me: returnedByMe,
     };
   }
 
@@ -495,14 +580,14 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** อ่านสถานะอีกครั้งก่อนส่ง — มีคนรับ/ยกเลิกไปแล้วไม่ส่ง */
-  private async notifyNew(id: string, userIds: string[], repeat = false): Promise<void> {
+  private async notifyNew(id: string, userIds: string[], extra: { repeat?: true; returned?: true } = {}): Promise<void> {
     if (!userIds.length) return;
     const c = await this.load(this.pool, id);
     if (!c || c.status !== 'open') return;
     await this.safeNotify(() =>
       this.notifications.notify(userIds, {
         type: 'sos_new',
-        data: { sos_id: id, house_no: c.house_no, ...(repeat ? { repeat: true } : {}) },
+        data: { sos_id: id, house_no: c.house_no, ...extra },
         link: `/officer/sos/case?id=${id}`,
         tag: `sos-${id}`,
       }),

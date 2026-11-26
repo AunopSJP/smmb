@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import pg from 'pg';
 import { PG_POOL } from '../db/db.module.js';
 
-export const ADMIN_LOG_TYPES = ['inspection', 'delivery', 'sos', 'box_problem', 'scan', 'data_access', 'terms'] as const;
+export const ADMIN_LOG_TYPES = ['inspection', 'delivery', 'sos', 'sos_return', 'box_problem', 'scan', 'data_access', 'terms'] as const;
 export type AdminLogType = (typeof ADMIN_LOG_TYPES)[number];
 
 export interface AdminLogRow {
@@ -85,6 +85,17 @@ const BRANCHES: LogBranch[] = [
     count: `SELECT count(*)::int FROM app.sos_case_tb`,
   },
   {
+    // ประวัติคืนเรื่อง: actor = ผู้รับที่เรื่องถูกคืน · result = self (กดเอง) | system (ระบบคืนให้)
+    type: 'sos_return',
+    select: `SELECT 'sos_return:' || r.sos_return_id::text, 'sos_return'::text, s.box_id, b.house_no, u.display_name, NULL::text,
+                    NULL::text, r.source, NULL::text, r.created_date, false
+             FROM app.sos_return_tb r
+             JOIN app.sos_case_tb s ON s.sos_case_id = r.sos_case_id
+             JOIN app.box_tb b ON b.box_id = s.box_id
+             JOIN app.user_tb u ON u.user_id = r.officer_user_id`,
+    count: `SELECT count(*)::int FROM app.sos_return_tb`,
+  },
+  {
     type: 'data_access',
     select: `SELECT 'access:' || a.data_access_log_id::text, 'data_access'::text, NULL::text, NULL::text,
                     u.display_name, NULL::text, NULL::text, a.subject_kind, a.fields::text, a.created_date, false
@@ -135,7 +146,7 @@ export class AdminLogsService {
         fail: boolean;
       }>(
         `SELECT id, type, box_id, house_no, actor_name, qr_slot, method, result, details, created_date, fail
-         FROM (${union}) log_event
+         FROM (${union}) log_event (id, type, box_id, house_no, actor_name, qr_slot, method, result, details, created_date, fail)
          ORDER BY created_date DESC, id DESC
          LIMIT $2 OFFSET $3`,
         [offset + input.perPage, input.perPage, offset],

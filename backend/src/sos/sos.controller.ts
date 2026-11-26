@@ -77,6 +77,14 @@ export class SosController {
     return this.sos.accept(auth.userId, p.id);
   }
 
+  /** คืนเรื่อง (ผู้ที่รับเท่านั้น · แอปให้ยืนยันก่อน) */
+  @RequireRole('officer')
+  @HttpCode(HttpStatus.OK)
+  @Post(':id/return')
+  giveBack(@Auth() auth: AuthContext, @Param() p: IdParam) {
+    return this.sos.giveBack(auth.userId, p.id);
+  }
+
   @RequireRole('officer')
   @HttpCode(HttpStatus.OK)
   @Post(':id/close')

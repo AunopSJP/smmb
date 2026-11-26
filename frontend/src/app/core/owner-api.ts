@@ -107,6 +107,8 @@ export interface Sos {
   stage_changed_at: string;
   accepted_by: { display_name: string; agency_name: string; phone: string | null; at: string } | null;
   close_note: string | null;
+  /** กลับมารอคนรับเพราะเจ้าหน้าที่คืนเรื่อง (null = ไม่ใช่) */
+  returned_at: string | null;
 }
 
 /** api.md §7.2 */
@@ -127,6 +129,8 @@ export interface SosCard {
   } | null;
   accepted_by: { display_name: string; agency_name: string } | null;
   mine: boolean;
+  returned_at: string | null;
+  returned_by_me: boolean;
 }
 
 /** ตู้ของเจ้าของบ้าน + SOS (api.md §4, §7) */
@@ -226,6 +230,10 @@ export class OfficerSosApi {
   }
   accept(id: string): Promise<SosCard> {
     return firstValueFrom(this.http.post<SosCard>(`/api/v1/sos/${encodeURIComponent(id)}/accept`, {}));
+  }
+  /** คืนเรื่อง (ยืนยันแล้ว) · 409 SOS_NOT_YOURS | SOS_CLOSED · 410 SOS_CANCELLED */
+  giveBack(id: string): Promise<SosCard> {
+    return firstValueFrom(this.http.post<SosCard>(`/api/v1/sos/${encodeURIComponent(id)}/return`, {}));
   }
   close(id: string, note: string): Promise<SosCard> {
     return firstValueFrom(this.http.post<SosCard>(`/api/v1/sos/${encodeURIComponent(id)}/close`, { note }));

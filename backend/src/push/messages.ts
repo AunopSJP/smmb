@@ -15,6 +15,7 @@ export const NOTIFICATION_TYPES = [
   'sos_accepted',
   'sos_closed',
   'sos_cancelled',
+  'sos_returned',
   'member_pending',
   'member_approved',
   'member_rejected',
@@ -108,13 +109,14 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
   },
   sos_new: {
     // ไม่ใส่เบอร์เจ้าของบ้านในข้อความ: push ถูกส่งถึงหลายคนและค้างอยู่ในประวัติแจ้งเตือน — เบอร์เห็นในแอปเฉพาะตอน SOS เปิดอยู่ (และมีบันทึกการเปิดดู)
+    // returned = ผู้รับคืนเรื่อง กลับมารอคนรับ
     // repeat = ส่งซ้ำเพราะยังไม่มีคนรับ (type เดิม → เด้งค้าง และปิดรับไม่ได้เหมือนครั้งแรก)
     th: (d) => ({
-      title: d.repeat ? '🆘 SOS ยังไม่มีคนรับ' : '🆘 SOS',
+      title: d.returned ? '🆘 SOS ถูกคืน รอคนรับ' : d.repeat ? '🆘 SOS ยังไม่มีคนรับ' : '🆘 SOS',
       body: `บ้าน ${s(d.house_no)} ต้องการความช่วยเหลือ · แตะเพื่อดูรายละเอียดและรับเรื่อง`,
     }),
     en: (d) => ({
-      title: d.repeat ? '🆘 SOS still unanswered' : '🆘 SOS',
+      title: d.returned ? '🆘 SOS returned, needs an officer' : d.repeat ? '🆘 SOS still unanswered' : '🆘 SOS',
       body: `House ${s(d.house_no)} needs help · tap to see details and accept`,
     }),
   },
@@ -129,6 +131,10 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
   sos_closed: {
     th: () => ({ title: 'ปิดเรื่อง SOS แล้ว', body: 'เจ้าหน้าที่ปิดเรื่องแล้ว' }),
     en: () => ({ title: 'SOS closed', body: 'The officer closed your SOS' }),
+  },
+  sos_returned: {
+    th: () => ({ title: '⚠️ เจ้าหน้าที่คืนเรื่อง SOS', body: 'กำลังหาคนรับใหม่ · ถ้าฉุกเฉินให้โทร 191 / 1669 ทันที' }),
+    en: () => ({ title: '⚠️ Officer returned your SOS', body: 'Finding someone else · in an emergency call 191 / 1669 now' }),
   },
   sos_cancelled: {
     th: (d) => ({ title: 'SOS ถูกยกเลิก', body: `บ้าน ${s(d.house_no)} ยกเลิก SOS แล้ว` }),

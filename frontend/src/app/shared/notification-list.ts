@@ -29,6 +29,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
   sos_accepted: { icon: 'check', tone: 'ok' },
   sos_closed: { icon: 'check', tone: 'ok' },
   sos_cancelled: { icon: 'info', tone: '' },
+  sos_returned: { icon: 'alert', tone: 'danger' },
   box_problem: { icon: 'alert', tone: 'warn' },
   box_offline: { icon: 'alert', tone: 'warn' },
   box_silent_26h: { icon: 'alert', tone: 'warn' },
