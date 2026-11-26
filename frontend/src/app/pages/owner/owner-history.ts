@@ -685,13 +685,21 @@ export class OwnerDelivery {
           </ol>
         </section>
       }
+      <section class="card stack wifi" [class.big]="display.easyMode()">
+        <strong class="wifi-title">{{ i18n.t({ th: 'เปลี่ยนเราเตอร์หรือรหัส Wi-Fi', en: 'New router or Wi-Fi password?' }) }}</strong>
+        <ol class="steps">
+          @for (s of wifiSteps(); track $index; let i = $index) {
+            <li><span class="n">{{ i + 1 }}</span><span><strong>{{ i18n.t(s.title) }}</strong><small>{{ i18n.t(s.sub) }}</small></span></li>
+          }
+        </ol>
+      </section>
       <section class="card last">
         <span class="muted small">{{ i18n.t({ th: 'ติดต่อล่าสุด', en: 'Last contact' }) }}</span>
         <strong>{{ lastText() }}</strong>
       </section>
       <div class="stack push-end">
+        <p class="muted small help">{{ i18n.t({ th: 'ทำแล้วยังไม่ได้ ให้ช่างช่วย', en: 'Still not working? A technician can help.' }) }}</p>
         <a class="btn" [routerLink]="url('H13-c')" [queryParams]="box() ? { box: box()!.id } : null">{{ i18n.t({ th: 'แจ้งช่างมาดู', en: 'Ask a technician' }) }}</a>
-        <a class="btn secondary" [routerLink]="url('H13-b')" [queryParams]="box() ? { box: box()!.id } : null">{{ i18n.t({ th: 'เปลี่ยน Wi-Fi บ้าน', en: 'Change home Wi-Fi' }) }}</a>
       </div>
       }
     </div>
@@ -780,9 +788,26 @@ export class OwnerDelivery {
       font-weight: var(--fw-strong);
       font-size: var(--fs-sm);
     }
+    .steps strong,
     .steps small {
       display: block;
+      overflow-wrap: anywhere;
+    }
+    .steps small {
       color: var(--text-muted);
+    }
+    .wifi-title {
+      font-size: var(--fs-base);
+    }
+    .wifi.big {
+      .wifi-title { font-size: var(--fs-lg); }
+      .steps li strong { font-size: var(--fs-md); }
+      .steps small { font-size: var(--fs-base); }
+      .steps .n { inline-size: 40px; block-size: 40px; font-size: var(--fs-md); }
+    }
+    .help {
+      margin: 0;
+      text-align: center;
     }
     .last {
       display: flex;
@@ -819,6 +844,16 @@ export class OwnerOffline {
   protected exact(iso: string): string {
     return clockSec(iso);
   }
+
+  /** ตั้ง Wi-Fi ใหม่ด้วยตัวเอง — ตู้ที่เปิดเครื่องแล้วต่อ Wi-Fi เดิมไม่ได้จะปล่อย Wi-Fi ของตัวเอง 10 นาที */
+  protected readonly wifiSteps = computed<{ title: Tr; sub: Tr }[]>(() => {
+    const ap = this.box()?.wifi_reset.ap_name ?? 'MAILBOX-xxxxxx';
+    return [
+      { title: { th: 'ถอดไฟตู้ แล้วเสียบใหม่', en: 'Unplug the box, then plug it back in' }, sub: { th: 'ตู้จะเริ่มทำงานใหม่', en: 'The box restarts' } },
+      { title: { th: `รอ Wi-Fi ชื่อ ${ap}`, en: `Wait for the Wi-Fi “${ap}”` }, sub: { th: 'ดูในรายการ Wi-Fi ของมือถือ อาจใช้เวลาประมาณ 1 นาที', en: 'Watch the Wi-Fi list on your phone. It can take about a minute.' } },
+      { title: { th: 'ต่อมือถือ แล้วเลือก Wi-Fi ใหม่', en: 'Connect your phone and pick the new Wi-Fi' }, sub: { th: 'ถ้าหน้าตั้งค่าไม่ขึ้นเอง เปิด 192.168.4.1 · ใช้ 2.4 GHz · ทำภายใน 10 นาที', en: 'If the setup page does not open, go to 192.168.4.1 · 2.4 GHz only · within 10 minutes' } },
+    ];
+  });
 
   constructor() {
     void this.load();
