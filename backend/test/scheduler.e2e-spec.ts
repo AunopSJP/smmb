@@ -247,6 +247,75 @@ describe('Scheduler (e2e)', () => {
     });
   });
 
+  describe('backup QR swap waiting for the owner', () => {
+    const DAY = 24 * 60;
+    const waitingCase = async () => {
+      const { b, owner } = await boundBox(`82/${seq++}`);
+      const { rows } = await pool.query<{ box_qr_code_id: string }>(
+        `UPDATE app.box_qr_code_tb SET health = 'damaged' WHERE box_id = $1 AND slot = '1' AND status = 'active' RETURNING box_qr_code_id`,
+        [b.box_id],
+      );
+      const qrId = rows[0].box_qr_code_id;
+      const start = new Date();
+      await as(admin.cookie).post(`/api/v1/admin/qr/${qrId}/request-backup-swap`).expect(201);
+      return {
+        b,
+        owner,
+        qrId,
+        /** รัน scheduler ณ เวลา "เริ่มรอ + days วัน + minutes นาที" */
+        runAt: (days: number, minutes = 1) => scheduler().watchBackupSwaps(minutesBefore(start, -(days * DAY + minutes))),
+        owners: () => notified(owner.id, 'swap_backup_qr', b.box_id),
+        admins: () => notified(admin.id, 'qr_swap_overdue', b.box_id),
+      };
+    };
+
+    it('reminds the owner every 3 days and tells admins once after 7 days, without dispatching a technician', async () => {
+      const c = await waitingCase();
+      const read = async () => (await as(admin.cookie).get(`/api/v1/admin/qr/${c.qrId}`).expect(200)).body;
+      const before = await read();
+      expect(await c.owners()).toBe(1); // การแจ้งครั้งแรกตอนแอดมินขอ
+
+      await c.runAt(2);
+      expect(await c.owners()).toBe(1);
+      await c.runAt(3);
+      await c.runAt(3, 61); // รอบถัดไป / หลัง restart ไม่แจ้งซ้ำ
+      expect(await c.owners()).toBe(2);
+      await c.runAt(5);
+      expect(await c.owners()).toBe(2);
+      await c.runAt(6, 5);
+      expect(await c.owners()).toBe(3);
+      expect(await c.admins()).toBe(0);
+
+      await c.runAt(7);
+      await c.runAt(8);
+      expect(await c.admins()).toBe(1);
+      await c.runAt(10);
+      expect(await c.owners()).toBe(4);
+      expect(await c.admins()).toBe(1);
+
+      expect(await read()).toMatchObject({ status: 'owner_notified', updated_at: before.updated_at });
+      expect(await notified(admin.id, 'qr_technician_dispatch', c.b.box_id)).toBe(0);
+    });
+
+    it('stops once the case leaves the waiting step', async () => {
+      const c = await waitingCase();
+      await as(c.owner.cookie).post(`/api/v1/boxes/${c.b.box_id}/qr-backup-placed`).expect(201);
+      await c.runAt(3);
+      await c.runAt(8);
+      expect(await c.owners()).toBe(1);
+      expect(await c.admins()).toBe(0);
+    });
+
+    it('runs from the hourly tick', async () => {
+      const c = await waitingCase();
+      await pool.query(`UPDATE app.qr_issue_case_tb SET owner_notified_date = now() - interval '8 days' WHERE box_qr_code_id = $1`, [c.qrId]);
+      (scheduler() as unknown as { lastHourly: number }).lastHourly = 0;
+      await scheduler().tick();
+      expect(await c.owners()).toBe(2);
+      expect(await c.admins()).toBe(1);
+    });
+  });
+
   describe('plan (GET /me/plan) and the expiring notice', () => {
     it('shows the current plan in the saved language, flags expiring/expired, and warns the owner once', async () => {
       const owner = await signupOwner(`97/${seq++}`);

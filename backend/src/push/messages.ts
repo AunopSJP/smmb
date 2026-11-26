@@ -30,6 +30,7 @@ export const NOTIFICATION_TYPES = [
   'technician_done',
   'technician_cancelled',
   'qr_technician_dispatch',
+  'qr_swap_overdue',
   'plan_expiring',
   'address_incomplete',
   'box_wifi_reset',
@@ -242,6 +243,10 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
   qr_technician_dispatch: {
     th: (d) => ({ title: '🔧 งาน QR รอช่างแก้ไข', body: `ตู้ ${s(d.box_id)} · ตรวจ/ติด QR ใหม่` }),
     en: (d) => ({ title: '🔧 QR technician task', body: `Mailbox ${s(d.box_id)} · inspect and replace the QR` }),
+  },
+  qr_swap_overdue: {
+    th: (d) => ({ title: 'รอสลับ QR สำรองนานแล้ว', body: `ตู้ ${s(d.box_id)} · เจ้าของบ้านยังไม่ยืนยัน ครบ ${s(d.days)} วัน` }),
+    en: (d) => ({ title: 'Backup QR swap overdue', body: `Mailbox ${s(d.box_id)} · no owner confirmation after ${s(d.days)} days` }),
   },
   address_incomplete: {
     th: (d) => ({ title: 'กรุณาอัปเดตที่อยู่บ้าน', body: `${box(d, 'th')} ข้อมูลที่อยู่ยังไม่ครบ · เลือกจังหวัด เขต/อำเภอ แขวง/ตำบล และปักหมุดบ้านใหม่ เพื่อให้หน่วยงานเพิ่มบ้านเข้าพื้นที่ดูแลได้` }),
