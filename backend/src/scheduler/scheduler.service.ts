@@ -16,6 +16,9 @@ export const OFFLINE_AFTER_MS = 3 * 60_000;
 const QR_EXPIRING_AFTER = '11 months';
 /** ไม่มีใครสแกนใบหน้าตู้เกินนี้ ทั้งที่บ้านอยู่ในโซน → น่าสงสัย (design §8 ข้อ 4) */
 const QR_UNSCANNED_AFTER = '2 days';
+/** เคสสลับใบรอเจ้าของบ้าน: เตือนซ้ำทุกกี่วัน · รอครบกี่วันจึงแจ้งแอดมิน */
+const QR_SWAP_REMIND_DAYS = 3;
+const QR_SWAP_OVERDUE_DAYS = 7;
 /** ตรวจสุขภาพ QR หลังจบเวลาตรวจ — 23:00 เวลาไทย */
 const HEALTH_HOUR = 23;
 /** เก็บ session ที่หมดอายุไว้กี่วันก่อนลบ */
@@ -59,7 +62,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     if (this.timer) clearInterval(this.timer);
   }
 
-  /** ทุกนาที: ตู้หลุดระหว่างเวลาตรวจ · ทุกชั่วโมง: ตู้เงียบ + ล้างของหมดอายุ · วันละครั้งหลัง 23:00: สุขภาพ QR */
+  /** ทุกนาที: ตู้หลุดระหว่างเวลาตรวจ · ทุกชั่วโมง: ตู้เงียบ + เคสสลับใบที่รอเจ้าของ + ล้างของหมดอายุ · วันละครั้งหลัง 23:00: สุขภาพ QR */
   async tick(now = new Date()): Promise<void> {
     if (this.running) return;
     this.running = true;
@@ -72,6 +75,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         await this.safely('anonymize', () => this.anonymizeDeleted());
         await this.safely('plans', () => this.watchPlans());
         await this.safely('addresses', () => this.watchAddresses());
+        await this.safely('qr-swap', () => this.watchBackupSwaps(now));
       }
       if (bangkokHour(now) >= HEALTH_HOUR && this.lastHealthDay !== bangkokDay(now)) {
         this.lastHealthDay = bangkokDay(now);
@@ -228,6 +232,45 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       await this.notifications.notify(await this.adminIds(), { type: 'qr_health', data: { count: rows.length }, link: '/admin/qr', tag: 'qr-health' }).catch(this.warn);
     }
     return rows.length;
+  }
+
+  // ── เคสสลับใบ QR สำรองที่รอเจ้าของบ้าน ─────────────────────────────────
+
+  /**
+   * เคส `owner_notified`: เตือนเจ้าของบ้านทุก 3 วัน · รอครบ 7 วันแจ้งแอดมินครั้งเดียว (ไม่ส่งช่างเอง)
+   * เคสพ้นขั้นรอเจ้าของ หรือใบหน้าตู้ของเคสถูกเปลี่ยนไปแล้ว → ไม่เตือน
+   */
+  async watchBackupSwaps(now = new Date()): Promise<{ reminded: number; overdue: number }> {
+    const waiting = `c.box_qr_code_id = q.box_qr_code_id AND c.fix = 'swap' AND c.status = 'owner_notified' AND q.status = 'active'`;
+    const { rows: due } = await this.pool.query<{ box_id: string; owner_user_id: string; house_no: string }>(
+      `UPDATE app.qr_issue_case_tb c SET owner_reminded_date = $1
+       FROM app.box_qr_code_tb q JOIN app.box_tb b ON b.box_id = q.box_id
+       WHERE ${waiting} AND b.owner_user_id IS NOT NULL
+         AND coalesce(c.owner_reminded_date, c.owner_notified_date, c.created_date) <= $1::timestamptz - make_interval(days => $2::int)
+       RETURNING q.box_id, b.owner_user_id, coalesce(b.house_no, '') AS house_no`,
+      [now, QR_SWAP_REMIND_DAYS],
+    );
+    for (const r of due) {
+      const data = { box_id: r.box_id, house_no: r.house_no };
+      await this.notifications.notify([r.owner_user_id], { type: 'swap_backup_qr', data, link: '/home', tag: `qr-swap-${r.box_id}` }).catch(this.warn);
+    }
+
+    const { rows: late } = await this.pool.query<{ box_id: string }>(
+      `UPDATE app.qr_issue_case_tb c SET admin_overdue_notified_date = $1
+       FROM app.box_qr_code_tb q
+       WHERE ${waiting} AND c.admin_overdue_notified_date IS NULL
+         AND coalesce(c.owner_notified_date, c.created_date) <= $1::timestamptz - make_interval(days => $2::int)
+       RETURNING q.box_id`,
+      [now, QR_SWAP_OVERDUE_DAYS],
+    );
+    if (late.length) {
+      const admins = await this.adminIds();
+      for (const r of late) {
+        const data = { box_id: r.box_id, days: QR_SWAP_OVERDUE_DAYS };
+        await this.notifications.notify(admins, { type: 'qr_swap_overdue', data, link: '/admin/qr', tag: `qr-swap-overdue-${r.box_id}` }).catch(this.warn);
+      }
+    }
+    return { reminded: due.length, overdue: late.length };
   }
 
   // ── ล้างของหมดอายุ ─────────────────────────────────────────────────────

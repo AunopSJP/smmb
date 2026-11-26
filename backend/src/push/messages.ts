@@ -29,7 +29,9 @@ export const NOTIFICATION_TYPES = [
   'technician_scheduled',
   'technician_done',
   'technician_cancelled',
+  'technician_request_cancelled',
   'qr_technician_dispatch',
+  'qr_swap_overdue',
   'plan_expiring',
   'address_incomplete',
   'box_wifi_reset',
@@ -80,6 +82,10 @@ const hhmm = (iso: unknown) => {
     ? ''
     : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
 };
+
+/** วันที่ + เวลาไทยจาก ISO — ใช้กับวันนัดช่าง */
+const dayTime = (iso: unknown, locale: 'th-TH' | 'en-GB') =>
+  `${new Date(s(iso)).toLocaleDateString(locale, { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' })} ${hhmm(iso)}`;
 
 const box = (d: Data, lang: Lang) => s(d.box_name, s(d.box_id, lang === 'th' ? 'ตู้ของคุณ' : 'your mailbox'));
 
@@ -239,9 +245,18 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
     th: (d) => ({ title: 'ยกเลิกนัดช่างแล้ว', body: `ตู้ ${s(d.box_id)}${s(d.note) ? ` · ${s(d.note)}` : ''}` }),
     en: (d) => ({ title: 'Technician appointment cancelled', body: `Mailbox ${s(d.box_id)}${s(d.note) ? ` · ${s(d.note)}` : ''}` }),
   },
+  // เจ้าของยกเลิกคำขอเอง → แอดมิน (technician_cancelled ข้างบน = แอดมินยกเลิกนัด แจ้งเจ้าของ)
+  technician_request_cancelled: {
+    th: (d) => ({ title: 'เจ้าของบ้านยกเลิกคำขอช่าง', body: `ตู้ ${s(d.box_id)}${d.scheduled_at ? ` · ยกเลิกนัด ${dayTime(d.scheduled_at, 'th-TH')}` : ''}` }),
+    en: (d) => ({ title: 'Owner cancelled a technician request', body: `Mailbox ${s(d.box_id)}${d.scheduled_at ? ` · cancel the visit on ${dayTime(d.scheduled_at, 'en-GB')}` : ''}` }),
+  },
   qr_technician_dispatch: {
     th: (d) => ({ title: '🔧 งาน QR รอช่างแก้ไข', body: `ตู้ ${s(d.box_id)} · ตรวจ/ติด QR ใหม่` }),
     en: (d) => ({ title: '🔧 QR technician task', body: `Mailbox ${s(d.box_id)} · inspect and replace the QR` }),
+  },
+  qr_swap_overdue: {
+    th: (d) => ({ title: 'รอสลับ QR สำรองนานแล้ว', body: `ตู้ ${s(d.box_id)} · เจ้าของบ้านยังไม่ยืนยัน ครบ ${s(d.days)} วัน` }),
+    en: (d) => ({ title: 'Backup QR swap overdue', body: `Mailbox ${s(d.box_id)} · no owner confirmation after ${s(d.days)} days` }),
   },
   address_incomplete: {
     th: (d) => ({ title: 'กรุณาอัปเดตที่อยู่บ้าน', body: `${box(d, 'th')} ข้อมูลที่อยู่ยังไม่ครบ · เลือกจังหวัด เขต/อำเภอ แขวง/ตำบล และปักหมุดบ้านใหม่ เพื่อให้หน่วยงานเพิ่มบ้านเข้าพื้นที่ดูแลได้` }),

@@ -141,9 +141,9 @@ export class QrIssueService {
       if (current[0]?.status === 'owner_notified') return;
       if (current[0] && current[0].status !== 'open') throw new ConflictException({ code: 'QR_CASE_ALREADY_IN_PROGRESS' });
       if (current[0]) {
-        await db.query(`UPDATE app.qr_issue_case_tb SET fix = 'swap', status = 'owner_notified' WHERE box_qr_code_id = $1 AND status = 'open'`, [qrId]);
+        await db.query(`UPDATE app.qr_issue_case_tb SET fix = 'swap', status = 'owner_notified', owner_notified_date = now() WHERE box_qr_code_id = $1 AND status = 'open'`, [qrId]);
       } else {
-        await db.query(`INSERT INTO app.qr_issue_case_tb (box_qr_code_id, fix, status, created_by) VALUES ($1, 'swap', 'owner_notified', $2)`, [qrId, adminId]);
+        await db.query(`INSERT INTO app.qr_issue_case_tb (box_qr_code_id, fix, status, created_by, owner_notified_date) VALUES ($1, 'swap', 'owner_notified', $2, now())`, [qrId, adminId]);
       }
       shouldNotifyOwner = true;
     });

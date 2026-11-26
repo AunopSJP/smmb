@@ -45,6 +45,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
   agency_pending: { icon: 'user', tone: '' },
   swap_backup_qr: { icon: 'scan', tone: 'danger' },
   qr_health: { icon: 'scan', tone: 'warn' },
+  qr_swap_overdue: { icon: 'scan', tone: 'warn' },
   test: { icon: 'bell', tone: '' },
   agency_approved: { icon: 'check', tone: 'ok' },
   agency_rejected: { icon: 'info', tone: '' },
