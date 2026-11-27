@@ -84,10 +84,20 @@ interface Segment {
           <span class="icon-bubble warn"><app-icon name="alert" [size]="22" /></span>
           <span class="grow">
             <strong>{{ i18n.t({ th: 'ตู้ที่ต้องดู', en: 'Boxes to check' }) }}</strong>
-            <span class="muted small block">{{ i18n.t({ th: 'ออฟไลน์หรือมี QR ผิดปกติ', en: 'Offline or QR problems' }) }}</span>
+            <span class="muted small block">{{ i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Offline boxes' }) }}</span>
           </span>
-          <span class="chip warn">{{ atRisk() }}</span>
+          <span class="chip warn">{{ offline() }}</span>
         </a>
+        @if (qrTotal() > 0) {
+          <a class="row" [routerLink]="url('D05')">
+            <span class="icon-bubble warn"><app-icon name="scan" [size]="22" /></span>
+            <span class="grow">
+              <strong>{{ i18n.t({ th: 'ปัญหา QR', en: 'QR issues' }) }}</strong>
+              <span class="muted small block">{{ i18n.t({ th: 'กดเพื่อดูเคส', en: 'Open the cases' }) }}</span>
+            </span>
+            <span class="chip warn">{{ qrTotal() }}</span>
+          </a>
+        }
         <a class="row" [routerLink]="url('D02')">
           <span class="icon-bubble"><app-icon name="shield" [size]="22" /></span>
           <span class="grow">

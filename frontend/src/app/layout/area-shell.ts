@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
@@ -12,7 +12,7 @@ import { TabBar } from '../shared/tab-bar';
 import { ConfirmDialog } from '../shared/confirm-dialog';
 import { screenUrl } from '../screens/registry';
 import { Session } from '../core/session';
-import { SosAlarm } from '../core/sos-alarm';
+import { SosBanner } from '../shared/sos-banner';
 import { initialOf } from '../core/admin-log-text';
 import { RouterLinkActive } from '@angular/router';
 
@@ -125,7 +125,7 @@ const MOCK_SCREENS = new Set<string>();
  */
 @Component({
   selector: 'app-area-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, TabBar, ToastHost, Icon, ConfirmDialog],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, TabBar, ToastHost, Icon, ConfirmDialog, SosBanner],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="frame" [class.admin-layout]="isAdmin" [class.auth-layout]="area === 'auth'" [class.nav-mini]="mini()" [attr.data-area]="area">
@@ -230,13 +230,8 @@ const MOCK_SCREENS = new Set<string>();
           <span aria-hidden="true">⇄</span>
         </a>
       }
-      @if (sosBar(); as bar) {
-        <div class="sos-bar-top">
-          <button type="button" (click)="openSos()">
-            <strong role="alert">{{ i18n.t(bar.title) }}</strong>
-            <span>{{ i18n.t(bar.sub) }}</span>
-          </button>
-        </div>
+      @if (area === 'officer' || area === 'head') {
+        <app-sos-banner [head]="area === 'head'" />
       }
       <main id="main-content" tabindex="-1" [class.full]="fullscreen()">
         <router-outlet />
@@ -330,29 +325,6 @@ const MOCK_SCREENS = new Set<string>();
       }
     }
     /* ต้องอยู่นอก @media — เจ้าหน้าที่ใช้มือถือเป็นหลัก */
-    .sos-bar-top {
-      position: sticky;
-      inset-block-start: 0;
-      z-index: 50;
-    }
-    .sos-bar-top button {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      inline-size: 100%;
-      min-block-size: 56px;
-      padding: 8px 16px;
-      border: 0;
-      background: var(--sos-bg);
-      color: var(--sos-fg);
-      font: inherit;
-      font-weight: var(--fw-strong);
-      cursor: pointer;
-    }
-    .sos-bar-top span {
-      font-size: var(--fs-sm);
-      font-weight: 400;
-    }
     .brand {
       display: flex;
       align-items: center;
@@ -672,36 +644,7 @@ const MOCK_SCREENS = new Set<string>();
 export class AreaShell {
   protected readonly i18n = inject(I18n);
   private readonly route = inject(ActivatedRoute);
-  private readonly area = this.route.snapshot.data['area'] as Area;
-  /** เจ้าหน้าที่/หัวหน้า: ไซเรน+สั่นต่อเนื่องเมื่อมี SOS ที่ยังไม่มีคนรับ (เฉพาะตอนแอปเปิดอยู่) */
-  protected readonly alarm = this.area === 'officer' || this.area === 'head' ? inject(SosAlarm) : null;
-  private readonly alarmLife = (() => {
-    this.alarm?.start();
-    inject(DestroyRef).onDestroy(() => this.alarm?.stop());
-  })();
-  /** แถบแดง SOS ค้างทุกหน้าของเจ้าหน้าที่/หัวหน้า ตราบที่ยังมีเรื่องไม่มีคนรับ (✅ 2026-11-27) · ซ่อนเฉพาะตอนอยู่ในหน้าของเรื่องนั้นเอง */
-  protected readonly sosBar = computed(() => {
-    const open = this.alarm?.waiting() ?? [];
-    if (!this.alarm || !open.length) return null;
-    const only = open.length === 1 ? open[0] : null;
-    if (only && this.currentPath() === screenUrl('O09') && this.loc()?.queryParams['id'] === only.id) return null;
-    const oldest = Math.min(...open.map((c) => Date.parse(c.returned_at ?? c.created_at)));
-    const min = Math.max(0, Math.floor((this.alarm.checkedAt() - oldest) / 60_000));
-    const waited: Tr = min ? { th: `รอมา ${min} นาที`, en: `waiting ${min} min` } : { th: 'เพิ่งแจ้ง', en: 'just now' };
-    const tap: Tr = this.alarm.needsTap() ? { th: 'แตะเพื่อเปิดเสียงและดูเรื่อง', en: 'tap to turn on sound and open' } : { th: 'แตะเพื่อดูเรื่อง', en: 'tap to open' };
-    const title: Tr = only
-      ? { th: `SOS บ้านเลขที่ ${only.house_no} ยังไม่มีคนรับ`, en: `SOS at house ${only.house_no}, not accepted` }
-      : { th: `SOS ยังไม่มีคนรับ ${open.length} เรื่อง`, en: `${open.length} SOS not accepted` };
-    return { title, sub: { th: `${waited.th} · ${tap.th}`, en: `${waited.en} · ${tap.en}` }, id: only?.id ?? null };
-  });
-  /** แตะแถบ = ปลดล็อกเสียง + ไปที่เรื่อง (หลายเรื่อง → รายการ) */
-  protected openSos(): void {
-    const bar = this.sosBar();
-    if (!bar) return;
-    void this.alarm?.unlock();
-    const from = this.area === 'head' ? { from: 'L04' } : {};
-    void this.nav.navigate([screenUrl(bar.id ? 'O09' : 'O12')], { queryParams: bar.id ? { id: bar.id } : from });
-  }
+  protected readonly area = this.route.snapshot.data['area'] as Area;
   /** แอดมิน/หัวหน้ามีตารางและรายการเยอะ → กว้างกว่าบทบาทอื่น */
   protected readonly isAdmin = this.area === 'admin';
   protected readonly adminNav = ADMIN_NAV;

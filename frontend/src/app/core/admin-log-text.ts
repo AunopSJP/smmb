@@ -137,7 +137,14 @@ export function logDetail(log: AdminLog, lang: 'th' | 'en'): string {
 
 /** ค่าดิบครบทุกตัวสำหรับ CSV (ใช้สอบย้อนหลัง) */
 export function logRaw(log: AdminLog): string {
-  return [log.id, log.box_id, log.actor_name, log.qr_slot, log.method, log.result, log.details].filter(Boolean).join(' | ');
+  // เวลาเป็น ISO ตรง ๆ — หัวข้อบนจอใช้ "วันนี้/เมื่อวาน" ซึ่งเปิดไฟล์ทีหลังแล้วอ่านไม่ได้ · ช่องว่างคงตำแหน่งไว้
+  return [
+    ['id', log.id], ['type', log.type], ['at', log.created_at], ['box', log.box_id], ['house', log.house_no],
+    ['actor', log.actor_name], ['qr', log.qr_slot], ['method', log.method], ['result', log.result], ['details', log.details],
+  ]
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${k}=${v}`)
+    .join(' | ');
 }
 
 /** อักษรย่อในวงกลม — ข้ามสระหน้า (เ แ โ ใ ไ) ไม่ให้ได้สระลอย ๆ */
