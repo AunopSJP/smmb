@@ -138,7 +138,7 @@ describe('Zones + contacts (e2e)', () => {
       const z = await as(ag.cookie)
         .post('/api/v1/agency/zones', { name: 'โซน A', windows: [['17:00', '17:30'], ['06:00', '06:30']] })
         .expect(201);
-      expect(z.body).toMatchObject({ name: 'โซน A', windows: [['06:00', '06:30'], ['17:00', '17:30']], tz: 'Asia/Bangkok', houses_count: 0, officers_count: 0, is_mine: false });
+      expect(z.body).toMatchObject({ name: 'โซน A', windows: [['06:00', '06:30'], ['17:00', '17:30']], tz: 'Asia/Bangkok', houses_count: 0, pending_count: 0, officers_count: 0, is_mine: false });
 
       await as(ag.cookie).put(`/api/v1/agency/zones/${z.body.id}/officers`, { user_ids: [ag.headId, ag.officer.id] }).expect(200);
       await as(ag.cookie).post('/api/v1/agency/zones', { name: 'โซน B', windows: [] }).expect(201);

@@ -848,7 +848,7 @@ export class OwnerHome implements OnDestroy {
     this.sosError.set(false);
     try {
       const r = await this.api.startSos(b.id);
-      if ('code' in r) void this.router.navigateByUrl(screenUrl('H08'));
+      if ('code' in r) void this.router.navigate([screenUrl('H08')], { queryParams: r.admin_alerted ? { alerted: 1 } : {} });
       else void this.router.navigate([screenUrl('H09')], { queryParams: { id: r.id } });
     } catch (err) {
       const e = apiError(err);

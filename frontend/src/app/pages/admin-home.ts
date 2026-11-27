@@ -65,11 +65,21 @@ interface Segment {
       </div>
 
       <!-- โหมดง่าย: สรุปสั้น + 3 ทางเข้าหลัก (ตาม AdmEasy) -->
-      <section class="easy-hero easy-only" [class.warn]="atRisk() > 0" role="status">
+      <section class="easy-hero easy-only" [class.warn]="atRisk() > 0 || sosOpen() > 0" role="status">
         <strong>{{ i18n.t(easyTitle()) }}</strong>
         <span>{{ i18n.t({ th: 'ออนไลน์ ', en: 'Online ' }) }}{{ online() }} {{ i18n.t({ th: 'จาก ', en: 'of ' }) }}{{ totalBoxes() }} {{ i18n.t({ th: 'ตู้', en: 'boxes' }) }}</span>
       </section>
       <nav class="list easy-only">
+        @if (sosOpen() > 0) {
+          <a class="row" [routerLink]="url('D11')" [queryParams]="{ type: 'sos' }">
+            <span class="icon-bubble danger"><app-icon name="alert" [size]="22" /></span>
+            <span class="grow">
+              <strong>{{ i18n.t({ th: 'SOS ที่เปิดอยู่', en: 'Open SOS' }) }}</strong>
+              <span class="muted small block">{{ i18n.t({ th: 'ยังไม่มีคนรับ ', en: 'Not accepted: ' }) }}{{ overview()?.sos_unclaimed ?? 0 }}</span>
+            </span>
+            <span class="chip danger">{{ sosOpen() }}</span>
+          </a>
+        }
         <a class="row" [routerLink]="url('D03')" [queryParams]="{ filter: 'offline' }">
           <span class="icon-bubble warn"><app-icon name="alert" [size]="22" /></span>
           <span class="grow">
@@ -357,10 +367,13 @@ export class AdminHome implements OnInit {
   protected readonly sleeping = computed(() => this.overview()?.boxes.sleeping ?? this.boxes().filter((b) => b.status === 'sleeping').length);
   protected readonly serviceClosed = computed(() => this.overview()?.boxes.service_closed ?? this.boxes().filter((b) => b.status === 'service_closed').length);
   protected readonly unbound = computed(() => this.overview()?.boxes.unbound ?? this.boxes().filter((b) => b.status === 'unbound').length);
+  protected readonly sosOpen = computed(() => this.overview()?.sos_open ?? 0);
   /** งานที่ต้องดูในโหมดง่าย = ตู้ไม่ออนไลน์ + เคส QR */
   protected readonly atRisk = computed(() => this.offline() + this.qrTotal());
   protected readonly easyTitle = computed<Tr>(() =>
-    this.offline() === 0 && this.qrTotal() === 0
+    this.sosOpen() > 0
+      ? { th: 'มี SOS เปิดอยู่', en: 'An SOS is open' }
+      : this.offline() === 0 && this.qrTotal() === 0
       ? { th: 'ตู้ส่วนใหญ่ปกติดี', en: 'Most mailboxes are fine' }
       : { th: 'มีตู้ที่ต้องดู', en: 'Some mailboxes need a look' },
   );
@@ -523,12 +536,24 @@ export class AdminHome implements OnInit {
     void this.session.signout().then(() => this.router.navigateByUrl(screenUrl('A04'), { replaceUrl: true }));
   }
 
-  /** งานค้างเรียงตามความเร่งด่วน: ตู้ไม่ออนไลน์ → แบตต่ำ → หน่วยงาน/คำขอช่างรออนุมัติ — หายไปเมื่อจัดการแล้ว */
+  /** งานค้างเรียงตามความเร่งด่วน: SOS (ยังไม่มีคนรับก่อน) → ตู้ไม่ออนไลน์ → เคส QR → แบตต่ำ → หน่วยงาน/คำขอช่าง — หายไปเมื่อจัดการแล้ว */
   protected readonly todo = computed(() => {
     const items: { key: string; tone: Tone; title: Tr; sub: Tr; path: string; query?: Record<string, string> }[] = [];
+    const unclaimed = this.overview()?.sos_unclaimed ?? 0;
+    const handling = this.sosOpen() - unclaimed;
+    if (unclaimed > 0) {
+      items.push({ key: 'sos-open', tone: 'danger', title: { th: `SOS ยังไม่มีคนรับ ${unclaimed} เรื่อง`, en: `${unclaimed} SOS not accepted` }, sub: { th: 'ดูในประวัติระบบ', en: 'See the system log' }, path: screenUrl('D11'), query: { type: 'sos' } });
+    }
+    if (handling > 0) {
+      items.push({ key: 'sos-handling', tone: 'warn', title: { th: `SOS กำลังดูแล ${handling} เรื่อง`, en: `${handling} SOS being handled` }, sub: { th: 'ดูในประวัติระบบ', en: 'See the system log' }, path: screenUrl('D11'), query: { type: 'sos' } });
+    }
     for (const b of this.boxes().filter((x) => x.status === 'offline')) {
       const seen = seenText(b.last_seen_at);
       items.push({ key: b.id, tone: 'danger', title: { th: 'ตู้ ' + (b.house_no ?? b.id) + ' ไม่ออนไลน์', en: 'Box ' + (b.house_no ?? b.id) + ' offline' }, sub: { th: 'ติดต่อล่าสุด ' + seen.th, en: 'Last seen ' + seen.en }, path: screenUrl('D04'), query: { id: b.id } });
+    }
+    const qr = this.qrTotal();
+    if (qr > 0) {
+      items.push({ key: 'qr-issues', tone: 'warn', title: { th: `ปัญหา QR ${qr} เรื่อง`, en: `${qr} QR ${qr === 1 ? 'issue' : 'issues'}` }, sub: { th: 'เสีย · น่าสงสัย · ใกล้หมดอายุ', en: 'Damaged · suspicious · expiring' }, path: screenUrl('D05') });
     }
     for (const b of this.low()) {
       items.push({ key: 'low-' + b.id, tone: 'warn', title: { th: 'แบตต่ำ · ' + (b.house_no ?? b.id), en: 'Low battery · ' + (b.house_no ?? b.id) }, sub: { th: 'เหลือ ' + b.battery!.pct + '%', en: b.battery!.pct + '% left' }, path: screenUrl('D04'), query: { id: b.id } });

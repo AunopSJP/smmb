@@ -86,7 +86,10 @@ export class AdminOverviewService {
       ),
       this.pool.query<{ count: number }>(`SELECT count(*)::int AS count FROM app.agency_tb WHERE status = $1`, [PENDING_AGENCY_STATUS]),
       this.qrIssues.summary(),
-      this.pool.query<{ count: number }>(`SELECT count(*)::int AS count FROM app.sos_case_tb WHERE status = ANY($1::text[])`, [OPEN_SOS_STATUSES]),
+      this.pool.query<{ count: number; unclaimed: number }>(
+        `SELECT count(*)::int AS count, count(*) FILTER (WHERE status = 'open')::int AS unclaimed FROM app.sos_case_tb WHERE status = ANY($1::text[])`,
+        [OPEN_SOS_STATUSES],
+      ),
       this.pool.query<{ count: number }>(`SELECT count(*)::int AS count FROM app.technician_request_tb WHERE status = $1`, [OPEN_TECHNICIAN_REQUEST_STATUS]),
       this.pool.query<{ plan_code: string; owners_count: number }>(
         `SELECT p.plan_code, count(DISTINCT up.user_id) FILTER (WHERE tstzrange(up.start_date, up.end_date) @> now())::int AS owners_count
@@ -112,6 +115,7 @@ export class AdminOverviewService {
       agencies_pending: agencyCount.rows[0]?.count ?? 0,
       qr_issues: qrIssues,
       sos_open: sosCount.rows[0]?.count ?? 0,
+      sos_unclaimed: sosCount.rows[0]?.unclaimed ?? 0,
       technician_requests_open: technicianCount.rows[0]?.count ?? 0,
       owners_by_plan: planRows.rows.map((row) => ({ plan_code: row.plan_code, owners_count: row.owners_count })),
       activity_7d: activity,

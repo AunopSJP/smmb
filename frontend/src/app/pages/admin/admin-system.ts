@@ -1,3 +1,4 @@
+import { logDetail, logRaw } from '../../core/admin-log-text';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, type OnInit } from '@angular/core';
 import { AdminApi, type AdminLog, type AdminLogType, type BoxConfig } from '../../core/admin-api';
 import { I18n, type Tr } from '../../core/i18n';
@@ -178,34 +179,6 @@ const LOG_TYPE: Record<AdminLogType, { label: Tr; icon: IconName; tone: '' | 'wa
   data_access: { label: { th: 'เปิดดูข้อมูล', en: 'Data views' }, icon: 'user', tone: '' },
   terms: { label: { th: 'ยอมรับข้อตกลง', en: 'Terms accepted' }, icon: 'check', tone: '' },
 };
-
-/** คำที่ระบบบันทึกเป็นรหัส → ข้อความอ่านง่าย (ไม่รู้จัก = แสดงตามเดิม แต่ตัดเครื่องหมาย {} ของอาร์เรย์ออก) */
-const FRIENDLY: Record<string, Tr> = {
-  scan: { th: 'สแกน QR', en: 'scanned' },
-  typed: { th: 'พิมพ์รหัส', en: 'typed code' },
-  ok: { th: 'ปกติ', en: 'ok' },
-  passed: { th: 'ผ่าน', en: 'passed' },
-  failed: { th: 'ไม่ผ่าน', en: 'failed' },
-  retry: { th: 'ให้ลองอีกครั้ง', en: 'retry' },
-  delivered: { th: 'ส่งของแล้ว', en: 'delivered' },
-  closed: { th: 'ปิดงานแล้ว', en: 'closed' },
-  box: { th: 'ตู้', en: 'box' },
-  self: { th: 'คืนเอง', en: 'returned by the officer' },
-  system: { th: 'ระบบคืนอัตโนมัติ', en: 'returned by the system' },
-  qr_reissue_1: { th: 'QR หน้าตู้ใหม่', en: 'new front QR' },
-  qr_reissue_2: { th: 'QR สำรองใหม่', en: 'new backup QR' },
-};
-function friendly(v: string | null | undefined, lang: 'th' | 'en'): string {
-  if (!v) return '';
-  return v
-    .replace(/^\{|\}$/g, '')
-    .split(',')
-    .map((part) => {
-      const k = part.trim();
-      return FRIENDLY[k]?.[lang] ?? k;
-    })
-    .join(', ');
-}
 
 @Component({
   selector: 'app-admin-logs',
@@ -412,10 +385,12 @@ export class AdminLogs {
     const cacheKey = log.id + '|' + this.i18n.lang();
     const cached = this.titleCache.get(cacheKey);
     if (cached) return cached;
-    const place = log.house_no ?? log.box_id ?? log.result ?? log.type;
+    // แถวที่ไม่ผูกกับตู้ (เปิดดูข้อมูล / ยอมรับข้อตกลง) ไม่มีชื่อสถานที่ — ไม่เอาค่าดิบมาแทน
+    const place = log.house_no ?? log.box_id;
     /* รูปแบบวันเวลากลาง (A8): วันนี้/เมื่อวาน/วันที่ + 24 ชม. */
     const date = fmtWhen(log.created_at, this.i18n.lang());
-    const out = { th: `${LOG_TYPE[log.type].label.th} · ${place} · ${date}`, en: `${LOG_TYPE[log.type].label.en} · ${place} · ${date}` };
+    const join = (type: string) => [type, place, date].filter(Boolean).join(' · ');
+    const out = { th: join(LOG_TYPE[log.type].label.th), en: join(LOG_TYPE[log.type].label.en) };
     this.titleCache.set(cacheKey, out);
     return out;
   }
@@ -424,11 +399,7 @@ export class AdminLogs {
     const cacheKey = log.id + '|' + this.i18n.lang();
     const cached = this.subCache.get(cacheKey);
     if (cached) return cached;
-    const actor = log.actor_name ?? '—';
-    const qr = log.qr_slot ? `QR ${log.qr_slot}` : '';
-    const mk = (lang: 'th' | 'en') =>
-      [actor, qr, friendly(log.method, lang), friendly(log.result, lang), friendly(log.details, lang)].filter(Boolean).join(' · ');
-    const out = { th: mk('th'), en: mk('en') };
+    const out = { th: logDetail(log, 'th'), en: logDetail(log, 'en') };
     this.subCache.set(cacheKey, out);
     return out;
   }
@@ -436,8 +407,8 @@ export class AdminLogs {
   /** ส่งออกแถวที่โหลดจาก GET /admin/logs และผ่านตัวกรองบนหน้าจอ */
   protected exportCsv(): void {
     const t = (x: Tr) => this.i18n.t(x);
-    const head = [t({ th: 'ประเภท', en: 'Type' }), t({ th: 'รายการ', en: 'Event' }), t({ th: 'รายละเอียด', en: 'Details' }), t({ th: 'ผล', en: 'Result' })];
-    const body = this.rows().map((l) => [t(this.meta[l.type].label), t(this.title(l)), t(this.sub(l)), l.fail ? t({ th: 'ไม่ผ่าน', en: 'Failed' }) : '']);
+    const head = [t({ th: 'ประเภท', en: 'Type' }), t({ th: 'รายการ', en: 'Event' }), t({ th: 'รายละเอียด', en: 'Details' }), t({ th: 'ผล', en: 'Result' }), t({ th: 'ข้อมูลดิบ', en: 'Raw data' })];
+    const body = this.rows().map((l) => [t(this.meta[l.type].label), t(this.title(l)), t(this.sub(l)), l.fail ? t({ th: 'ไม่ผ่าน', en: 'Failed' }) : '', logRaw(l)]);
     const day = bkkDay();
     downloadText(`smmb-logs-${day}.csv`, toCsv([head, ...body]));
   }

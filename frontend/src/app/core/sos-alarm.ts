@@ -1,6 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { LiveRefresh } from './live-refresh';
-import { OfficerSosApi } from './owner-api';
+import { OfficerSosApi, type SosCard } from './owner-api';
 
 /** ถามรายการ SOS ที่ยังไม่มีคนรับทุกกี่ ms ขณะแอปเปิดอยู่ (ตัวเดียวกับ push สั่งถามทันทีผ่าน LiveRefresh) */
 const CHECK_MS = 4000;
@@ -28,6 +28,10 @@ export class SosAlarm {
 
   /** มี SOS ที่ยังไม่มีคนรับ */
   readonly ringing = signal(false);
+  /** เรื่องที่ยังไม่มีคนรับ (รวมที่ฉันคืนเอง) — ใช้แสดงแถบแดงบนทุกหน้า */
+  readonly waiting = signal<SosCard[]>([]);
+  /** เวลาที่ถามสำเร็จล่าสุด — ใช้คิด "รอมากี่นาที" บนแถบ */
+  readonly checkedAt = signal(Date.now());
   /** เบราว์เซอร์ยอมให้เล่นเสียงแล้ว */
   readonly unlocked = signal(false);
   /** ควรดังแต่ยังเงียบ เพราะยังไม่มีใครแตะหน้าจอ → ให้ขึ้นข้อความชวนแตะ */
@@ -69,6 +73,7 @@ export class SosAlarm {
     this.liveSub = null;
     if (this.checkTimer) clearInterval(this.checkTimer);
     this.checkTimer = null;
+    this.waiting.set([]);
     this.setRinging(false);
   }
 
@@ -114,7 +119,11 @@ export class SosAlarm {
     try {
       const cases = await this.api.list('open');
       // เรื่องที่ฉันคืนเองแล้วไม่ดังใส่ฉันอีก (คนอื่นยังได้ยินตามปกติ)
-      this.setRinging(cases.some((c) => c.status === 'open' && !c.returned_by_me));
+      if (!this.watching) return;
+      const open = cases.filter((c) => c.status === 'open');
+      this.waiting.set(open);
+      this.checkedAt.set(Date.now());
+      this.setRinging(open.some((c) => !c.returned_by_me));
     } catch {
       // ถามไม่สำเร็จ (เน็ตหลุด) — คงสถานะเดิมไว้ ไม่ปิดเสียงเอง
     } finally {

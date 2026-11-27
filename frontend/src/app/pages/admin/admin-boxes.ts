@@ -46,8 +46,25 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
               </div>
             </div>
           }
+          <button type="button" class="btn" (click)="printAll()">{{ i18n.t({ th: 'พิมพ์ QR ทั้งชุด', en: 'Print all QR codes' }) }} ({{ created().length }} {{ i18n.t({ th: 'ตู้', en: 'boxes' }) }})</button>
+          <p class="muted small">{{ i18n.t({ th: 'พิมพ์ตู้ละ 1 หน้า · ไม่พิมพ์รหัสลับ', en: 'One page per box · the secret is not printed' }) }}</p>
           <button type="button" class="btn secondary" (click)="created.set([])">{{ i18n.t({ th: 'จดแล้ว ปิด', en: 'Done, close' }) }}</button>
         </section>
+
+        <!-- ใบพิมพ์ทั้งชุด (ซ่อนบนจอ) — ห้ามใส่รหัสลับ: กระดาษ QR ติดอยู่หน้าบ้าน · ขนาดใช้หน่วยกระดาษจริง -->
+        <div class="print-sheet batch" aria-hidden="true">
+          @for (b of created(); track b.box_id) {
+            <section class="print-box">
+              <p class="print-id">{{ b.box_id }}</p>
+              @for (q of b.qr; track q.slot) {
+                <figure>
+                  <app-qr-image [text]="q.url" level="H" [label]="i18n.t(slot(q.slot))" />
+                  <figcaption><strong>{{ i18n.t(slot(q.slot)) }}</strong><br />{{ q.print_code }}</figcaption>
+                </figure>
+              }
+            </section>
+          }
+        </div>
       }
 
       <!-- โหมดง่าย (AdmBoxes_E): 3 ตัวเลขสรุป + เฉพาะตู้ที่ต้องดู + ปุ่มลงทะเบียน -->
@@ -376,6 +393,38 @@ const STATUS_ORDER: Record<BoxStatus, number> = { offline: 0, service_closed: 1,
       .past-qr {
         display: none;
       }
+      /* พิมพ์ทั้งชุด: ตัดเนื้อหาบนจอออกจากผังกระดาษ (กันหน้าว่างต่อท้าย) */
+      .stack:has(> .print-sheet.batch) > :not(.print-sheet) {
+        display: none !important;
+      }
+      .print-sheet.batch {
+        display: block;
+      }
+      .print-box {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10mm;
+        break-inside: avoid;
+        break-after: page;
+        figure {
+          margin: 0;
+          text-align: center;
+          font-size: 11pt;
+        }
+        app-qr-image {
+          display: block;
+          inline-size: 70mm;
+          margin-inline: auto;
+        }
+      }
+      .print-box:last-child {
+        break-after: auto;
+      }
+      .print-id {
+        grid-column: 1 / -1;
+        margin: 0;
+        font-size: 18pt;
+      }
     }
     .qr-grid {
       display: grid;
@@ -562,6 +611,10 @@ export class AdminBoxes implements OnInit {
     } finally {
       this.loadingMore.set(false);
     }
+  }
+
+  protected printAll(): void {
+    window.print();
   }
 
   protected async registerOne(): Promise<void> {

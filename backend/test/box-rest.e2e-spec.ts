@@ -130,7 +130,8 @@ describe('Box rest after a complete patrol (e2e)', () => {
   /** เปลี่ยนเวลาตรวจของโซนเป็นช่วงที่เริ่มอีก `inMin` นาที ยาว 20 นาที (เวลาไทย) */
   const startsIn = async (zoneId: string, inMin: number) => {
     const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-    const start = (localMinutes(new Date()) + inMin) % 1440;
+    // ไม่ให้เริ่ม 23:59 (เวลาจบจะเท่าเวลาเริ่ม ฐานข้อมูลไม่รับ)
+    const start = Math.min((localMinutes(new Date()) + inMin) % 1440, 1438);
     await pool.query(`DELETE FROM app.zone_window_tb WHERE zone_id = $1::uuid`, [zoneId]);
     await pool.query(`INSERT INTO app.zone_window_tb (zone_id, start_time, end_time) VALUES ($1::uuid, $2, $3)`, [
       zoneId,
@@ -154,9 +155,12 @@ describe('Box rest after a complete patrol (e2e)', () => {
   const quiet = (boxId: string) =>
     pool.query(`UPDATE app.box_tb SET last_poll_date = now() - interval '20 minutes', offline_notified_date = NULL WHERE box_id = $1`, [boxId]);
   const offlineAlerts = async (userId: string, boxId: string) => {
-    // เที่ยงวันไทย = กลางช่วงตรวจทั้งวันแน่ ๆ
-    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
-    await app.get(SchedulerService).watchOffline(new Date(`${today}T12:00:00+07:00`));
+    // ตรวจ ณ เวลาจริง (ตรงกับที่ quiet() ตั้ง last_poll) · บีบให้อยู่ในช่วงตรวจทั้งวัน 00:30–23:50 เวลาไทย
+    // (เดิมใช้เที่ยงของวันนี้ → รันช่วงบ่ายแล้ว last_poll อยู่หลังเวลาที่ตรวจ ตู้เลยดูเหมือนยังติดต่ออยู่)
+    const now = new Date();
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(now);
+    const at = (hhmm: string) => new Date(`${today}T${hhmm}:00+07:00`).getTime();
+    await app.get(SchedulerService).watchOffline(new Date(Math.min(Math.max(now.getTime(), at('00:30')), at('23:50'))));
     return (await pool.query(`SELECT 1 FROM app.notification_tb WHERE user_id = $1 AND type = 'box_offline' AND data->>'box_id' = $2`, [userId, boxId])).rowCount;
   };
 

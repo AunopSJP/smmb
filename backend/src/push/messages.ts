@@ -16,6 +16,7 @@ export const NOTIFICATION_TYPES = [
   'sos_closed',
   'sos_cancelled',
   'sos_returned',
+  'sos_no_coverage',
   'member_pending',
   'member_approved',
   'member_rejected',
@@ -115,6 +116,10 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
     th: (d) => ({ title: '⚠️ ตู้มีปัญหา', body: `เจ้าหน้าที่แจ้งว่า ${box(d, 'th')} ไม่ตอบ` }),
     en: (d) => ({ title: '⚠️ Mailbox problem', body: `An officer reported ${box(d, 'en')} did not respond` }),
   },
+  sos_no_coverage: {
+    th: (d) => ({ title: '🆘 SOS จากบ้านที่ไม่มีผู้ดูแล', body: `บ้าน ${s(d.house_no)} (${s(d.box_id)}) กด SOS แต่ไม่มีหน่วยงานรับ · แอปให้โทร 191/1669 เอง` }),
+    en: (d) => ({ title: '🆘 SOS from an uncovered house', body: `House ${s(d.house_no)} (${s(d.box_id)}) sent an SOS but no agency covers it · they were told to call 191/1669` }),
+  },
   sos_new: {
     // ไม่ใส่เบอร์เจ้าของบ้านในข้อความ: push ถูกส่งถึงหลายคนและค้างอยู่ในประวัติแจ้งเตือน — เบอร์เห็นในแอปเฉพาะตอน SOS เปิดอยู่ (และมีบันทึกการเปิดดู)
     // returned = ผู้รับคืนเรื่อง กลับมารอคนรับ
@@ -177,8 +182,9 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
     en: (d) => ({ title: '⚠️ Agency suspended', body: `${s(d.agency_name)} has stopped covering house ${s(d.house_no)} for now · in an emergency call 191 / 1669` }),
   },
   qr_fake: {
-    th: (d) => ({ title: '🚨 พบ QR ที่ไม่ใช่ของระบบ', body: `ตู้ ${s(d.box_id)}` }),
-    en: (d) => ({ title: '🚨 Unrecognised QR found', body: `Mailbox ${s(d.box_id)}` }),
+    // ไม่มี box_id = สแกนเจอลิงก์ไปเว็บอื่น ระบบไม่รู้ว่าติดอยู่ที่ตู้ไหน
+    th: (d) => ({ title: '🚨 พบ QR ที่ไม่ใช่ของระบบ', body: d.box_id ? `ตู้ ${s(d.box_id)}` : `เจ้าหน้าที่สแกนเจอลิงก์เว็บอื่น: ${s(d.raw)}` }),
+    en: (d) => ({ title: '🚨 Unrecognised QR found', body: d.box_id ? `Mailbox ${s(d.box_id)}` : `An officer scanned a link to another site: ${s(d.raw)}` }),
   },
   qr_health: {
     th: (d) => ({ title: 'QR ไม่ปกติ', body: `${s(d.count)} ใบ` }),

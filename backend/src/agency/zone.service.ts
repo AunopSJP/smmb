@@ -26,6 +26,8 @@ export interface ZoneDto {
   windows: [string, string][];
   tz: string;
   houses_count: number;
+  /** คำขอเพิ่มบ้านที่รอเจ้าของยืนยัน (ยังไม่นับใน houses_count) */
+  pending_count: number;
   officers_count: number;
   /** พื้นที่ครอบคลุม (null = ยังไม่ตั้ง → เพิ่มบ้านไม่ได้) · ✅ 2026-11-06 */
   area: ZoneArea | null;
@@ -552,6 +554,7 @@ export class ZoneService {
       updated_date: Date;
       windows: [string, string][] | null;
       houses_count: number;
+      pending_count: number;
       officers_count: number;
       is_mine: boolean;
       province: string | null;
@@ -563,6 +566,7 @@ export class ZoneService {
                  FROM app.zone_window_tb w WHERE w.zone_id = z.zone_id) AS windows,
               (SELECT count(*)::int FROM app.zone_box_tb zb WHERE zb.zone_id = z.zone_id) AS houses_count,
               (SELECT count(*)::int FROM app.zone_officer_tb zo WHERE zo.zone_id = z.zone_id) AS officers_count,
+              (SELECT count(*)::int FROM app.zone_box_request_tb r WHERE r.zone_id = z.zone_id AND r.status = 'pending') AS pending_count,
               EXISTS (SELECT 1 FROM app.zone_officer_tb zo WHERE zo.zone_id = z.zone_id AND zo.user_id = $2) AS is_mine
        FROM app.zone_tb z
        WHERE z.agency_id = $1 AND z.deleted_date IS NULL
@@ -578,6 +582,7 @@ export class ZoneService {
       tz: r.tz,
       houses_count: r.houses_count,
       officers_count: r.officers_count,
+      pending_count: r.pending_count,
       area: r.province && r.district ? { province: r.province, district: r.district, subdistrict: r.subdistrict } : null,
       patrol_limit_hours: this.patrolLimitDefault,
       is_mine: r.is_mine,

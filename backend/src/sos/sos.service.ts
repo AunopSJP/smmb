@@ -32,6 +32,13 @@ export interface SosDto {
   returned_at: string | null;
 }
 
+/** บ้านไม่มีหน่วยงานดูแล — ไม่สร้าง SOS · admin_alerted = ส่งแจ้งเตือนถึงแอดมินได้จริง (หน้าจอห้ามบอกว่าแจ้งแล้วถ้าเป็น false) */
+export interface NoCoverageDto {
+  code: 'SOS_NO_COVERAGE';
+  call: string[];
+  admin_alerted: boolean;
+}
+
 /** api.md §7.2 */
 export interface SosCardDto {
   id: string;
@@ -151,7 +158,7 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
   // ── เจ้าของบ้าน ───────────────────────────────────────────────────────
 
   /** กด SOS (แอปกดค้าง 3 วิ แล้วค่อยเรียก) · บ้านยังไม่อยู่ในโซน → SOS_NO_COVERAGE (ไม่สร้าง SOS · ให้โทร 191/1669) */
-  async create(ownerId: string, boxId: string): Promise<SosDto | { code: 'SOS_NO_COVERAGE'; call: string[] }> {
+  async create(ownerId: string, boxId: string): Promise<SosDto | NoCoverageDto> {
     type Made = { kind: 'none' } | { kind: 'existing'; id: string } | { kind: 'new'; id: string; recipients: string[] };
     const created = await withTx(this.pool, async (db): Promise<Made> => {
       const box = await db.query(`SELECT 1 FROM app.box_tb WHERE box_id = $1 AND owner_user_id = $2 FOR UPDATE`, [boxId, ownerId]);
@@ -180,7 +187,7 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
       return { kind: 'new', id, recipients: recipients.map((r) => r.user_id) };
     });
 
-    if (created.kind === 'none') return { code: 'SOS_NO_COVERAGE', call: ['191', '1669'] };
+    if (created.kind === 'none') return { code: 'SOS_NO_COVERAGE', call: ['191', '1669'], admin_alerted: await this.alertNoCoverage(boxId) };
     if (created.kind === 'existing') {
       throw new AppError(HttpStatus.CONFLICT, 'SOS_ALREADY_OPEN', 'an SOS is already open for this mailbox', {
         sos: await this.getForOwner(ownerId, created.id),
@@ -188,6 +195,26 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
     }
     await this.notifyNew(created.id, created.recipients);
     return this.getForOwner(ownerId, created.id);
+  }
+
+  /** ✅ 2026-11-27 บ้านที่ไม่มีใครดูแลกด SOS → บอกแอดมิน (ไม่มีชื่อ/เบอร์ในแจ้งเตือน) · แจ้งไม่สำเร็จไม่ทำให้คำตอบ SOS ล้ม */
+  private async alertNoCoverage(boxId: string): Promise<boolean> {
+    try {
+      const admins = await this.pool.query<{ user_id: string }>(
+        `SELECT r.user_id FROM app.user_role_tb r JOIN app.user_tb u ON u.user_id = r.user_id
+         WHERE r.role = 'admin' AND r.status = 'active' AND u.status = 'active' AND u.deleted_date IS NULL`,
+      );
+      if (!admins.rows.length) return false;
+      const box = await this.pool.query<{ house_no: string | null }>(`SELECT house_no FROM app.box_tb WHERE box_id = $1`, [boxId]);
+      await this.notifications.notify(
+        admins.rows.map((a) => a.user_id),
+        { type: 'sos_no_coverage', data: { box_id: boxId, house_no: box.rows[0]?.house_no ?? null }, link: `/admin/boxes/detail?id=${boxId}`, tag: `sos-nocover-${boxId}` },
+      );
+      return true;
+    } catch (err) {
+      this.logger.error(`no-coverage alert failed: ${(err as Error).message}`);
+      return false;
+    }
   }
 
   async getForOwner(ownerId: string, id: string): Promise<SosDto> {

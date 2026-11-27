@@ -13,6 +13,7 @@ import { ConfirmDialog } from '../shared/confirm-dialog';
 import { screenUrl } from '../screens/registry';
 import { Session } from '../core/session';
 import { SosAlarm } from '../core/sos-alarm';
+import { initialOf } from '../core/admin-log-text';
 import { RouterLinkActive } from '@angular/router';
 
 /** เมนูข้างของแอดมินบนจอคอม — จัดกลุ่มตามงาน · เมนูที่มี `children` กางเป็นเมนูย่อยได้ (ลิงก์ไปหน้าเดียวกันพร้อมตัวกรอง) */
@@ -229,10 +230,11 @@ const MOCK_SCREENS = new Set<string>();
           <span aria-hidden="true">⇄</span>
         </a>
       }
-      @if (alarm?.needsTap()) {
-        <div class="sos-tap" role="alert">
-          <button type="button" (click)="alarm?.unlock()">
-            {{ i18n.t({ th: 'มี SOS ใหม่ — แตะที่นี่เพื่อเปิดเสียงเตือน', en: 'New SOS — tap here to turn on the alarm' }) }}
+      @if (sosBar(); as bar) {
+        <div class="sos-bar-top">
+          <button type="button" (click)="openSos()">
+            <strong role="alert">{{ i18n.t(bar.title) }}</strong>
+            <span>{{ i18n.t(bar.sub) }}</span>
           </button>
         </div>
       }
@@ -328,21 +330,28 @@ const MOCK_SCREENS = new Set<string>();
       }
     }
     /* ต้องอยู่นอก @media — เจ้าหน้าที่ใช้มือถือเป็นหลัก */
-    .sos-tap {
+    .sos-bar-top {
       position: sticky;
       inset-block-start: 0;
       z-index: 50;
     }
-    .sos-tap button {
+    .sos-bar-top button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       inline-size: 100%;
-      min-block-size: 48px;
-      padding: 12px 16px;
+      min-block-size: 56px;
+      padding: 8px 16px;
       border: 0;
       background: var(--sos-bg);
       color: var(--sos-fg);
       font: inherit;
       font-weight: var(--fw-strong);
       cursor: pointer;
+    }
+    .sos-bar-top span {
+      font-size: var(--fs-sm);
+      font-weight: 400;
     }
     .brand {
       display: flex;
@@ -670,6 +679,29 @@ export class AreaShell {
     this.alarm?.start();
     inject(DestroyRef).onDestroy(() => this.alarm?.stop());
   })();
+  /** แถบแดง SOS ค้างทุกหน้าของเจ้าหน้าที่/หัวหน้า ตราบที่ยังมีเรื่องไม่มีคนรับ (✅ 2026-11-27) · ซ่อนเฉพาะตอนอยู่ในหน้าของเรื่องนั้นเอง */
+  protected readonly sosBar = computed(() => {
+    const open = this.alarm?.waiting() ?? [];
+    if (!this.alarm || !open.length) return null;
+    const only = open.length === 1 ? open[0] : null;
+    if (only && this.currentPath() === screenUrl('O09') && this.loc()?.queryParams['id'] === only.id) return null;
+    const oldest = Math.min(...open.map((c) => Date.parse(c.returned_at ?? c.created_at)));
+    const min = Math.max(0, Math.floor((this.alarm.checkedAt() - oldest) / 60_000));
+    const waited: Tr = min ? { th: `รอมา ${min} นาที`, en: `waiting ${min} min` } : { th: 'เพิ่งแจ้ง', en: 'just now' };
+    const tap: Tr = this.alarm.needsTap() ? { th: 'แตะเพื่อเปิดเสียงและดูเรื่อง', en: 'tap to turn on sound and open' } : { th: 'แตะเพื่อดูเรื่อง', en: 'tap to open' };
+    const title: Tr = only
+      ? { th: `SOS บ้านเลขที่ ${only.house_no} ยังไม่มีคนรับ`, en: `SOS at house ${only.house_no}, not accepted` }
+      : { th: `SOS ยังไม่มีคนรับ ${open.length} เรื่อง`, en: `${open.length} SOS not accepted` };
+    return { title, sub: { th: `${waited.th} · ${tap.th}`, en: `${waited.en} · ${tap.en}` }, id: only?.id ?? null };
+  });
+  /** แตะแถบ = ปลดล็อกเสียง + ไปที่เรื่อง (หลายเรื่อง → รายการ) */
+  protected openSos(): void {
+    const bar = this.sosBar();
+    if (!bar) return;
+    void this.alarm?.unlock();
+    const from = this.area === 'head' ? { from: 'L04' } : {};
+    void this.nav.navigate([screenUrl(bar.id ? 'O09' : 'O12')], { queryParams: bar.id ? { id: bar.id } : from });
+  }
   /** แอดมิน/หัวหน้ามีตารางและรายการเยอะ → กว้างกว่าบทบาทอื่น */
   protected readonly isAdmin = this.area === 'admin';
   protected readonly adminNav = ADMIN_NAV;
@@ -759,7 +791,7 @@ export class AreaShell {
   /** ตัวเลขงานค้างข้างเมนู (ตู้ไม่ออนไลน์ · ปัญหา QR · คำขอ) — รีเฟรชทุกครั้งที่เปลี่ยนหน้า */
   protected readonly badges = signal<Record<string, number>>({});
   protected readonly session = inject(Session);
-  protected readonly initial = computed(() => (this.session.me()?.display_name ?? 'A').trim().charAt(0).toUpperCase() || 'A');
+  protected readonly initial = computed(() => initialOf(this.session.me()?.display_name, 'A'));
   protected readonly url = screenUrl;
   private readonly router = inject(Router);
   protected skipToMain(): void {

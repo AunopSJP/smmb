@@ -231,8 +231,8 @@ export class OwnerApi {
     return firstValueFrom(this.http.get<{ data: BoxEvent[]; page: number; per_page: number }>(`/api/v1/boxes/${encodeURIComponent(id)}/events?${q}`));
   }
   /** 201 Sos · 200 { code: SOS_NO_COVERAGE } · 409 SOS_ALREADY_OPEN (body.sos) */
-  startSos(boxId: string): Promise<Sos | { code: 'SOS_NO_COVERAGE'; call: string[] }> {
-    return firstValueFrom(this.http.post<Sos | { code: 'SOS_NO_COVERAGE'; call: string[] }>('/api/v1/sos', { box_id: boxId }));
+  startSos(boxId: string): Promise<Sos | { code: 'SOS_NO_COVERAGE'; call: string[]; admin_alerted: boolean }> {
+    return firstValueFrom(this.http.post<Sos | { code: 'SOS_NO_COVERAGE'; call: string[]; admin_alerted: boolean }>('/api/v1/sos', { box_id: boxId }));
   }
   sos(id: string): Promise<Sos> {
     return firstValueFrom(this.http.get<Sos>(`/api/v1/sos/${encodeURIComponent(id)}`));

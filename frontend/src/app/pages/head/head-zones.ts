@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked, type OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked, type OnInit, linkedSignal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { apiError } from '../../core/api';
-import { HeadApi, type HouseHit, type Member, type Zone, type ZoneDetail, type ZoneHouse } from '../../core/head-api';
+import { HeadApi, type HouseHit, type Member, type Zone, type ZoneDetail, type ZoneHouse, zoneMissing } from '../../core/head-api';
 import { DisplaySettings } from '../../core/display-settings';
 import { I18n, type Tr } from '../../core/i18n';
 import { fmtWhen, fmtWhenSec } from '../../core/time';
@@ -91,7 +91,8 @@ const ZONE_ERROR: Record<string, Tr> = {
       @if (shown().length) {
       }
       @for (z of shown(); track z.id) {
-        <a class="card zone" [class.warn]="!z.officers_count" [routerLink]="url('L07')" [queryParams]="{ zone: z.id }">
+        @let miss = missing(z);
+        <a class="card zone" [class.warn]="miss.length" [routerLink]="url('L07')" [queryParams]="miss.length ? { zone: z.id, tab: miss[0].tab } : { zone: z.id }">
           <span class="title-row">
             <strong>{{ z.name }}</strong>
             @if (z.is_mine) {
@@ -99,10 +100,11 @@ const ZONE_ERROR: Record<string, Tr> = {
             }
             <span class="chip push">{{ z.houses_count }} {{ i18n.t({ th: 'หลัง', en: 'houses' }) }}</span>
           </span>
+          @if (miss.length) {
+            <span class="warn-text small">{{ i18n.t({ th: 'ยังตรวจไม่ได้: ', en: 'Can’t be inspected: ' }) }}{{ missingText(miss) }}</span>
+          }
           @if (z.officers_count) {
             <span class="muted small">{{ z.officers_count }} {{ i18n.t({ th: 'เจ้าหน้าที่', en: 'officers' }) }}</span>
-          } @else {
-            <span class="warn-text small">{{ i18n.t({ th: 'ยังไม่มีเจ้าหน้าที่', en: 'No officers yet' }) }}</span>
           }
           <span class="muted small">{{ i18n.t({ th: 'เวลาตรวจ ', en: 'Patrol ' }) }}{{ windows(z) }}</span>
           @if (!z.area) {
@@ -197,6 +199,11 @@ export class HeadZones implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  protected readonly missing = zoneMissing;
+  protected missingText(m: ReturnType<typeof zoneMissing>): string {
+    return m.map((x) => this.i18n.t(x)).join(' · ');
   }
 
   protected windows(z: Zone): string {
@@ -559,7 +566,12 @@ export class HeadZoneEdit {
   protected readonly display = inject(DisplaySettings);
   protected readonly url = screenUrl;
   protected readonly maxWindows = MAX_WINDOWS;
-  protected readonly tab = signal<'settings' | 'houses' | 'officers'>('settings');
+  /** ?tab= — เปิดแท็บที่ต้องแก้ได้ตรง (จากป้าย "ยังตรวจไม่ได้") */
+  readonly tabParam = input<string | undefined>(undefined, { alias: 'tab' });
+  protected readonly tab = linkedSignal<'settings' | 'houses' | 'officers'>(() => {
+    const t = this.tabParam();
+    return t === 'houses' || t === 'officers' ? t : 'settings';
+  });
   protected readonly mapSelected = signal<string | null>(null);
   protected readonly memberQ = signal('');
   protected readonly savingOfficers = signal(false);
@@ -668,7 +680,7 @@ export class HeadZoneEdit {
       this.zone.set(z);
       if (!this.initialTabSet) {
         this.initialTabSet = true;
-        this.tab.set('houses');
+        this.tab.set((this.tabParam() as 'settings' | 'houses' | 'officers' | undefined) ?? 'houses');
       }
       this.name.set(z.name);
       this.windows.set(z.windows);

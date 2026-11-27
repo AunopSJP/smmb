@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, Injectable, input
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { apiError } from '../../core/api';
-import { I18n } from '../../core/i18n';
+import { I18n, type Tr } from '../../core/i18n';
 import { CODE_ALPHABET, DELIVERY_LIMIT_PER_HOUR, formatCode, normalizeCode } from '../../core/rider-rules';
 import { screenUrl } from '../../screens/registry';
 import { fmtTime } from '../../core/time';
@@ -48,7 +48,7 @@ export class RiderApi {
       return t.box_status === 'active' ? null : 'BOX_SERVICE_CLOSED';
     } catch (err) {
       const e = apiError(err);
-      return e.code ?? (e.status === 0 ? 'OFFLINE' : 'QR_INVALID');
+      return e.code ?? (e.status === 0 ? 'OFFLINE' : e.status === 404 ? 'QR_INVALID' : 'ERROR');
     }
   }
 
@@ -232,6 +232,14 @@ export class RiderCode {
       </div>
     } @else if (loading()) {
       <p class="muted center">{{ i18n.t({ th: 'กำลังเปิดตู้…', en: 'Opening the mailbox…' }) }}</p>
+    } @else if (openError(); as why) {
+      <div class="stack grow">
+        <p role="alert">{{ i18n.t(why) }}</p>
+        <div class="stack push-end">
+          <button type="button" class="btn" (click)="load()">{{ i18n.t({ th: 'ลองอีกครั้ง', en: 'Try again' }) }}</button>
+          <a class="btn secondary" [routerLink]="url('R01')">{{ i18n.t({ th: 'พิมพ์รหัสใต้ QR', en: 'Type the code' }) }}</a>
+        </div>
+      </div>
     } @else {
       <div class="stack grow">
         <p>{{ i18n.t({ th: 'สแกน QR หน้าตู้ด้วยกล้องมือถือ หรือพิมพ์รหัสใต้ QR', en: 'Scan the QR on the box with your phone camera, or type the code under it' }) }}</p>
@@ -288,14 +296,26 @@ export class RiderDeliver implements OnInit {
   protected readonly expired = signal(false);
   protected readonly failed = signal(false);
 
-  /** GET /public/qr/:token */
+  /** เปิดตู้ไม่ได้เพราะเน็ต/ถูกจำกัดความถี่/server ผิดพลาด → อยู่หน้าเดิม (ไม่ใช่ "QR ไม่ถูกต้อง") */
+  protected readonly openError = signal<Tr | null>(null);
+
   async ngOnInit(): Promise<void> {
+    await this.load();
+  }
+
+  /** GET /public/qr/:token */
+  protected async load(): Promise<void> {
     const token = this.qr();
     if (!token) return; // มาจาก R01 (มี ticket แล้ว) หรือเปิดตรง ๆ
+    this.openError.set(null);
     this.loading.set(true);
     const code = await this.api.open(`/api/v1/public/qr/${encodeURIComponent(token)}`);
     this.loading.set(false);
-    if (code) void this.router.navigateByUrl(screenUrl(ERROR_SCREEN[code] ?? 'R03'), { replaceUrl: true });
+    if (!code) return;
+    if (ERROR_SCREEN[code]) void this.router.navigateByUrl(screenUrl(ERROR_SCREEN[code]), { replaceUrl: true });
+    else if (code === 'OFFLINE') this.openError.set({ th: 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ ตรวจสัญญาณแล้วลองอีกครั้ง', en: 'No connection — check your signal and try again' });
+    else if (code === 'RATE_LIMITED' || code === 'CODE_ATTEMPTS_EXCEEDED') this.openError.set({ th: 'ลองบ่อยเกินไป รอสักครู่แล้วลองอีกครั้ง', en: 'Too many tries — wait a moment and try again' });
+    else this.openError.set({ th: 'เปิดตู้ไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t open the mailbox — try again' });
   }
 
   /** POST /public/deliveries { delivery_ticket } — กันกดซ้ำระหว่างส่ง */

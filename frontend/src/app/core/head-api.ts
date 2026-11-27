@@ -65,6 +65,8 @@ export interface Zone {
   windows: [string, string][];
   tz: string;
   houses_count: number;
+  /** คำขอเพิ่มบ้านที่รอเจ้าของยืนยัน */
+  pending_count: number;
   officers_count: number;
   /** พื้นที่ที่โซนดูแล (null = ยังไม่ตั้ง → ค้นบ้านไม่ได้) */
   area: { province: string; district: string; subdistrict: string | null } | null;
@@ -207,4 +209,19 @@ export class HeadApi {
       total: Number(r.headers.get('X-Total-Count')) || (r.body?.length ?? 0),
     }));
   }
+}
+
+/** โซนยังตรวจไม่ได้เพราะขาดอะไร (✅ 2026-11-27) · ว่าง = พร้อมตรวจ · tab = แท็บในหน้า L07 ที่ไปแก้ */
+export function zoneMissing(z: Pick<Zone, 'windows' | 'officers_count' | 'houses_count' | 'pending_count'>): { tab: 'settings' | 'officers' | 'houses'; th: string; en: string }[] {
+  const out: ReturnType<typeof zoneMissing> = [];
+  if (!z.windows.length) out.push({ tab: 'settings', th: 'ไม่มีเวลาตรวจ', en: 'no patrol hours' });
+  if (!z.officers_count) out.push({ tab: 'officers', th: 'ไม่มีเจ้าหน้าที่', en: 'no officers' });
+  if (!z.houses_count) {
+    out.push(
+      z.pending_count
+        ? { tab: 'houses', th: `รอเจ้าของยืนยัน ${z.pending_count} หลัง`, en: `${z.pending_count} awaiting owners` }
+        : { tab: 'houses', th: 'ไม่มีบ้าน', en: 'no houses' },
+    );
+  }
+  return out;
 }

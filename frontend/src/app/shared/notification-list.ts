@@ -39,6 +39,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
   box_released: { icon: 'info', tone: 'warn' },
   low_battery: { icon: 'alert', tone: 'warn' },
   qr_fake: { icon: 'scan', tone: 'danger' },
+  sos_no_coverage: { icon: 'alert', tone: 'danger' },
   member_pending: { icon: 'user', tone: '' },
   member_approved: { icon: 'check', tone: 'ok' },
   member_rejected: { icon: 'info', tone: '' },

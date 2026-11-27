@@ -14,6 +14,7 @@ import { PageHeader } from '../../shared/page-header';
 import { StepProgress } from '../../shared/step-progress';
 import { Steps, type Step } from '../../shared/steps';
 import { ContactCard } from '../../shared/contact-card';
+import { EnablePush } from '../../shared/enable-push';
 import { PasswordField, TermsCheck } from './auth-parts';
 import { addressStepValid, detailsStepValid, emptyHouseProfile, houseProfilePayload, houseProfileValid } from '../../shared/house-fields';
 import { SignupAddressStep, SignupDetailsStep, SignupHouseReview } from '../../shared/signup-owner-steps';
@@ -526,7 +527,7 @@ export class AuthNameBox {
 
 @Component({
   selector: 'app-auth-owner-done',
-  imports: [Icon],
+  imports: [Icon, RouterLink, EnablePush, ContactCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pad done" role="status">
@@ -535,14 +536,21 @@ export class AuthNameBox {
         <h1>{{ i18n.t({ th: 'ตู้เป็นของคุณแล้ว', en: 'The mailbox is yours' }) }}</h1>
         <p>{{ boxInfo()?.name }} · {{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ boxInfo()?.house_no }}</p>
       </div>
-      <p class="summary">
-        <strong>{{ i18n.t({ th: 'ต่อไป', en: 'Next' }) }}</strong><br />
-        <span class="small">{{ i18n.t({ th: 'รอหัวหน้าหน่วยงานเพิ่มบ้านเข้าโซน ระหว่างนี้หน้าหลักจะขึ้นว่า "ยังไม่มีเจ้าหน้าที่ดูแล"', en: 'An agency head will add your house to a zone. Until then your home screen says “No officer yet”' }) }}</span>
-      </p>
-      @if (boxInfo(); as b) {
-        <p class="small">{{ i18n.t({ th: 'ตู้ ', en: 'Mailbox ' }) }}{{ b.house_no }}{{ b.name ? ' · ' + b.name : '' }}</p>
-      }
-      <button type="button" class="btn on-color push-end" (click)="home()">{{ i18n.t({ th: 'ไปหน้าหลัก', en: 'Go to home' }) }}</button>
+      <section class="summary">
+        <strong>{{ i18n.t({ th: 'อีก 2 อย่างก่อนบ้านจะได้รับการดูแล', en: '2 more steps before your house is looked after' }) }}</strong>
+        <ol>
+          <li>
+            <span class="small">{{ i18n.t({ th: 'เปิดแจ้งเตือน จะได้รู้เมื่อมีคำขอและเมื่อเจ้าหน้าที่มาตรวจ', en: 'Turn on notifications to hear about requests and visits' }) }}</span>
+            <app-enable-push buttonClass="btn on-color" />
+          </li>
+          <li>
+            <span class="small">{{ i18n.t({ th: 'เมื่อหน่วยงานส่งคำขอดูแลบ้าน ต้องกด "ยอมรับ" ที่หน้าหลัก ก่อนหน้านั้นจะยังไม่มีเจ้าหน้าที่ดูแลและรับ SOS', en: 'When an agency asks to look after your house, tap “Accept” on the home screen. Until then no officer covers it or receives your SOS' }) }}</span>
+            <a class="btn outline-light" [routerLink]="url('H16')">{{ i18n.t({ th: 'ดูหน่วยงานใกล้บ้าน', en: 'See agencies near you' }) }}</a>
+          </li>
+        </ol>
+      </section>
+      <app-contact-card [label]="{ th: 'ติดต่อผู้ดูแลระบบ', en: 'Contact the admin' }" [contact]="support()" />
+      <button type="button" class="btn outline-light push-end" (click)="home()">{{ i18n.t({ th: 'ไปหน้าหลัก', en: 'Go to home' }) }}</button>
     </div>
   `,
   styles: `
@@ -561,9 +569,28 @@ export class AuthNameBox {
     .on-color {
       color: var(--success-text) !important;
     }
+    ol {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin: 10px 0 0;
+      padding-inline-start: 20px;
+    }
+    li > * {
+      margin-block-end: 8px;
+    }
+    li > span {
+      display: block;
+    }
+    li > a {
+      display: flex;
+    }
   `,
 })
 export class AuthOwnerDone implements OnInit {
+  protected readonly url = screenUrl;
+  /** ช่องทางติดต่อผู้ดูแลระบบ (GET /support) */
+  protected readonly support = signal('');
   protected readonly i18n = inject(I18n);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
@@ -573,6 +600,8 @@ export class AuthOwnerDone implements OnInit {
   async ngOnInit(): Promise<void> {
     const boxes = await firstValueFrom(this.http.get<BoxSummary[]>('/api/v1/boxes')).catch(() => []);
     this.boxInfo.set(boxes.find((b) => b.id === this.box()) ?? boxes[0] ?? null);
+    const s = await firstValueFrom(this.http.get<{ contact: string | null }>('/api/v1/support')).catch(() => null);
+    this.support.set(s?.contact ?? '');
   }
 
   protected home(): void {

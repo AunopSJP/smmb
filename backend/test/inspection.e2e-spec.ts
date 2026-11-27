@@ -234,7 +234,14 @@ describe('Inspections (e2e)', () => {
 
     const fake = b.qr[0].url.replace(/-[A-Z2-9]{6}$/, '-AAAAAA');
     expect((await as(officer.cookie).post('/api/v1/inspections', { qr_text: fake }).expect(422)).body.code).toBe('QR_NOT_SYSTEM');
-    expect((await as(officer.cookie).post('/api/v1/inspections', { qr_text: 'https://menu.example.com/x' }).expect(422)).body.code).toBe('QR_NOT_SYSTEM');
+    const link = `https://menu.example.com/${b.box_id}`;
+    for (let i = 0; i < 2; i++) {
+      expect((await as(officer.cookie).post('/api/v1/inspections', { qr_text: link }).expect(422)).body).toMatchObject({ code: 'QR_NOT_SYSTEM', admin_alerted: true });
+    }
+    // ลิงก์เดิมแจ้งครั้งเดียว · บาร์โค้ด/ข้อความทั่วไปไม่แจ้ง
+    expect((await as(officer.cookie).post('/api/v1/inspections', { qr_text: 'TH0123456789' }).expect(422)).body).toMatchObject({ code: 'QR_NOT_SYSTEM', admin_alerted: false });
+    const external = await pool.query(`SELECT 1 FROM app.notification_tb WHERE user_id = $1 AND type = 'qr_fake' AND data->>'raw' = $2`, [admin.id, link]);
+    expect(external.rowCount).toBe(1);
     const alert = await pool.query(`SELECT data FROM app.notification_tb WHERE user_id = $1 AND type = 'qr_fake' AND data->>'box_id' = $2`, [admin.id, b.box_id]);
     expect(alert.rowCount).toBe(1);
     const health = await pool.query(`SELECT health FROM app.box_qr_code_tb WHERE box_id = $1 AND slot = '1'`, [b.box_id]);

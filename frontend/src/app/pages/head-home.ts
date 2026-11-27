@@ -3,8 +3,8 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, u
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { DisplaySettings } from '../core/display-settings';
-import { HeadApi, showGroupCode } from '../core/head-api';
-import { I18n } from '../core/i18n';
+import { HeadApi, showGroupCode, zoneMissing } from '../core/head-api';
+import { I18n, type Tr } from '../core/i18n';
 import { liveRefresh } from '../core/live-refresh';
 import { fmtWhenSec } from '../core/time';
 import { screenUrl } from '../screens/registry';
@@ -81,6 +81,17 @@ interface RecentLog {
           <span class="big-n">{{ today() ? (today()!.sos_open) : '—' }}</span>
         </a>
 
+        @if (notReady().length) {
+          <a class="big warn" [routerLink]="url('L06')">
+            <span class="big-ic"><app-icon name="alert" [size]="26" /></span>
+            <span class="grow">
+              <b>{{ i18n.t({ th: 'โซนยังตรวจไม่ได้', en: 'Zones not ready' }) }}</b>
+              <span>{{ i18n.t({ th: 'กดเพื่อดูว่าขาดอะไร', en: 'Open to see what is missing' }) }}</span>
+            </span>
+            <span class="big-n">{{ notReady().length }}</span>
+          </a>
+        }
+
         @if ((today()?.members_pending ?? 0) > 0) {
           <a class="big" [routerLink]="url('L05')">
             <span class="big-ic"><app-icon name="user" [size]="26" /></span>
@@ -145,6 +156,19 @@ interface RecentLog {
 
       </div>
       <div class="col">
+      @if (notReady().length) {
+        <nav class="list easy-hide" [attr.aria-label]="i18n.t({ th: 'โซนยังตรวจไม่ได้', en: 'Zones not ready' })">
+          @for (n of notReady(); track n.id) {
+            <a class="row zone" [routerLink]="url('L07')" [queryParams]="{ zone: n.id, tab: n.tab }">
+              <span class="grow">
+                <strong>{{ n.name }}</strong>
+                <span class="small block not-ready">{{ i18n.t({ th: 'ยังตรวจไม่ได้: ', en: 'Can’t be inspected: ' }) }}{{ i18n.t(n.why) }}</span>
+              </span>
+              <app-icon name="chevronRight" [size]="18" />
+            </a>
+          }
+        </nav>
+      }
       <div class="sec easy-hide">
         <h2 class="section-title">{{ i18n.t({ th: 'โซนวันนี้', en: 'Zones today' }) }}</h2>
         @if (windowsText()) {
@@ -181,6 +205,11 @@ interface RecentLog {
     </div>
   `,
   styles: `
+    .not-ready {
+      display: block;
+      color: var(--orange);
+      font-weight: var(--fw-strong);
+    }
     /* ≥1280px (คอม): ซ้าย = ตัวเลข/ตัวกรอง/ปุ่ม · ขวา = โซนวันนี้/บันทึกล่าสุด · ต่ำกว่านั้นเรียงเหมือนเดิม (display: contents) */
     .cols,
     .col {
@@ -447,6 +476,20 @@ export class HeadHome {
   protected readonly filter = signal<'mine' | 'all'>('all');
   /** เลือกโซนเดียว ('' = ใช้ตัวกรอง โซนของฉัน/ทุกโซน) */
   protected readonly zoneId = signal('');
+  /** โซนของหน่วยงานที่ยังตรวจไม่ได้ (ทุกโซน ไม่ขึ้นกับตัวกรอง) */
+  protected readonly notReady = signal<{ id: string; name: string; tab: string; why: Tr }[]>([]);
+  private async loadReadiness(): Promise<void> {
+    // โหลดไม่ได้ = คงค่าเดิมไว้
+    const zones = await this.api.zones('all').catch(() => null);
+    if (!zones) return;
+    this.zoneOptions.set(zones.map((x) => ({ id: x.id, name: x.name })));
+    this.notReady.set(
+      zones.flatMap((z) => {
+        const m = zoneMissing(z);
+        return m.length ? [{ id: z.id, name: z.name, tab: m[0].tab, why: { th: m.map((x) => x.th).join(' · '), en: m.map((x) => x.en).join(' · ') } }] : [];
+      }),
+    );
+  }
   /** รายชื่อโซนทั้งหมดไว้ให้เลือก (ไม่เปลี่ยนตามตัวกรอง) */
   protected readonly zoneOptions = signal<{ id: string; name: string }[]>([]);
   protected readonly today = signal<Today | null>(null);
@@ -461,7 +504,7 @@ export class HeadHome {
 
   constructor() {
     void this.api.loadAgency().catch(() => undefined);
-    void this.api.zones('all').then((z) => this.zoneOptions.set(z.map((x) => ({ id: x.id, name: x.name })))).catch(() => undefined);
+    void this.loadReadiness();
     effect(() => {
       const f = this.zoneId() || this.filter();
       untracked(() => void this.load(f));
@@ -500,7 +543,7 @@ export class HeadHome {
   }
 
   private async refreshAll(): Promise<void> {
-    await this.load(this.zoneId() || this.filter());
+    await Promise.all([this.load(this.zoneId() || this.filter()), this.loadReadiness()]);
   }
 
   private async load(f: string): Promise<void> {

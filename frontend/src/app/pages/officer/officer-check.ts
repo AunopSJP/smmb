@@ -21,6 +21,8 @@ const WAKE_TIMEOUT_S = 30;
 const POLL_MS = 1000;
 /** ตู้อ่าน QR ประจำตัวผ่าน → ค้าง O06 ให้ได้ยินเสียง/เห็นข้อความก่อนไป O08 (✅ ผู้ใช้สั่ง 2026-11-25) */
 const SCANNED_HOLD_MS = 1200;
+/** เตือนเมื่อเวลาของงานตรวจเหลือเท่านี้ (วินาที) */
+const JOB_WARN_S = 15;
 
 const go = (router: Router, code: string, query?: Record<string, string | number>) =>
   void router.navigate([screenUrl(code)], { queryParams: query, replaceUrl: code !== 'O02' });
@@ -38,7 +40,7 @@ async function startInspection(api: InspectionApi, router: Router, body: Paramet
     const e = apiError(err);
     switch (e.code) {
       case 'QR_NOT_SYSTEM':
-        go(router, 'O04');
+        go(router, 'O04', e.body['admin_alerted'] === true ? { alerted: 1 } : {});
         return null;
       case 'NOT_IN_ZONE':
         go(router, 'O04-b', { reason: 'zone' });
@@ -485,8 +487,12 @@ export class OfficerQrCondition implements OnInit {
           {{ i18n.t({ th: 'อาจมีคนแปะ QR ปลอมทับไว้ อย่าสแกนด้วยกล้องมือถือธรรมดา · ไม่ได้บันทึกการตรวจ', en: 'Someone may have stuck a fake QR on top. Don’t scan it with the normal camera · not recorded' }) }}
         </p>
         <p class="info-box">
-          <strong class="ok-text"><app-icon name="check" [size]="14" /> {{ i18n.t({ th: 'แจ้งผู้ดูแลระบบแล้วอัตโนมัติ', en: 'Admin alerted automatically' }) }}</strong><br />
-          <span class="muted easy-hide">{{ i18n.t({ th: 'ควรทำ: ถ่ายภาพตู้ไว้เป็นหลักฐาน แล้วแจ้งหัวหน้า ระบบบันทึกและแจ้งผู้ดูแลให้แล้ว · ถ้าเป็น QR หน้าตู้ ลองพิมพ์รหัสใต้ QR แทน', en: 'What to do: photograph the box as evidence and tell your head. The system has logged it and alerted the admin · if this is the mailbox QR, try typing the code under it' }) }}</span>
+          @if (alerted()) {
+            <strong class="ok-text"><app-icon name="check" [size]="14" /> {{ i18n.t({ th: 'แจ้งผู้ดูแลระบบแล้วอัตโนมัติ', en: 'Admin alerted automatically' }) }}</strong>
+          } @else {
+            <strong>{{ i18n.t({ th: 'บันทึกการสแกนแล้ว · ถ้าสงสัยให้แจ้งหัวหน้า', en: 'The scan is recorded · tell your head if it looks suspicious' }) }}</strong>
+          }
+          <span class="muted easy-hide next-step">{{ i18n.t({ th: 'ถ้าเป็น QR ที่ติดอยู่หน้าตู้: ถ่ายภาพไว้เป็นหลักฐาน แจ้งหัวหน้า แล้วลองพิมพ์รหัสใต้ QR แทน', en: 'If this is the sticker on the mailbox: photograph it, tell your head, and try typing the code under it' }) }}</span>
         </p>
       </div>
       <div class="stack push-end">
@@ -499,6 +505,10 @@ export class OfficerQrCondition implements OnInit {
     .danger-text {
       color: var(--sos);
     }
+    .next-step {
+      display: block;
+      margin-block-start: 4px;
+    }
     .tech {
       font-size: var(--fs-xs);
       color: var(--text-muted);
@@ -506,6 +516,8 @@ export class OfficerQrCondition implements OnInit {
   `,
 })
 export class OfficerNotSystem {
+  /** ?alerted=1 — server ส่งแจ้งเตือนถึงแอดมินจริง */
+  readonly alerted = input<string>();
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
 }
@@ -598,8 +610,12 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
       } @else if (noResponse()) {
         <div class="result">
           <span class="big-icon warn" aria-hidden="true">!</span>
-          <h1>{{ expiredJob() ? i18n.t({ th: 'งานตรวจหมดเวลา', en: 'The inspection timed out' }) : i18n.t({ th: 'ตู้ไม่ตอบ', en: 'The mailbox isn’t responding' }) }}</h1>
-          <p class="muted small">{{ expiredJob() ? i18n.t({ th: 'ครบ 60 วินาทีแล้ว — กลับไปสแกน QR หน้าตู้ใหม่', en: '60 seconds passed — scan the front QR again' }) : i18n.t({ th: 'รอมา 30 วินาทีแล้ว ได้ยินเสียงจากตู้ไหม?', en: 'Waited 30 seconds. Did you hear the box beep?' }) }}</p>
+          @if (problemParam()) {
+            <h1>{{ i18n.t({ th: 'แจ้งปัญหาตู้', en: 'Report a box problem' }) }}</h1>
+          } @else {
+            <h1>{{ i18n.t({ th: 'ตู้ไม่ตอบ', en: 'The mailbox isn’t responding' }) }}</h1>
+            <p class="muted small">{{ i18n.t({ th: 'รอมา 30 วินาทีแล้ว ได้ยินเสียงจากตู้ไหม?', en: 'Waited 30 seconds. Did you hear the box beep?' }) }}</p>
+          }
           @if (ins()?.box; as b) {
             <p class="ok-text small strong">{{ i18n.t({ th: 'บ้านเลขที่ ', en: 'House ' }) }}{{ b.house_no }} · {{ b.name }}</p>
           }
@@ -615,7 +631,7 @@ const PROBLEMS: { v: ProblemReason; label: Tr }[] = [
         }
         <p class="muted small easy-hide">{{ i18n.t({ th: 'ระบบจะแจ้งเจ้าของบ้านและผู้ดูแลระบบให้', en: 'We will tell the owner and the admin' }) }}</p>
         <div class="stack push-end">
-          <button type="button" class="btn orange" [disabled]="busy()" (click)="report()">{{ i18n.t({ th: 'แจ้งปัญหาตู้', en: 'Report a box problem' }) }}</button>
+          <button type="button" class="btn orange" [disabled]="busy() || !problem()" (click)="report()">{{ i18n.t({ th: 'แจ้งปัญหาตู้', en: 'Report a box problem' }) }}</button>
           <a class="btn secondary" [routerLink]="url('O02')">{{ i18n.t({ th: 'สแกนปลุกตู้ใหม่', en: 'Scan to wake it again' }) }}</a>
           <a class="btn secondary" [routerLink]="url('O01')">{{ i18n.t({ th: 'ยกเลิก · กลับหน้าสรุป', en: 'Cancel · back to summary' }) }}</a>
         </div>
@@ -695,8 +711,8 @@ export class OfficerWake implements OnInit {
   readonly reasonParam = input<string>(undefined, { alias: 'reason' });
   protected readonly ins = signal<Inspection | null>(null);
   protected readonly noResponse = signal(false);
-  protected readonly expiredJob = signal(false);
-  protected readonly problem = signal<ProblemReason>('no_response');
+  /** null = ยังไม่เลือก (มาจากหน้าหมดเวลา — ห้ามเลือกเหตุผลแทนเจ้าหน้าที่) */
+  protected readonly problem = signal<ProblemReason | null>('no_response');
   protected readonly reported = signal(false);
   protected readonly busy = signal(false);
   protected readonly failed = signal(false);
@@ -716,7 +732,7 @@ export class OfficerWake implements OnInit {
       this.noResponse.set(true);
       const r = this.reasonParam();
       if (PROBLEMS.some((p) => p.v === r)) this.problem.set(r as ProblemReason);
-      else this.problem.set('no_scan');
+      else this.problem.set(r === 'choose' ? null : 'no_scan');
       // ยังโหลดงานเพื่อแสดงบ้านเลขที่ — ไม่ให้แจ้งปัญหาผิดบ้าน
       void this.api.get(this.id()).then((ins) => this.ins.set(ins)).catch(() => undefined);
       return;
@@ -738,8 +754,7 @@ export class OfficerWake implements OnInit {
         this.reported.set(true);
       } else if (ins.status === 'expired') {
         this.stop();
-        this.expiredJob.set(true);
-        this.noResponse.set(true);
+        go(this.router, 'O06-c', { id: this.id(), reason: 'expired' });
       } else if (this.waited() >= WAKE_TIMEOUT_S) {
         this.stop();
         this.noResponse.set(true);
@@ -750,10 +765,12 @@ export class OfficerWake implements OnInit {
   }
 
   protected async report(): Promise<void> {
+    const reason = this.problem();
+    if (!reason) return;
     this.busy.set(true);
     this.failed.set(false);
     try {
-      await this.api.problem(this.id(), this.problem());
+      await this.api.problem(this.id(), reason);
       this.reported.set(true);
     } catch {
       this.failed.set(true);
@@ -814,6 +831,15 @@ interface WakeLockSentinelLike {
 
 
       @if (!scanned()) {
+      @if (jobLeft(); as j) {
+        <div class="job" [class.low]="j <= jobWarn">
+          <span>{{ i18n.t({ th: 'เวลาตรวจเหลือ ', en: 'Inspection time left: ' }) }}<strong>{{ j }}</strong>{{ i18n.t({ th: ' วินาที', en: ' s' }) }}</span>
+          <progress max="60" [value]="j" [attr.aria-label]="i18n.t({ th: 'เวลาตรวจที่เหลือ', en: 'Inspection time left' })"></progress>
+          @if (j <= jobWarn) {
+            <span role="alert">{{ i18n.t({ th: 'ใกล้หมดเวลา — ยื่นจอให้กล้องตู้ตอนนี้', en: 'Almost out of time — show the screen to the camera now' }) }}</span>
+          }
+        </div>
+      }
       <div class="countdown" aria-live="off">
         <span class="sec">{{ left() }}</span>
         <span>
@@ -887,6 +913,25 @@ interface WakeLockSentinelLike {
       font-size: var(--fs-xs);
       text-decoration: underline;
       cursor: pointer;
+    }
+    .job {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-self: stretch;
+      font-size: var(--fs-sm);
+      progress {
+        inline-size: 100%;
+        block-size: 6px;
+        accent-color: var(--brand);
+      }
+    }
+    .job.low {
+      color: var(--warn);
+      font-weight: var(--fw-strong);
+      progress {
+        accent-color: var(--orange);
+      }
     }
     .countdown {
       display: flex;
@@ -970,6 +1015,9 @@ export class OfficerBadge implements OnInit {
   protected readonly scanned = signal(false);
   private holdTimer: ReturnType<typeof setTimeout> | null = null;
   protected readonly left = signal(15);
+  /** เวลาที่เหลือของงานตรวจ (คนละตัวกับอายุ QR ประจำตัว) · 0 = ยังไม่รู้ */
+  protected readonly jobLeft = signal(0);
+  protected readonly jobWarn = JOB_WARN_S;
   /** เวลาหมดอายุจริงจาก server (โหมดละเอียด) */
   private readonly expiresIso = signal<string | null>(null);
   protected readonly expText = computed(() => {
@@ -1005,8 +1053,10 @@ export class OfficerBadge implements OnInit {
       const ins = await this.api.get(this.id()).catch(() => null);
       if (!ins || this.scanned()) return;
       this.ins.set(ins);
+      this.jobLeft.set(Math.min(60, Math.max(0, Math.ceil((Date.parse(ins.expires_at) - Date.now()) / 1000))));
       if (ins.status === 'passed') this.onScanned();
-      else if (ins.status === 'failed' || ins.status === 'expired') this.leave('O06-c');
+      else if (ins.status === 'failed') this.leave('O06-c');
+      else if (ins.status === 'expired') this.leave('O06-c', { reason: 'expired' });
       else if (ins.status === 'box_problem') this.leave('O01');
     };
     void tick();
@@ -1079,9 +1129,9 @@ export class OfficerBadge implements OnInit {
     this.holdTimer = setTimeout(() => this.leave('O08'), SCANNED_HOLD_MS);
   }
 
-  private leave(code: string): void {
+  private leave(code: string, query: Record<string, string> = {}): void {
     this.stop();
-    go(this.router, code, { id: this.id() });
+    go(this.router, code, { id: this.id(), ...query });
   }
 
   private stop(): void {
@@ -1103,10 +1153,22 @@ export class OfficerBadge implements OnInit {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pad">
+      @if (reason() === 'expired') {
+      <div class="result">
+        <span class="big-icon warn" aria-hidden="true">!</span>
+        <h1>{{ i18n.t({ th: 'หมดเวลา ยังไม่ได้บันทึกการตรวจ', en: 'Time ran out — nothing was recorded' }) }}</h1>
+        <p class="muted small">{{ i18n.t({ th: 'สแกน QR หน้าตู้ใหม่เพื่อเริ่มอีกครั้ง', en: 'Scan the front QR to start again' }) }}</p>
+      </div>
+      <div class="stack push-end">
+        <a class="btn" [routerLink]="url('O02')">{{ i18n.t({ th: 'สแกน QR หน้าตู้ใหม่', en: 'Scan the front QR again' }) }}</a>
+        <a class="btn secondary" [routerLink]="url('O05')" [queryParams]="{ id: id(), problem: 1, reason: 'choose' }">{{ i18n.t({ th: 'ตู้มีปัญหา · แจ้งปัญหาตู้', en: 'Something is wrong with the box' }) }}</a>
+        <a class="btn secondary" [routerLink]="url('O01')">{{ i18n.t({ th: 'กลับหน้าสรุป', en: 'Back to summary' }) }}</a>
+      </div>
+      } @else {
       <div class="result">
         <span class="big-icon danger" aria-hidden="true">!</span>
         <h1>{{ i18n.t({ th: 'ตู้สแกนไม่ผ่าน', en: 'The box couldn’t scan your QR' }) }}</h1>
-        <p class="muted small">{{ i18n.t({ th: 'ตู้อาจมีปัญหา เช่น กล้องสกปรก หรือหมดเวลาก่อนอ่านได้', en: 'The box may have a problem, like a dirty camera, or time ran out' }) }}</p>
+        <p class="muted small">{{ i18n.t({ th: 'ตู้อาจมีปัญหา เช่น กล้องสกปรก', en: 'The box may have a problem, like a dirty camera' }) }}</p>
         <p class="info-box muted">
           {{ i18n.t({ th: 'บ้านนี้ยังไม่นับว่าตรวจแล้ว', en: 'This house is not counted as checked' }) }}<br />
           {{ i18n.t({ th: 'กดแจ้งปัญหา ระบบจะบอกเจ้าของบ้านและผู้ดูแลระบบให้', en: 'Report it and we’ll tell the owner and the admin' }) }}
@@ -1116,6 +1178,7 @@ export class OfficerBadge implements OnInit {
         <a class="btn orange" [routerLink]="url('O05')" [queryParams]="{ id: id(), problem: 1, reason: 'scan_failed_3' }">{{ i18n.t({ th: 'แจ้งปัญหาตู้', en: 'Report a box problem' }) }}</a>
         <a class="btn secondary" [routerLink]="url('O02')">{{ i18n.t({ th: 'สแกนใหม่ / หลังถัดไป', en: 'Scan again / next house' }) }}</a>
       </div>
+      }
     </div>
   `,
   styles: `
@@ -1127,6 +1190,8 @@ export class OfficerBadge implements OnInit {
   `,
 })
 export class OfficerBadgeFailed implements OnInit {
+  /** ?reason=expired = งานตรวจหมดเวลา (ไม่ใช่สแกนไม่ผ่าน 3 ครั้ง) */
+  readonly reason = input<string>();
   protected readonly i18n = inject(I18n);
   private readonly api = inject(InspectionApi);
   protected readonly url = screenUrl;
