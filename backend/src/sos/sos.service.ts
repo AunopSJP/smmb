@@ -252,7 +252,8 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
           : `c.status IN ('closed','cancelled') AND c.created_date > now() - interval '30 days'`;
     const { rows } = await this.pool.query<CaseRow>(
       `${CASE_SQL}
-       WHERE EXISTS (SELECT 1 FROM app.sos_recipient_tb r WHERE r.sos_case_id = c.sos_case_id AND r.user_id = $1)
+       WHERE EXISTS (SELECT 1 FROM app.sos_recipient_tb r
+                     WHERE r.sos_case_id = c.sos_case_id AND r.user_id = $1 AND ${eligibleSql('r.user_id', 'r.agency_id')})
          AND ${filter}
        ORDER BY c.created_date DESC LIMIT 50`,
       [userId],
@@ -280,7 +281,8 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
   /** รับเรื่อง — กดพร้อมกันหลายคน คนแรกได้ (UPDATE … WHERE status = 'open') */
   async accept(userId: string, id: string): Promise<SosCardDto> {
     const r = await this.pool.query<{ agency_id: string }>(
-      `SELECT agency_id FROM app.sos_recipient_tb WHERE sos_case_id = $1 AND user_id = $2`,
+      `SELECT r.agency_id FROM app.sos_recipient_tb r
+       WHERE r.sos_case_id = $1 AND r.user_id = $2 AND ${eligibleSql('r.user_id', 'r.agency_id')}`,
       [id, userId],
     );
     if (!r.rows[0]) throw new NotFoundException();
@@ -542,11 +544,10 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async isRecipient(id: string, userId: string): Promise<boolean> {
-    // หน่วยงานถูกระงับ → ไม่เห็นเรื่องผ่านแถวผู้รับเดิม (แม้ยังเข้า route ได้ด้วยบทบาทเจ้าของบ้าน)
+    // หมดสิทธิ์แล้ว (eligibleSql) → ไม่เห็นเรื่องผ่านแถวผู้รับเดิม แม้ยังเข้า route ได้ด้วยบทบาทเจ้าของบ้าน
     const { rows } = await this.pool.query(
       `SELECT 1 FROM app.sos_recipient_tb r
-       JOIN app.agency_tb a ON a.agency_id = r.agency_id AND a.status <> 'suspended'
-       WHERE r.sos_case_id = $1 AND r.user_id = $2`,
+       WHERE r.sos_case_id = $1 AND r.user_id = $2 AND ${eligibleSql('r.user_id', 'r.agency_id')}`,
       [id, userId],
     );
     return rows.length > 0;

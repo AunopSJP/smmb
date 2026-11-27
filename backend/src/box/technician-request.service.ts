@@ -121,6 +121,7 @@ export class TechnicianRequestService {
 
   /** เจ้าของยืนยันผลงานช่าง — ok = จบงาน · still_broken = เปิดคำขอเดิมใหม่ให้แอดมินนัดต่อ */
   async confirm(ownerId: string, boxId: string, id: string, result: TechnicianOwnerResult): Promise<TechnicianRequestDto> {
+    // ต้องยังเป็นเจ้าของตู้อยู่ (เงื่อนไขเดียวกับ cancel) — คืนตู้แล้ว = 404
     const { rows } = await this.pool.query<{ id: string }>(
       `UPDATE app.technician_request_tb tr SET
          owner_result = $4,
@@ -129,9 +130,14 @@ export class TechnicianRequestService {
          scheduled_date = CASE WHEN $4 = 'still_broken' THEN NULL ELSE tr.scheduled_date END,
          admin_note = CASE WHEN $4 = 'still_broken' THEN coalesce(tr.admin_note, '') ELSE tr.admin_note END
        WHERE tr.technician_request_id = $1 AND tr.box_id = $2 AND tr.owner_user_id = $3 AND tr.status = 'done'
+         AND EXISTS (SELECT 1 FROM app.box_tb own WHERE own.box_id = tr.box_id AND own.owner_user_id = $3)
        RETURNING tr.technician_request_id::text AS id`,
       [id, boxId, ownerId, result],
-    );
+    ).catch((error: unknown) => {
+      // "ยังมีปัญหา" ขณะมีคำขออื่นเปิดอยู่ → เปิดซ้อนไม่ได้
+      if (isUniqueViolation(error)) throw new ConflictException({ code: 'TECHNICIAN_REQUEST_ALREADY_OPEN' });
+      throw error;
+    });
     if (!rows[0]) throw new NotFoundException();
     const { rows: detail } = await this.pool.query<RequestRow>(`${this.selectSql()} WHERE tr.technician_request_id = $1`, [id]);
     if (result === 'still_broken') {
