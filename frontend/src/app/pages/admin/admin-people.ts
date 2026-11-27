@@ -19,6 +19,7 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
   pending: { th: 'รออนุมัติ', en: 'Pending' },
   approved: { th: 'อนุมัติแล้ว', en: 'Approved' },
   rejected: { th: 'ไม่อนุมัติ', en: 'Rejected' },
+  suspended: { th: 'ระงับอยู่', en: 'Suspended' },
 };
 
 // ── D02 · หน่วยงานรออนุมัติ ───────────────────────────────────
@@ -224,7 +225,23 @@ export class AdminAgencyRequests implements OnInit {
             </span>
             <span class="small easy-hide">{{ heads(a) }}</span>
             <span class="small code easy-hide">{{ a.group_code ? code(a.group_code) : '—' }}</span>
-            <span><span class="chip" [class.ok]="a.status === 'approved'" [class.warn]="a.status === 'pending'">{{ i18n.t(status[a.status]) }}</span></span>
+            <span><span class="chip" [class.ok]="a.status === 'approved'" [class.warn]="a.status === 'pending'" [class.danger]="a.status === 'suspended'">{{ i18n.t(status[a.status]) }}</span></span>
+            @if (a.status === 'approved' || a.status === 'suspended') {
+              <div class="act">
+                @if (a.status === 'suspended') {
+                  <button type="button" class="btn secondary" [disabled]="busy()" (click)="restore(a)">{{ i18n.t({ th: 'เปิดคืน', en: 'Restore' }) }}</button>
+                } @else if (suspending() === a.id) {
+                  <label class="field">
+                    <span>{{ i18n.t({ th: 'เหตุผลที่ระงับ (อย่างน้อย 3 ตัวอักษร · หัวหน้าเห็น)', en: 'Reason (at least 3 characters · shown to the head)' }) }}</span>
+                    <input maxlength="300" [value]="reason()" (input)="reason.set($any($event.target).value)" />
+                  </label>
+                  <button type="button" class="btn secondary" (click)="suspending.set(null)">{{ i18n.t({ th: 'ยกเลิก', en: 'Cancel' }) }}</button>
+                  <button type="button" class="btn" [disabled]="busy() || reason().trim().length < 3" (click)="suspend(a)">{{ i18n.t({ th: 'ยืนยันระงับ', en: 'Confirm suspension' }) }}</button>
+                } @else {
+                  <button type="button" class="btn secondary outline-danger" (click)="startSuspend(a.id)">{{ i18n.t({ th: 'ระงับ', en: 'Suspend' }) }}</button>
+                }
+              </div>
+            }
           </div>
         } @empty {
           <app-empty-state compact [title]="i18n.t({ th: 'ยังไม่มีหน่วยงาน', en: 'No agencies yet' })" />
@@ -254,6 +271,21 @@ export class AdminAgencyRequests implements OnInit {
       grid-column: 2;
       grid-row: 1;
     }
+    .acols > .act {
+      grid-column: 1 / -1;
+      grid-row: auto;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: end;
+      gap: 8px;
+    }
+    .act .field {
+      flex: 1 1 240px;
+    }
+    .act .btn {
+      inline-size: auto;
+    }
     .code {
       font-variant-numeric: tabular-nums;
       letter-spacing: 0.03em;
@@ -267,6 +299,9 @@ export class AdminAgencyRequests implements OnInit {
         grid-column: auto;
         grid-row: auto;
       }
+      .acols > .act {
+        grid-column: 1 / -1;
+      }
     }
   `,
 })
@@ -279,12 +314,49 @@ export class AdminAgencies implements OnInit {
   protected readonly type = (t: AdminAgency['type']) => AGENCY_TYPE_LABEL[t];
   protected readonly all = signal<AdminAgency[]>([]);
   protected readonly rows = computed(() => {
-    const order = { pending: 0, approved: 1, rejected: 2 };
+    const order = { pending: 0, suspended: 1, approved: 2, rejected: 3 };
     return [...this.all()].sort((a, b) => order[a.status] - order[b.status]);
   });
 
+  private readonly toast = inject(Toast);
+  private readonly confirm = inject(Confirm);
+  protected readonly busy = signal(false);
+  protected readonly suspending = signal<string | null>(null);
+  protected readonly reason = signal('');
+
   async ngOnInit(): Promise<void> {
     this.all.set(await this.api.agencies().catch(() => []));
+  }
+
+  protected startSuspend(id: string): void {
+    this.reason.set('');
+    this.suspending.set(id);
+  }
+
+  protected async suspend(a: AdminAgency): Promise<void> {
+    await this.run(() => this.api.suspendAgency(a.id, this.reason().trim()), { th: 'ระงับหน่วยงานแล้ว', en: 'Agency suspended' });
+  }
+
+  protected async restore(a: AdminAgency): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: { th: `เปิดคืน ${a.name}?`, en: `Restore ${a.name}?` },
+      body: { th: 'โซนและสมาชิกกลับมาใช้ได้ทันที ยกเว้นบ้านที่เลิกรับการดูแลแล้ว', en: 'Zones and members work again right away, except houses that have ended coverage.' },
+    });
+    if (ok) await this.run(() => this.api.restoreAgency(a.id), { th: 'เปิดคืนแล้ว', en: 'Agency restored' });
+  }
+
+  /** สำเร็จหรือไม่ก็โหลดรายการใหม่ (409 = สถานะเปลี่ยนไปแล้ว) */
+  private async run(action: () => Promise<unknown>, done: Tr): Promise<void> {
+    this.busy.set(true);
+    try {
+      await action();
+      this.suspending.set(null);
+      this.toast.show(done);
+    } catch {
+      this.toast.show({ th: 'ทำรายการไม่สำเร็จ — ตรวจสถานะแล้วลองอีกครั้ง', en: 'Couldn’t do it — check the status and try again' });
+    }
+    this.all.set(await this.api.agencies().catch(() => this.all()));
+    this.busy.set(false);
   }
 
   protected heads(a: AdminAgency): string {

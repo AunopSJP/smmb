@@ -568,8 +568,12 @@ export class OwnerHome implements OnDestroy {
     try {
       await this.api.decideZoneRequest(id, accept);
       this.toast.show(accept ? { th: 'ยอมรับแล้ว', en: 'Accepted' } : { th: 'ปฏิเสธแล้ว', en: 'Declined' });
-    } catch {
-      this.toast.show({ th: 'ทำรายการไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t do that — check your connection and try again' });
+    } catch (err) {
+      this.toast.show(
+        apiError(err).code === 'AGENCY_SUSPENDED'
+          ? { th: 'หน่วยงานนี้ถูกระงับอยู่ ยังยอมรับไม่ได้', en: 'This agency is suspended — you can’t accept it yet' }
+          : { th: 'ทำรายการไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t do that — check your connection and try again' },
+      );
     } finally {
       this.deciding.set(null);
       await Promise.all([this.loadZoneRequests(), this.load()]);

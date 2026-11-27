@@ -66,8 +66,11 @@ export const apiInterceptor: HttpInterceptorFn = (req, next) => {
             window.dispatchEvent(new CustomEvent('smmb:session-expired', { detail: { next: path } }));
           }
         }
-        if (err instanceof HttpErrorResponse && err.status === 403 && (err.error as { code?: string } | null)?.code === 'PUSH_REQUIRED') {
-          void router.navigateByUrl(screenUrl('A12'));
+        if (err instanceof HttpErrorResponse && err.status === 403) {
+          const code = (err.error as { code?: string } | null)?.code;
+          if (code === 'PUSH_REQUIRED') void router.navigateByUrl(screenUrl('A12'));
+          // ถูกระงับระหว่างเปิดหน้าอยู่ → หน้าแจ้ง (หน้านั้นโหลด Me ใหม่เอง)
+          if (code === 'AGENCY_SUSPENDED') void router.navigateByUrl(`${screenUrl('A11')}?state=suspended`);
         }
       },
     }),

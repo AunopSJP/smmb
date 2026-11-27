@@ -21,6 +21,8 @@ export interface BoxAgencyDto {
   name: string;
   type: string;
   zone_names: string[];
+  /** true = หน่วยงานถูกระงับอยู่ ยังไม่ได้ดูแลบ้านจนกว่าจะเปิดคืน */
+  suspended: boolean;
   /** true = ถ้าเลิกรับหน่วยงานนี้ จะไม่เหลือหน่วยงานไหนรับ SOS ของบ้านนี้ */
   last: boolean;
 }
@@ -73,8 +75,9 @@ export class ZoneRequestService {
   async listAgencies(userId: string, boxId: string): Promise<BoxAgencyDto[]> {
     const own = await this.pool.query(`SELECT 1 FROM app.box_tb WHERE box_id = $1 AND owner_user_id = $2`, [boxId, userId]);
     if (!own.rowCount) throw new NotFoundException();
-    const { rows } = await this.pool.query<{ agency_id: string; name: string; type: string; zone_names: string[]; last: boolean }>(
+    const { rows } = await this.pool.query<{ agency_id: string; name: string; type: string; zone_names: string[]; suspended: boolean; last: boolean }>(
       `SELECT a.agency_id, a.name, a.type, array_agg(z.name ORDER BY z.name) AS zone_names,
+              a.status = 'suspended' AS suspended,
               NOT EXISTS (SELECT 1 FROM app.zone_box_tb zb2
                           JOIN app.zone_tb z2 ON z2.zone_id = zb2.zone_id AND z2.deleted_date IS NULL
                           JOIN app.agency_tb a2 ON a2.agency_id = z2.agency_id AND a2.status = 'approved'
@@ -84,11 +87,11 @@ export class ZoneRequestService {
        JOIN app.zone_tb z ON z.zone_id = zb.zone_id AND z.deleted_date IS NULL
        JOIN app.agency_tb a ON a.agency_id = z.agency_id
        WHERE zb.box_id = $1
-       GROUP BY a.agency_id, a.name, a.type
+       GROUP BY a.agency_id, a.name, a.type, a.status
        ORDER BY a.name`,
       [boxId, userId],
     );
-    return rows.map((r) => ({ id: r.agency_id, name: r.name, type: r.type, zone_names: r.zone_names, last: r.last }));
+    return rows.map((r) => ({ id: r.agency_id, name: r.name, type: r.type, zone_names: r.zone_names, suspended: r.suspended, last: r.last }));
   }
 
   /**
@@ -170,6 +173,9 @@ export class ZoneRequestService {
         [requestId, accept ? 'accepted' : 'rejected', userId],
       );
       if (accept) {
+        // หน่วยงานถูกระงับระหว่างคำขอค้าง → ยังยอมรับไม่ได้ (คำขอคงอยู่ เปิดคืนแล้วยอมรับได้) · FOR SHARE กันการระงับแทรกกลางทาง
+        const a = await db.query(`SELECT 1 FROM app.agency_tb WHERE agency_id = $1 AND status = 'approved' FOR SHARE`, [r.agency_id]);
+        if (!a.rowCount) throw new AppError(HttpStatus.CONFLICT, 'AGENCY_SUSPENDED', 'this agency is suspended');
         await db.query(`INSERT INTO app.zone_box_tb (zone_id, box_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [r.zone_id, r.box_id]);
         await db.query(`UPDATE app.zone_tb SET updated_date = now() WHERE zone_id = $1`, [r.zone_id]);
       }

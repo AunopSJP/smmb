@@ -22,6 +22,7 @@ export const NOTIFICATION_TYPES = [
   'agency_pending',
   'agency_approved',
   'agency_rejected',
+  'agency_suspended',
   'qr_fake',
   'qr_health',
   'box_silent_26h',
@@ -170,6 +171,10 @@ const MESSAGES: Record<NotificationType, Record<Lang, Render>> = {
   agency_rejected: {
     th: (d) => ({ title: 'หน่วยงานไม่ผ่านการอนุมัติ', body: s(d.agency_name) }),
     en: (d) => ({ title: 'Agency not approved', body: s(d.agency_name) }),
+  },
+  agency_suspended: {
+    th: (d) => ({ title: '⚠️ หน่วยงานที่ดูแลถูกระงับ', body: `${s(d.agency_name)} หยุดดูแลบ้านเลขที่ ${s(d.house_no)} ชั่วคราว · ฉุกเฉินโทร 191 / 1669` }),
+    en: (d) => ({ title: '⚠️ Agency suspended', body: `${s(d.agency_name)} has stopped covering house ${s(d.house_no)} for now · in an emergency call 191 / 1669` }),
   },
   qr_fake: {
     th: (d) => ({ title: '🚨 พบ QR ที่ไม่ใช่ของระบบ', body: `ตู้ ${s(d.box_id)}` }),

@@ -160,7 +160,7 @@ export interface AdminAgency {
   id: string;
   name: string;
   type: 'police' | 'guard' | 'other';
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'suspended';
   group_code: string | null;
   created_at: string;
   /** ✅ 2026-11-04 '' = ไม่ได้กรอก */
@@ -172,6 +172,8 @@ export interface AdminAgency {
 export interface AdminAgencyDetail extends AdminAgency {
   reject_reason: string | null;
   approved_at: string | null;
+  suspend_reason: string | null;
+  suspended_at: string | null;
   heads_contact: { id: string; name: string; display_name: string; phone: string }[];
   counts: { members_active: number; members_pending: number; zones: number; houses: number };
 }
@@ -447,6 +449,13 @@ export class AdminApi {
   }
   rejectAgency(id: string, reason?: string): Promise<unknown> {
     return this.post(`/api/v1/admin/agencies/${id}/reject`, reason ? { reason } : {});
+  }
+
+  suspendAgency(id: string, reason: string): Promise<unknown> {
+    return this.post(`/api/v1/admin/agencies/${id}/suspend`, { reason });
+  }
+  restoreAgency(id: string): Promise<unknown> {
+    return this.post(`/api/v1/admin/agencies/${id}/restore`);
   }
 
   // ผู้ใช้ §9.3

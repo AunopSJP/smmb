@@ -59,7 +59,7 @@ export interface Me {
   roles: RequiredRole[];
   levels: Partial<Record<'owner' | 'officer' | 'admin', number>>;
   status: 'active' | 'disabled';
-  agency_status: 'pending' | 'active' | 'rejected' | 'disabled' | null;
+  agency_status: 'pending' | 'active' | 'rejected' | 'disabled' | 'suspended' | null;
   name: string;
   display_name: string;
   phone: string;
@@ -188,7 +188,8 @@ export class MeService {
     let agencyStatus: Me['agency_status'] = null;
     if (access.agency) {
       const { agencyStatus: as, membershipStatus: ms } = access.agency;
-      agencyStatus = as === 'rejected' ? 'rejected' : as === 'pending' ? 'pending' : ms;
+      agencyStatus =
+        as === 'rejected' ? 'rejected' : as === 'pending' ? 'pending' : as === 'suspended' && ms === 'active' ? 'suspended' : ms;
     }
 
     return {

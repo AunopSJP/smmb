@@ -12,9 +12,10 @@ import { AdminPlanService } from './admin-plan.service.js';
 import { TechnicianRequestService } from '../box/technician-request.service.js';
 import { BoxModule } from '../box/box.module.js';
 import { AdminOverviewService } from './admin-overview.service.js';
+import { SosModule } from '../sos/sos.module.js';
 
 @Module({
-  imports: [AuthModule, PushModule, SupportModule, BoxModule],
+  imports: [AuthModule, PushModule, SupportModule, BoxModule, SosModule],
   controllers: [AdminController, AdminPlanController, AdminUserPlanController],
   providers: [AdminAgencyService, AdminUsersService, AdminLogsService, AdminPlanService, TechnicianRequestService, AdminOverviewService],
 })

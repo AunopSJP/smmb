@@ -280,6 +280,10 @@ import { bkkClock, fmtDate } from '../../core/time';
           @for (a of agencies(); track a.id) {
             <section class="card stack">
               <strong>{{ a.name }}</strong>
+              @if (a.suspended) {
+                <span class="chip warn">{{ i18n.t({ th: 'ถูกระงับชั่วคราว', en: 'Suspended' }) }}</span>
+                <span class="small">{{ i18n.t({ th: 'ตอนนี้ไม่ได้ตรวจและไม่รับ SOS ของบ้านนี้ · ฉุกเฉินโทร 191 / 1669', en: 'Not inspecting or receiving SOS for this house now · in an emergency call 191 / 1669' }) }}</span>
+              }
               <span class="muted small easy-hide">{{ i18n.t({ th: 'โซน ', en: 'Zone ' }) }}{{ a.zone_names.join(', ') }}</span>
               <button type="button" class="btn secondary" [disabled]="leaving() !== null" (click)="leave(b, a)">
                 {{ i18n.t({ th: 'เลิกรับการดูแล', en: 'End coverage' }) }}
@@ -662,8 +666,12 @@ export class OwnerSettings {
       this.toast.show(accept ? { th: 'ยอมรับแล้ว', en: 'Accepted' } : { th: 'ปฏิเสธแล้ว', en: 'Declined' });
       const b = this.box();
       if (b && accept) await this.open(b.id);
-    } catch {
-      this.toast.show({ th: 'ทำรายการไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t do that — check your connection and try again' });
+    } catch (err) {
+      this.toast.show(
+        apiError(err).code === 'AGENCY_SUSPENDED'
+          ? { th: 'หน่วยงานนี้ถูกระงับอยู่ ยังยอมรับไม่ได้', en: 'This agency is suspended — you can’t accept it yet' }
+          : { th: 'ทำรายการไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Couldn’t do that — check your connection and try again' },
+      );
     } finally {
       this.deciding.set(null);
       await this.loadRequests();

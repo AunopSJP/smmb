@@ -1,7 +1,9 @@
-import { HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import pg from 'pg';
 import { assignGroupCode } from '../agency/agency.service.js';
 import { AccountService, adminExclusive } from '../auth/account.service.js';
+import { BoxConfigService } from '../box/box-config.service.js';
+import { SosService } from '../sos/sos.service.js';
 import { PasswordService } from '../auth/password.service.js';
 import { AuditService } from '../common/audit.service.js';
 import { newTempPassword } from '../common/codes.js';
@@ -10,7 +12,7 @@ import { PG_POOL } from '../db/db.module.js';
 import { withTx, type Db } from '../db/tx.js';
 import { NotificationService } from '../push/notification.service.js';
 
-type AgencyStatus = 'pending' | 'approved' | 'rejected';
+type AgencyStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 
 export interface AdminAgencyRow {
   id: string;
@@ -28,21 +30,30 @@ export interface AdminAgencyRow {
 export interface AdminAgencyDetail extends AdminAgencyRow {
   reject_reason: string | null;
   approved_at: string | null;
+  /** มีค่าเฉพาะตอนถูกระงับ */
+  suspend_reason: string | null;
+  suspended_at: string | null;
   heads_contact: { id: string; name: string; display_name: string; phone: string }[];
   counts: { members_active: number; members_pending: number; zones: number; houses: number };
 }
 
+const notApproved = () => new AppError(HttpStatus.CONFLICT, 'AGENCY_NOT_APPROVED', 'only an approved agency can be suspended');
+const notSuspended = () => new AppError(HttpStatus.CONFLICT, 'AGENCY_NOT_SUSPENDED', 'this agency is not suspended');
 const notPending = () => new AppError(HttpStatus.CONFLICT, 'AGENCY_NOT_PENDING', 'this agency was already decided');
 
 // docs/api.md §9.2
 @Injectable()
 export class AdminAgencyService {
+  private readonly logger = new Logger('AdminAgency');
+
   constructor(
     @Inject(PG_POOL) private readonly pool: pg.Pool,
     private readonly account: AccountService,
     private readonly passwords: PasswordService,
     private readonly notifications: NotificationService,
     private readonly audit: AuditService,
+    private readonly boxConfigs: BoxConfigService,
+    private readonly sos: SosService,
   ) {}
 
   async list(q: { status?: AgencyStatus; q?: string }): Promise<AdminAgencyRow[]> {
@@ -94,12 +105,14 @@ export class AdminAgencyService {
       registration_no: string | null;
       created_date: Date;
       approved_date: Date | null;
+      suspend_reason: string | null;
+      suspended_date: Date | null;
       members_active: number;
       members_pending: number;
       zones: number;
       houses: number;
     }>(
-      `SELECT a.agency_id, a.name, a.type, a.status, a.group_code, a.reject_reason, a.address, a.registration_no, a.created_date, a.approved_date,
+      `SELECT a.agency_id, a.name, a.type, a.status, a.group_code, a.reject_reason, a.address, a.registration_no, a.created_date, a.approved_date, a.suspend_reason, a.suspended_date,
               (SELECT count(*)::int FROM app.agency_member_tb m WHERE m.agency_id = a.agency_id AND m.status = 'active') AS members_active,
               (SELECT count(*)::int FROM app.agency_member_tb m WHERE m.agency_id = a.agency_id AND m.status = 'pending') AS members_pending,
               (SELECT count(*)::int FROM app.zone_tb z WHERE z.agency_id = a.agency_id AND z.deleted_date IS NULL) AS zones,
@@ -130,6 +143,8 @@ export class AdminAgencyService {
       created_at: a.created_date.toISOString(),
       approved_at: a.approved_date?.toISOString() ?? null,
       reject_reason: a.reject_reason,
+      suspend_reason: a.suspend_reason,
+      suspended_at: a.suspended_date?.toISOString() ?? null,
       address: a.address ?? '',
       registration_no: a.registration_no ?? '',
       heads: heads.rows.map((h) => ({ id: h.user_id, display_name: h.display_name })),
@@ -184,6 +199,82 @@ export class AdminAgencyService {
       link: '/agency',
     });
     await this.audit.log(adminId, 'agency.reject', 'agency', agencyId, { reason: reason ?? null });
+  }
+
+  /**
+   * ระงับหน่วยงานที่อนุมัติแล้ว: โซน สมาชิก ความยินยอม และ session คงเดิม — ทุกจุดนับเฉพาะ status = 'approved'
+   * การตรวจที่ค้างของหน่วยงานถูกปิด · SOS ที่คนของหน่วยงานรับไว้ถูกคืน · ตู้รับเวลาตรวจใหม่ · แจ้งเจ้าของบ้านที่อยู่ในความดูแล
+   */
+  async suspend(adminId: string, agencyId: string, reason: string): Promise<void> {
+    const done = await withTx(this.pool, async (db) => {
+      // ล็อกแถวหน่วยงาน → การเริ่มตรวจ/ยอมรับคำขอที่เข้ามาพร้อมกันรอแล้วเห็นสถานะใหม่
+      const a = await this.lockAgency(db, agencyId);
+      if (a.status !== 'approved') throw notApproved();
+      await db.query(
+        `UPDATE app.agency_tb SET status = 'suspended', suspend_reason = $3, suspended_by = $2, suspended_date = now()
+         WHERE agency_id = $1`,
+        [agencyId, adminId, reason],
+      );
+      await db.query(
+        `UPDATE app.box_job_tb j SET expire_date = now()
+         FROM app.inspection_tb i
+         WHERE i.box_job_id = j.box_job_id AND i.agency_id = $1 AND i.status = 'open'
+           AND j.result IS NULL AND j.expire_date > now()`,
+        [agencyId],
+      );
+      await this.bumpMembers(db, agencyId);
+      return { name: a.name, houses: await this.housesOf(db, agencyId) };
+    });
+    await this.audit.log(adminId, 'agency.suspend', 'agency', agencyId, { reason });
+    this.boxConfigs.wakeBoxes(done.houses.map((h) => h.box_id));
+    // ตัวจับเวลาของ SOS ตามเก็บให้อยู่แล้ว — เรียกตรงนี้ให้คืนทันที
+    await this.sos.releaseIneligible().catch((err: Error) => this.logger.error(`sos release failed: ${err.message}`));
+    for (const h of done.houses) {
+      await this.notifications
+        .notify([h.owner_user_id], {
+          type: 'agency_suspended',
+          data: { agency_name: done.name, house_no: h.house_no ?? '', box_id: h.box_id },
+          link: '/home/settings',
+          tag: `agency-suspended-${h.box_id}`,
+        })
+        .catch((err: Error) => this.logger.error(`notification failed: ${err.message}`));
+    }
+  }
+
+  /** เปิดคืน: โซน สมาชิก รหัสกลุ่ม และบ้านที่ยังรับการดูแลอยู่กลับมาใช้ได้ทันที (บ้านที่เลิกรับไปแล้วต้องส่งคำขอใหม่) */
+  async restore(adminId: string, agencyId: string): Promise<void> {
+    const houses = await withTx(this.pool, async (db) => {
+      const a = await this.lockAgency(db, agencyId);
+      if (a.status !== 'suspended') throw notSuspended();
+      await db.query(
+        `UPDATE app.agency_tb SET status = 'approved', suspend_reason = NULL, suspended_by = NULL, suspended_date = NULL
+         WHERE agency_id = $1`,
+        [agencyId],
+      );
+      await this.bumpMembers(db, agencyId);
+      return this.housesOf(db, agencyId);
+    });
+    await this.audit.log(adminId, 'agency.restore', 'agency', agencyId);
+    this.boxConfigs.wakeBoxes(houses.map((h) => h.box_id));
+  }
+
+  /** สิทธิ์ของสมาชิกเปลี่ยน → แอปโหลด `Me` ใหม่ (ไม่เตะ session) */
+  private async bumpMembers(db: Db, agencyId: string): Promise<void> {
+    const { rows } = await db.query<{ user_id: string }>(`SELECT user_id FROM app.agency_member_tb WHERE agency_id = $1`, [agencyId]);
+    for (const m of rows) await this.account.bumpPerm(db, m.user_id);
+  }
+
+  /** บ้านที่หน่วยงานดูแลอยู่ (อยู่ในโซนที่ยังไม่ถูกลบ) */
+  private async housesOf(db: Db, agencyId: string): Promise<{ box_id: string; owner_user_id: string; house_no: string | null }[]> {
+    const { rows } = await db.query<{ box_id: string; owner_user_id: string; house_no: string | null }>(
+      `SELECT DISTINCT b.box_id, b.owner_user_id, b.house_no
+       FROM app.zone_tb z
+       JOIN app.zone_box_tb zb ON zb.zone_id = z.zone_id
+       JOIN app.box_tb b ON b.box_id = zb.box_id AND b.owner_user_id IS NOT NULL
+       WHERE z.agency_id = $1 AND z.deleted_date IS NULL`,
+      [agencyId],
+    );
+    return rows;
   }
 
   /**

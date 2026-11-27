@@ -429,8 +429,10 @@ describe('Rider + SOS + owner home (e2e)', () => {
           ['account disabled by an admin', (x) => http().patch(`/api/v1/admin/users/${x.a.officer.id}`).set('Cookie', admin.cookie).send({ status: 'disabled' }).expect(200)],
           // DELETE /me ถูกกันด้วย SOS_OPEN — แถวนี้แทนกรณีลบบัญชีชนกับการกดรับ
           ['account marked deleted', (x) => pool.query(`UPDATE app.user_tb SET deleted_date = now() WHERE user_id = $1`, [x.a.officer.id])],
-          // issue #14 (ระงับหน่วยงาน) ยังไม่มี endpoint
-          ['agency no longer approved', (x) => pool.query(`UPDATE app.agency_tb SET status = 'rejected' WHERE agency_id = (SELECT accepted_agency_id FROM app.sos_case_tb WHERE sos_case_id = $1)`, [x.id])],
+          ['agency suspended by an admin', async (x) => {
+            const { rows } = await pool.query(`SELECT accepted_agency_id AS id FROM app.sos_case_tb WHERE sos_case_id = $1`, [x.id]);
+            await as(admin.cookie).post(`/api/v1/admin/agencies/${rows[0].id}/suspend`, { reason: 'ทดสอบระงับ' }).expect(200);
+          }],
         ];
 
         it.each(lose)('%s', async (_name, revoke) => {

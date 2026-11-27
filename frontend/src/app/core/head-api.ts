@@ -13,9 +13,10 @@ export interface Agency {
   id: string;
   name: string;
   type: AgencyType;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'suspended';
   group_code: string | null;
   reject_reason: string | null;
+  suspend_reason?: string | null;
   contact: string | null;
   /** ข้อมูลละเอียด (✅ 2026-11-06) */
   profile?: {
