@@ -10,6 +10,8 @@ import { PG_POOL, REDIS } from '../db/db.module.js';
 
 type Status = 'up' | 'down';
 
+const PROBE_TTL_MS = 2000;
+
 const withTimeout = <T>(p: Promise<T>, ms = 2000) =>
   Promise.race([p, new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
 
@@ -18,6 +20,9 @@ const withTimeout = <T>(p: Promise<T>, ms = 2000) =>
 @RateLimit(false)
 @Controller('api/health')
 export class HealthController {
+  /** ผลตรวจ Postgres/Redis ล่าสุด — ใช้ร่วมกันช่วงสั้น ๆ กันยิง endpoint สาธารณะนี้ถี่ ๆ แล้วไปถึงฐานข้อมูลทุกคำขอ */
+  private probe: { at: number; result: Promise<[Status, Status]> } | null = null;
+
   constructor(
     @Inject(PG_POOL) private readonly pool: pg.Pool,
     @Inject(REDIS) private readonly redis: Redis,
@@ -26,7 +31,7 @@ export class HealthController {
 
   @Get()
   async check(@Res({ passthrough: true }) res: Response) {
-    const [postgres, redis] = await Promise.all([this.pingPostgres(), this.pingRedis()]);
+    const [postgres, redis] = await this.checkDependencies();
     // push: ยังไม่ส่งจริงในเฟสนี้ — up เมื่อตั้ง VAPID key ครบ
     const push: Status =
       this.config.get('VAPID_PUBLIC_KEY', { infer: true }) && this.config.get('VAPID_PRIVATE_KEY', { infer: true })
@@ -48,6 +53,15 @@ export class HealthController {
   @Get('live')
   live() {
     return { ok: true, t: new Date().toISOString() };
+  }
+
+  /** คำขอที่มาพร้อมกันรอผลชุดเดียวกัน (เก็บ promise ไม่ใช่ค่าที่ได้) · ping ทั้งสองไม่ reject */
+  private checkDependencies(): Promise<[Status, Status]> {
+    const now = Date.now();
+    if (!this.probe || now - this.probe.at >= PROBE_TTL_MS) {
+      this.probe = { at: now, result: Promise.all([this.pingPostgres(), this.pingRedis()]) };
+    }
+    return this.probe.result;
   }
 
   private async pingPostgres(): Promise<Status> {
