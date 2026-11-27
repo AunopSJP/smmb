@@ -746,7 +746,7 @@ static void runJob(JsonObjectConst job)
       if (type == "inspect")
       {
         sendInspectionPhoto(jobId);
-        inspectPassFlag = true; // ตรวจผ่านแล้ว → ฝั่งแอปพาตู้ไปหลับ (ไม่ต้องถือสายรอจนหมดช่วง)
+        inspectPassFlag = res["rest"] | true; // ตรวจผ่านแล้ว → ฝั่งแอปพาตู้ไปหลับ (ไม่ต้องถือสายรอจนหมดช่วง)
       }
       break;
     }
