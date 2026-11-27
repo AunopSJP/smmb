@@ -536,7 +536,7 @@ export class OwnerSettings {
     const map: Record<BoxDetail['status'], Tr> = {
       online: { th: 'ออนไลน์', en: 'Online' },
       offline: { th: 'ไม่ออนไลน์', en: 'Offline' },
-      sleeping: { th: 'พักอยู่ (นอกเวลาตรวจ)', en: 'Sleeping outside patrol hours' },
+      sleeping: { th: 'ตู้พัก', en: 'Box resting' },
       service_closed: { th: 'ปิดให้บริการ', en: 'Service closed' },
       unbound: { th: 'ยังไม่ผูกบ้าน', en: 'Not linked to a house' },
     };

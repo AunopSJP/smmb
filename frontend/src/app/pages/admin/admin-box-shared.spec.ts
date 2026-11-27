@@ -20,17 +20,17 @@ describe('boxBadge (online outside patrol hours)', () => {
   });
   it('says outside patrol hours once the window has ended, even while still online', () => {
     const b = boxBadge(online, W, at('14:52'));
-    expect(b.label.th).toBe('ออนไลน์ · นอกเวลาตรวจ');
+    expect(b.label.th).toBe('ออนไลน์ · ยังตรวจไม่ได้');
     expect(b.tone).toBe('ok');
   });
   it('treats a box in no zone as outside patrol hours', () => {
-    expect(boxBadge(online, [], at('14:45')).label.th).toBe('ออนไลน์ · นอกเวลาตรวจ');
+    expect(boxBadge(online, [], at('14:45')).label.th).toBe('ออนไลน์ · ยังตรวจไม่ได้');
   });
   it('keeps the old label when no windows are given (list pages)', () => {
     expect(boxBadge(online).label.th).toBe('ออนไลน์ · พร้อมสแกน');
   });
   it('does not touch other statuses and low battery still wins', () => {
-    expect(boxBadge({ status: 'sleeping', battery: null }, W, at('14:52')).label.th).toBe('พักอยู่ · นอกเวลาตรวจ');
+    expect(boxBadge({ status: 'sleeping', battery: null }, W, at('14:52')).label.th).toBe('ตู้พัก');
     expect(boxBadge({ status: 'online', battery: { pct: 10, charging: false, reported_at: null } }, W, at('14:52')).label.th).toBe('แบตต่ำ');
   });
 });

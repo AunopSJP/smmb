@@ -9,7 +9,7 @@ export const LOW_BATTERY_PCT = 20;
 
 const STATUS: Record<BoxStatus, { label: Tr; tone: Tone }> = {
   online: { label: { th: 'ออนไลน์ · พร้อมสแกน', en: 'Online · ready to scan' }, tone: 'ok' },
-  sleeping: { label: { th: 'พักอยู่ · นอกเวลาตรวจ', en: 'Sleeping · outside patrol hours' }, tone: '' },
+  sleeping: { label: { th: 'ตู้พัก', en: 'Box resting' }, tone: '' },
   offline: { label: { th: 'ไม่ออนไลน์', en: 'Offline' }, tone: 'danger' },
   service_closed: { label: { th: 'ปิดบริการ', en: 'Closed' }, tone: '' },
   unbound: { label: { th: 'ยังไม่ผูก', en: 'Unbound' }, tone: '' },
@@ -17,7 +17,7 @@ const STATUS: Record<BoxStatus, { label: Tr; tone: Tone }> = {
 
 /** ตู้ออนไลน์แต่อยู่นอกเวลาตรวจ (เช่น ตื่นหลังเปิดเครื่อง หรือเพิ่งพ้นเวลาตรวจ) — เซิร์ฟเวอร์ไม่รับตรวจช่วงนี้ จึงไม่บอกว่า "พร้อมสแกน" */
 const ONLINE_OUTSIDE_WINDOW: { label: Tr; tone: Tone } = {
-  label: { th: 'ออนไลน์ · นอกเวลาตรวจ', en: 'Online · outside patrol hours' },
+  label: { th: 'ออนไลน์ · ยังตรวจไม่ได้', en: 'Online · not open for inspection' },
   tone: 'ok',
 };
 
@@ -36,8 +36,8 @@ export function inPatrolWindow(windows: [string, string][], now = new Date()): b
 }
 
 /**
- * ป้ายสถานะตู้ — แบตต่ำแทนออนไลน์/พักอยู่
- * ส่ง windows (เวลาตรวจของตู้) มาด้วยเมื่อรู้ → ออนไลน์นอกเวลาตรวจจะขึ้น "นอกเวลาตรวจ" แทน "พร้อมสแกน"
+ * ป้ายสถานะตู้ — แบตต่ำแทนออนไลน์/ตู้พัก
+ * ส่ง windows (เวลาตรวจของตู้) มาด้วยเมื่อรู้ → ออนไลน์นอกเวลาตรวจจะขึ้น "ยังตรวจไม่ได้" แทน "พร้อมสแกน"
  * (เซิร์ฟเวอร์นับออนไลน์จากการถาม long-poll ภายใน 100 วิ จึงค้างออนไลน์ ~2 นาทีหลังพ้นเวลาตรวจ)
  */
 export function boxBadge(b: Pick<AdminBoxRow, 'status' | 'battery'>, windows?: [string, string][], now = new Date()): { label: Tr; tone: Tone } {

@@ -856,7 +856,7 @@ export class HeadZoneEdit {
   protected statusText(h: HouseHit): string {
     const t: Record<string, Tr> = {
       online: { th: 'ตู้ออนไลน์', en: 'box online' },
-      sleeping: { th: 'ตู้พัก', en: 'box sleeping' },
+      sleeping: { th: 'ตู้พัก', en: 'box resting' },
       offline: { th: 'ตู้ไม่ออนไลน์', en: 'box offline' },
       service_closed: { th: 'ปิดบริการ', en: 'service closed' },
       unbound: { th: 'ยังไม่ผูก', en: 'not bound' },

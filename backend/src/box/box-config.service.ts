@@ -8,11 +8,13 @@ import {
   boxStatus,
   configVersion,
   mergeWindows,
+  patrolComplete,
   pickOverride,
   resolveDefaults,
   type BoxConfig,
   type BoxConfigDefaults,
   type BoxStatus,
+  windowStartedAt,
 } from './box-config.js';
 
 /** ค่ากลาง (api.md §9.5 GET /admin/box-config) */
@@ -124,6 +126,66 @@ export class BoxConfigService {
     return out;
   }
 
+  /** ตู้ที่ตรวจครบแล้ว ณ เวลา `now` (box-config.ts `patrolComplete`) · นับเฉพาะหน่วยงานที่อนุมัติแล้ว */
+  async patrolCompleteOf(boxIds: string[], now = new Date(), db: Db = this.pool): Promise<Set<string>> {
+    if (!boxIds.length) return new Set();
+    const { rows: windows } = await db.query<{ box_id: string; agency_id: string; s: string; e: string }>(
+      `SELECT zb.box_id, z.agency_id, to_char(w.start_time, 'HH24:MI') AS s, to_char(w.end_time, 'HH24:MI') AS e
+       FROM app.zone_box_tb zb
+       JOIN app.zone_tb z ON z.zone_id = zb.zone_id AND z.deleted_date IS NULL
+       JOIN app.agency_tb a ON a.agency_id = z.agency_id AND a.status = 'approved'
+       JOIN app.zone_window_tb w ON w.zone_id = z.zone_id
+       WHERE zb.box_id = ANY($1::text[])`,
+      [boxIds],
+    );
+    const { rows: passes } = await db.query<{ box_id: string; agency_id: string; passed_date: Date }>(
+      `SELECT box_id, agency_id, max(checked_date) AS passed_date FROM app.inspection_tb
+       WHERE box_id = ANY($1::text[]) AND status = 'passed' AND checked_date >= $2::timestamptz - interval '1 day'
+       GROUP BY box_id, agency_id`,
+      [boxIds, now],
+    );
+    return new Set(
+      boxIds.filter((id) => {
+        const agencies = new Map<string, [string, string][]>();
+        for (const w of windows) {
+          if (w.box_id === id) agencies.set(w.agency_id, [...(agencies.get(w.agency_id) ?? []), [w.s, w.e]]);
+        }
+        const lastPass = new Map(passes.filter((p) => p.box_id === id).map((p) => [p.agency_id, p.passed_date]));
+        return patrolComplete(agencies, lastPass, now);
+      }),
+    );
+  }
+
+  /**
+   * ตู้ที่พักได้ระหว่างเวลาตรวจ — เงื่อนไขเดียวของทั้งสถานะที่แสดงและการแจ้งตู้หลุด:
+   * ตรวจครบแล้ว หรือ ตู้แจ้งว่าหลับหลังมีการตรวจผ่านในช่วงที่กำลังเดินอยู่ (เฟิร์มแวร์เดิมหลับหลังผ่านครั้งแรก)
+   * ตู้ที่อยู่นอกเวลาตรวจไม่อยู่ในผลลัพธ์
+   * @param windows เวลาตรวจรวมของแต่ละตู้ (windowsOf)
+   */
+  async restingBoxes(windows: Map<string, [string, string][]>, now = new Date(), db: Db = this.pool): Promise<Map<string, { asleep: boolean }>> {
+    const started = new Map<string, Date>();
+    for (const [id, list] of windows) {
+      const at = windowStartedAt(list, now);
+      if (at) started.set(id, at);
+    }
+    const out = new Map<string, { asleep: boolean }>();
+    if (!started.size) return out;
+    const ids = [...started.keys()];
+    const complete = await this.patrolCompleteOf(ids, now, db);
+    const { rows } = await db.query<{ box_id: string; sleep_date: Date | null; last_poll_date: Date | null; passed_date: Date | null }>(
+      `SELECT b.box_id, b.sleep_date, b.last_poll_date,
+              (SELECT max(i.checked_date) FROM app.inspection_tb i WHERE i.box_id = b.box_id AND i.status = 'passed') AS passed_date
+       FROM app.box_tb b WHERE b.box_id = ANY($1::text[])`,
+      [ids],
+    );
+    for (const r of rows) {
+      const asleep = !!r.sleep_date && (!r.last_poll_date || r.sleep_date >= r.last_poll_date);
+      const sleptAfterPass = asleep && !!r.passed_date && r.passed_date >= started.get(r.box_id)! && r.sleep_date! >= r.passed_date;
+      if (complete.has(r.box_id) || sleptAfterPass) out.set(r.box_id, { asleep });
+    }
+    return out;
+  }
+
   /** ค่าที่ตู้นี้ควรมี + เลขเวอร์ชัน */
   async forBox(boxId: string, db: Db = this.pool): Promise<{ config: BoxConfig; ver: number }> {
     const base = await this.defaults(db);
@@ -147,10 +209,11 @@ export class BoxConfigService {
   ): Promise<Map<string, BoxStatus>> {
     const [base, windows] = await Promise.all([this.defaults(db), this.windowsOf(boxes.map((b) => b.box_id), db)]);
     const now = new Date();
+    const resting = await this.restingBoxes(windows, now, db);
     return new Map(
       boxes.map((b) => {
         const wait = resolveDefaults(base as unknown as Record<string, unknown>, b.config_override ?? {}).longpoll_wait_s;
-        return [b.box_id, boxStatus(b, windows.get(b.box_id) ?? [], wait, now)];
+        return [b.box_id, boxStatus(b, windows.get(b.box_id) ?? [], wait, now, resting.get(b.box_id) ?? null)];
       }),
     );
   }

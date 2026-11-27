@@ -49,6 +49,8 @@ export type JobJudge = (
 export interface VerdictDto {
   status: Verdict;
   attempts_left?: number;
+  /** เฉพาะงานตรวจที่ผ่าน: true = ตรวจครบแล้ว ตู้พักได้ · false = ยังมีหน่วยงานรอตรวจ ให้ตื่นต่อ (โปรโตคอล §2.5) */
+  rest?: boolean;
 }
 
 export interface JobAttemptDto {
@@ -215,8 +217,13 @@ export class BoxJobService {
         `SELECT verdict FROM app.box_job_attempt_tb WHERE box_job_id = $1 AND attempt = $2`,
         [jobId, body.attempt],
       );
-      if (prev.rows[0]) return this.reply(prev.rows[0].verdict, job.max_attempts, body.attempt);
-      if (job.result) return { status: job.result };
+      // `rest` คิดสดทุกครั้ง รวมถึงตอนตู้ส่งผลซ้ำ
+      const withRest = async (v: VerdictDto): Promise<VerdictDto> =>
+        v.status === 'pass' && job.type === 'inspect'
+          ? { ...v, rest: (await this.configs.patrolCompleteOf([boxId], new Date(), db)).has(boxId) }
+          : v;
+      if (prev.rows[0]) return withRest(this.reply(prev.rows[0].verdict, job.max_attempts, body.attempt));
+      if (job.result) return withRest({ status: job.result });
       if (job.expire_date.getTime() <= Date.now()) throw this.expired();
       if (body.attempt > job.max_attempts) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'ATTEMPT_INVALID', `attempt must be 1–${job.max_attempts}`);
@@ -236,7 +243,7 @@ export class BoxJobService {
       if (v.status !== 'retry') {
         await db.query(`UPDATE app.box_job_tb SET result = $2, result_date = now() WHERE box_job_id = $1`, [jobId, v.status]);
       }
-      return v.status === 'retry' ? { status: 'retry', attempts_left: v.attempts_left } : { status: v.status };
+      return v.status === 'retry' ? { status: 'retry', attempts_left: v.attempts_left } : withRest({ status: v.status });
     });
     if (after) await after().catch(() => undefined); // แจ้งเตือนล้มเหลวไม่ทำให้ตู้ได้ error
     return reply;

@@ -659,7 +659,7 @@ export class OwnerHome implements OnDestroy {
   protected statusTitle(b: BoxDetail): string {
     if (b.status === 'offline') return this.i18n.t({ th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' });
     if (b.status === 'service_closed') return this.i18n.t({ th: 'ตู้ปิดบริการอยู่', en: 'Mailbox not in service' });
-    if (b.status === 'sleeping') return this.i18n.t({ th: 'ตู้พักอยู่ (นอกเวลาตรวจ) ปกติดี', en: 'Asleep outside patrol hours · all good' });
+    if (b.status === 'sleeping') return this.i18n.t({ th: 'ตู้พัก ปกติดี', en: 'Box resting · all good' });
     return this.i18n.t({ th: 'ตู้ออนไลน์ ปกติดี', en: 'Online · all good' });
   }
 
@@ -668,7 +668,7 @@ export class OwnerHome implements OnDestroy {
     if (b.status === 'offline') return this.i18n.t({ th: 'ตู้ติดต่อไม่ได้', en: 'The mailbox is offline' });
     if (b.status === 'service_closed') return this.i18n.t({ th: 'ตู้ปิดบริการอยู่', en: 'The mailbox is not in service' });
     if (!b.coverage.has_officer) return this.i18n.t({ th: 'ยังไม่มีเจ้าหน้าที่ดูแลบ้านนี้', en: 'No officer covers this home yet' });
-    if (b.status === 'sleeping') return this.i18n.t({ th: 'ตู้พักอยู่ ปกติดี', en: 'Asleep · all good' });
+    if (b.status === 'sleeping') return this.i18n.t({ th: 'ตู้พัก ปกติดี', en: 'Box resting · all good' });
     return this.i18n.t({ th: 'บ้านคุณปลอดภัยดี', en: 'Your home is safe' });
   }
 
@@ -683,7 +683,7 @@ export class OwnerHome implements OnDestroy {
       return this.i18n.t({ th: 'กด SOS แล้วระบบจะบอกให้โทร 191 / 1669 ทันที', en: 'If you press SOS, the app will tell you to call 191 / 1669 right away' });
     }
     if (b.status === 'sleeping') {
-      return this.i18n.t({ th: 'นอกเวลาตรวจ ตู้จะตื่นเองเมื่อถึงเวลาตรวจ', en: 'Outside patrol hours — it wakes by itself for the next patrol' });
+      return this.i18n.t({ th: 'ตู้พักเพื่อประหยัดพลังงาน จะตื่นเองในช่วงตรวจถัดไป', en: 'Resting to save power — it wakes by itself for the next patrol' });
     }
     return this.i18n.t({ th: b.name + ' ทำงานปกติ', en: b.name + ' is working normally' });
   }
@@ -760,7 +760,7 @@ export class OwnerHome implements OnDestroy {
     const map: Record<BoxDetail['status'], { th: string; en: string }> = {
       online: { th: 'ออนไลน์', en: 'Online' },
       offline: { th: 'ไม่ออนไลน์', en: 'Offline' },
-      sleeping: { th: 'พักอยู่ (นอกเวลาตรวจ)', en: 'Sleeping outside patrol hours' },
+      sleeping: { th: 'ตู้พัก', en: 'Box resting' },
       service_closed: { th: 'ปิดให้บริการ', en: 'Service closed' },
       unbound: { th: 'ยังไม่ผูกบ้าน', en: 'Not linked to a house' },
     };

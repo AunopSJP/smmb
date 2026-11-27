@@ -146,6 +146,46 @@ export function minutesIntoWindow(windows: [string, string][], now: Date, tz = B
   return null;
 }
 
+/** ตู้ตื่นก่อนต้นช่วงตรวจกี่นาที — ต้องตรงกับ WAKE_BEFORE_WINDOW_S (120 วิ) ในเฟิร์มแวร์ */
+export const WAKE_BEFORE_WINDOW_MIN = 2;
+
+/** เวลาที่นาทีท้องถิ่น `minute` ของวันนี้เกิดขึ้น (เกิน 1440 = พรุ่งนี้) */
+function atLocalMinute(now: Date, minute: number, tz: string): Date {
+  return new Date(Math.floor(now.getTime() / 60_000) * 60_000 + (minute - localMinutes(now, tz)) * 60_000);
+}
+
+/** เวลาเริ่มของช่วงตรวจที่กำลังเดินอยู่ (null = นอกเวลาตรวจ) */
+export function windowStartedAt(windows: [string, string][], now: Date, tz = BOX_TZ): Date | null {
+  const into = minutesIntoWindow(windows, now, tz);
+  return into === null ? null : atLocalMinute(now, localMinutes(now, tz) - into, tz);
+}
+
+/**
+ * ตรวจครบไหม (GLOSSARY.md): ทุกหน่วยงานที่อยู่ในช่วงตรวจของตู้ตอนนี้ — รวมช่วงที่ตู้ต้องตื่นรอแล้ว — ตรวจผ่านในรอบนั้น
+ * รอบ = ช่วงตรวจของหน่วยงานนั้น (ช่วงที่ทับ/ชนขอบกันของหลายโซนนับเป็นช่วงเดียว) · ช่วงที่ยังตื่นรออยู่ย่อมยังไม่มีผลตรวจ
+ * ผู้เรียกส่งเฉพาะหน่วยงานที่อนุมัติแล้ว (ถูกระงับไม่นับ) · ไม่มีหน่วยงานไหนอยู่ในช่วง = ไม่มีใครให้รอ (true)
+ * @param lastPass เวลาตรวจผ่านล่าสุดของแต่ละหน่วยงานกับตู้นี้
+ */
+export function patrolComplete(
+  agencyWindows: Map<string, [string, string][]>,
+  lastPass: Map<string, Date>,
+  now: Date,
+  tz = BOX_TZ,
+): boolean {
+  const m = localMinutes(now, tz);
+  for (const [agencyId, windows] of agencyWindows) {
+    for (const [s, e] of mergeWindows(windows)) {
+      const length = toMinutes(e) - toMinutes(s);
+      // ช่วงของวันนี้ หรือช่วงต้นวันพรุ่งนี้ที่เวลาตื่นรอข้ามมาอยู่ท้ายวันนี้
+      const start = [toMinutes(s), toMinutes(s) + 1440].find((st) => m >= st - WAKE_BEFORE_WINDOW_MIN && m < st + length);
+      if (start === undefined) continue;
+      const passed = lastPass.get(agencyId);
+      if (!passed || passed < atLocalMinute(now, start, tz)) return false;
+    }
+  }
+  return true;
+}
+
 export type BoxStatus = 'online' | 'offline' | 'sleeping' | 'service_closed' | 'unbound';
 
 /** ตู้เงียบเกินนี้ = ไม่ออนไลน์ (✅ api.md §0) */
@@ -157,20 +197,23 @@ export const WINDOW_GRACE_MIN = 5;
  * สถานะตู้ที่แสดง (api.md §4.2, design §8) — คิดจากเวลาล่าสุดที่ตู้ติดต่อ ไม่ต้องมีงานเบื้องหลัง
  * - online: ถือ long-poll อยู่ (ภายใน 2 × longpoll_wait_s)
  * - offline: อยู่ในเวลาตรวจเกิน 5 นาทีแล้วแต่ไม่ถือ long-poll · หรือเงียบเกิน 26 ชม. · หรือยังไม่เคยติดต่อเลย
- * - sleeping: นอกเวลาตรวจ และติดต่อมาภายใน 26 ชม. (ตู้หลับลึกตามปกติ)
+ * - sleeping (ตู้พัก): นอกเวลาตรวจ และติดต่อมาภายใน 26 ชม. · หรืออยู่ในเวลาตรวจแต่พักได้ (`rest`)
  */
 export function boxStatus(
   box: { service_active: boolean; owner_user_id: string | null; last_poll_date: Date | null; last_seen_date: Date | null },
   windows: [string, string][],
   longpollWaitS: number,
   now = new Date(),
+  /** พักได้ระหว่างเวลาตรวจ (BoxConfigService.restingBoxes) · asleep = ตู้แจ้งว่าหลับแล้วและยังไม่กลับมาถามงาน */
+  rest: { asleep: boolean } | null = null,
 ): BoxStatus {
   if (!box.service_active) return 'service_closed';
   if (!box.owner_user_id) return 'unbound';
   const t = now.getTime();
-  if (box.last_poll_date && t - box.last_poll_date.getTime() <= 2 * longpollWaitS * 1000) return 'online';
+  // ตู้ที่พักได้และแจ้งว่าหลับแล้ว แสดงตู้พักทันที ไม่ต้องรอให้ long-poll รอบสุดท้ายเก่าก่อน
+  if (!rest?.asleep && box.last_poll_date && t - box.last_poll_date.getTime() <= 2 * longpollWaitS * 1000) return 'online';
   const into = minutesIntoWindow(windows, now);
-  if (into !== null && into >= WINDOW_GRACE_MIN) return 'offline';
+  if (into !== null && into >= WINDOW_GRACE_MIN) return rest ? 'sleeping' : 'offline';
   if (box.last_seen_date && t - box.last_seen_date.getTime() <= SILENT_AFTER_MS) return 'sleeping';
   return 'offline';
 }
