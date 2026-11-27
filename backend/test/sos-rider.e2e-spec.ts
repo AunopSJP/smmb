@@ -420,6 +420,14 @@ describe('Rider + SOS + owner home (e2e)', () => {
         expect(await sent(o.id, 'sos_returned', id)).toHaveLength(1);
       });
 
+      it('a disabled member who is also a house owner cannot read the case through the old recipient row', async () => {
+        const { a, id } = await acceptedSos();
+        await pool.query(`INSERT INTO app.user_role_tb (user_id, role) VALUES ($1, 'owner') ON CONFLICT DO NOTHING`, [a.officer.id]);
+        await as(a.officer.cookie).get(`/api/v1/sos/${id}`).expect(200);
+        await http().patch(`/api/v1/agency/members/${a.officer.id}/status`).set('Cookie', a.head.cookie).send({ is_active: false }).expect(200);
+        await as(a.officer.cookie).get(`/api/v1/sos/${id}`).expect(404);
+      });
+
       describe('automatically when the accepting officer loses access', () => {
         type Case = Awaited<ReturnType<typeof acceptedSos>>;
         const lose: [string, (x: Case) => PromiseLike<unknown>][] = [

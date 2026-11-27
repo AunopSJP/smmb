@@ -281,7 +281,11 @@ export class OwnerTechnician {
   protected readonly error = signal(false);
   protected readonly activeRequest = computed(() => this.requests().find((request) => request.status === 'open' || request.status === 'scheduled') ?? null);
   /** คำขอล่าสุดที่ปิดงานแล้ว — แสดงสรุปเหนือฟอร์มเมื่อไม่มีคำขอเปิดอยู่ */
-  protected readonly lastDone = computed(() => this.requests().find((request) => request.status === 'done') ?? null);
+  protected readonly lastDone = computed(() => {
+    const done = this.requests().find((request) => request.status === 'done') ?? null;
+    // เพิ่งยกเลิกคำขอที่ใหม่กว่า → ไม่ย้อนไปชวนยืนยันงานเก่า (ยกเว้นงานที่เคยเปิดใหม่เพราะ "ยังมีปัญหา")
+    return this.requests()[0]?.status === 'cancelled' && done?.owner_result !== 'still_broken' ? null : done;
+  });
   protected readonly confirming = signal<string | null>(null);
   protected readonly cancelling = signal(false);
   protected readonly reasons = [
@@ -390,8 +394,13 @@ export class OwnerTechnician {
           ? { th: 'ยืนยันแล้ว ขอบคุณครับ', en: 'Confirmed — thank you' }
           : { th: 'แจ้งแล้ว ทีมงานจะติดต่อกลับ', en: 'Reported — the team will contact you' },
       );
-    } catch {
-      this.toast.show({ th: 'ยืนยันไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Could not confirm — check your connection and try again' });
+    } catch (err) {
+      if (apiError(err).code === 'TECHNICIAN_REQUEST_ALREADY_OPEN') {
+        await this.loadRequests(boxId);
+        this.toast.show({ th: 'มีคำขอช่างที่ยังเปิดอยู่แล้ว', en: 'You already have an open technician request' });
+      } else {
+        this.toast.show({ th: 'ยืนยันไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', en: 'Could not confirm — check your connection and try again' });
+      }
     } finally {
       this.confirming.set(null);
     }

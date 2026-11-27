@@ -102,6 +102,24 @@ describe('Owner cancels a technician request (e2e)', () => {
     await patch(done, { status: 'cancelled' }).expect(400);
   });
 
+  it('"still broken" on an old job is 409 while a newer request is open', async () => {
+    const { box, owner } = await boundBox();
+    const old = await create(owner.cookie, box);
+    await patch(old, { status: 'done' }).expect(200);
+    await create(owner.cookie, box);
+    const res = await http().post(`/api/v1/boxes/${box}/technician-requests/${old}/confirm`).set('Cookie', owner.cookie).send({ result: 'still_broken' }).expect(409);
+    expect(res.body.code).toBe('TECHNICIAN_REQUEST_ALREADY_OPEN');
+  });
+
+  it('cannot confirm after the box is released', async () => {
+    const { box, owner } = await boundBox();
+    const id = await create(owner.cookie, box);
+    await patch(id, { status: 'done' }).expect(200);
+    await http().post(`/api/v1/boxes/${box}/unbind`).set('Cookie', owner.cookie).send({}).expect(200);
+    await http().post(`/api/v1/boxes/${box}/technician-requests/${id}/confirm`).set('Cookie', owner.cookie).send({ result: 'still_broken' }).expect(404);
+    expect((await pool.query(`SELECT status FROM app.technician_request_tb WHERE technician_request_id = $1`, [id])).rows[0].status).toBe('done');
+  });
+
   it('is 404 for another owner, for another box, and after the box is released', async () => {
     const { box, owner } = await boundBox();
     const other = await boundBox();
