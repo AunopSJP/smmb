@@ -1,6 +1,9 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, DestroyRef, inject } from '@angular/core';
-import { Router, RouterOutlet } from '@angular/router';
+import { Component, computed, DestroyRef, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { filter, map, startWith } from 'rxjs';
+import { SosBanner } from './shared/sos-banner';
 import { DisplaySettings } from './core/display-settings';
 import { AppUpdate } from './core/app-update';
 import { PrefsSync } from './core/prefs-sync';
@@ -10,7 +13,7 @@ import { startFieldA11y } from './core/field-a11y';
 import { installArrowNav } from './core/arrow-nav';
 
 @Component({
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, SosBanner],
   selector: 'app-root',
   styleUrl: './app.scss',
   templateUrl: './app.html',
@@ -24,6 +27,22 @@ export class App {
   private readonly appUpdate = inject(AppUpdate);
   /** ชื่อแท็บตามหน้าจอ + ภาษา */
   private readonly pageTitle = inject(PageTitle);
+
+  private readonly me = inject(Session).me;
+  private readonly currentRouter = inject(Router);
+  private readonly currentUrl = toSignal(
+    this.currentRouter.events.pipe(
+      filter((e) => e instanceof NavigationEnd),
+      map(() => this.currentRouter.url),
+      startWith(this.currentRouter.url),
+    ),
+  );
+  /** หน้า /settings/* อยู่นอก AreaShell — เจ้าหน้าที่/หัวหน้าต้องยังเห็นแถบ SOS และได้ยินไซเรน */
+  protected readonly settingsSos = computed(() => {
+    const roles: string[] = this.me()?.roles ?? [];
+    if (!this.currentUrl()?.startsWith('/settings/') || !roles.some((r) => r === 'officer' || r === 'head')) return null;
+    return { head: roles.includes('head') };
+  });
 
   constructor() {
     // แคนวาส ErrOffline: เน็ตหลุด → พาไปหน้าแจ้งไม่มีอินเทอร์เน็ต (ไม่เด้งกลับอัตโนมัติ ให้ผู้ใช้กดลองอีกครั้ง)

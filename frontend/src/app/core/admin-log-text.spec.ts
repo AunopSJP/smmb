@@ -17,6 +17,8 @@ describe('admin log text', () => {
     const l = row({ type: 'data_access', result: 'user', details: `{name,phone,sos:${SOS}}` });
     expect(logDetail(l, 'th')).toBe('สมชาย · ข้อมูลผู้ใช้ · ชื่อ, เบอร์โทร, ตอน SOS');
     expect(logRaw(l)).toContain(SOS);
+    expect(logRaw(l)).toContain('at=2026-11-27T00:00:00Z');
+    expect(logRaw(l)).toContain('type=data_access');
   });
 
   it('keeps a typed SOS close note as written', () => {

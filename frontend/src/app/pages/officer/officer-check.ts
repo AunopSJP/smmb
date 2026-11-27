@@ -40,7 +40,11 @@ async function startInspection(api: InspectionApi, router: Router, body: Paramet
     const e = apiError(err);
     switch (e.code) {
       case 'QR_NOT_SYSTEM':
-        go(router, 'O04', e.body['admin_alerted'] === true ? { alerted: 1 } : {});
+        go(router, 'O04', {
+          ...(e.body['admin_alerted'] === true ? { alerted: 1 } : {}),
+          // เป็นลิงก์เว็บเท่านั้นจึงเตือนเรื่อง QR ปลอม — บาร์โค้ด/ข้อความบอกแค่ว่าบันทึกแล้ว
+          ...('qr_text' in body && /^\s*(https?:\/\/|www\.)/i.test(body.qr_text ?? '') ? { link: 1 } : {}),
+        });
         return null;
       case 'NOT_IN_ZONE':
         go(router, 'O04-b', { reason: 'zone' });
@@ -483,16 +487,20 @@ export class OfficerQrCondition implements OnInit {
       <div class="result">
         <span class="big-icon danger" aria-hidden="true">!</span>
         <h1 class="danger-text">{{ i18n.t({ th: 'QR นี้ไม่ใช่ของระบบ', en: 'This QR is not from our system' }) }}</h1>
+        @if (alerted() || link()) {
         <p class="muted small easy-hide">
           {{ i18n.t({ th: 'อาจมีคนแปะ QR ปลอมทับไว้ อย่าสแกนด้วยกล้องมือถือธรรมดา · ไม่ได้บันทึกการตรวจ', en: 'Someone may have stuck a fake QR on top. Don’t scan it with the normal camera · not recorded' }) }}
         </p>
+        }
         <p class="info-box">
           @if (alerted()) {
             <strong class="ok-text"><app-icon name="check" [size]="14" /> {{ i18n.t({ th: 'แจ้งผู้ดูแลระบบแล้วอัตโนมัติ', en: 'Admin alerted automatically' }) }}</strong>
           } @else {
             <strong>{{ i18n.t({ th: 'บันทึกการสแกนแล้ว · ถ้าสงสัยให้แจ้งหัวหน้า', en: 'The scan is recorded · tell your head if it looks suspicious' }) }}</strong>
           }
-          <span class="muted easy-hide next-step">{{ i18n.t({ th: 'ถ้าเป็น QR ที่ติดอยู่หน้าตู้: ถ่ายภาพไว้เป็นหลักฐาน แจ้งหัวหน้า แล้วลองพิมพ์รหัสใต้ QR แทน', en: 'If this is the sticker on the mailbox: photograph it, tell your head, and try typing the code under it' }) }}</span>
+          @if (alerted() || link()) {
+            <span class="muted easy-hide next-step">{{ i18n.t({ th: 'ถ้าเป็น QR ที่ติดอยู่หน้าตู้: ถ่ายภาพไว้เป็นหลักฐาน แจ้งหัวหน้า แล้วลองพิมพ์รหัสใต้ QR แทน', en: 'If this is the sticker on the mailbox: photograph it, tell your head, and try typing the code under it' }) }}</span>
+          }
         </p>
       </div>
       <div class="stack push-end">
@@ -518,6 +526,8 @@ export class OfficerQrCondition implements OnInit {
 export class OfficerNotSystem {
   /** ?alerted=1 — server ส่งแจ้งเตือนถึงแอดมินจริง */
   readonly alerted = input<string>();
+  /** ?link=1 — ที่สแกนเป็นลิงก์เว็บ */
+  readonly link = input<string>();
   protected readonly i18n = inject(I18n);
   protected readonly url = screenUrl;
 }

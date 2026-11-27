@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, OnInit, signal, effect, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { apiError } from '../../core/api';
 import { DisplaySettings } from '../../core/display-settings';
@@ -287,11 +287,10 @@ export class OfficerSosList {
     }
   `,
 })
-export class OfficerSosCase implements OnInit {
+export class OfficerSosCase {
   protected readonly i18n = inject(I18n);
   private readonly api = inject(OfficerSosApi);
   private readonly router = inject(Router);
-  private readonly destroy = inject(DestroyRef);
   protected readonly url = screenUrl;
   readonly id = input<string>('');
   protected readonly card = signal<SosCard | null>(null);
@@ -302,19 +301,35 @@ export class OfficerSosCase implements OnInit {
   private readonly now = signal(Date.now());
   protected readonly ago = computed(() => (this.now(), this.card() ? secondsSince(this.card()!.created_at) : 0));
 
-  ngOnInit(): void {
-    const tick = async () => {
-      const c = await this.api.card(this.id()).catch(() => null);
-      this.now.set(Date.now());
-      if (!c) return;
-      this.card.set(c);
-      if (c.mine && c.status === 'accepted') go(this.router, 'O10', c.id);
-      // ปิด/ยกเลิกแล้ว = จบ ไม่ต้องถามต่อ
-      if (c.status === 'closed' || c.status === 'cancelled') clearInterval(t);
-    };
-    const t = setInterval(() => void tick(), POLL_MS);
-    void tick();
-    this.destroy.onDestroy(() => clearInterval(t));
+  constructor() {
+    // เปลี่ยนเรื่องในหน้าเดิม (แตะแถบ SOS ขณะดูอีกเรื่อง) → Angular ใช้ component ซ้ำ จึงต้องเริ่มใหม่ตาม ?id
+    effect((onCleanup) => {
+      const id = this.id();
+      untracked(() => {
+        this.card.set(null);
+        this.taken.set(false);
+        this.takenBy.set(null);
+        this.failed.set(false);
+        this.busy.set(false);
+      });
+      let stale = false;
+      const tick = async () => {
+        const c = await this.api.card(id).catch(() => null);
+        if (stale) return;
+        this.now.set(Date.now());
+        if (!c) return;
+        this.card.set(c);
+        if (c.mine && c.status === 'accepted') go(this.router, 'O10', c.id);
+        // ปิด/ยกเลิกแล้ว = จบ ไม่ต้องถามต่อ
+        if (c.status === 'closed' || c.status === 'cancelled') clearInterval(t);
+      };
+      const t = setInterval(() => void tick(), POLL_MS);
+      untracked(() => void tick());
+      onCleanup(() => {
+        stale = true;
+        clearInterval(t);
+      });
+    });
   }
 
   /** คนแรกที่กดได้เรื่อง — server ล็อก · 409 = มีคนรับไปแล้ว · 410 = เจ้าของยกเลิก */
