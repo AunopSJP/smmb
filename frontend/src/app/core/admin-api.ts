@@ -67,6 +67,7 @@ export interface AdminOverview {
   agencies_pending: number;
   qr_issues: { total: number; by_health: Record<'damaged' | 'suspicious' | 'maybe_fake' | 'expiring', number> };
   sos_open: number;
+  sos_unclaimed: number;
   technician_requests_open: number;
   owners_by_plan: { plan_code: string; owners_count: number }[];
   /** 7 วันล่าสุด (เวลาไทย เก่า→ใหม่) */
@@ -170,6 +171,11 @@ export interface AdminAgency {
 }
 
 export interface AdminAgencyDetail extends AdminAgency {
+  /** ช่องทางติดต่อของหน่วยงาน ('' = ไม่ได้กรอก) */
+  contact: string;
+  phone: string;
+  email: string;
+  contact_person: string;
   reject_reason: string | null;
   approved_at: string | null;
   suspend_reason: string | null;

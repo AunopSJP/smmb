@@ -147,6 +147,7 @@ describe('Agency + admin (e2e)', () => {
       const ag = await signupAgency();
       const res = await as(admin.cookie).get(`/api/v1/admin/agencies/${ag.agencyId}`).expect(200);
       expect(res.body.heads_contact[0].phone).toBe(ag.phone);
+    expect(res.body).toMatchObject({ contact: expect.any(String), phone: expect.any(String), email: expect.any(String), contact_person: expect.any(String) });
       const log = await pool.query(
         `SELECT data_access_log_id FROM app.data_access_log_tb WHERE actor_user_id = $1 AND subject_id = $2`,
         [admin.id, ag.agencyId],

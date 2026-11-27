@@ -55,6 +55,14 @@ describe('SosAlarm', () => {
     alarm.stop();
   });
 
+  it('keeps unaccepted cases listed for the banner, including ones this officer returned', async () => {
+    const { alarm } = setup([{ ...card('open'), returned_by_me: true }, card('accepted', true)]);
+    alarm.start();
+    await vi.waitFor(() => expect(alarm.waiting().map((c) => c.id)).toEqual(['open']));
+    alarm.stop();
+    expect(alarm.waiting()).toEqual([]);
+  });
+
   it('stops ringing when watching ends', async () => {
     const { alarm } = setup([card('open')]);
     alarm.start();

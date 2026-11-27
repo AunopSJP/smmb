@@ -15,6 +15,8 @@ import { Icon } from '../../shared/icon';
 import { PageHeader } from '../../shared/page-header';
 import { StepProgress } from '../../shared/step-progress';
 import { ContactCard } from '../../shared/contact-card';
+import { EnablePush } from '../../shared/enable-push';
+import { liveRefresh } from '../../core/live-refresh';
 import { emptyExtras, extrasPayload, extrasValid, ProfileExtras } from '../../shared/profile-extras';
 import { PasswordField, TermsCheck } from './auth-parts';
 import { SIGNUP_ERROR } from './auth-owner';
@@ -227,7 +229,7 @@ export class AuthSignupOfficer {
 
 @Component({
   selector: 'app-auth-waiting-head',
-  imports: [ContactCard],
+  imports: [ContactCard, EnablePush],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack grow">
@@ -283,7 +285,11 @@ export class AuthSignupOfficer {
             {{ i18n.t({ th: 'ส่งคำขอเข้าหน่วยงานแล้ว', en: 'Your request has been sent.' }) }}<br />
             {{ i18n.t({ th: 'หัวหน้าจะได้รับแจ้งเตือน', en: 'Your head will be notified' }) }}
           </p>
-          <p class="small easy-only">{{ i18n.t({ th: 'หัวหน้าจะอนุมัติ แล้วเราจะแจ้งเตือนคุณ', en: 'Your head will approve it and we will notify you' }) }}</p>
+          <p class="small">
+            {{ pushOn()
+              ? i18n.t({ th: 'เมื่อหัวหน้ายืนยัน เครื่องนี้จะได้รับแจ้งเตือน', en: 'This device will be notified once your head approves' })
+              : i18n.t({ th: 'ยังไม่ได้เปิดแจ้งเตือน — กลับมาเปิดแอปเพื่อดูผล', en: 'Notifications are off — open the app again to see the result' }) }}
+          </p>
         </div>
         <section class="card easy-hide">
           <dl class="kv">
@@ -293,7 +299,8 @@ export class AuthSignupOfficer {
         <app-contact-card class="easy-hide" [label]="{ th: 'รอนานเกินไป? ติดต่อหน่วยงาน', en: 'Waiting too long? Contact the agency' }" [contact]="req().contact" />
         
         <div class="stack push-end">
-          <button type="button" class="btn" (click)="check()">{{ i18n.t({ th: 'ตรวจสถานะอีกครั้ง', en: 'Check again' }) }}</button>
+          <app-enable-push [(active)]="pushOn" [label]="{ th: 'เปิดแจ้งเตือนเพื่อรู้ผลทันที', en: 'Turn on notifications to hear right away' }" />
+          <button type="button" [class]="pushOn() ? 'btn' : 'btn secondary'" (click)="check()">{{ i18n.t({ th: 'ตรวจสถานะอีกครั้ง', en: 'Check again' }) }}</button>
           @if (otherHome(); as h) {
             <button type="button" class="btn secondary" (click)="leave(h)">{{ i18n.t({ th: 'กลับหน้าหลัก', en: 'Back to home' }) }}</button>
           } @else {
@@ -333,6 +340,9 @@ export class AuthWaitingHead implements OnInit {
   protected readonly otherHome = computed(() => this.session.roles().find((r) => r !== 'officer' && r !== 'head') ?? null);
   /** ?state=rejected = A11-b */
   readonly state = input<string>();
+  protected readonly pushOn = signal(false);
+  /** เช็กสถานะเอง: กลับเข้าแอป / มี push เข้า / ทุก 30 วิ ขณะเปิดค้าง */
+  private readonly auto = liveRefresh(() => (this.state() === 'rejected' ? undefined : this.check(true)), 30_000);
   /** Me.agency (ชื่อ + contact ที่หน่วยงานกรอกตอนสมัคร) */
   protected readonly req = computed(() => {
     const a = this.realSession.me()?.agency;
@@ -352,8 +362,10 @@ export class AuthWaitingHead implements OnInit {
   }
 
   /** GET /me → agency_status: active → ใช้งาน (หรือหน้าเปิดแจ้งเตือน) · rejected → A11-b */
-  protected async check(): Promise<void> {
+  protected async check(silent = false): Promise<void> {
     const me = await this.realSession.refresh();
+    // เช็กอัตโนมัติ: ถามไม่สำเร็จ (เน็ตหลุด) → อยู่หน้าเดิมเงียบ ๆ
+    if (!me && silent) return;
     if (!me) {
       void this.router.navigateByUrl(screenUrl('A04'));
     } else if (me.agency_status === 'active' && (me.roles.includes('officer') || me.roles.includes('head'))) {
@@ -361,11 +373,12 @@ export class AuthWaitingHead implements OnInit {
       // ต้องเปิดแจ้งเตือนก่อนไหม — server ตัดสิน (403 PUSH_REQUIRED → A12 ผ่าน apiInterceptor)
       void this.router.navigateByUrl(me.roles.includes('head') ? ROLE_HOME.head : ROLE_HOME.officer, { replaceUrl: true });
     } else if (me.agency_status === 'suspended') {
-      if (this.state() === 'suspended') this.toast.show({ th: 'หน่วยงานยังถูกระงับอยู่', en: 'The agency is still suspended' });
-      else void this.router.navigate([screenUrl('A11')], { queryParams: { state: 'suspended' }, replaceUrl: true });
+      if (this.state() === 'suspended') {
+        if (!silent) this.toast.show({ th: 'หน่วยงานยังถูกระงับอยู่', en: 'The agency is still suspended' });
+      } else void this.router.navigate([screenUrl('A11')], { queryParams: { state: 'suspended' }, replaceUrl: true });
     } else if (me.agency_status === 'rejected') {
       void this.router.navigate([screenUrl('A11')], { queryParams: { state: 'rejected' }, replaceUrl: true });
-    } else {
+    } else if (!silent) {
       this.toast.show({ th: 'ยังรอหัวหน้ายืนยันอยู่', en: 'Still waiting for your head' });
     }
   }

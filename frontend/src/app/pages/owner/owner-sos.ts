@@ -313,11 +313,13 @@ export class SosWaiting {
     <div class="sos-page">
       <header class="sos-head">
         <h1>{{ i18n.t({ th: 'โทรแจ้งเหตุทันที', en: 'Call for help now' }) }}</h1>
-        <p>{{ i18n.t({ th: 'บ้านนี้ยังไม่มีเจ้าหน้าที่ดูแล ระบบส่งต่อให้ใครไม่ได้', en: 'No officer covers this house yet, so the SOS cannot be passed on' }) }}</p>
+        <p>{{ i18n.t({ th: 'บ้านนี้ยังไม่มีเจ้าหน้าที่ดูแล จะไม่มีใครมาช่วยจากแอป โปรดโทร 191 / 1669', en: 'No officer covers this house, so no one will come through the app. Call 191 / 1669.' }) }}</p>
+        @if (alerted()) {
+          <p>{{ i18n.t({ th: 'แจ้งผู้ดูแลระบบแล้ว', en: 'The system admin has been told' }) }}</p>
+        }
       </header>
       <div class="sos-body">
         <app-call-buttons [big]="true" />
-        <p class="muted small center easy-hide">{{ i18n.t({ th: 'ระบบบันทึกเหตุนี้ไว้แล้ว ผู้ดูแลระบบจะเห็น', en: 'This event is recorded and the admin will see it' }) }}</p>
       </div>
       <footer class="sos-foot">
         <a class="btn secondary" [routerLink]="url('H03')">{{ i18n.t({ th: 'กลับหน้าหลัก', en: 'Back to home' }) }}</a>
@@ -339,6 +341,8 @@ export class SosWaiting {
   `,
 })
 export class SosNoOfficer {
+  /** ?alerted=1 — server ส่งแจ้งเตือนถึงแอดมินได้จริง */
+  readonly alerted = input<string>();
   protected readonly i18n = inject(I18n);
   protected readonly display = inject(DisplaySettings);
   protected readonly url = screenUrl;

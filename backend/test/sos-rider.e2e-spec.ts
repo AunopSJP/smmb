@@ -170,7 +170,9 @@ describe('Rider + SOS + owner home (e2e)', () => {
     it('a house in no zone gets SOS_NO_COVERAGE (call 191/1669) and nothing is created', async () => {
       const { b, owner: o } = await boundBox();
       const r = await as(o.cookie).post('/api/v1/sos', { box_id: b.box_id }).expect(200);
-      expect(r.body).toEqual({ code: 'SOS_NO_COVERAGE', call: ['191', '1669'] });
+      expect(r.body).toEqual({ code: 'SOS_NO_COVERAGE', call: ['191', '1669'], admin_alerted: true });
+      const alerts = await pool.query(`SELECT count(*)::int AS n FROM app.notification_tb WHERE type = 'sos_no_coverage' AND data->>'box_id' = $1`, [b.box_id]);
+      expect(alerts.rows[0].n).toBeGreaterThan(0);
       expect((await pool.query(`SELECT count(*)::int AS n FROM app.sos_case_tb WHERE box_id = $1`, [b.box_id])).rows[0].n).toBe(0);
     });
 

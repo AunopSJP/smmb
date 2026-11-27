@@ -141,7 +141,7 @@ export const SCREENS: ScreenDef[] = [
     states: ['O06-b'],
     next: ['O08', 'O06-c'],
   }),
-  s('O06-c', 'officer', 'check/badge-failed', 'ตู้สแกนไม่ผ่าน 3 ครั้ง', 'Box failed 3 times', { fullscreen: true }),
+  s('O06-c', 'officer', 'check/badge-failed', 'ตรวจไม่สำเร็จ', 'Inspection not completed', { fullscreen: true }),
   s('O08', 'officer', 'check/done', 'ตรวจแล้ว', 'Inspection recorded', { fullscreen: true, next: ['O01'] }),
   s('O12', 'officer', 'sos', 'รายการ SOS', 'SOS list', { next: ['O09'] }),
   s('O09', 'officer', 'sos/case', 'SOS · รับเรื่อง', 'SOS · accept', { fullscreen: true, states: ['O09-b', 'O09-c'], next: ['O10'] }),

@@ -1,6 +1,7 @@
+import { initialOf } from '../../core/admin-log-text';
 import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, signal, type OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { AdminApi, type AdminAgency, type AdminUser } from '../../core/admin-api';
+import { type AdminAgencyDetail, AdminApi, type AdminAgency, type AdminUser } from '../../core/admin-api';
 import { apiError } from '../../core/api';
 import { AGENCY_TYPE_LABEL, showGroupCode } from '../../core/head-api';
 import { I18n, type Tr } from '../../core/i18n';
@@ -44,14 +45,38 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
             <strong>{{ a.name }}</strong>
             <span class="chip">{{ i18n.t(type(a.type)) }}</span>
           </div>
-          <p class="muted small easy-hide">
+          <p class="muted small">
             {{ i18n.t({ th: 'หัวหน้า: ', en: 'Head: ' }) }}{{ heads(a) }} · {{ i18n.t({ th: 'ส่งเมื่อ ', en: 'Sent ' }) }}{{ date(a.created_at) }}
           </p>
           @if (a.address || a.registration_no) {
-            <p class="small easy-hide">
+            <p class="small">
               @if (a.address) { {{ i18n.t({ th: 'ที่ตั้ง: ', en: 'Address: ' }) }}{{ a.address }} }
               @if (a.registration_no) { <br />{{ i18n.t({ th: 'เลขทะเบียน/ใบอนุญาต: ', en: 'Registration no.: ' }) }}{{ a.registration_no }} }
             </p>
+          }
+          @if (details()[a.id]; as d) {
+            <dl class="verify">
+              @for (h of d.heads_contact; track h.id) {
+                <dt>{{ i18n.t({ th: 'หัวหน้า', en: 'Head' }) }}</dt>
+                <dd>{{ h.display_name }} · <a [href]="'tel:' + h.phone">{{ h.phone }}</a></dd>
+              }
+              <dt>{{ i18n.t({ th: 'ติดต่อหน่วยงาน', en: 'Agency contact' }) }}</dt>
+              <dd>{{ d.contact || '—' }}</dd>
+              @if (d.phone) {
+                <dt>{{ i18n.t({ th: 'โทรศัพท์หน่วยงาน', en: 'Agency phone' }) }}</dt>
+                <dd><a [href]="'tel:' + d.phone">{{ d.phone }}</a></dd>
+              }
+              @if (d.email) {
+                <dt>{{ i18n.t({ th: 'อีเมล', en: 'Email' }) }}</dt>
+                <dd>{{ d.email }}</dd>
+              }
+              @if (d.contact_person) {
+                <dt>{{ i18n.t({ th: 'ผู้ประสานงาน', en: 'Coordinator' }) }}</dt>
+                <dd>{{ d.contact_person }}</dd>
+              }
+            </dl>
+          } @else {
+            <button type="button" class="btn secondary" [disabled]="loadingDetail() === a.id" (click)="showContact(a)">{{ i18n.t({ th: 'ดูข้อมูลติดต่อเพื่อตรวจสอบ', en: 'Show contacts to verify' }) }}</button>
           }
           @if (rejecting() === a.id) {
             <label class="field">
@@ -91,6 +116,27 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
     .chip {
       margin-inline-start: 6px;
     }
+    .verify {
+      display: grid;
+      align-items: baseline;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 4px 12px;
+      margin: 0;
+      font-size: var(--fs-sm);
+      dt {
+        color: var(--text-muted);
+      }
+      dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+      a {
+        display: inline-block;
+        padding-block: 6px;
+        color: var(--brand-text);
+        font-weight: var(--fw-strong);
+      }
+    }
     .empty {
       display: flex;
       flex-direction: column;
@@ -123,6 +169,21 @@ const STATUS_LABEL: Record<AdminAgency['status'], Tr> = {
   `,
 })
 export class AdminAgencyRequests implements OnInit {
+  private readonly confirm = inject(Confirm);
+  /** ข้อมูลติดต่อที่เปิดดูแล้ว (การเปิดดูถูกบันทึกที่ server) */
+  protected readonly details = signal<Record<string, AdminAgencyDetail>>({});
+  protected readonly loadingDetail = signal<string | null>(null);
+  protected async showContact(a: AdminAgency): Promise<void> {
+    this.loadingDetail.set(a.id);
+    try {
+      const d = await this.api.agency(a.id);
+      this.details.update((all) => ({ ...all, [a.id]: d }));
+    } catch {
+      this.toast.show({ th: 'โหลดข้อมูลติดต่อไม่สำเร็จ ลองอีกครั้ง', en: 'Couldn’t load the contacts — try again' });
+    } finally {
+      this.loadingDetail.set(null);
+    }
+  }
   protected readonly i18n = inject(I18n);
   private readonly api = inject(AdminApi);
   private readonly toast = inject(Toast);
@@ -167,6 +228,15 @@ export class AdminAgencyRequests implements OnInit {
 
   /** POST /admin/agencies/:id/approve → หัวหน้าได้บทบาท officer + head · ได้รหัสกลุ่ม */
   protected async approve(a: AdminAgency): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: { th: `อนุมัติ ${a.name}?`, en: `Approve ${a.name}?` },
+      body: {
+        th: 'ตรวจสอบตัวตนหน่วยงานแล้วหรือยัง? เมื่ออนุมัติ หน่วยงานนี้จะส่งคำขอดูแลบ้านได้ และเจ้าหน้าที่จะเห็นข้อมูลบ้านตามเงื่อนไขของระบบ',
+        en: 'Have you verified who this agency is? Once approved it can ask to cover houses, and its officers can see house data under the system rules.',
+      },
+      confirm: { th: 'อนุมัติ', en: 'Approve' },
+    });
+    if (!ok) return;
     this.busy.set(true);
     try {
       await this.api.approveAgency(a.id);
@@ -416,7 +486,7 @@ const ROLE_LABEL: Record<string, Tr> = {
       @if (selected(); as u) {
         <section class="card stack">
           <div class="who-head">
-            <span class="avatar" aria-hidden="true">{{ (u.name?.trim()?.charAt(0) || '?').toUpperCase() }}</span>
+            <span class="avatar" aria-hidden="true">{{ initialOf(u.name) }}</span>
             <div>
               <strong>{{ u.name }}</strong>
               <span class="muted small block">{{ u.phone }}</span>
@@ -451,12 +521,12 @@ const ROLE_LABEL: Record<string, Tr> = {
             </div>
             <button type="button" class="btn" [disabled]="busy()" (click)="restore(u)">{{ i18n.t({ th: 'กู้บัญชีนี้', en: 'Restore this account' }) }}</button>
           } @else {
-          <div class="two easy-hide">
+          <div class="two">
             <button type="button" class="btn secondary" [disabled]="busy()" (click)="reset(u)">{{ i18n.t({ th: 'รีเซ็ตรหัส', en: 'Reset password' }) }}</button>
             @if (u.status === 'active') {
-              <button type="button" class="btn secondary outline-danger" [disabled]="busy()" (click)="setStatus(u, 'disabled')">{{ i18n.t({ th: 'ปิดบัญชี', en: 'Disable' }) }}</button>
+              <button type="button" class="btn secondary outline-danger easy-hide" [disabled]="busy()" (click)="setStatus(u, 'disabled')">{{ i18n.t({ th: 'ปิดบัญชี', en: 'Disable' }) }}</button>
             } @else {
-              <button type="button" class="btn" [disabled]="busy()" (click)="setStatus(u, 'active')">{{ i18n.t({ th: 'เปิดบัญชี', en: 'Enable' }) }}</button>
+              <button type="button" class="btn easy-hide" [disabled]="busy()" (click)="setStatus(u, 'active')">{{ i18n.t({ th: 'เปิดบัญชี', en: 'Enable' }) }}</button>
             }
           </div>
           }
@@ -721,6 +791,7 @@ export class AdminUsers implements OnInit {
   });
   protected readonly selected = computed(() => this.users().find((u) => u.id === this.selectedId()) ?? null);
   protected readonly temp = signal<string | null>(null);
+  protected readonly initialOf = initialOf;
   protected readonly error = signal<Tr | null>(null);
   protected readonly busy = signal(false);
   /** แสดงเฉพาะบัญชีที่ผู้ใช้ขอลบและยังอยู่ในช่วงพัก (กู้ได้) */
@@ -792,8 +863,8 @@ export class AdminUsers implements OnInit {
     const ok = await this.confirm.ask({
       title: { th: `รีเซ็ตรหัสของ ${u.display_name || u.phone}?`, en: `Reset the password for ${u.display_name || u.phone}?` },
       body: {
-        th: 'รหัสเดิมใช้ไม่ได้ทันที และผู้ใช้จะถูกออกจากระบบทุกเครื่อง — ต้องนำรหัสชั่วคราวไปให้ผู้ใช้',
-        en: 'The old password stops working immediately and they are signed out on every device — you must give them the temporary password.',
+        th: 'โทรกลับเบอร์ในบัญชีและถามยืนยันตัวแล้วหรือยัง? รหัสเดิมจะใช้ไม่ได้ทันที ผู้ใช้ถูกออกจากระบบทุกเครื่อง และต้องบอกรหัสชั่วคราวให้ผู้ใช้',
+        en: 'Have you called the number on the account back and confirmed who it is? The old password stops working immediately, they are signed out everywhere, and you must give them the temporary password.',
       },
       confirm: { th: 'รีเซ็ตรหัส', en: 'Reset password' },
       danger: true,

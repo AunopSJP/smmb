@@ -28,6 +28,11 @@ export interface AdminAgencyRow {
 }
 
 export interface AdminAgencyDetail extends AdminAgencyRow {
+  /** ช่องทางติดต่อที่หน่วยงานกรอก — ใช้ตรวจตัวตนก่อนอนุมัติ ('' = ไม่ได้กรอก) */
+  contact: string;
+  phone: string;
+  email: string;
+  contact_person: string;
   reject_reason: string | null;
   approved_at: string | null;
   /** มีค่าเฉพาะตอนถูกระงับ */
@@ -107,12 +112,17 @@ export class AdminAgencyService {
       approved_date: Date | null;
       suspend_reason: string | null;
       suspended_date: Date | null;
+      contact: string | null;
+      phone: string | null;
+      email: string | null;
+      contact_person: string | null;
       members_active: number;
       members_pending: number;
       zones: number;
       houses: number;
     }>(
       `SELECT a.agency_id, a.name, a.type, a.status, a.group_code, a.reject_reason, a.address, a.registration_no, a.created_date, a.approved_date, a.suspend_reason, a.suspended_date,
+              a.contact, a.phone, a.email, a.contact_person,
               (SELECT count(*)::int FROM app.agency_member_tb m WHERE m.agency_id = a.agency_id AND m.status = 'active') AS members_active,
               (SELECT count(*)::int FROM app.agency_member_tb m WHERE m.agency_id = a.agency_id AND m.status = 'pending') AS members_pending,
               (SELECT count(*)::int FROM app.zone_tb z WHERE z.agency_id = a.agency_id AND z.deleted_date IS NULL) AS zones,
@@ -131,7 +141,7 @@ export class AdminAgencyService {
     );
     await this.pool.query(
       `INSERT INTO app.data_access_log_tb (actor_user_id, subject_kind, subject_id, fields)
-       VALUES ($1, 'agency', $2, '{heads.name,heads.phone}')`,
+       VALUES ($1, 'agency', $2, '{heads.name,heads.phone,agency.contact}')`,
       [adminId, agencyId],
     );
     return {
@@ -141,6 +151,10 @@ export class AdminAgencyService {
       status: a.status,
       group_code: a.group_code,
       created_at: a.created_date.toISOString(),
+      contact: a.contact ?? '',
+      phone: a.phone ?? '',
+      email: a.email ?? '',
+      contact_person: a.contact_person ?? '',
       approved_at: a.approved_date?.toISOString() ?? null,
       reject_reason: a.reject_reason,
       suspend_reason: a.suspend_reason,

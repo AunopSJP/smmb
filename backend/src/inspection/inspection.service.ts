@@ -109,6 +109,7 @@ export interface MyLogDto {
   result: string;
 }
 const MY_LOG_PAGE = 30;
+const FOREIGN_LINK_ALERTS_PER_HOUR = 10;
 
 /**
  * ตรวจตู้ (api.md §6 · design §6) — ตัดสินที่ server เท่านั้น (CLAUDE.md กฎข้อ 4)
@@ -158,9 +159,10 @@ export class InspectionService implements OnModuleInit {
       if (!qr) {
         const claimed = parsed ? await this.boxExists(parsed.boxId) : null;
         await log('not_system', { boxId: claimed });
-        // หน้าตาเหมือน QR หน้าตู้ของเรา แต่ token ไม่ใช่ที่ระบบออก = อาจถูกแปะ QR ปลอมทับ → แจ้งแอดมินทันที
-        if (parsed) await this.alertFakeQr(claimed, raw);
-        throw new AppError(HttpStatus.UNPROCESSABLE_ENTITY, 'QR_NOT_SYSTEM', 'this QR is not from the system');
+        // อาจถูกแปะ QR ปลอมทับ → แจ้งแอดมินทันที: หน้าตาเหมือน QR หน้าตู้ของเราแต่ token ไม่ใช่ที่ระบบออก หรือเป็นลิงก์ไปเว็บอื่น
+        // บาร์โค้ด/ข้อความทั่วไป → ไม่แจ้ง · admin_alerted บอกหน้าจอว่าแจ้งจริงไหม (✅ 2026-11-27)
+        const adminAlerted = parsed ? await this.alertFakeQr(claimed, raw) : this.isForeignLink(raw) ? await this.alertForeignLink(raw) : false;
+        throw new AppError(HttpStatus.UNPROCESSABLE_ENTITY, 'QR_NOT_SYSTEM', 'this QR is not from the system', { admin_alerted: adminAlerted });
       }
     } else {
       const code = raw.replace(/[\s-]/g, '').toUpperCase();
@@ -644,7 +646,32 @@ export class InspectionService implements OnModuleInit {
     );
   }
 
-  private async alertFakeQr(boxId: string | null, raw: string): Promise<void> {
+  /** ลิงก์เว็บที่ไม่ใช่โดเมนของระบบ (QR ของเราชนิดอื่น เช่น QR เปิดใช้ตู้ ไม่นับ) */
+  private isForeignLink(text: string): boolean {
+    const t = text.trim();
+    let url: URL;
+    try {
+      url = new URL(/^www\./i.test(t) ? `https://${t}` : t);
+    } catch {
+      return false;
+    }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+    return !this.config.get('QR_ALLOWED_HOSTS', { infer: true }).includes(url.hostname.toLowerCase());
+  }
+
+  /** จำกัดความถี่: ลิงก์เดิมแจ้งครั้งเดียวต่อชั่วโมง · รวมไม่เกิน FOREIGN_LINK_ALERTS_PER_HOUR ลิงก์ต่อชั่วโมง */
+  private async alertForeignLink(raw: string): Promise<boolean> {
+    const { rows } = await this.pool.query<{ same: boolean; total: number }>(
+      `SELECT coalesce(bool_or(data->>'raw' = $1), false) AS same, count(DISTINCT data->>'raw')::int AS total
+       FROM app.notification_tb WHERE type = 'qr_fake' AND data->>'box_id' IS NULL AND created_date > now() - interval '1 hour'`,
+      [raw.slice(0, 120)],
+    );
+    if (rows[0]?.same) return true; // แอดมินได้ลิงก์นี้ไปแล้ว
+    if ((rows[0]?.total ?? 0) >= FOREIGN_LINK_ALERTS_PER_HOUR) return false;
+    return this.alertFakeQr(null, raw);
+  }
+
+  private async alertFakeQr(boxId: string | null, raw: string): Promise<boolean> {
     if (boxId) {
       await this.pool.query(
         `UPDATE app.box_qr_code_tb
@@ -654,13 +681,17 @@ export class InspectionService implements OnModuleInit {
         [boxId],
       );
     }
-    await this.safeNotify(async () =>
-      this.notifications.notify(await this.adminIds(), {
+    let sent = false;
+    await this.safeNotify(async () => {
+      const admins = await this.adminIds();
+      await this.notifications.notify(admins, {
         type: 'qr_fake',
         data: { box_id: boxId, raw: raw.slice(0, 120) },
         link: boxId ? `/admin/boxes/detail?id=${boxId}` : '/admin/qr',
-      }),
-    );
+      });
+      sent = admins.length > 0;
+    });
+    return sent;
   }
 
   private async notifyInspected(boxId: string, agencyName: string, officerName: string, inspectionId: string): Promise<void> {
