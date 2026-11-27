@@ -161,7 +161,7 @@ const toMinutes = (hhmm: string): number | null => {
                   <span class="stamp"><span>{{ i18n.t({ th: 'ตรวจแล้ว', en: 'Checked' }) }}</span><span class="stamp-t">{{ time(h.checked_at) }}</span></span>
                 } @else if (notReady(h.status); as why) {
                   <!-- ตู้ตรวจไม่ได้ตอนนี้ — บอกก่อนเดินไป (สถานะจาก server) -->
-                  <span class="chip danger">{{ i18n.t(why) }}</span>
+                  <span class="chip" [class.danger]="h.status !== 'sleeping'">{{ i18n.t(why) }}</span>
                 } @else {
                   <span class="chip warn">{{ i18n.t({ th: 'ยังไม่ตรวจ', en: 'Not yet' }) }}</span>
                 }
@@ -256,6 +256,7 @@ export class OfficerHome {
   /** ป้ายของตู้ที่ตรวจไม่ได้ตอนนี้ (null = ตรวจได้ · backend รุ่นเก่าที่ยังไม่ส่ง status ก็ถือว่าตรวจได้) */
   protected notReady(status: OfficerSummary['houses'][number]['status'] | undefined): Tr | null {
     if (status === 'offline') return { th: 'ตู้ไม่ออนไลน์', en: 'Offline' };
+    if (status === 'sleeping') return { th: 'ตู้พัก', en: 'Box resting' };
     if (status === 'service_closed' || status === 'unbound') return { th: 'ปิดบริการ', en: 'Closed' };
     return null;
   }

@@ -13,7 +13,7 @@ import { EmptyState, LoadingRows, LoadError } from '../../shared/state-view';
 
 const STATUS: Record<OfficerBoxDetail['box']['status'], { label: Tr; icon: IconName; tone: '' | 'warn' | 'danger' }> = {
   online: { label: { th: 'ตู้ออนไลน์ พร้อมตรวจ', en: 'Online — ready to inspect' }, icon: 'check', tone: '' },
-  sleeping: { label: { th: 'ตู้พักอยู่ (นอกเวลาตรวจ)', en: 'Sleeping outside patrol hours' }, icon: 'info', tone: 'warn' },
+  sleeping: { label: { th: 'ตู้พัก', en: 'Box resting' }, icon: 'info', tone: 'warn' },
   offline: { label: { th: 'ตู้ไม่ออนไลน์', en: 'Mailbox offline' }, icon: 'alert', tone: 'danger' },
   service_closed: { label: { th: 'ตู้ปิดให้บริการ', en: 'Mailbox service closed' }, icon: 'alert', tone: 'danger' },
   unbound: { label: { th: 'ตู้ยังไม่ผูกบ้าน', en: 'Mailbox not linked to a house' }, icon: 'alert', tone: 'danger' },
@@ -165,7 +165,7 @@ export class OfficerBoxDetailPage implements OnInit {
   protected readonly notReadyHint = computed<Tr>(() => {
     switch (this.detail()?.box.status) {
       case 'sleeping':
-        return { th: 'ตรวจได้เมื่อถึงเวลาตรวจของโซน', en: 'You can inspect it during the zone’s patrol hours' };
+        return { th: 'ตู้พักเพื่อประหยัดพลังงาน จะตื่นเองในช่วงตรวจถัดไป', en: 'Resting to save power · it wakes by itself for the next patrol' };
       case 'offline':
         return { th: 'ตรวจไม่ได้จนกว่าตู้จะกลับมาออนไลน์ · บ้านนี้ยังไม่นับว่าตรวจแล้ว', en: 'It can’t be inspected until it is back online · this house is not counted as checked' };
       default:

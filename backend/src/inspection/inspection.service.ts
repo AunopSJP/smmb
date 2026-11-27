@@ -7,7 +7,7 @@ import { PG_POOL } from '../db/db.module.js';
 import { withTx, type Db } from '../db/tx.js';
 import { NotificationService } from '../push/notification.service.js';
 import { CodeAttempts } from '../rate-limit/code-attempts.js';
-import { BOX_TZ, boxStatus, type BoxStatus, localMinutes, mergeWindows, minutesIntoWindow } from '../box/box-config.js';
+import { BOX_TZ, type BoxStatus, localMinutes, mergeWindows, minutesIntoWindow } from '../box/box-config.js';
 import { BoxConfigService } from '../box/box-config.service.js';
 import { badgeToken, readBadge } from '../box/box-crypto.js';
 import { BoxJobService, type AttemptBody, type Verdict } from '../box/box-job.service.js';
@@ -62,7 +62,7 @@ export interface OfficerBoxDetailDto {
     house_no: string;
     name: string;
     area: string | null;
-    status: ReturnType<typeof boxStatus>;
+    status: BoxStatus;
     service_active: boolean;
     battery: { pct: number; charging: boolean | null; reported_at: string | null } | null;
     last_seen_at: string | null;
@@ -413,7 +413,12 @@ export class InspectionService implements OnModuleInit {
     }));
     // หลังถัดไป: ข้ามตู้ที่ตรวจไม่ได้ตอนนี้ (ออฟไลน์/ปิดบริการ) · ถ้าที่เหลือตรวจไม่ได้ทุกหลัง ก็ยังชี้หลังแรก (ยังไม่ครบ ไม่ใช่ null)
     const unchecked = houses.filter((h) => !h.checked_at);
-    const next = unchecked.find((h) => h.status === 'online' || h.status === 'sleeping') ?? unchecked[0] ?? null;
+    // ในเวลาตรวจ ตู้ที่ตื่นอยู่มาก่อนตู้พัก (ตู้พักสแกนตอนนั้นไม่ได้)
+    const next =
+      (current ? unchecked.find((h) => h.status === 'online') : undefined) ??
+      unchecked.find((h) => h.status === 'online' || h.status === 'sleeping') ??
+      unchecked[0] ??
+      null;
     return {
       in_window: !!current,
       window: current
@@ -433,22 +438,17 @@ export class InspectionService implements OnModuleInit {
     if (!zones.length) throw new NotFoundException();
     const { rows } = await this.pool.query<{
       box_id: string; house_no: string | null; name: string | null; area: string | null; owner_user_id: string | null;
-      service_active: boolean; battery_pct: number | null; charging: boolean | null; battery_date: Date | null;
+      service_active: boolean; battery_pct: number | null; charging: boolean | null; battery_date: Date | null; config_override: Record<string, unknown>;
       last_seen_date: Date | null; last_poll_date: Date | null; has_pin: boolean;
     }>(
-      `SELECT b.box_id, b.house_no, b.name, b.area, b.owner_user_id, b.service_active, b.battery_pct, b.charging, b.battery_date,
+      `SELECT b.box_id, b.house_no, b.name, b.area, b.owner_user_id, b.service_active, b.battery_pct, b.charging, b.battery_date, b.config_override,
               b.last_seen_date, b.last_poll_date, (b.lat IS NOT NULL) AS has_pin
        FROM app.box_tb b WHERE b.box_id = $1`,
       [boxId],
     );
     const b = rows[0];
     if (!b) throw new NotFoundException();
-    const { config } = await this.boxConfigs.forBox(boxId);
-    const status = boxStatus(
-      { owner_user_id: b.owner_user_id, service_active: b.service_active, last_seen_date: b.last_seen_date, last_poll_date: b.last_poll_date },
-      config.windows,
-      config.longpoll_wait_s,
-    );
+    const status = (await this.boxConfigs.statusOf([b])).get(boxId) ?? 'offline';
     const { rows: recent } = await this.pool.query<{ inspection_id: string; checked_date: Date; display_name: string; agency_name: string }>(
       `SELECT i.inspection_id, i.checked_date, u.display_name, a.name AS agency_name
        FROM app.inspection_tb i

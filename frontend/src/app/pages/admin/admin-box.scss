@@ -80,7 +80,7 @@
   line-height: 1.3;
   overflow-wrap: break-word;
 }
-/* ป้ายสถานะยาว ("พักอยู่ · นอกเวลาตรวจ") ต้องตัดบรรทัดได้ ไม่ล้นช่องแคบ (.chip กลางเป็น nowrap) */
+/* ป้ายสถานะยาว ("ออนไลน์ · ยังตรวจไม่ได้") ต้องตัดบรรทัดได้ ไม่ล้นช่องแคบ (.chip กลางเป็น nowrap) */
 .kpi-value .chip {
   white-space: normal;
   max-inline-size: 100%;

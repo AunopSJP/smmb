@@ -258,7 +258,7 @@ String signRequest(const char* secret, const char* method, const String& path,
 | วันละครั้ง (`report_at`) | `POST /v1/box/report` | `{ fw, config_ver, battery_pct, battery_mv, charging, solar_mv, temp_c, rssi, wake_count, jobs_done, scan_fail, wifi_fail, uptime_s }` | 200 `{ server_time, config_ver, config? }` · แบต < 20% เซิร์ฟเวอร์แจ้งเจ้าของบ้าน + แอดมิน |
 | ในเวลาตรวจ | `GET /v1/box/jobs?wait=50` | — | 204 (ไม่มีงาน) · 200 `{ server_time, config_ver, job: { job_id, type, expires_at, scan_timeout_s, attempt_max } }` |
 | เปิดกล้องพร้อม | `POST /v1/box/jobs/{job_id}/ready` | `{ "flash": false }` | 200 · 410 `JOB_EXPIRED` · 404 `JOB_NOT_FOUND` |
-| อ่าน QR แต่ละครั้ง | `POST /v1/box/jobs/{job_id}/result` | `{ attempt, read_ok, qr_text, read_ms, flash }` | 200 `{ status: "pass" \| "retry" \| "fail", attempts_left? }` |
+| อ่าน QR แต่ละครั้ง | `POST /v1/box/jobs/{job_id}/result` | `{ attempt, read_ok, qr_text, read_ms, flash }` | 200 `{ status: "pass" \| "retry" \| "fail", attempts_left?, rest? }` — `rest` เฉพาะผ่านของงานตรวจ · ไม่มีฟิลด์ = `true` (โปรโตคอล §2.5) |
 | เหตุการณ์อื่น | `POST /v1/box/events` | `{ "type": "wifi_reset" \| "battery_critical" \| "camera_error" }` | 200 · ส่งครั้งเดียว ไม่ได้ก็ไม่เป็นไร · ชื่อ type ใช้ได้เฉพาะ a-z และ _ |
 | สถานะกล้อง (เฉพาะงาน `test`) | `POST /v1/box/events` | `camera_test_started` / `camera_ready` / `camera_scan_result` | HMAC เหมือน endpoint อื่น · ไม่ส่งภาพ · แสดงในแอดมิน D04 |
 

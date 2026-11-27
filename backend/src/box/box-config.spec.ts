@@ -1,5 +1,6 @@
 import {
   boxStatus,
+  patrolComplete,
   configVersion,
   DEFAULT_CONFIG,
   localMinutes,
@@ -137,5 +138,43 @@ describe('patrol hours limit (เพดานเวลาตรวจรวม�
     expect(exceedsPatrolLimit(1439, 600, 4)).toBe(false); // ย่อลง (ยังเกินเพดาน) ผ่าน
     expect(exceedsPatrolLimit(300, 301, 4)).toBe(true); // เกินแล้วยังเพิ่มอีก ปฏิเสธ
     expect(exceedsPatrolLimit(0, 1439, 24)).toBe(false); // แอดมินขยายเป็น 24 ผ่าน
+  });
+});
+
+describe('patrolComplete (ตรวจครบ)', () => {
+  const agencies = (list: Record<string, [string, string][]>) => new Map(Object.entries(list));
+  const passes = (list: Record<string, string> = {}) => new Map(Object.entries(list).map(([id, at]) => [id, bkk(at)]));
+
+  it('needs a pass from every agency in its window, within that window', () => {
+    const w = agencies({ a: [['06:00', '09:00']], b: [['08:00', '10:00']] });
+    expect(patrolComplete(w, passes({ a: '06:30' }), bkk('07:00'))).toBe(true); // b ยังไม่ถึงช่วง
+    expect(patrolComplete(w, passes({ a: '06:30' }), bkk('08:30'))).toBe(false);
+    expect(patrolComplete(w, passes({ a: '06:30', b: '08:10' }), bkk('08:30'))).toBe(true);
+  });
+
+  it('counts a window the box already has to be awake for (2 minutes ahead)', () => {
+    const w = agencies({ a: [['06:00', '09:00']], b: [['07:00', '07:30']] });
+    expect(patrolComplete(w, passes({ a: '06:30' }), bkk('06:57'))).toBe(true);
+    expect(patrolComplete(w, passes({ a: '06:30' }), bkk('06:58'))).toBe(false);
+  });
+
+  it('a pass from an earlier round does not count, and the wake-up lead crosses midnight', () => {
+    const w = agencies({ a: [['06:00', '06:30'], ['07:00', '07:30']] });
+    expect(patrolComplete(w, passes({ a: '06:10' }), bkk('07:10'))).toBe(false);
+    expect(patrolComplete(agencies({ a: [['00:00', '00:30']] }), passes({ a: '00:10' }), bkk('23:59'))).toBe(false);
+  });
+});
+
+describe('boxStatus resting during patrol hours', () => {
+  const now = bkk('07:00');
+  const base = { service_active: true, owner_user_id: 'U-0001', last_seen_date: new Date(now.getTime() - 600_000) };
+  const windows: [string, string][] = [['06:00', '09:00']];
+
+  it('is sleeping instead of offline, and at once when the box said it went to sleep', () => {
+    const silent = { ...base, last_poll_date: new Date(now.getTime() - 600_000) };
+    const justPolled = { ...base, last_poll_date: new Date(now.getTime() - 10_000) };
+    expect(boxStatus(silent, windows, 50, now, { asleep: false })).toBe('sleeping');
+    expect(boxStatus(justPolled, windows, 50, now, { asleep: false })).toBe('online');
+    expect(boxStatus(justPolled, windows, 50, now, { asleep: true })).toBe('sleeping');
   });
 });

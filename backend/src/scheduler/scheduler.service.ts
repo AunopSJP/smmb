@@ -114,13 +114,15 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     if (!rows.length) return 0;
     const windows = await this.configs.windowsOf(rows.map((r) => r.box_id));
     const admins = await this.adminIds();
+    // เงื่อนไขเดียวกับสถานะ "ตู้พัก" ที่แสดง
+    const resting = await this.configs.restingBoxes(windows, now);
     let alerted = 0;
     for (const b of rows) {
       const into = minutesIntoWindow(windows.get(b.box_id) ?? [], now);
       const polling = b.last_poll_date !== null && now.getTime() - b.last_poll_date.getTime() <= OFFLINE_AFTER_MS;
       const down = into !== null && into >= WINDOW_GRACE_MIN && !polling;
-      // ตู้ตรวจผ่านแล้วหลับพักถึงสิ้นสุดช่วง (เฟิร์มแวร์ 0.2.25) → ไม่ใช่ตู้หลุด · ไม่แจ้ง
-      if (down && (await this.restedAfterPass(b.box_id, into))) continue;
+      // ตู้พัก (ตรวจครบ หรือแจ้งว่าหลับหลังตรวจผ่าน) → ไม่ใช่ตู้หลุด · ไม่แจ้ง
+      if (down && resting.has(b.box_id)) continue;
       if (!down) {
         if (b.offline_notified_date && (into === null || polling)) {
           await this.pool.query(`UPDATE app.box_tb SET offline_notified_date = NULL WHERE box_id = $1`, [b.box_id]);
@@ -135,15 +137,6 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       alerted++;
     }
     return alerted;
-  }
-
-  /** ตู้นี้เพิ่งตรวจผ่านในช่วงตรวจที่กำลังเดินอยู่ไหม (เริ่มช่วงมาแล้ว `intoMin` นาที) */
-  private async restedAfterPass(boxId: string, intoMin: number): Promise<boolean> {
-    const { rows } = await this.pool.query(
-      `SELECT 1 FROM app.inspection_tb WHERE box_id = $1 AND status = 'passed' AND checked_date >= now() - ($2::int * interval '1 minute') LIMIT 1`,
-      [boxId, intoMin],
-    );
-    return rows.length > 0;
   }
 
   // ── ตู้เงียบ ──────────────────────────────────────────────────────────

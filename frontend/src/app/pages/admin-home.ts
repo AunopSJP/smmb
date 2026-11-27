@@ -416,7 +416,7 @@ export class AdminHome implements OnInit {
   protected readonly kpis = computed(() => {
     const requests = this.pendingCount() + this.technicianRequests();
     return [
-      { key: 'online', label: { th: 'ตู้ออนไลน์', en: 'Boxes online' }, text: `${this.online()}/${this.totalBoxes()}`, n: 0, tone: '', hint: { th: 'รวมตู้ที่พักอยู่', en: 'incl. sleeping' }, path: screenUrl('D03'), query: null as Record<string, string> | null },
+      { key: 'online', label: { th: 'ตู้ออนไลน์', en: 'Boxes online' }, text: `${this.online()}/${this.totalBoxes()}`, n: 0, tone: '', hint: { th: 'รวมตู้พัก', en: 'incl. resting' }, path: screenUrl('D03'), query: null as Record<string, string> | null },
       { key: 'offline', label: { th: 'ตู้ไม่ออนไลน์', en: 'Offline' }, text: String(this.offline()), n: this.offline(), tone: 'danger', hint: { th: 'ติดต่อไม่ได้', en: 'not reachable' }, path: screenUrl('D03'), query: { filter: 'offline' } },
       { key: 'low', label: { th: 'แบตต่ำ', en: 'Low battery' }, text: String(this.lowCount()), n: this.lowCount(), tone: 'warn', hint: { th: `ต่ำกว่า ${LOW_BATTERY_PCT}%`, en: `below ${LOW_BATTERY_PCT}%` }, path: screenUrl('D03'), query: { filter: 'low' } },
       { key: 'qr', label: { th: 'ปัญหา QR', en: 'QR issues' }, text: String(this.qrTotal()), n: this.qrTotal(), tone: 'warn', hint: { th: 'เสีย · น่าสงสัย · ใกล้หมดอายุ', en: 'damaged · suspicious · expiring' }, path: screenUrl('D05'), query: null },
@@ -432,7 +432,7 @@ export class AdminHome implements OnInit {
     if (!b) return [];
     return [
       { key: 'online', label: { th: 'ออนไลน์', en: 'Online' }, n: b.online, tone: 'var(--ok)', query: null },
-      { key: 'sleeping', label: { th: 'พักอยู่', en: 'Sleeping' }, n: b.sleeping, tone: 'color-mix(in srgb, var(--text-muted) 70%, transparent)', query: null },
+      { key: 'sleeping', label: { th: 'ตู้พัก', en: 'Resting' }, n: b.sleeping, tone: 'color-mix(in srgb, var(--text-muted) 70%, transparent)', query: null },
       { key: 'offline', label: { th: 'ไม่ออนไลน์', en: 'Offline' }, n: b.offline, tone: 'var(--sos)', query: { filter: 'offline' } },
       { key: 'closed', label: { th: 'ปิดบริการ', en: 'Service closed' }, n: b.service_closed, tone: 'var(--orange-line)', query: null },
       { key: 'unbound', label: { th: 'ยังไม่ผูกเจ้าของ', en: 'Unbound' }, n: b.unbound, tone: 'var(--line-strong)', query: { filter: 'unbound' } },
