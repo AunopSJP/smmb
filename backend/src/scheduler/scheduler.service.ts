@@ -219,7 +219,10 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
        SET health = 'suspicious', health_reasons = array_append(health_reasons, 'not_scanned_2d')
        WHERE q.status = 'active' AND q.slot = '1' AND q.health = 'ok'
          AND coalesce(q.last_scanned_date, q.created_date) <= now() - $1::interval
-         AND EXISTS (SELECT 1 FROM app.zone_box_tb zb WHERE zb.box_id = q.box_id)`,
+         AND EXISTS (SELECT 1 FROM app.zone_box_tb zb
+                     JOIN app.zone_tb z ON z.zone_id = zb.zone_id AND z.deleted_date IS NULL
+                     JOIN app.agency_tb a ON a.agency_id = z.agency_id AND a.status = 'approved'
+                     WHERE zb.box_id = q.box_id)`,
       [QR_UNSCANNED_AFTER],
     );
     await this.pool.query(`UPDATE app.box_qr_code_tb SET health_notified_date = NULL WHERE health = 'ok' AND health_notified_date IS NOT NULL`);

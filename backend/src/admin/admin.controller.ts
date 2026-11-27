@@ -42,12 +42,17 @@ class UserRoleParam extends UserIdParam {
 }
 
 class ListAgenciesQuery {
-  @IsOptional() @IsIn(['pending', 'approved', 'rejected']) status?: 'pending' | 'approved' | 'rejected';
+  @IsOptional() @IsIn(['pending', 'approved', 'rejected', 'suspended']) status?: 'pending' | 'approved' | 'rejected' | 'suspended';
   @IsOptional() @IsString() @MaxLength(100) q?: string;
 }
 
 class RejectAgencyDto {
   @IsOptional() @Transform(trim) @IsString() @MaxLength(500) reason?: string;
+}
+
+class SuspendAgencyDto {
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString() @Length(3, 300) reason!: string;
 }
 
 class HeadInfo {
@@ -148,6 +153,20 @@ export class AdminController {
   @Post('agencies/:id/reject')
   async rejectAgency(@Auth() auth: AuthContext, @Param() p: AgencyIdParam, @Body() dto: RejectAgencyDto) {
     await this.agencies.reject(auth.userId, p.id, dto.reason || undefined);
+    return { ok: true };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('agencies/:id/suspend')
+  async suspendAgency(@Auth() auth: AuthContext, @Param() p: AgencyIdParam, @Body() dto: SuspendAgencyDto) {
+    await this.agencies.suspend(auth.userId, p.id, dto.reason);
+    return { ok: true };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('agencies/:id/restore')
+  async restoreAgency(@Auth() auth: AuthContext, @Param() p: AgencyIdParam) {
+    await this.agencies.restore(auth.userId, p.id);
     return { ok: true };
   }
 

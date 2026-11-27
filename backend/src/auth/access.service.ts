@@ -14,7 +14,7 @@ export interface Access {
     id: string;
     name: string;
     type: string;
-    agencyStatus: 'pending' | 'approved' | 'rejected';
+    agencyStatus: 'pending' | 'approved' | 'rejected' | 'suspended';
     contact: string | null;
     membershipStatus: MembershipStatus;
     isHead: boolean;
@@ -50,7 +50,7 @@ export class AccessService {
         agency_id: string;
         name: string;
         type: string;
-        agency_status: 'pending' | 'approved' | 'rejected';
+        agency_status: 'pending' | 'approved' | 'rejected' | 'suspended';
         contact: string | null;
         member_status: MembershipStatus;
         is_head: boolean;

@@ -9,7 +9,7 @@ import { AccessService, type Access } from './access.service.js';
 /**
  * ตรวจว่าผู้ใช้มีบทบาทที่ route ต้องใช้ (อย่างใดอย่างหนึ่ง)
  * - ไม่มี → 404 (ไม่บอกว่ามี route/ของอยู่ — CLAUDE.md กฎข้อ 9)
- * - เป็นเจ้าหน้าที่ที่รออนุมัติ/ถูกปฏิเสธ และ route ต้องใช้ officer/head → 403 ACCOUNT_PENDING / ACCOUNT_REJECTED
+ * - เป็นเจ้าหน้าที่ที่รออนุมัติ/ถูกปฏิเสธ และ route ต้องใช้ officer/head → 403 ACCOUNT_PENDING / ACCOUNT_REJECTED · หน่วยงานถูกระงับ → 403 AGENCY_SUSPENDED
  */
 export function checkRoles(required: RequiredRole[], access: Access): void {
   if (required.some((r) => access.roles.has(r))) return;
@@ -22,6 +22,9 @@ export function checkRoles(required: RequiredRole[], access: Access): void {
     }
     if (a.agencyStatus === 'pending' || a.membershipStatus === 'pending') {
       throw new AppError(HttpStatus.FORBIDDEN, 'ACCOUNT_PENDING', 'waiting for approval');
+    }
+    if (a.agencyStatus === 'suspended' && a.membershipStatus === 'active') {
+      throw new AppError(HttpStatus.FORBIDDEN, 'AGENCY_SUSPENDED', 'this agency is suspended');
     }
   }
   throw new NotFoundException();

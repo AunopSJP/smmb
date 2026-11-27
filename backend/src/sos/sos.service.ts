@@ -220,7 +220,7 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
     }
     const c = (await this.load(this.pool, id))!;
     await this.safeNotify(async () =>
-      this.notifications.notify(await this.recipients(id), {
+      this.notifications.notify(await this.activeRecipients(id), {
         type: 'sos_cancelled',
         data: { sos_id: id, house_no: c.house_no },
         link: `/officer/sos/case?id=${id}`,
@@ -300,7 +300,7 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
     await this.safeNotify(async () => {
       const data = { sos_id: id, house_no: c.house_no, officer_name: c.accepted_name, agency_name: c.accepted_agency };
       await this.notifications.notify([c.owner_user_id], { type: 'sos_accepted', data, link: `/home/sos/accepted?id=${id}`, tag: `sos-${id}` });
-      const others = (await this.recipients(id)).filter((u) => u !== userId);
+      const others = (await this.activeRecipients(id)).filter((u) => u !== userId);
       await this.notifications.notify(others, { type: 'sos_taken', data, link: `/officer/sos/case?id=${id}`, tag: `sos-${id}` });
     });
     await this.logAccess(userId, c.owner_user_id, id);
@@ -519,6 +519,17 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
     return rows.map((r) => r.user_id);
   }
 
+  /** ผู้รับที่หน่วยงานไม่ได้ถูกระงับ — ใช้กับข้อความแจ้งผลของเรื่อง (รับแล้ว/ยกเลิก) */
+  private async activeRecipients(id: string): Promise<string[]> {
+    const { rows } = await this.pool.query<{ user_id: string }>(
+      `SELECT r.user_id FROM app.sos_recipient_tb r
+       JOIN app.agency_tb a ON a.agency_id = r.agency_id AND a.status <> 'suspended'
+       WHERE r.sos_case_id = $1`,
+      [id],
+    );
+    return rows.map((r) => r.user_id);
+  }
+
   /** ผู้รับที่ยังมีสิทธิ์ (eligibleSql) · ไม่รวมคนที่คืนเรื่องนี้แล้ว */
   private async eligibleRecipients(id: string): Promise<string[]> {
     const { rows } = await this.pool.query<{ user_id: string }>(
@@ -531,7 +542,13 @@ export class SosService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async isRecipient(id: string, userId: string): Promise<boolean> {
-    const { rows } = await this.pool.query(`SELECT 1 FROM app.sos_recipient_tb WHERE sos_case_id = $1 AND user_id = $2`, [id, userId]);
+    // หน่วยงานถูกระงับ → ไม่เห็นเรื่องผ่านแถวผู้รับเดิม (แม้ยังเข้า route ได้ด้วยบทบาทเจ้าของบ้าน)
+    const { rows } = await this.pool.query(
+      `SELECT 1 FROM app.sos_recipient_tb r
+       JOIN app.agency_tb a ON a.agency_id = r.agency_id AND a.status <> 'suspended'
+       WHERE r.sos_case_id = $1 AND r.user_id = $2`,
+      [id, userId],
+    );
     return rows.length > 0;
   }
 

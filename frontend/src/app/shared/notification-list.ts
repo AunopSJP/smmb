@@ -49,6 +49,7 @@ const ICON: Record<string, { icon: IconName; tone: '' | 'warn' | 'danger' | 'ok'
   test: { icon: 'bell', tone: '' },
   agency_approved: { icon: 'check', tone: 'ok' },
   agency_rejected: { icon: 'info', tone: '' },
+  agency_suspended: { icon: 'info', tone: 'warn' },
   zone_join_request: { icon: 'user', tone: 'warn' },
   zone_join_accepted: { icon: 'check', tone: 'ok' },
   zone_join_rejected: { icon: 'info', tone: '' },

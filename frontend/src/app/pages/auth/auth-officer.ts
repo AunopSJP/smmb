@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal, type OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { apiError } from '../../core/api';
@@ -231,7 +231,33 @@ export class AuthSignupOfficer {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack grow">
-      @if (state() === 'rejected') {
+      @if (state() === 'suspended') {
+        <div class="result">
+          <span class="big-icon danger" aria-hidden="true">!</span>
+          <h1>{{ i18n.t({ th: 'หน่วยงานถูกระงับ', en: 'Agency suspended' }) }}</h1>
+          <p class="muted small">
+            {{ i18n.t({ th: 'ผู้ดูแลระบบระงับหน่วยงานนี้ชั่วคราว ตอนนี้ตรวจตู้และรับ SOS ไม่ได้', en: 'The admin has suspended this agency. You cannot inspect mailboxes or receive SOS for now.' }) }}
+          </p>
+        </div>
+        <section class="card">
+          <dl class="kv">
+            <dt>{{ i18n.t({ th: 'หน่วยงาน', en: 'Agency' }) }}</dt><dd>{{ i18n.t(req().agency) }}</dd>
+            @if (suspendReason(); as why) {
+              <dt>{{ i18n.t({ th: 'เหตุผล', en: 'Reason' }) }}</dt><dd>{{ why }}</dd>
+            }
+          </dl>
+        </section>
+        <app-contact-card [label]="{ th: 'ติดต่อผู้ดูแลระบบ', en: 'Contact the admin' }" [contact]="support()" />
+
+        <div class="stack push-end">
+          <button type="button" class="btn" (click)="check()">{{ i18n.t({ th: 'ตรวจสถานะอีกครั้ง', en: 'Check again' }) }}</button>
+          @if (otherHome(); as h) {
+            <button type="button" class="btn secondary" (click)="leave(h)">{{ i18n.t({ th: 'กลับหน้าหลัก', en: 'Back to home' }) }}</button>
+          } @else {
+            <button type="button" class="btn secondary" (click)="signout()">{{ i18n.t({ th: 'ออกจากระบบ', en: 'Sign out' }) }}</button>
+          }
+        </div>
+      } @else if (state() === 'rejected') {
         <div class="result">
           <span class="big-icon danger" aria-hidden="true">✕</span>
           <h1>{{ i18n.t({ th: 'คำขอถูกปฏิเสธ', en: 'Request declined' }) }}</h1>
@@ -289,7 +315,12 @@ export class AuthSignupOfficer {
     }
   `,
 })
-export class AuthWaitingHead {
+export class AuthWaitingHead implements OnInit {
+  private readonly http = inject(HttpClient);
+  /** เหตุผลที่ถูกระงับ — เห็นเฉพาะหัวหน้า (GET /agency) */
+  protected readonly suspendReason = signal('');
+  /** ช่องทางติดต่อผู้ดูแลระบบ (GET /support) */
+  protected readonly support = signal('');
   protected readonly i18n = inject(I18n);
   private readonly demo = inject(AuthDemo);
   private readonly session = inject(DemoSession);
@@ -308,15 +339,30 @@ export class AuthWaitingHead {
     return { agency: { th: a?.name ?? '-', en: a?.name ?? '-' }, contact: a?.contact ?? '' };
   });
 
+  async ngOnInit(): Promise<void> {
+    if (this.state() !== 'suspended') return;
+    // Me ที่ค้างอยู่อาจยังมีบทบาทเจ้าหน้าที่ → โหลดใหม่
+    const me = await this.realSession.refresh();
+    if (me?.agency?.is_head) {
+      const a = await firstValueFrom(this.http.get<{ suspend_reason: string | null }>('/api/v1/agency')).catch(() => null);
+      this.suspendReason.set(a?.suspend_reason ?? '');
+    }
+    const s = await firstValueFrom(this.http.get<{ contact: string | null }>('/api/v1/support')).catch(() => null);
+    this.support.set(s?.contact ?? '');
+  }
+
   /** GET /me → agency_status: active → ใช้งาน (หรือหน้าเปิดแจ้งเตือน) · rejected → A11-b */
   protected async check(): Promise<void> {
     const me = await this.realSession.refresh();
     if (!me) {
       void this.router.navigateByUrl(screenUrl('A04'));
     } else if (me.agency_status === 'active' && (me.roles.includes('officer') || me.roles.includes('head'))) {
-      this.toast.show({ th: 'หัวหน้ายืนยันแล้ว', en: 'Approved by your head' });
+      this.toast.show(this.state() === 'suspended' ? { th: 'หน่วยงานเปิดใช้งานแล้ว', en: 'Your agency is active again' } : { th: 'หัวหน้ายืนยันแล้ว', en: 'Approved by your head' });
       // ต้องเปิดแจ้งเตือนก่อนไหม — server ตัดสิน (403 PUSH_REQUIRED → A12 ผ่าน apiInterceptor)
-      void this.router.navigateByUrl('/officer', { replaceUrl: true });
+      void this.router.navigateByUrl(me.roles.includes('head') ? ROLE_HOME.head : ROLE_HOME.officer, { replaceUrl: true });
+    } else if (me.agency_status === 'suspended') {
+      if (this.state() === 'suspended') this.toast.show({ th: 'หน่วยงานยังถูกระงับอยู่', en: 'The agency is still suspended' });
+      else void this.router.navigate([screenUrl('A11')], { queryParams: { state: 'suspended' }, replaceUrl: true });
     } else if (me.agency_status === 'rejected') {
       void this.router.navigate([screenUrl('A11')], { queryParams: { state: 'rejected' }, replaceUrl: true });
     } else {

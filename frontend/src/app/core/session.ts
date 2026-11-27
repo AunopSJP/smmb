@@ -12,7 +12,7 @@ import { screenUrl } from '../screens/registry';
 export interface Me {
   id: string;
   roles: DemoRole[];
-  agency_status: 'pending' | 'active' | 'rejected' | 'disabled' | null;
+  agency_status: 'pending' | 'active' | 'rejected' | 'disabled' | 'suspended' | null;
   name: string;
   display_name: string;
   phone: string;
@@ -43,6 +43,8 @@ export const ROLE_HOME: Record<DemoRole, string> = { owner: '/home', officer: '/
 
 /** บัญชีที่ล็อกอินแล้วแต่ยังไม่มีบทบาทใช้งาน — ไปหน้ารอที่ตรงสถานะ (ห้าม fallback เป็น owner) */
 function pendingPath(me: Me): string {
+  // หน่วยงานถูกระงับ: หัวหน้าและลูกทีมใช้หน้าเดียวกัน
+  if (me.agency_status === 'suspended') return `${screenUrl('A11')}?state=suspended`;
   const rejected = me.agency_status === 'rejected';
   if (me.agency?.is_head) return `${screenUrl('L02')}${rejected ? '?state=rejected' : ''}`;
   if (me.agency_status === 'pending' || rejected) return `${screenUrl('A11')}${rejected ? '?state=rejected' : ''}`;
@@ -167,6 +169,8 @@ export function requireRole(role: DemoRole): CanActivateFn {
     if (me.terms_update_required) return router.createUrlTree([screenUrl('A13')], { queryParams: { update: 1 } });
     const ok = me.roles.includes(role) || (role === 'officer' && me.roles.includes('head'));
     if (!ok) {
+      // กดเข้าพื้นที่เจ้าหน้าที่/หัวหน้าระหว่างหน่วยงานถูกระงับ → บอกเหตุ (บทบาทอื่นยังใช้ได้จากหน้านั้น)
+      if ((role === 'officer' || role === 'head') && me.agency_status === 'suspended') return router.parseUrl(pendingPath(me));
       // ยังไม่มีบทบาทที่ใช้ได้ (รออนุมัติ) → หน้ารอของสถานะนั้น · มีบทบาทอื่น → หน้าแรกของบทบาทนั้น
       if (!me.roles.length) return router.parseUrl(pendingPath(me));
       // หัวหน้า (มีทั้ง officer+head) ไปหน้าหัวหน้า — ตรงกับ homeRedirect/guestOnly (เดิมใช้ roles[0] จึงไปหน้าเจ้าหน้าที่)

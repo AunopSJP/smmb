@@ -55,6 +55,8 @@ export interface BoxAgency {
   name: string;
   type: string;
   zone_names: string[];
+  /** ถูกระงับอยู่ — ยังไม่ได้ดูแลจนกว่าจะเปิดคืน */
+  suspended: boolean;
   /** หน่วยงานสุดท้าย — เลิกแล้วไม่มีใครรับ SOS */
   last: boolean;
 }

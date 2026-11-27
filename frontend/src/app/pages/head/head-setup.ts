@@ -355,6 +355,8 @@ export class HeadPending implements OnInit {
       await this.realSession.refresh();
       this.realSession.use('head');
       void this.router.navigateByUrl(screenUrl('L03'), { replaceUrl: true });
+    } else if (a?.status === 'suspended') {
+      void this.router.navigate([screenUrl('A11')], { queryParams: { state: 'suspended' }, replaceUrl: true });
     } else if (a?.status === 'rejected') {
       void this.router.navigate([screenUrl('L02')], { queryParams: { state: 'rejected' }, replaceUrl: true });
     } else {

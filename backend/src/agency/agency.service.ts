@@ -64,9 +64,11 @@ export interface AgencyDto {
   id: string;
   name: string;
   type: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'suspended';
   group_code: string | null;
   reject_reason: string | null;
+  /** เหตุผลที่แอดมินระงับ (มีเฉพาะตอน status = suspended) */
+  suspend_reason: string | null;
   contact: string | null;
   profile: AgencyProfile;
   heads: { id: string; display_name: string }[];
@@ -121,6 +123,7 @@ export class AgencyService {
       status: AgencyDto['status'];
       group_code: string | null;
       reject_reason: string | null;
+      suspend_reason: string | null;
       contact: string | null;
       address: string | null;
       subdistrict: string | null;
@@ -135,7 +138,7 @@ export class AgencyService {
       lat: string | null;
       lng: string | null;
     }>(
-      `SELECT a.agency_id, a.name, a.type, a.status, a.group_code, a.reject_reason, a.contact,
+      `SELECT a.agency_id, a.name, a.type, a.status, a.group_code, a.reject_reason, a.suspend_reason, a.contact,
               a.address, a.subdistrict, a.district, a.province, a.postal_code, a.phone, a.email, a.contact_person, a.coverage_note, a.registration_no, a.lat, a.lng
        FROM app.agency_member_tb m JOIN app.agency_tb a ON a.agency_id = m.agency_id
        WHERE m.user_id = $1 AND m.is_head AND m.status IN ('active', 'pending', 'rejected')`,
@@ -156,6 +159,7 @@ export class AgencyService {
       // รหัสกลุ่มใช้ได้เฉพาะหน่วยงานที่อนุมัติแล้ว
       group_code: a.status === 'approved' ? a.group_code : null,
       reject_reason: a.status === 'rejected' ? a.reject_reason : null,
+      suspend_reason: a.status === 'suspended' ? a.suspend_reason : null,
       contact: a.contact,
       profile: {
         address: a.address, subdistrict: a.subdistrict, district: a.district, province: a.province, postal_code: a.postal_code,

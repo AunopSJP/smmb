@@ -300,6 +300,7 @@ export class AuthService {
     if (known[0].seen || known[0].n === 0) return;
     const { rows: m } = await this.pool.query<{ agency_id: string; name: string }>(
       `SELECT m.agency_id, u.display_name AS name FROM app.agency_member_tb m JOIN app.user_tb u ON u.user_id = m.user_id
+       JOIN app.agency_tb a ON a.agency_id = m.agency_id AND a.status = 'approved'
        WHERE m.user_id = $1 AND m.status = 'active'`,
       [userId],
     );
